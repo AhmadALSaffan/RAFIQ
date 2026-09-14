@@ -1,6 +1,6 @@
 [project]
 name = "rafiq-agent"
-version = "0.1.0"
+version = "0.2.1"
 description = "Rafiq local agent runtime (FastAPI sidecar)"
 requires-python = ">=3.11"
 dependencies = [
@@ -24,6 +24,11 @@ agent = [
   "playwright>=1.49",
   "pyautogui>=0.9.54",
   "mss>=10.0",
+]
+# Sign in to GitHub Copilot with a GitHub account (official Copilot SDK). Optional — without
+# it Copilot just shows as unavailable: `pip install -e ".[copilot]"`.
+copilot = [
+  "github-copilot-sdk>=1.0",
 ]
 # Everything needed to lint, test, and freeze the agent: `pip install -e ".[dev]"`.
 dev = [

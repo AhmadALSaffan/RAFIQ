@@ -1,3 +1,4 @@
+import { direction } from "../i18n";
 /**
  * Latin mentions inside Arabic text (`@src/lib/api.ts`, `#RAF-12`) get reordered by the
  * bidi algorithm — the `@` jumps to the wrong side and the sentence reads scrambled.
@@ -64,9 +65,9 @@ export function isolateMentions(markdown: string): string {
 
 /**
  * Direction for a text field. `dir="auto"` looks at the *value*, so an empty field falls
- * back to left-to-right and the Arabic placeholder lands on the wrong side. Empty means
- * RTL here (the app's language); once there's text, let the text decide.
+ * back to left-to-right and a placeholder in the UI language could land on the wrong side.
+ * Empty means the UI's direction; once there's text, let the text decide.
  */
-export function fieldDir(value: string | null | undefined): "rtl" | "auto" {
-  return value && value.trim() ? "auto" : "rtl";
+export function fieldDir(value: string | null | undefined): "rtl" | "ltr" | "auto" {
+  return value && value.trim() ? "auto" : direction();
 }

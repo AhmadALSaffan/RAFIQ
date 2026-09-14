@@ -23,6 +23,7 @@ import { StatusPill } from "../../components/StatusPill";
 import { SILENT_TOOLS, textOf } from "./draft";
 import { SUGGESTIONS } from "./constants";
 
+import { t } from "../../i18n";
 /** First screen of an empty chat: what رفيق can do, in one glance. */
 export function Welcome({ hasModels, onPick, onModels }: { hasModels: boolean; onPick: (text: string) => void; onModels: () => void }) {
   return (
@@ -39,11 +40,11 @@ export function Welcome({ hasModels, onPick, onModels }: { hasModels: boolean; o
       >
         <Logo className="h-16 w-16" />
       </motion.div>
-      <h2 className="mt-5 text-2xl font-semibold">أهلاً، شو ببالك اليوم؟</h2>
+      <h2 className="mt-5 text-2xl font-semibold">{t("أهلاً، شو ببالك اليوم؟")}</h2>
       <p className="mt-2 max-w-md text-sm leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
         {hasModels
-          ? "اسألني أي شي، ابعتلي صور أو ملفات، حدد مجلد من فوق لأعدّل ملفاته، أو ابعت خطة وأنا بحوّلها لمهام."
-          : "أضف نموذج شغّال أولاً عشان نقدر نحكي."}
+          ? t("اسألني أي شي، ابعتلي صور أو ملفات، حدد مجلد من فوق لأعدّل ملفاته، أو ابعت خطة وأنا بحوّلها لمهام.")
+          : t("أضف نموذج شغّال أولاً عشان نقدر نحكي.")}
       </p>
 
       {hasModels ? (
@@ -70,7 +71,7 @@ export function Welcome({ hasModels, onPick, onModels }: { hasModels: boolean; o
       ) : (
         <Button className="mt-6" onClick={onModels}>
           <ModelsIcon className="h-4 w-4" />
-          روح للنماذج
+          {t("روح للنماذج")}
         </Button>
       )}
     </motion.div>
@@ -104,7 +105,7 @@ export function MessageView({ message, model, onOpenTask }: { message: ChatMessa
         transition={{ duration: 0.22, ease: easeOutExpo }}
         className="group flex max-w-[85%] flex-col items-end gap-2 self-end"
         onContextMenu={menu(() => [
-          { id: "copy", label: "انسخ الرسالة", onSelect: () => void navigator.clipboard.writeText(message.content) },
+          { id: "copy", label: t("انسخ الرسالة"), onSelect: () => void navigator.clipboard.writeText(message.content) },
         ])}
       >
         {message.attachments && message.attachments.length > 0 && <AttachmentGallery attachments={message.attachments} align="end" />}
@@ -162,7 +163,7 @@ export function AssistantBlock({
       transition={{ duration: 0.2, ease: easeOutExpo }}
       className="group flex gap-3"
       onContextMenu={menu(() => [
-        { id: "copy-reply", label: "انسخ الرد", disabled: !text, onSelect: () => void navigator.clipboard.writeText(text) },
+        { id: "copy-reply", label: t("انسخ الرد"), disabled: !text, onSelect: () => void navigator.clipboard.writeText(text) },
       ])}
     >
       <motion.div
@@ -206,7 +207,7 @@ export function AssistantBlock({
             )}
           </motion.div>
         ))}
-        {thinking && <ThinkingDots label={visible.length ? "عم يكمّل…" : "عم يفكّر…"} />}
+        {thinking && <ThinkingDots label={visible.length ? t("عم يكمّل…") : t("عم يفكّر…")} />}
         {!live && text && (
           <button
             onClick={() =>
@@ -218,7 +219,7 @@ export function AssistantBlock({
             className="-mt-1 self-start rounded-md px-2 py-1 text-xs opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] focus-visible:opacity-100 group-hover:opacity-100"
             style={{ color: "var(--color-ink-muted)" }}
           >
-            {copied ? "انتسخ ✓" : "نسخ الرد"}
+            {copied ? t("انتسخ ✓") : t("نسخ الرد")}
           </button>
         )}
       </div>
@@ -272,7 +273,7 @@ function TaskCard({ taskId, title, onOpen, fresh }: { taskId: string; title: str
         </span>
         <span className="min-w-0">
           <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            {gone ? "مهمة انحذفت" : "مهمة جديدة انضافت للدور"}
+            {gone ? t("مهمة انحذفت") : t("مهمة جديدة انضافت للدور")}
           </span>
           <span className="block truncate text-sm font-medium">
             <TokenText text={title} />
@@ -290,7 +291,7 @@ function Reasoning({ text, live }: { text: string; live: boolean }) {
   return (
     <div>
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-        {live ? <ThinkingDots label="عم يفكّر…" /> : <span>{expanded ? "إخفاء التفكير ▴" : "عرض التفكير ▾"}</span>}
+        {live ? <ThinkingDots label={t("عم يفكّر…")} /> : <span>{expanded ? t("إخفاء التفكير ▴") : t("عرض التفكير ▾")}</span>}
       </button>
       <AnimatePresence initial={false}>
         {expanded && (
@@ -328,7 +329,7 @@ export function SummaryDivider({ summary }: { summary: string }) {
           style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
         >
           <CompressIcon className="h-3.5 w-3.5" />
-          اللي فوق انطوى بملخص — {open ? "إخفاء" : "اعرضه"}
+          {t("اللي فوق انطوى بملخص —")} {open ? t("إخفاء") : t("اعرضه")}
         </button>
         <span className="h-px flex-1" style={{ background: "var(--color-border)" }} />
       </div>

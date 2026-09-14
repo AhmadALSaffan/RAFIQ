@@ -26,9 +26,12 @@ import {
 } from "../components/Icons";
 import { DrawnCheck } from "../components/ui";
 
+import { locale, t } from "../i18n";
 const DEVELOPER = {
+  // The name in the UI's language; the second line shows it in the other script.
+  name: t("أحمد عليوي السفان"),
   nameAr: "أحمد عليوي السفان",
-  nameEn: "Ahmad AlSaffan",
+  nameEn: "Ahmed Eliwi AL Saffan",
   github: "https://github.com/AhmadALSaffan",
   handle: "AhmadALSaffan",
 };
@@ -36,39 +39,39 @@ const DEVELOPER = {
 const FEATURES = [
   {
     Icon: ChatIcon,
-    title: "المحادثات",
+    title: t("المحادثات"),
     to: "/chat",
-    body: "احكي معه متل ما بتحكي مع زميل. بيقرأ الملفات اللي بتشير عليها بـ @، بياخد صور ومرفقات، وعنده أوامر بـ / لتلخيص المحادثة وضبط الرد.",
+    body: t("احكي معه متل ما بتحكي مع زميل. بيقرأ الملفات اللي بتشير عليها بـ @، بياخد صور ومرفقات، وعنده أوامر بـ / لتلخيص المحادثة وضبط الرد."),
   },
   {
     Icon: TasksIcon,
-    title: "المهام",
+    title: t("المهام"),
     to: "/tasks",
-    body: "اعطيه شغلة وخلّيه يخلصها لحاله بمجلدك: بيقرأ ويكتب ملفات ويشغّل أوامر، بالدور، وبيوقف ياخد إذنك قبل أي خطوة حسّاسة.",
+    body: t("اعطيه شغلة وخلّيه يخلصها لحاله بمجلدك: بيقرأ ويكتب ملفات ويشغّل أوامر، بالدور، وبيوقف ياخد إذنك قبل أي خطوة حسّاسة."),
   },
   {
     Icon: SparkIcon,
-    title: "التصاميم",
+    title: t("التصاميم"),
     to: "/designs",
-    body: "صمّم الواجهة قبل ما تبرمجها: أسئلة brief، مهارات تصميم مدمجة بتشتغل مع أي نموذج، معاينة حيّة، وزر يبعت التصميم للجلسة اللي رح تبرمجه.",
+    body: t("صمّم الواجهة قبل ما تبرمجها: أسئلة brief، مهارات تصميم مدمجة بتشتغل مع أي نموذج، معاينة حيّة، وزر يبعت التصميم للجلسة اللي رح تبرمجه."),
   },
   {
     Icon: InboxIcon,
-    title: "شغلي",
+    title: t("شغلي"),
     to: "/work",
-    body: "مهامك من Jira و Linear و GitHub و GitLab بمكان واحد. بتغيّر حالتها، بتعلّق عليها، وبتسلّمها لرفيق يشتغل عليها.",
+    body: t("مهامك من Jira و Linear و GitHub و GitLab بمكان واحد. بتغيّر حالتها، بتعلّق عليها، وبتسلّمها لرفيق يشتغل عليها."),
   },
   {
     Icon: ModelsIcon,
-    title: "أي نموذج",
+    title: t("أي نموذج"),
     to: "/models",
-    body: "مش مربوط بشركة وحدة. حط مفتاحك لأي مزوّد، أو شغّل نموذج محلي على جهازك بـ Ollama.",
+    body: t("مش مربوط بشركة وحدة. حط مفتاحك لأي مزوّد، أو شغّل نموذج محلي على جهازك بـ Ollama."),
   },
   {
     Icon: ShieldIcon,
-    title: "إذنك أولاً",
+    title: t("إذنك أولاً"),
     to: "/settings",
-    body: "كل أداة إلها سياسة: اسأل، اسمح، أو امنع. المفاتيح محفوظة بمدير بيانات الاعتماد تبع ويندوز، ومحادثاتك ومهامك على جهازك.",
+    body: t("كل أداة إلها سياسة: اسأل، اسمح، أو امنع. المفاتيح محفوظة بمدير بيانات الاعتماد تبع ويندوز، ومحادثاتك ومهامك على جهازك."),
   },
 ] as const;
 
@@ -83,8 +86,8 @@ export function AboutPage() {
   }
 
   usePageMenu(() => [
-    { id: "github", label: "افتح صفحة المطوّر على GitHub", onSelect: () => void openExternal(DEVELOPER.github) },
-    { id: "copy-github", label: "انسخ رابط GitHub", onSelect: copyLink },
+    { id: "github", label: t("افتح صفحة المطوّر على GitHub"), onSelect: () => void openExternal(DEVELOPER.github) },
+    { id: "copy-github", label: t("انسخ رابط GitHub"), onSelect: copyLink },
   ]);
 
   return (
@@ -104,7 +107,7 @@ export function AboutPage() {
           transition={{ duration: 0.45, ease: easeOutExpo, delay: 0.08 }}
           className="mt-5 text-3xl font-bold"
         >
-          رفيق
+          {t("رفيق")}
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 8 }}
@@ -113,7 +116,7 @@ export function AboutPage() {
           className="mt-2 max-w-lg text-base leading-relaxed"
           style={{ color: "var(--color-ink-muted)", textWrap: "balance" }}
         >
-          مساعد ذكي على ويندوز، بيحكي عربي وبيشتغل على جهازك — مش بس بيجاوب، بيخلّص الشغل.
+          {t("مساعد ذكي على ويندوز، بيحكي عربي وبيشتغل على جهازك — مش بس بيجاوب، بيخلّص الشغل.")}
         </motion.p>
         <motion.span
           initial={{ opacity: 0 }}
@@ -129,17 +132,15 @@ export function AboutPage() {
 
       {/* What it is, in plain words. */}
       <section className="mt-12">
-        <SectionTitle>شو هو رفيق؟</SectionTitle>
+        <SectionTitle>{t("شو هو رفيق؟")}</SectionTitle>
         <p className="text-sm leading-7" style={{ color: "var(--color-ink)" }}>
-          رفيق تطبيق سطح مكتب بيربطك بنماذج الذكاء الاصطناعي اللي بتختارها، وبيعطيها أدوات حقيقية تشتغل فيها: تقرأ
-          وتكتب ملفات، تشغّل أوامر، وتتابع مهامك من أنظمة التتبّع. الواجهة عربية من الأساس ومن اليمين لليسار، والشغل
-          كله بيصير على جهازك وتحت عينك — ما في خطوة حسّاسة بتصير من غير ما توافق عليها.
+          {t("رفيق تطبيق سطح مكتب بيربطك بنماذج الذكاء الاصطناعي اللي بتختارها، وبيعطيها أدوات حقيقية تشتغل فيها: تقرأ وتكتب ملفات، تشغّل أوامر، وتتابع مهامك من أنظمة التتبّع. الواجهة عربية من الأساس ومن اليمين لليسار، والشغل كله بيصير على جهازك وتحت عينك — ما في خطوة حسّاسة بتصير من غير ما توافق عليها.")}
         </p>
       </section>
 
       {/* What it does — each item opens the page it describes. */}
       <section className="mt-10">
-        <SectionTitle>شو بيعمل</SectionTitle>
+        <SectionTitle>{t("شو بيعمل")}</SectionTitle>
         <motion.ul
           variants={listContainer}
           initial="hidden"
@@ -179,9 +180,9 @@ export function AboutPage() {
 
       {/* The providers that actually ship — straight from the Models page's list. */}
       <section className="mt-10">
-        <SectionTitle>بيشتغل مع</SectionTitle>
+        <SectionTitle>{t("بيشتغل مع")}</SectionTitle>
         <div className="flex flex-wrap gap-1.5">
-          {PROVIDERS.map((provider) => (
+          {PROVIDERS.filter((provider) => !provider.experimental).map((provider) => (
             <span
               key={provider.value}
               className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
@@ -196,7 +197,7 @@ export function AboutPage() {
 
       {/* The developer. */}
       <section className="mt-12">
-        <SectionTitle>المطوّر</SectionTitle>
+        <SectionTitle>{t("المطوّر")}</SectionTitle>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -212,13 +213,13 @@ export function AboutPage() {
           <Avatar />
           <div className="relative min-w-0 flex-1">
             <p className="text-lg font-semibold" style={{ textWrap: "balance" }}>
-              {DEVELOPER.nameAr}
+              {DEVELOPER.name}
             </p>
             <p className="mt-0.5 text-sm" style={{ color: "var(--color-ink-muted)" }}>
-              <bdi dir="ltr">{DEVELOPER.nameEn}</bdi>
+              {locale() === "ar" ? <bdi dir="ltr">{DEVELOPER.nameEn}</bdi> : <bdi dir="rtl">{DEVELOPER.nameAr}</bdi>}
             </p>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-              صمّم رفيق وبناه — من الواجهة العربية لمحرّك الوكيل اللي بيشتغل بالخلفية.
+              {t("صمّم رفيق وبناه — من الواجهة العربية لمحرّك الوكيل اللي بيشتغل بالخلفية.")}
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <motion.button
@@ -236,8 +237,8 @@ export function AboutPage() {
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={copyLink}
-                aria-label="انسخ رابط GitHub"
-                title="انسخ الرابط"
+                aria-label={t("انسخ رابط GitHub")}
+                title={t("انسخ الرابط")}
                 className="rounded-lg border p-2 transition-colors hover:bg-[var(--color-surface-2)]"
                 style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
               >
@@ -249,9 +250,9 @@ export function AboutPage() {
       </section>
 
       <footer className="mt-12 flex flex-col items-center gap-1 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
-        <p>مبني بـ Tauri و React و Python</p>
+        <p>{t("مبني بـ Tauri و React و Python")}</p>
         <p>
-          © {new Date().getFullYear()} {DEVELOPER.nameAr}
+          © {new Date().getFullYear()} {DEVELOPER.name}
         </p>
       </footer>
     </div>
@@ -282,11 +283,11 @@ function Avatar() {
       }}
     >
       {failed ? (
-        "أ"
+        t("أ")
       ) : (
         <img
           src={`${DEVELOPER.github}.png?size=160`}
-          alt={DEVELOPER.nameAr}
+          alt={DEVELOPER.name}
           className="h-full w-full object-cover"
           draggable={false}
           onError={() => setFailed(true)}

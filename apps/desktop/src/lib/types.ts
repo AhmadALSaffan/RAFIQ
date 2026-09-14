@@ -8,7 +8,9 @@ export type Provider =
   | "xai"
   | "openrouter"
   | "ollama"
-  | "custom";
+  | "custom"
+  | "github_copilot"
+  | "authai";
 
 export interface LlmModel {
   id: string;
@@ -23,6 +25,59 @@ export interface LlmModel {
   verify_latency_ms: number | null;
   verified_at: string | null;
   supports_tools: boolean | null;
+  /** "api_key" or "oauth" (signs in with a connected account). */
+  auth_method: AuthMethod;
+  account_id: string | null;
+  /** Who the agent signs in as — a display name, never a token. */
+  account_label: string | null;
+  account_status: "connected" | "disconnected" | null;
+}
+
+export type AuthMethod = "api_key" | "oauth";
+
+/** A provider that supports signing in with an account. */
+export interface AccountProvider {
+  id: Provider;
+  name: string;
+  method: string;
+  experimental: boolean;
+  available: boolean;
+  unavailable_reason: string | null;
+}
+
+export interface AuthAccount {
+  id: string;
+  provider: Provider;
+  method: string;
+  label: string;
+  status: "connected" | "disconnected";
+  created_at: string;
+  verified_at: string | null;
+  /** Names of the agents that sign in with this account. */
+  used_by: string[];
+}
+
+export interface ConnectStart {
+  flow_id: string;
+  /** "device": type `user_code` at `verification_uri`. "browser": open it and approve. */
+  kind: "device" | "browser";
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+}
+
+/** AuthAI (experimental) settings. The app secret is write-only — only `has_secret` comes back. */
+export interface AuthAIConfig {
+  enabled: boolean;
+  relay_url: string | null;
+  has_secret: boolean;
+}
+
+export interface ConnectPoll {
+  status: "pending" | "complete" | "expired" | "denied" | "error";
+  message: string | null;
+  account: AuthAccount | null;
 }
 
 export interface DiscoveredModel {
@@ -82,7 +137,7 @@ export interface TaskDetail extends TaskSummary {
 }
 
 export type ReplyLength = "short" | "balanced" | "detailed";
-export type ReplyLanguage = "auto" | "ar" | "en";
+export type ReplyLanguage = "auto" | "ar" | "en" | "ru";
 
 /** Per-chat generation settings — each field maps to a real knob on the request. */
 export interface ReplySettings {

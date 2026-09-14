@@ -14,6 +14,7 @@ import { PageHeader, RefreshButton } from "../components/Page";
 import { folderName } from "../lib/folders";
 import { fieldDir } from "../lib/bidi";
 
+import { t } from "../i18n";
 /** Cheap live thumbnail: the real document, scaled down and inert. */
 function Thumb({ html }: { html: string | null }) {
   if (!html) {
@@ -22,7 +23,7 @@ function Thumb({ html }: { html: string | null }) {
         className="flex h-36 items-center justify-center rounded-lg border text-xs"
         style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
       >
-        لسا ما في معاينة
+        {t("لسا ما في معاينة")}
       </div>
     );
   }
@@ -33,7 +34,7 @@ function Thumb({ html }: { html: string | null }) {
     >
       <iframe
         srcDoc={html}
-        title="معاينة"
+        title={t("معاينة")}
         tabIndex={-1}
         sandbox="allow-scripts"
         className="pointer-events-none absolute start-0 top-0 origin-top-right"
@@ -44,9 +45,9 @@ function Thumb({ html }: { html: string | null }) {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: "قيد التصميم",
-  ready: "جاهز",
-  handed_off: "انبعت للبرمجة",
+  draft: t("قيد التصميم"),
+  ready: t("جاهز"),
+  handed_off: t("انبعت للبرمجة"),
 };
 
 const STATUS_COLOR: Record<string, string> = {
@@ -77,7 +78,7 @@ export function DesignsPage() {
       );
       setPreviews(Object.fromEntries(withPreview.filter(Boolean).map((d) => [d!.id, d!.preview_html])));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أجيب التصاميم");
+      setError(err instanceof Error ? err.message : t("ما قدرت أجيب التصاميم"));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -94,8 +95,8 @@ export function DesignsPage() {
   const menu = useElementMenu();
 
   usePageMenu(() => [
-    { id: "new-design", label: "تصميم جديد", onSelect: () => setWizard(true), disabled: usable.length === 0 },
-    { id: "refresh", label: "حدّث القائمة", onSelect: () => void loadDesigns() },
+    { id: "new-design", label: t("تصميم جديد"), onSelect: () => setWizard(true), disabled: usable.length === 0 },
+    { id: "refresh", label: t("حدّث القائمة"), onSelect: () => void loadDesigns() },
   ]);
 
   async function remove(id: string) {
@@ -106,14 +107,14 @@ export function DesignsPage() {
   return (
     <div className="mx-auto max-w-5xl px-8 py-10">
       <PageHeader
-        title="التصاميم"
-        description="صمّم الواجهة قبل ما تبرمجها: رفيق بيسألك أسئلة الـ brief، بيقرأ مهارات التصميم المدمجة، بيعطيك معاينة حيّة تناقشه فيها، ولما تجهز بتبعتها للجلسة اللي رح تبرمجها."
+        title={t("التصاميم")}
+        description={t("صمّم الواجهة قبل ما تبرمجها: رفيق بيسألك أسئلة الـ brief، بيقرأ مهارات التصميم المدمجة، بيعطيك معاينة حيّة تناقشه فيها، ولما تجهز بتبعتها للجلسة اللي رح تبرمجها.")}
         actions={
           <>
             <RefreshButton spinning={refreshing} onClick={() => void loadDesigns()} />
             <Button onClick={() => setWizard(true)} disabled={usable.length === 0}>
               <PlusIcon className="h-4 w-4" />
-              تصميم جديد
+              {t("تصميم جديد")}
             </Button>
           </>
         }
@@ -122,7 +123,7 @@ export function DesignsPage() {
       {usable.length === 0 && !loading && (
         <p className="mb-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}>
           <AlertIcon className="h-4 w-4 shrink-0" />
-          أضف نموذج شغّال أولاً من صفحة النماذج.
+          {t("أضف نموذج شغّال أولاً من صفحة النماذج.")}
         </p>
       )}
 
@@ -141,9 +142,9 @@ export function DesignsPage() {
       ) : designs.length === 0 ? (
         <EmptyState
           icon={<SparkIcon className="h-8 w-8" />}
-          text="ما في تصاميم بعد. اضغط «تصميم جديد» وجاوب على تسع أسئلة — بعدها بتفتحلك جلسة تصميم فيها شات ومعاينة حيّة."
+          text={t("ما في تصاميم بعد. اضغط «تصميم جديد» وجاوب على تسع أسئلة — بعدها بتفتحلك جلسة تصميم فيها شات ومعاينة حيّة.")}
           action={
-            usable.length > 0 ? <Button onClick={() => setWizard(true)}>تصميم جديد</Button> : undefined
+            usable.length > 0 ? <Button onClick={() => setWizard(true)}>{t("تصميم جديد")}</Button> : undefined
           }
         />
       ) : (
@@ -161,14 +162,14 @@ export function DesignsPage() {
               style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
               onClick={() => navigate(`/designs/${design.id}`)}
               onContextMenu={menu(() => [
-                { id: "open", label: "افتح التصميم", onSelect: () => navigate(`/designs/${design.id}`) },
+                { id: "open", label: t("افتح التصميم"), onSelect: () => navigate(`/designs/${design.id}`) },
                 {
                   id: "copy-html",
-                  label: "انسخ كود الواجهة",
+                  label: t("انسخ كود الواجهة"),
                   disabled: !previews[design.id],
                   onSelect: () => void navigator.clipboard.writeText(previews[design.id] ?? ""),
                 },
-                { id: "delete", label: "احذف التصميم", onSelect: () => void remove(design.id), danger: true },
+                { id: "delete", label: t("احذف التصميم"), onSelect: () => void remove(design.id), danger: true },
               ])}
             >
               <span
@@ -204,8 +205,8 @@ export function DesignsPage() {
                   e.stopPropagation();
                   void remove(design.id);
                 }}
-                aria-label="احذف التصميم"
-                title="احذف التصميم"
+                aria-label={t("احذف التصميم")}
+                title={t("احذف التصميم")}
                 className="absolute end-2 top-2 rounded-md p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
                 style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
               >
@@ -218,10 +219,9 @@ export function DesignsPage() {
       )}
 
       <section className="mt-10">
-        <h2 className="mb-2 text-sm font-medium">المهارات اللي بيشتغل فيها</h2>
+        <h2 className="mb-2 text-sm font-medium">{t("المهارات اللي بيشتغل فيها")}</h2>
         <p className="mb-3 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-          مدمجة بالتطبيق — ما بدها تنزيل ولا إعداد، وبتشتغل مع أي نموذج (رفيق بيمرّرها كأدوات عادية، مو
-          كميزة خاصة بمزوّد).
+          {t("مدمجة بالتطبيق — ما بدها تنزيل ولا إعداد، وبتشتغل مع أي نموذج (رفيق بيمرّرها كأدوات عادية، مو كميزة خاصة بمزوّد).")}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {skills.map((skill) => (
@@ -261,7 +261,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    initQuestions().then(setQuestions).catch(() => setError("ما قدرت أجيب الأسئلة"));
+    initQuestions().then(setQuestions).catch(() => setError(t("ما قدرت أجيب الأسئلة")));
   }, []);
 
   const missing = questions.filter((q) => q.required && !answers[q.id]).map((q) => q.id);
@@ -284,7 +284,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
       const design = await createDesign(modelId, answers, folder);
       onDone(design.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أبدأ التصميم");
+      setError(err instanceof Error ? err.message : t("ما قدرت أبدأ التصميم"));
       setBusy(false);
     }
   }
@@ -313,13 +313,13 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
               <span className="font-mono text-xs" style={{ color: "var(--color-accent)" }} dir="ltr">
                 /impeccable init
               </span>
-              جمع معلومات المشروع
+              {t("جمع معلومات المشروع")}
             </h2>
             <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-              تسع أسئلة. اللي بتتركه فاضي رفيق بيفترضه وبيقلّك شو افترض.
+              {t("تسع أسئلة. اللي بتتركه فاضي رفيق بيفترضه وبيقلّك شو افترض.")}
             </p>
           </div>
-          <button onClick={onClose} aria-label="إغلاق" className="rounded-lg p-1 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+          <button onClick={onClose} aria-label={t("إغلاق")} className="rounded-lg p-1 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
             <XIcon className="h-4 w-4" />
           </button>
         </header>
@@ -335,7 +335,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
                   {question.label}
                   {!question.required && (
                     <span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
-                      (اختياري)
+                      {t("(اختياري)")}
                     </span>
                   )}
                 </label>
@@ -384,12 +384,12 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-sm">
               <FolderIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
-              مجلد التصميم
+              {t("مجلد التصميم")}
             </p>
             <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
               {folder
-                ? `كل نسخة من التصميم بتنحفظ بـ ${folderName(folder)} كملف HTML، والنموذج بيقدر يقرأ ملفات المجلد.`
-                : "اختياري — لو حددته، التصميم بينحفظ عندك تلقائياً والنموذج بيقدر يشوف ملفات المشروع."}
+                ? t("كل نسخة من التصميم بتنحفظ بـ {0} كملف HTML، والنموذج بيقدر يقرأ ملفات المجلد.", { 0: folderName(folder) })
+                : t("اختياري — لو حددته، التصميم بينحفظ عندك تلقائياً والنموذج بيقدر يشوف ملفات المشروع.")}
             </p>
           </div>
           <FolderChip value={folder} onChange={(path) => setFolder(path)} />
@@ -415,7 +415,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
               </span>
             )}
             <Button onClick={start} disabled={busy || missing.length > 0 || !modelId}>
-              {busy ? "جارِ البدء…" : "ابدأ التصميم"}
+              {busy ? t("جارِ البدء…") : t("ابدأ التصميم")}
             </Button>
           </div>
         </footer>

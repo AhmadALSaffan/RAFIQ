@@ -6,6 +6,7 @@ import type { Attachment } from "../lib/types";
 import { easeOutExpo, snappy } from "../lib/motion";
 import { AlertIcon, FileIcon, XIcon } from "./Icons";
 
+import { t } from "../i18n";
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -43,7 +44,7 @@ export function useUploads() {
           .then((attachment) => patch(key, { status: "done", progress: 1, attachment }))
           .catch((err: unknown) => {
             if (err instanceof DOMException && err.name === "AbortError") return;
-            patch(key, { status: "error", error: err instanceof Error ? err.message : "فشل الرفع" });
+            patch(key, { status: "error", error: err instanceof Error ? err.message : t("فشل الرفع") });
           })
           .finally(() => controllers.current.delete(key));
       }
@@ -160,7 +161,7 @@ export function UploadChips({ items, onRemove }: { items: UploadItem[]; onRemove
                   <button
                     type="button"
                     onClick={() => onRemove(item.key)}
-                    aria-label="إزالة"
+                    aria-label={t("إزالة")}
                     className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full opacity-0 shadow transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                     style={{ background: "var(--color-ink)", color: "var(--color-bg)" }}
                   >
@@ -238,7 +239,7 @@ function ImageThumb({ attachment, onOpen }: { attachment: Attachment; onOpen: (s
 
 function FileChip({ attachment }: { attachment: Attachment }) {
   const src = useAttachmentSrc(attachment.id);
-  const label = attachment.kind === "pdf" ? "PDF" : attachment.kind === "text" ? "نص" : "ملف";
+  const label = attachment.kind === "pdf" ? "PDF" : attachment.kind === "text" ? t("نص") : t("ملف");
   return (
     <a
       href={src}
@@ -369,7 +370,7 @@ export function DropZone({ onFiles, children, className = "" }: { onFiles: (file
               style={{ color: "var(--color-accent)" }}
             >
               <FileIcon className="h-8 w-8" />
-              افلت الملفات هون
+              {t("افلت الملفات هون")}
             </motion.div>
           </motion.div>
         )}

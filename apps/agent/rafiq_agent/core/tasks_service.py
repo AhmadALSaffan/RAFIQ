@@ -4,6 +4,7 @@ from typing import Any
 from rafiq_agent.core.attachments import AttachmentError, load_attachments, meta
 from rafiq_agent.core.manager import manager
 from rafiq_agent.core.workspace import session_dir
+from rafiq_agent.i18n import tr
 from rafiq_agent.storage.db import SessionLocal
 from rafiq_agent.storage.models import LlmModel, Task
 
@@ -18,7 +19,7 @@ def resolve_working_dir(raw: str | None) -> Path | None:
         return None
     path = Path(raw).expanduser()
     if not path.is_dir():
-        raise TaskCreateError(f"المجلد غير موجود: {path}")
+        raise TaskCreateError(tr("المجلد غير موجود: {0}", path))
     return path.resolve()
 
 
@@ -40,7 +41,7 @@ async def create_task(
 
     async with SessionLocal() as session:
         if not await session.get(LlmModel, model_id):
-            raise TaskCreateError("النموذج غير موجود.")
+            raise TaskCreateError(tr("النموذج غير موجود."))
         clean_title = (title.strip() or prompt.strip().splitlines()[0])[:120]
         task = Task(
             title=clean_title,

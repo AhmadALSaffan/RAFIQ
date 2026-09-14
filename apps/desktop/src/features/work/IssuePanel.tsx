@@ -35,6 +35,7 @@ import { Button, DrawnCheck } from "../../components/ui";
 import { ActionProgress, CompletionSweep } from "../../components/Feedback";
 import { CATEGORY_COLOR, CATEGORY_LABEL, dateLabel, isOverdue, StatusChip } from "./pieces";
 
+import { t } from "../../i18n";
 type Busy = "comment" | "status" | "complete" | "task" | null;
 type Tab = "details" | "comments";
 
@@ -81,7 +82,7 @@ export function IssuePanel({
 
     getIssue(summary.integration_id, summary.key)
       .then((d) => alive && setDetail(d))
-      .catch((err) => alive && setError(err instanceof Error ? err.message : "ما قدرت أجيب التفاصيل"));
+      .catch((err) => alive && setError(err instanceof Error ? err.message : t("ما قدرت أجيب التفاصيل")));
     // The status list is a second call: it's useful, but the panel shouldn't wait for it.
     listIssueStatuses(summary.integration_id, summary.key)
       .then((list) => alive && setStatuses(list))
@@ -104,7 +105,7 @@ export function IssuePanel({
       const message = await work();
       if (message) flash(message);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أكمّل العملية");
+      setError(err instanceof Error ? err.message : t("ما قدرت أكمّل العملية"));
     } finally {
       setBusy(null);
     }
@@ -118,7 +119,7 @@ export function IssuePanel({
       setComment("");
       await reload();
       setTab("comments");
-      return "انكتب التعليق";
+      return t("انكتب التعليق");
     });
 
   const changeStatus = (option: StatusOption) =>
@@ -127,7 +128,7 @@ export function IssuePanel({
       setComment("");
       await reload();
       if (option.category === "done") setDone(true);
-      return `صارت «${result.status}»`;
+      return t("صارت «{0}»", { 0: result.status });
     });
 
   const markDone = () =>
@@ -136,7 +137,7 @@ export function IssuePanel({
       setComment("");
       await reload();
       setDone(true);
-      return `صارت «${result.status}»`;
+      return t("صارت «{0}»", { 0: result.status });
     });
 
   const isDone = issue.status_category === "done";
@@ -158,8 +159,8 @@ export function IssuePanel({
       <header className="flex items-center gap-2 border-b px-5 py-3" style={{ borderColor: "var(--color-border)" }}>
         <BrandMark provider={issue.provider} className="h-4 w-4 shrink-0" />
         <button
-          onClick={() => void navigator.clipboard.writeText(issue.key).then(() => flash("انتسخ المفتاح"))}
-          title="انسخ المفتاح"
+          onClick={() => void navigator.clipboard.writeText(issue.key).then(() => flash(t("انتسخ المفتاح")))}
+          title={t("انسخ المفتاح")}
           className="group flex min-w-0 items-center gap-1 font-mono text-xs"
           dir="ltr"
           style={{ color: "var(--color-ink-muted)" }}
@@ -171,7 +172,7 @@ export function IssuePanel({
         <span className="flex-1" />
         <button
           onClick={onClose}
-          aria-label="إغلاق"
+          aria-label={t("إغلاق")}
           className="rounded-md p-1 transition-colors hover:bg-[var(--color-surface-2)]"
           style={{ color: "var(--color-ink-muted)" }}
         >
@@ -211,10 +212,10 @@ export function IssuePanel({
 
         <div className="sticky top-0 z-10 mt-5 flex gap-1 border-b px-5 pt-1 backdrop-blur" style={{ borderColor: "var(--color-border)", background: "color-mix(in oklch, var(--color-surface) 88%, transparent)" }}>
           <TabButton active={tab === "details"} onClick={() => setTab("details")}>
-            التفاصيل
+            {t("التفاصيل")}
           </TabButton>
           <TabButton active={tab === "comments"} onClick={() => setTab("comments")} count={comments.length}>
-            التعليقات
+            {t("التعليقات")}
           </TabButton>
         </div>
 
@@ -230,7 +231,7 @@ export function IssuePanel({
               <Markdown text={issue.description} />
             ) : (
               <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                ما في وصف لهالمهمة.
+                {t("ما في وصف لهالمهمة.")}
               </p>
             )
           ) : (
@@ -244,7 +245,7 @@ export function IssuePanel({
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={2}
-          placeholder={isDone ? "اكتب تعليق…" : "اكتب تعليق — أو خليه مع «علّمها مكتملة»"}
+          placeholder={isDone ? t("اكتب تعليق…") : t("اكتب تعليق — أو خليه مع «علّمها مكتملة»")}
           className="input resize-none text-sm"
           dir={fieldDir(comment)}
         />
@@ -281,31 +282,31 @@ export function IssuePanel({
         <div className="flex flex-wrap gap-1.5">
           <Button className="px-3 py-1.5 text-xs" disabled={busy !== null || !comment.trim()} onClick={postComment}>
             {busy === "comment" ? <SpinnerIcon className="h-3.5 w-3.5" /> : <ChatIcon className="h-3.5 w-3.5" />}
-            علّق
+            {t("علّق")}
           </Button>
 
           <CompleteButton done={isDone} busy={busy === "complete"} disabled={busy !== null} onClick={markDone} />
 
           <SmallButton onClick={() => onDiscuss(issue)} icon={<ChatIcon className="h-3.5 w-3.5" />}>
-            ناقشها
+            {t("ناقشها")}
           </SmallButton>
 
           <SmallButton
             disabled={busy !== null}
             onClick={() => run("task", async () => {
               await onRunTask(issue);
-              return "انفتحت مهمة عليها";
+              return t("انفتحت مهمة عليها");
             })}
             icon={busy === "task" ? <SpinnerIcon className="h-3.5 w-3.5" /> : <TasksIcon className="h-3.5 w-3.5" />}
           >
-            نفّذها
+            {t("نفّذها")}
           </SmallButton>
 
           <SmallButton
-            onClick={() => void navigator.clipboard.writeText(issue.url).then(() => flash("انتسخ الرابط"))}
+            onClick={() => void navigator.clipboard.writeText(issue.url).then(() => flash(t("انتسخ الرابط")))}
             icon={<CopyIcon className="h-3.5 w-3.5" />}
           >
-            انسخ الرابط
+            {t("انسخ الرابط")}
           </SmallButton>
 
           <a
@@ -316,7 +317,7 @@ export function IssuePanel({
             style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
           >
             <LinkIcon className="h-3.5 w-3.5" />
-            افتحها
+            {t("افتحها")}
           </a>
         </div>
       </footer>
@@ -363,7 +364,7 @@ function StatusControl({
           />
           <span className="min-w-0">
             <span className="block text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
-              الحالة
+              {t("الحالة")}
             </span>
             <span className="block truncate text-sm">{issue.status}</span>
           </span>
@@ -423,9 +424,9 @@ function Facts({ issue }: { issue: TrackerIssue }) {
 
   const add = (label: string, value: React.ReactNode) => value && rows.push({ label, value });
 
-  add("النوع", issue.issue_type);
+  add(t("النوع"), issue.issue_type);
   add(
-    "الأولوية",
+    t("الأولوية"),
     issue.priority && (
       <span className="inline-flex items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: priorityColor(issue.priority) }} />
@@ -433,25 +434,25 @@ function Facts({ issue }: { issue: TrackerIssue }) {
       </span>
     ),
   );
-  add("المشروع", issue.project);
-  add("مسندة لـ", issue.assignee && <Person name={issue.assignee} />);
-  add("منشئها", issue.reporter && <Person name={issue.reporter} />);
+  add(t("المشروع"), issue.project);
+  add(t("مسندة لـ"), issue.assignee && <Person name={issue.assignee} />);
+  add(t("منشئها"), issue.reporter && <Person name={issue.reporter} />);
   add(
-    "الاستحقاق",
+    t("الاستحقاق"),
     issue.due_date && (
       <span className="inline-flex items-center gap-1.5" style={{ color: overdue ? "var(--color-danger)" : undefined }}>
         <ClockIcon className="h-3 w-3" />
         {dateLabel(issue.due_date)}
-        {overdue && <span className="text-[10px]">متأخرة</span>}
+        {overdue && <span className="text-[10px]">{t("متأخرة")}</span>}
       </span>
     ),
   );
-  add("التقدير", issue.estimate);
-  add("المهمة الأم", issue.parent);
-  add("الإصدار", issue.milestone);
-  add("أُنشئت", issue.created_at && <span title={dateLabel(issue.created_at) ?? ""}>{timeAgo(issue.created_at)}</span>);
-  add("آخر تحديث", issue.updated_at && <span title={dateLabel(issue.updated_at) ?? ""}>{timeAgo(issue.updated_at)}</span>);
-  add("الحساب", issue.integration_name);
+  add(t("التقدير"), issue.estimate);
+  add(t("المهمة الأم"), issue.parent);
+  add(t("الإصدار"), issue.milestone);
+  add(t("أُنشئت"), issue.created_at && <span title={dateLabel(issue.created_at) ?? ""}>{timeAgo(issue.created_at)}</span>);
+  add(t("آخر تحديث"), issue.updated_at && <span title={dateLabel(issue.updated_at) ?? ""}>{timeAgo(issue.updated_at)}</span>);
+  add(t("الحساب"), issue.integration_name);
 
   return (
     <dl className="mt-4 grid grid-cols-2 gap-2">
@@ -514,14 +515,14 @@ function Comments({ detail }: { detail: TrackerIssueDetail | null }) {
   if (detail.comments_error) {
     return (
       <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-        ما قدرت أجيب التعليقات: {detail.comments_error}
+        {t("ما قدرت أجيب التعليقات:")} {detail.comments_error}
       </p>
     );
   }
   if (detail.comments.length === 0) {
     return (
       <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-        ما في تعليقات بعد — اكتب أول وحدة من تحت.
+        {t("ما في تعليقات بعد — اكتب أول وحدة من تحت.")}
       </p>
     );
   }
@@ -610,7 +611,7 @@ function CompleteButton({
           </motion.span>
         )}
       </AnimatePresence>
-      {done ? "مكتملة" : "علّمها مكتملة"}
+      {done ? t("مكتملة") : t("علّمها مكتملة")}
     </motion.button>
   );
 }

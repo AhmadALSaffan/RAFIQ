@@ -7,6 +7,7 @@ import { motion } from "motion/react";
 import { easeOutExpo } from "../lib/motion";
 import { RefreshIcon } from "./Icons";
 
+import { t } from "../i18n";
 export function PageHeader({
   title,
   description,
@@ -40,7 +41,7 @@ export function PageHeader({
 export function RefreshButton({
   spinning,
   onClick,
-  label = "تحديث",
+  label = t("تحديث"),
 }: {
   spinning: boolean;
   onClick: () => void;

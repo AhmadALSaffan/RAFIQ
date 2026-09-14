@@ -20,6 +20,8 @@ Requires-Dist: litellm>=1.55; extra == "agent"
 Requires-Dist: playwright>=1.49; extra == "agent"
 Requires-Dist: pyautogui>=0.9.54; extra == "agent"
 Requires-Dist: mss>=10.0; extra == "agent"
+Provides-Extra: copilot
+Requires-Dist: github-copilot-sdk>=1.0; extra == "copilot"
 Provides-Extra: dev
 Requires-Dist: pytest>=8.3; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.24; extra == "dev"

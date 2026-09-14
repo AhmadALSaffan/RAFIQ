@@ -6,6 +6,7 @@ import { COMMANDS } from "./ComposerMenus";
 import { Button } from "./ui";
 import { XIcon } from "./Icons";
 
+import { t } from "../i18n";
 /** Shared modal shell for the composer's dialogs. */
 function Dialog({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -37,7 +38,7 @@ function Dialog({ title, subtitle, onClose, children }: { title: string; subtitl
           </div>
           <button
             onClick={onClose}
-            aria-label="إغلاق"
+            aria-label={t("إغلاق")}
             className="rounded-lg p-1 transition-colors hover:bg-[var(--color-surface-2)]"
             style={{ color: "var(--color-ink-muted)" }}
           >
@@ -112,22 +113,23 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
 }
 
 const LENGTHS: { value: ReplyLength; label: string }[] = [
-  { value: "short", label: "مختصر" },
-  { value: "balanced", label: "متوازن" },
-  { value: "detailed", label: "مفصّل" },
+  { value: "short", label: t("مختصر") },
+  { value: "balanced", label: t("متوازن") },
+  { value: "detailed", label: t("مفصّل") },
 ];
 
 const LANGUAGES: { value: ReplyLanguage; label: string }[] = [
-  { value: "auto", label: "لغة المستخدم" },
-  { value: "ar", label: "عربي" },
-  { value: "en", label: "إنجليزي" },
+  { value: "auto", label: t("لغة المستخدم") },
+  { value: "ar", label: t("عربي") },
+  { value: "en", label: t("إنجليزي") },
+  { value: "ru", label: t("روسي") },
 ];
 
 const EFFORTS: { value: string; label: string }[] = [
-  { value: "auto", label: "تلقائي" },
-  { value: "low", label: "خفيف" },
-  { value: "medium", label: "متوسط" },
-  { value: "high", label: "عميق" },
+  { value: "auto", label: t("تلقائي") },
+  { value: "low", label: t("خفيف") },
+  { value: "medium", label: t("متوسط") },
+  { value: "high", label: t("عميق") },
 ];
 
 /** `/إعدادات` — how this chat's replies get generated. */
@@ -152,30 +154,30 @@ export function ReplyConfigDialog({
       await onSave(draft);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أحفظ الإعدادات");
+      setError(err instanceof Error ? err.message : t("ما قدرت أحفظ الإعدادات"));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Dialog title="إعدادات الرد" subtitle="بتنطبق على هالمحادثة بس، ومن أول رسالة جاية." onClose={onClose}>
+    <Dialog title={t("إعدادات الرد")} subtitle={t("بتنطبق على هالمحادثة بس، ومن أول رسالة جاية.")} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div>
           <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            طول الرد
+            {t("طول الرد")}
           </p>
           <Segmented name="length" value={draft.length} options={LENGTHS} onChange={(length) => set({ length })} />
           {draft.length === "short" && (
             <p className="mt-1.5 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
-              بيحدّ الرد بـ 500 توكن كمان، فبيكلّفك أقل.
+              {t("بيحدّ الرد بـ 500 توكن كمان، فبيكلّفك أقل.")}
             </p>
           )}
         </div>
 
         <div>
           <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            لغة الرد
+            {t("لغة الرد")}
           </p>
           <Segmented name="language" value={draft.language} options={LANGUAGES} onChange={(language) => set({ language })} />
         </div>
@@ -183,10 +185,10 @@ export function ReplyConfigDialog({
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-              الحرارة (دقيق ↔ مبدع)
+              {t("الحرارة (دقيق ↔ مبدع)")}
             </p>
             <span className="font-mono text-xs" dir="ltr" style={{ color: "var(--color-ink-muted)" }}>
-              {draft.temperature === null ? "افتراضي المزود" : draft.temperature.toFixed(2)}
+              {draft.temperature === null ? t("افتراضي المزود") : draft.temperature.toFixed(2)}
             </span>
           </div>
           <input
@@ -206,7 +208,7 @@ export function ReplyConfigDialog({
               className="mt-1 text-[11px] underline underline-offset-2"
               style={{ color: "var(--color-ink-muted)" }}
             >
-              رجّعها لافتراضي المزود
+              {t("رجّعها لافتراضي المزود")}
             </button>
           )}
         </div>
@@ -215,13 +217,13 @@ export function ReplyConfigDialog({
           <Toggle
             checked={draft.reasoning}
             onChange={(reasoning) => set({ reasoning })}
-            label="التفكير (reasoning)"
-            hint="لما يكون مطفي، بنطلب من النماذج اللي بتسمح إنها ما تفكّر، وما بنعرض خطوات التفكير أصلاً."
+            label={t("التفكير (reasoning)")}
+            hint={t("لما يكون مطفي، بنطلب من النماذج اللي بتسمح إنها ما تفكّر، وما بنعرض خطوات التفكير أصلاً.")}
           />
           {draft.reasoning && (
             <div>
               <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                عمق التفكير (بالنماذج اللي بتدعمه)
+                {t("عمق التفكير (بالنماذج اللي بتدعمه)")}
               </p>
               <Segmented
                 name="effort"
@@ -236,14 +238,14 @@ export function ReplyConfigDialog({
         <Toggle
           checked={draft.tools}
           onChange={(tools) => set({ tools })}
-          label="الأدوات (ملفات، shell، مهام، Jira)"
-          hint="طفّيها للأسئلة العادية: ما بتنبعت مواصفات الأدوات أصلاً، يعني توكنز أقل بكل رسالة."
+          label={t("الأدوات (ملفات، shell، مهام، Jira)")}
+          hint={t("طفّيها للأسئلة العادية: ما بتنبعت مواصفات الأدوات أصلاً، يعني توكنز أقل بكل رسالة.")}
         />
         <Toggle
           checked={draft.auto_summarize}
           onChange={(auto_summarize) => set({ auto_summarize })}
-          label="التلخيص التلقائي"
-          hint="لما تطول المحادثة (فوق 30 رسالة)، بتنطوي القديمة بملخص بدل ما تنبعت كلها."
+          label={t("التلخيص التلقائي")}
+          hint={t("لما تطول المحادثة (فوق 30 رسالة)، بتنطوي القديمة بملخص بدل ما تنبعت كلها.")}
         />
 
         {error && (
@@ -253,10 +255,10 @@ export function ReplyConfigDialog({
         )}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
-            إلغاء
+            {t("إلغاء")}
           </Button>
           <Button onClick={submit} disabled={busy}>
-            {busy ? "جارِ الحفظ…" : "احفظ"}
+            {busy ? t("جارِ الحفظ…") : t("احفظ")}
           </Button>
         </div>
       </div>
@@ -265,17 +267,17 @@ export function ReplyConfigDialog({
 }
 
 const SHORTCUTS = [
-  { keys: "Enter", what: "إرسال" },
-  { keys: "Shift + Enter", what: "سطر جديد" },
-  { keys: "Esc", what: "إغلاق القائمة، أو إيقاف الرد وهو شغّال" },
-  { keys: "↑ / ↓", what: "تنقل بين خيارات القائمة" },
-  { keys: "Tab", what: "اختيار الخيار المحدد" },
+  { keys: "Enter", what: t("إرسال") },
+  { keys: "Shift + Enter", what: t("سطر جديد") },
+  { keys: "Esc", what: t("إغلاق القائمة، أو إيقاف الرد وهو شغّال") },
+  { keys: "↑ / ↓", what: t("تنقل بين خيارات القائمة") },
+  { keys: "Tab", what: t("اختيار الخيار المحدد") },
 ];
 
 /** `/مساعدة` — every command and shortcut in one place. */
 export function HelpDialog({ onClose }: { onClose: () => void }) {
   return (
-    <Dialog title="الأوامر والاختصارات" subtitle="اكتب / بصندوق الكتابة عشان تطلعلك نفس القائمة." onClose={onClose}>
+    <Dialog title={t("الأوامر والاختصارات")} subtitle={t("اكتب / بصندوق الكتابة عشان تطلعلك نفس القائمة.")} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <ul className="flex flex-col gap-1.5">
           {COMMANDS.map((cmd) => (
@@ -292,7 +294,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         </ul>
         <div>
           <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            كمان: <span className="font-mono">@</span> لملف من مجلد المحادثة، و<span className="font-mono">#</span> لمهمة من حسابك المربوط.
+            {t("كمان:")} <span className="font-mono">@</span> {t("لملف من مجلد المحادثة، و")}<span className="font-mono">#</span> {t("لمهمة من حسابك المربوط.")}
           </p>
           <ul className="flex flex-col gap-1">
             {SHORTCUTS.map((s) => (
@@ -318,11 +320,11 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
 export function chatToMarkdown(title: string, messages: ChatMessage[]): string {
   const lines = [`# ${title}`, ""];
   for (const message of messages) {
-    lines.push(message.role === "user" ? "## أنا" : "## رفيق", "", message.content || "_(بدون نص)_", "");
-    for (const attachment of message.attachments ?? []) lines.push(`- مرفق: ${attachment.name}`);
+    lines.push(message.role === "user" ? t("## أنا") : t("## رفيق"), "", message.content || t("_(بدون نص)_"), "");
+    for (const attachment of message.attachments ?? []) lines.push(t("- مرفق: {0}", { 0: attachment.name }));
     for (const part of message.parts ?? []) {
-      if (part.kind === "tool") lines.push(`> أداة \`${part.tool}\`${part.ok === false ? " — فشلت" : ""}`, "");
-      if (part.kind === "task") lines.push(`> مهمة: ${part.title}`, "");
+      if (part.kind === "tool") lines.push(t("> أداة `{0}`{1}", { 0: part.tool, 1: part.ok === false ? t(" — فشلت") : "" }), "");
+      if (part.kind === "task") lines.push(t("> مهمة: {0}", { 0: part.title }), "");
     }
   }
   return lines.join("\n");

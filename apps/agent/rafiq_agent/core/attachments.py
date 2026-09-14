@@ -10,6 +10,7 @@ from pypdf import PdfReader
 from sqlalchemy import select
 
 from rafiq_agent.config import DATA_DIR
+from rafiq_agent.i18n import tr
 from rafiq_agent.storage.db import SessionLocal
 from rafiq_agent.storage.models import Attachment
 
@@ -52,7 +53,7 @@ def _safe_name(name: str) -> str:
 
 async def save_upload(name: str, mime: str | None, data: bytes) -> Attachment:
     if len(data) > MAX_UPLOAD_BYTES:
-        raise AttachmentError("الملف أكبر من 25 ميغا.")
+        raise AttachmentError(tr("الملف أكبر من 25 ميغا."))
     name = _safe_name(name)
     mime = mime or mimetypes.guess_type(name)[0] or "application/octet-stream"
     kind = classify(name, mime, data[:4096])
@@ -79,7 +80,7 @@ async def load_attachments(ids: list[str]) -> list[Attachment]:
     by_id = {a.id: a for a in rows}
     missing = [i for i in ids if i not in by_id]
     if missing:
-        raise AttachmentError("في مرفق مش موجود — جرّب ترفعه مرة ثانية.")
+        raise AttachmentError(tr("في مرفق مش موجود — جرّب ترفعه مرة ثانية."))
     return [by_id[i] for i in ids]
 
 

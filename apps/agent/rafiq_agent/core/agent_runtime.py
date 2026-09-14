@@ -2,17 +2,17 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+from rafiq_agent.auth.resolve import llm_for
 from rafiq_agent.core.attachments import AttachmentError, build_user_content, load_attachments
 from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
 from rafiq_agent.core.manager import manager
 from rafiq_agent.core.workspace import session_dir
+from rafiq_agent.i18n import tr
 from rafiq_agent.integrations.tools import issue_tools
-from rafiq_agent.llm.base import LlmProvider
 from rafiq_agent.llm.discovery import friendly_error, supports_vision
 from rafiq_agent.schemas.settings import AppSettings
 from rafiq_agent.storage.db import SessionLocal
 from rafiq_agent.storage.models import LlmModel, SettingsRow, Task
-from rafiq_agent.storage.secrets import get_api_key
 from rafiq_agent.tools.base import ToolRegistry
 from rafiq_agent.tools.filesystem import (
     FilesystemDeleteTool,
@@ -96,14 +96,14 @@ async def run_task(task_id: str) -> None:
         attachment_ids = [a["id"] for a in (task.attachments or [])]
 
     if not model:
-        await manager.emit_event(task_id, "error", {"message": "النموذج تبع هالمهمة انحذف."})
+        await manager.emit_event(task_id, "error", {"message": tr("النموذج تبع هالمهمة انحذف.")})
         await manager.set_status(task_id, "failed")
         return
 
     await manager.set_status(task_id, "running")
     try:
         settings = await load_settings()
-        llm = LlmProvider(model.provider, model.model_id, get_api_key(model.api_key_ref), model.base_url)
+        llm = llm_for(model)
         attachments = await load_attachments(attachment_ids)
         user_content = build_user_content(prompt, attachments, supports_vision(llm.model))
         messages: list[dict[str, Any]] = [
@@ -146,7 +146,9 @@ async def run_task(task_id: str) -> None:
             ),
         )
         if result.status == "max_iterations":
-            await manager.emit_event(task_id, "error", {"message": "تجاوزت المهمة الحد الأقصى من الخطوات."})
+            await manager.emit_event(
+                task_id, "error", {"message": tr("تجاوزت المهمة الحد الأقصى من الخطوات.")}
+            )
             await manager.set_status(task_id, "failed")
         else:
             await manager.set_status(task_id, "completed")

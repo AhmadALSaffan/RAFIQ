@@ -4,6 +4,8 @@ from typing import Any
 
 import httpx
 
+from rafiq_agent.i18n import tr
+
 
 class IntegrationError(Exception):
     """Anything the user should see about a connector: bad token, missing project, API change."""
@@ -98,11 +100,11 @@ class Integration(ABC):
     @staticmethod
     def check(response: httpx.Response) -> httpx.Response:
         if response.status_code in (401, 403):
-            raise IntegrationError("المفتاح أو الصلاحيات غير صحيحة.")
+            raise IntegrationError(tr("المفتاح أو الصلاحيات غير صحيحة."))
         if response.status_code == 404:
-            raise IntegrationError("ما لقيت العنصر المطلوب (تأكد من الرابط أو المعرّف).")
+            raise IntegrationError(tr("ما لقيت العنصر المطلوب (تأكد من الرابط أو المعرّف)."))
         if response.status_code >= 400:
-            raise IntegrationError(f"المزوّد رجّع خطأ {response.status_code}: {response.text[:200]}")
+            raise IntegrationError(tr("المزوّد رجّع خطأ {0}: {1}", response.status_code, response.text[:200]))
         return response
 
     # -- capabilities ---------------------------------------------------------------
@@ -130,7 +132,7 @@ class Integration(ABC):
 
     async def set_status(self, key: str, status_id: str) -> str:
         """Moves the issue to `status_id` and returns the resulting status name."""
-        raise IntegrationError("تغيير الحالة مو مدعوم على هالمزوّد.")
+        raise IntegrationError(tr("تغيير الحالة مو مدعوم على هالمزوّد."))
 
     @abstractmethod
     async def complete(self, key: str) -> str:

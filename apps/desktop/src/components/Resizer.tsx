@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import { t } from "../i18n";
 /**
  * The drag handle between two columns. The app is RTL, so a drag to the left has to make a
  * right-hand column *wider* — hence the direction factor read off the document.
@@ -63,7 +64,7 @@ export function Resizer({
         else return;
         e.preventDefault();
       }}
-      title={`${label} — اسحب للتحكم، أو دبل كليك للرجوع للافتراضي`}
+      title={t("{0} — اسحب للتحكم، أو دبل كليك للرجوع للافتراضي", { 0: label })}
       className="group relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize touch-none"
       style={{ cursor: "col-resize" }}
     >

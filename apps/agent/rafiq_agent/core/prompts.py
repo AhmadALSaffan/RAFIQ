@@ -32,6 +32,7 @@ LANGUAGE_NOTES = {
     "auto": "",
     "ar": "جاوب دائماً بالعربية.",
     "en": "Always answer in English.",
+    "ru": "Always answer in Russian.",
 }
 
 # Caps that go with each reply length, so "مختصر" actually costs fewer tokens.

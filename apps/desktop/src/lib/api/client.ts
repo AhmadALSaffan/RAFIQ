@@ -1,3 +1,4 @@
+import { locale } from "../../i18n";
 /**
  * The one place that talks to the local backend.
  *
@@ -63,6 +64,8 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
       cache: "no-store",
       headers: {
         Authorization: `Bearer ${token}`,
+        // The agent answers errors and notices in the UI's language.
+        "Accept-Language": locale(),
         ...(init?.body ? { "Content-Type": "application/json" } : {}),
         ...init?.headers,
       },

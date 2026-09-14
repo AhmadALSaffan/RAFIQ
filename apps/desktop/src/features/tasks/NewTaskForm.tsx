@@ -13,6 +13,7 @@ import { Button, ErrorText, Field } from "../../components/ui";
 import { FolderPicker } from "../../components/FolderPicker";
 import { DropZone, UploadChips, useUploads } from "../../components/Attachments";
 
+import { t } from "../../i18n";
 export function NewTaskForm({
   models,
   onCancel,
@@ -48,7 +49,7 @@ export function NewTaskForm({
       uploads.clear();
       onCreated(task);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "صار خطأ غير متوقع");
+      setError(err instanceof Error ? err.message : t("صار خطأ غير متوقع"));
     } finally {
       setSaving(false);
     }
@@ -61,7 +62,7 @@ export function NewTaskForm({
         className="flex flex-col gap-5 rounded-xl border p-5"
         style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
       >
-        <Field label="شو بدك رفيق يعمل؟">
+        <Field label={t("شو بدك رفيق يعمل؟")}>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -75,7 +76,7 @@ export function NewTaskForm({
             required
             autoFocus
             className="input resize-none"
-            placeholder="مثلاً: رتّب الصور بهالمجلد بمجلدات حسب السنة، واعطيني ملخص باللي عملته."
+            placeholder={t("مثلاً: رتّب الصور بهالمجلد بمجلدات حسب السنة، واعطيني ملخص باللي عملته.")}
             dir={fieldDir(prompt)}
           />
         </Field>
@@ -83,11 +84,11 @@ export function NewTaskForm({
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
-              مرفقات (اختياري)
+              {t("مرفقات (اختياري)")}
             </span>
             <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={() => fileInput.current?.click()}>
               <PaperclipIcon className="h-3.5 w-3.5" />
-              أرفق صور أو ملفات
+              {t("أرفق صور أو ملفات")}
             </Button>
             <input
               ref={fileInput}
@@ -102,7 +103,7 @@ export function NewTaskForm({
           </div>
           {uploads.items.length === 0 ? (
             <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-              اسحب ملفات لهون، أو الصق صورة بخانة المهمة.
+              {t("اسحب ملفات لهون، أو الصق صورة بخانة المهمة.")}
             </p>
           ) : (
             <UploadChips items={uploads.items} onRemove={uploads.remove} />
@@ -113,7 +114,7 @@ export function NewTaskForm({
 
         <div className="flex flex-col gap-2">
           <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
-            النموذج
+            {t("النموذج")}
           </span>
           <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
             {models.map((m) => {
@@ -128,7 +129,7 @@ export function NewTaskForm({
                   whileTap={broken ? undefined : { scale: 0.98 }}
                   className="relative rounded-lg border px-3 py-2.5 text-start disabled:cursor-not-allowed disabled:opacity-50"
                   style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}
-                  title={broken ? (m.verify_error ?? "ما اشتغل بآخر فحص") : undefined}
+                  title={broken ? (m.verify_error ?? t("ما اشتغل بآخر فحص")) : undefined}
                 >
                   {active && (
                     <motion.span
@@ -149,7 +150,7 @@ export function NewTaskForm({
                     className="relative mt-0.5 block text-xs"
                     style={{ color: broken ? "var(--color-danger)" : "var(--color-ink-muted)" }}
                   >
-                    {broken ? "ما اشتغل بآخر فحص" : providerLabel(m.provider)}
+                    {broken ? t("ما اشتغل بآخر فحص") : providerLabel(m.provider)}
                   </span>
                 </motion.button>
               );
@@ -157,12 +158,12 @@ export function NewTaskForm({
           </div>
         </div>
 
-        <Field label="العنوان (اختياري)">
+        <Field label={t("العنوان (اختياري)")}>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="input"
-            placeholder="بينحط تلقائياً من وصف المهمة"
+            placeholder={t("بينحط تلقائياً من وصف المهمة")}
             dir={fieldDir(title)}
           />
         </Field>
@@ -174,19 +175,19 @@ export function NewTaskForm({
             {saving ? (
               <>
                 <SpinnerIcon className="h-4 w-4" />
-                جارِ الإضافة…
+                {t("جارِ الإضافة…")}
               </>
             ) : uploads.busy ? (
               <>
                 <SpinnerIcon className="h-4 w-4" />
-                عم يرفع المرفقات…
+                {t("عم يرفع المرفقات…")}
               </>
             ) : (
-              "ابدأ المهمة"
+              t("ابدأ المهمة")
             )}
           </Button>
           <Button type="button" variant="ghost" onClick={onCancel}>
-            إلغاء
+            {t("إلغاء")}
           </Button>
         </div>
       </form>

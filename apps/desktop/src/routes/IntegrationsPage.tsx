@@ -20,6 +20,7 @@ import { AlertIcon, LinkIcon, SpinnerIcon, TrashIcon } from "../components/Icons
 import { Button, DrawnCheck, ErrorText, Field, Reveal } from "../components/ui";
 import { BrandMark } from "../components/BrandMark";
 
+import { t } from "../i18n";
 export function IntegrationsPage() {
   const navigate = useNavigate();
   const [providers, setProviders] = useState<IntegrationProvider[]>([]);
@@ -42,8 +43,8 @@ export function IntegrationsPage() {
   }
 
   usePageMenu(() => [
-    { id: "refresh", label: "حدّث الحسابات", onSelect: () => void refreshAll() },
-    { id: "work", label: "روح لشغلي", onSelect: () => navigate("/work"), disabled: accounts.length === 0 },
+    { id: "refresh", label: t("حدّث الحسابات"), onSelect: () => void refreshAll() },
+    { id: "work", label: t("روح لشغلي"), onSelect: () => navigate("/work"), disabled: accounts.length === 0 },
   ]);
 
   const refreshIssues = () => listIssues("", 12).then(setIssues).catch(() => setIssues([]));
@@ -62,11 +63,10 @@ export function IntegrationsPage() {
   return (
     <div className="mx-auto max-w-3xl px-8 py-10">
       <PageHeader
-        title="الربط"
+        title={t("الربط")}
         description={
           <>
-            اربط حساب تتبّع المهام تبعك، وبتقدر تشاور على مهامك بالمحادثة بـ <code className="md-inline">/</code> ورفيق
-            يكتب التعليق ويعلّمها مكتملة لما تخلص.
+            {t("اربط حساب تتبّع المهام تبعك، وبتقدر تشاور على مهامك بالمحادثة بـ")} <code className="md-inline">/</code> {t("ورفيق يكتب التعليق ويعلّمها مكتملة لما تخلص.")}
           </>
         }
         actions={accounts.length > 0 && <RefreshButton spinning={refreshing} onClick={() => void refreshAll()} />}
@@ -100,7 +100,7 @@ export function IntegrationsPage() {
           </AnimatePresence>
 
           <h2 className="mb-3 text-sm font-medium" style={{ color: "var(--color-ink-muted)" }}>
-            {accounts.length ? "اربط حساب ثاني" : "اختار المنصّة"}
+            {accounts.length ? t("اربط حساب ثاني") : t("اختار المنصّة")}
           </h2>
           <motion.div variants={listContainer} initial="hidden" animate="show" className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
             {providers.map((provider) => (
@@ -123,7 +123,7 @@ export function IntegrationsPage() {
                     {provider.name}
                     {connected.has(provider.id) && (
                       <span className="text-xs" style={{ color: "var(--color-success)" }}>
-                        مربوط
+                        {t("مربوط")}
                       </span>
                     )}
                   </span>
@@ -157,7 +157,7 @@ export function IntegrationsPage() {
                 transition={{ duration: 0.4, ease: easeOutExpo }}
                 className="mt-10"
               >
-                <h2 className="mb-3 text-sm font-medium">مهامك المفتوحة</h2>
+                <h2 className="mb-3 text-sm font-medium">{t("مهامك المفتوحة")}</h2>
                 <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
                   {issues.map((issue) => (
                     <motion.li
@@ -227,8 +227,8 @@ function AccountRow({
       style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
       onMouseLeave={() => setConfirming(false)}
       onContextMenu={menu(() => [
-        { id: "verify", label: "افحص الربط", onSelect: () => void reverify(), disabled: busy },
-        { id: "disconnect", label: "افصل الحساب", onSelect: () => setConfirming(true), danger: true },
+        { id: "verify", label: t("افحص الربط"), onSelect: () => void reverify(), disabled: busy },
+        { id: "disconnect", label: t("افصل الحساب"), onSelect: () => setConfirming(true), danger: true },
       ])}
     >
       <ActionProgress active={busy} />
@@ -243,19 +243,19 @@ function AccountRow({
             {account.verify_ok === false ? (
               <span className="flex items-center gap-1 text-xs" style={{ color: "var(--color-danger)" }}>
                 <AlertIcon className="h-3.5 w-3.5" />
-                ما اشتغل
+                {t("ما اشتغل")}
               </span>
             ) : (
               <span className="flex items-center gap-1 text-xs" style={{ color: "var(--color-success)" }}>
                 <DrawnCheck className="h-3.5 w-3.5" />
-                مربوط
+                {t("مربوط")}
               </span>
             )}
           </p>
           <p className="truncate text-xs" style={{ color: "var(--color-ink-muted)" }} dir="auto">
             {account.verify_ok === false
               ? account.verify_error
-              : `${account.account_label ?? ""}${account.verified_at ? ` · آخر فحص ${timeAgo(account.verified_at)}` : ""}`}
+              : `${account.account_label ?? ""}${account.verified_at ? t(" · آخر فحص {0}", { 0: timeAgo(account.verified_at) }) : ""}`}
           </p>
         </div>
       </div>
@@ -267,12 +267,12 @@ function AccountRow({
             rel="noreferrer"
             className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
             style={{ color: "var(--color-ink-muted)" }}
-            title="إدارة المفاتيح عند المزوّد"
+            title={t("إدارة المفاتيح عند المزوّد")}
           >
             <LinkIcon className="h-4 w-4" />
           </a>
         )}
-        <RefreshButton spinning={busy} onClick={() => void reverify()} label="افحص الربط" />
+        <RefreshButton spinning={busy} onClick={() => void reverify()} label={t("افحص الربط")} />
         <AnimatePresence mode="wait" initial={false}>
           {confirming ? (
             <motion.div key="c" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} className="flex gap-1">
@@ -284,10 +284,10 @@ function AccountRow({
                   onRemoved();
                 }}
               >
-                فصل
+                {t("فصل")}
               </Button>
               <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setConfirming(false)}>
-                لا
+                {t("لا")}
               </Button>
             </motion.div>
           ) : (
@@ -298,7 +298,7 @@ function AccountRow({
               exit={{ opacity: 0 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setConfirming(true)}
-              aria-label="فصل الحساب"
+              aria-label={t("فصل الحساب")}
               className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
               style={{ color: "var(--color-ink-muted)" }}
             >
@@ -340,7 +340,7 @@ function ConnectForm({
     try {
       onConnected(await connectIntegration({ provider: provider.id, name: name.trim() || undefined, config: values }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أربط الحساب");
+      setError(err instanceof Error ? err.message : t("ما قدرت أربط الحساب"));
     } finally {
       setSaving(false);
     }
@@ -354,14 +354,14 @@ function ConnectForm({
     >
       <div className="flex items-center gap-2">
         <BrandMark provider={provider.id} className="h-5 w-5" />
-        <span className="text-sm font-medium">ربط {provider.name}</span>
+        <span className="text-sm font-medium">{t("ربط")} {provider.name}</span>
         <a href={provider.docs_url} target="_blank" rel="noreferrer" className="ms-auto text-xs underline-offset-2 hover:underline" style={{ color: "var(--color-accent)" }}>
-          من وين أجيب المفتاح؟
+          {t("من وين أجيب المفتاح؟")}
         </a>
       </div>
 
       {provider.fields.map((field) => (
-        <Field key={field.key} label={`${field.label}${field.required ? "" : " (اختياري)"}`} hint={field.help || undefined}>
+        <Field key={field.key} label={`${field.label}${field.required ? "" : t(" (اختياري)")}`} hint={field.help || undefined}>
           <input
             value={values[field.key] ?? ""}
             onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
@@ -374,12 +374,12 @@ function ConnectForm({
         </Field>
       ))}
 
-      <Field label="اسم يظهرلك (اختياري)">
+      <Field label={t("اسم يظهرلك (اختياري)")}>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder={provider.name} className="input" />
       </Field>
 
       <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-        المفتاح بينحفظ بخزنة ويندوز، وما بينحط بقاعدة البيانات.
+        {t("المفتاح بينحفظ بخزنة ويندوز، وما بينحط بقاعدة البيانات.")}
       </p>
 
       <ErrorText message={error} />
@@ -389,14 +389,14 @@ function ConnectForm({
           {saving ? (
             <>
               <SpinnerIcon className="h-4 w-4" />
-              جارِ التحقق…
+              {t("جارِ التحقق…")}
             </>
           ) : (
-            "تحقق واربط"
+            t("تحقق واربط")
           )}
         </Button>
         <Button type="button" variant="ghost" onClick={onCancel}>
-          إلغاء
+          {t("إلغاء")}
         </Button>
       </div>
     </form>

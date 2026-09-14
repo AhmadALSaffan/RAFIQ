@@ -34,6 +34,7 @@ import { Button, EmptyState, Reveal } from "../../components/ui";
 import { NewTaskForm } from "./NewTaskForm";
 import { STATUS_COLOR, statusFilterLabel } from "./pieces";
 
+import { t } from "../../i18n";
 type Filter = "all" | "active" | "queued" | "completed" | "failed";
 
 const FILTERS: Filter[] = ["all", "active", "queued", "completed", "failed"];
@@ -75,10 +76,10 @@ export function TasksPage() {
   }, []);
 
   usePageMenu(() => [
-    { id: "new-task", label: "مهمة جديدة", onSelect: () => setComposing(true), disabled: models.length === 0 },
-    { id: "refresh", label: "حدّث القائمة", onSelect: () => void refresh(true) },
-    { id: "search", label: "دوّر بالمهام", onSelect: () => searchRef.current?.focus() },
-    { id: "chat", label: "روح للمحادثات", onSelect: () => navigate("/chat") },
+    { id: "new-task", label: t("مهمة جديدة"), onSelect: () => setComposing(true), disabled: models.length === 0 },
+    { id: "refresh", label: t("حدّث القائمة"), onSelect: () => void refresh(true) },
+    { id: "search", label: t("دوّر بالمهام"), onSelect: () => searchRef.current?.focus() },
+    { id: "chat", label: t("روح للمحادثات"), onSelect: () => navigate("/chat") },
   ]);
 
   useEffect(() => {
@@ -177,8 +178,8 @@ export function TasksPage() {
   return (
     <div className="mx-auto max-w-3xl px-8 py-10">
       <PageHeader
-        title="المهام"
-        description="المهام بتنفّذ بالدور، وحدة ورا التانية. فيك تضيف كتير مهام، أو تبعت خطة بالمحادثة ورفيق بيقسمها لمهام."
+        title={t("المهام")}
+        description={t("المهام بتنفّذ بالدور، وحدة ورا التانية. فيك تضيف كتير مهام، أو تبعت خطة بالمحادثة ورفيق بيقسمها لمهام.")}
         actions={
           <>
             <RefreshButton spinning={refreshing} onClick={() => void refresh(true)} />
@@ -186,10 +187,10 @@ export function TasksPage() {
               <Button
                 onClick={() => setComposing(true)}
                 disabled={usable.length === 0}
-                title={usable.length === 0 ? "أضف نموذج شغّال أولاً" : undefined}
+                title={usable.length === 0 ? t("أضف نموذج شغّال أولاً") : undefined}
               >
                 <PlusIcon className="h-4 w-4" />
-                مهمة جديدة
+                {t("مهمة جديدة")}
               </Button>
             )}
           </>
@@ -240,13 +241,13 @@ export function TasksPage() {
                 setSearch(e.currentTarget.value);
                 setCursor(-1);
               }}
-              placeholder="دوّر بمهامك…"
+              placeholder={t("دوّر بمهامك…")}
               className="w-full bg-transparent py-1.5 text-xs outline-none"
               style={{ color: "var(--color-ink)" }}
               dir={fieldDir(search)}
             />
             {search && (
-              <button onClick={() => setSearch("")} aria-label="مسح" style={{ color: "var(--color-ink-muted)" }}>
+              <button onClick={() => setSearch("")} aria-label={t("مسح")} style={{ color: "var(--color-ink-muted)" }}>
                 <XIcon className="h-3 w-3" />
               </button>
             )}
@@ -265,20 +266,20 @@ export function TasksPage() {
           icon={<TasksIcon className="h-8 w-8" />}
           text={
             usable.length === 0
-              ? "أضف نموذج شغّال من صفحة النماذج، وبعدين ابدأ أول مهمة."
-              : "ما في مهام لسا. ابدأ أول مهمة واختار المجلد اللي بدك رفيق يشتغل فيه."
+              ? t("أضف نموذج شغّال من صفحة النماذج، وبعدين ابدأ أول مهمة.")
+              : t("ما في مهام لسا. ابدأ أول مهمة واختار المجلد اللي بدك رفيق يشتغل فيه.")
           }
           action={
             usable.length === 0 ? (
-              <Button onClick={() => navigate("/models")}>روح للنماذج</Button>
+              <Button onClick={() => navigate("/models")}>{t("روح للنماذج")}</Button>
             ) : (
-              <Button onClick={() => setComposing(true)}>مهمة جديدة</Button>
+              <Button onClick={() => setComposing(true)}>{t("مهمة جديدة")}</Button>
             )
           }
         />
       ) : visible.length === 0 ? (
         <p className="py-12 text-center text-sm" style={{ color: "var(--color-ink-muted)" }}>
-          ما في مهام مطابقة.
+          {t("ما في مهام مطابقة.")}
         </p>
       ) : (
         <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
@@ -297,10 +298,10 @@ export function TasksPage() {
                   data-task-row={index}
                   onMouseLeave={() => confirming === task.id && setConfirming(null)}
                   onContextMenu={menu(() => [
-                    { id: "open", label: "افتح المهمة", onSelect: () => navigate(`/tasks/${task.id}`) },
-                    { id: "rerun", label: "شغّلها من جديد", onSelect: () => void rerun(task) },
-                    { id: "copy", label: "انسخ العنوان", onSelect: () => void navigator.clipboard.writeText(task.title) },
-                    { id: "delete", label: "احذف المهمة", onSelect: () => void removeTask(task.id), danger: true },
+                    { id: "open", label: t("افتح المهمة"), onSelect: () => navigate(`/tasks/${task.id}`) },
+                    { id: "rerun", label: t("شغّلها من جديد"), onSelect: () => void rerun(task) },
+                    { id: "copy", label: t("انسخ العنوان"), onSelect: () => void navigator.clipboard.writeText(task.title) },
+                    { id: "delete", label: t("احذف المهمة"), onSelect: () => void removeTask(task.id), danger: true },
                   ])}
                 >
                   <RowDelete
@@ -359,7 +360,7 @@ export function TasksPage() {
                         {task.origin?.chat_id && (
                           <span className="flex items-center gap-1" style={{ color: "var(--color-accent)" }}>
                             <ChatIcon className="h-3.5 w-3.5" />
-                            من المحادثة
+                            {t("من المحادثة")}
                           </span>
                         )}
                         <span>{timeAgo(task.created_at)}</span>
@@ -381,7 +382,7 @@ export function TasksPage() {
                             }}
                           >
                             <ShieldIcon className="h-3.5 w-3.5" />
-                            بدها إذنك
+                            {t("بدها إذنك")}
                           </motion.span>
                         )}
                       </AnimatePresence>
@@ -389,7 +390,7 @@ export function TasksPage() {
                         <span
                           className="text-xs tabular-nums"
                           style={{ color: "var(--color-ink-muted)" }}
-                          title="مكانها بالدور"
+                          title={t("مكانها بالدور")}
                         >
                           #{queuePosition(task.id)}
                         </span>
@@ -425,8 +426,8 @@ function RowDelete({ confirming, running, onClick }: { confirming: boolean; runn
       onClick={onClick}
       whileTap={{ scale: 0.92 }}
       transition={snappy}
-      aria-label={confirming ? "تأكيد الحذف" : "حذف المهمة"}
-      title={confirming ? (running ? "المهمة شغّالة — رح توقف وتنحذف" : "اضغط مرة ثانية للحذف") : "حذف"}
+      aria-label={confirming ? t("تأكيد الحذف") : t("حذف المهمة")}
+      title={confirming ? (running ? t("المهمة شغّالة — رح توقف وتنحذف") : t("اضغط مرة ثانية للحذف")) : t("حذف")}
       className={`absolute end-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-opacity ${
         confirming ? "opacity-100" : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
       }`}
@@ -436,7 +437,7 @@ function RowDelete({ confirming, running, onClick }: { confirming: boolean; runn
       }}
     >
       <TrashIcon className="h-3.5 w-3.5" />
-      {confirming && <span>حذف؟</span>}
+      {confirming && <span>{t("حذف؟")}</span>}
     </motion.button>
   );
 }

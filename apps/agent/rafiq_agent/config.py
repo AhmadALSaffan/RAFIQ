@@ -42,3 +42,7 @@ DEFAULT_CORS_ORIGINS = ",".join(
 )
 
 CORS_ORIGINS = os.environ.get("RAFIQ_CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+
+# Rafiq's own GitHub OAuth App (Device Flow). A client id is public by design — the device
+# flow needs no client secret, so nothing sensitive ships with the app. Override for forks.
+GITHUB_OAUTH_CLIENT_ID = os.environ.get("RAFIQ_GITHUB_CLIENT_ID", "Ov23liveqPeexDt9CuqY")

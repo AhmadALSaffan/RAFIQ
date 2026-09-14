@@ -29,7 +29,8 @@ def litellm_model_string(provider: str, model_id: str) -> str:
     """litellm expects a '<provider>/<model>' string for most non-OpenAI providers."""
     if provider == "openai":
         return model_id
-    if provider == "custom":
+    if provider in ("custom", "authai"):
+        # OpenAI-compatible endpoints (a local server, or an experimental relay).
         return f"openai/{model_id}"
     if provider == "ollama":
         # ollama_chat uses /api/chat, which supports tool calling; plain ollama/ does not.
@@ -49,8 +50,10 @@ class LlmProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
         reasoning_effort: str | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> None:
         self.model = litellm_model_string(provider, model_id)
+        self.extra_headers = extra_headers or None
         self.api_key = api_key
         self.base_url = base_url or ("http://localhost:11434" if provider == "ollama" else None)
         self.temperature = temperature
@@ -70,6 +73,9 @@ class LlmProvider:
             out["reasoning_effort"] = self.reasoning_effort
         return out
 
+    async def aclose(self) -> None:
+        """Nothing to release — litellm calls are stateless. Copilot's provider overrides this."""
+
     async def complete(self, messages: list[dict[str, Any]], max_tokens: int | None = None) -> str:
         """One-shot, no tools, no streaming — used for summarising a chat."""
         response = await litellm.acompletion(
@@ -78,6 +84,7 @@ class LlmProvider:
             api_key=self.api_key,
             api_base=self.base_url,
             max_tokens=max_tokens,
+            extra_headers=self.extra_headers,
         )
         return (response.choices[0].message.content or "").strip()
 
@@ -90,6 +97,7 @@ class LlmProvider:
             tools=tools or None,
             api_key=self.api_key,
             api_base=self.base_url,
+            extra_headers=self.extra_headers,
             stream=True,
             **self._tuning(),
         )

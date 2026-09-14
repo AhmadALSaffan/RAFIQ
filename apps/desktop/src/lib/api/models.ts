@@ -18,6 +18,8 @@ export async function createModel(input: {
   modelId: string;
   baseUrl?: string;
   apiKey?: string;
+  /** Sign in with this connected account instead of a key. */
+  accountId?: string;
 }): Promise<LlmModel> {
   return request<LlmModel>("/models", {
     method: "POST",
@@ -27,7 +29,17 @@ export async function createModel(input: {
       model_id: input.modelId,
       base_url: input.baseUrl,
       api_key: input.apiKey,
+      auth_method: input.accountId ? "oauth" : "api_key",
+      account_id: input.accountId,
     }),
+  });
+}
+
+/** Points one agent at a different connected account — other agents keep theirs. */
+export async function setModelAccount(id: string, accountId: string): Promise<LlmModel> {
+  return request<LlmModel>(`/models/${id}/account`, {
+    method: "PUT",
+    body: JSON.stringify({ account_id: accountId }),
   });
 }
 
@@ -39,10 +51,16 @@ export async function discoverModels(input: {
   provider: Provider;
   apiKey?: string;
   baseUrl?: string;
+  accountId?: string;
 }): Promise<DiscoveredModel[]> {
   return request<DiscoveredModel[]>("/models/discover", {
     method: "POST",
-    body: JSON.stringify({ provider: input.provider, api_key: input.apiKey, base_url: input.baseUrl }),
+    body: JSON.stringify({
+      provider: input.provider,
+      api_key: input.apiKey,
+      base_url: input.baseUrl,
+      account_id: input.accountId,
+    }),
   });
 }
 

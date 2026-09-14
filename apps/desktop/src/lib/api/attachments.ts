@@ -5,6 +5,7 @@ import type {
   Attachment,
 } from "../types";
 
+import { locale, t } from "../../i18n";
 /** Uploads one file; reports 0–1 progress (XHR, since fetch can't observe upload progress). */
 export async function uploadAttachment(
   file: File,
@@ -16,6 +17,7 @@ export async function uploadAttachment(
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${baseUrl}/attachments`);
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.setRequestHeader("Accept-Language", locale());
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
     xhr.onload = () => {
       let body: unknown = null;
@@ -25,9 +27,9 @@ export async function uploadAttachment(
         // non-JSON error body
       }
       if (xhr.status >= 200 && xhr.status < 300) resolve(body as Attachment);
-      else reject(new Error((body as { detail?: string } | null)?.detail ?? `فشل الرفع (${xhr.status})`));
+      else reject(new Error((body as { detail?: string } | null)?.detail ?? t("فشل الرفع ({0})", { 0: xhr.status })));
     };
-    xhr.onerror = () => reject(new Error("ما قدرت أرفع الملف"));
+    xhr.onerror = () => reject(new Error(t("ما قدرت أرفع الملف")));
     signal?.addEventListener("abort", () => {
       xhr.abort();
       reject(new DOMException("aborted", "AbortError"));

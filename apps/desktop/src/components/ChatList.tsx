@@ -11,19 +11,20 @@ import { CompressIcon, FolderIcon, PencilIcon, PinIcon, PlusIcon, SearchIcon, Tr
 import { Button } from "./ui";
 import { useElementMenu } from "./ContextMenu";
 
+import { t } from "../i18n";
 /** Buckets conversations the way the user thinks about them: pinned first, then recency. */
 function bucketOf(chat: ChatSummary, now: number): string {
-  if (chat.pinned) return "مثبّتة";
+  if (chat.pinned) return t("مثبّتة");
   const age = now - new Date(chat.updated_at).getTime();
   const day = 86_400_000;
-  if (age < day) return "اليوم";
-  if (age < 2 * day) return "أمس";
-  if (age < 7 * day) return "آخر ٧ أيام";
-  if (age < 30 * day) return "آخر ٣٠ يوم";
-  return "أقدم";
+  if (age < day) return t("اليوم");
+  if (age < 2 * day) return t("أمس");
+  if (age < 7 * day) return t("آخر ٧ أيام");
+  if (age < 30 * day) return t("آخر ٣٠ يوم");
+  return t("أقدم");
 }
 
-const ORDER = ["مثبّتة", "اليوم", "أمس", "آخر ٧ أيام", "آخر ٣٠ يوم", "أقدم"];
+const ORDER = [t("مثبّتة"), t("اليوم"), t("أمس"), t("آخر ٧ أيام"), t("آخر ٣٠ يوم"), t("أقدم")];
 
 export function ChatList({
   chats,
@@ -74,7 +75,7 @@ export function ChatList({
       <div className="flex flex-col gap-2 p-3">
         <Button className="w-full" onClick={onNew}>
           <PlusIcon className="h-4 w-4" />
-          محادثة جديدة
+          {t("محادثة جديدة")}
         </Button>
 
         <div
@@ -85,7 +86,7 @@ export function ChatList({
           <input
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
-            placeholder="دوّر بمحادثاتك…"
+            placeholder={t("دوّر بمحادثاتك…")}
             className="w-full bg-transparent py-1.5 text-xs outline-none"
             style={{ color: "var(--color-ink)" }}
             dir={fieldDir(query)}
@@ -97,7 +98,7 @@ export function ChatList({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.7 }}
                 onClick={() => setQuery("")}
-                aria-label="امسح البحث"
+                aria-label={t("امسح البحث")}
                 className="shrink-0 rounded p-0.5"
                 style={{ color: "var(--color-ink-muted)" }}
               >
@@ -158,14 +159,14 @@ export function ChatList({
 
         {!loading && chats.length === 0 && (
           <p className="px-3 py-8 text-center text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-            محادثاتك رح تظهر هون.
+            {t("محادثاتك رح تظهر هون.")}
             <br />
-            ابدأ وحدة واسأل رفيق أي شي.
+            {t("ابدأ وحدة واسأل رفيق أي شي.")}
           </p>
         )}
         {!loading && chats.length > 0 && groups.length === 0 && (
           <p className="px-3 py-8 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            ما في محادثة بهالاسم.
+            {t("ما في محادثة بهالاسم.")}
           </p>
         )}
       </div>
@@ -207,10 +208,10 @@ function Row({
     <motion.li
       layout="position"
       onContextMenu={menu(() => [
-        { id: "open", label: "افتح المحادثة", onSelect: onOpen },
-        { id: "pin", label: chat.pinned ? "إلغاء التثبيت" : "ثبّت فوق", onSelect: onPin },
-        { id: "rename", label: "إعادة تسمية", onSelect: onStartRename },
-        { id: "delete", label: "احذف المحادثة", onSelect: onDelete, danger: true },
+        { id: "open", label: t("افتح المحادثة"), onSelect: onOpen },
+        { id: "pin", label: chat.pinned ? t("إلغاء التثبيت") : t("ثبّت فوق"), onSelect: onPin },
+        { id: "rename", label: t("إعادة تسمية"), onSelect: onStartRename },
+        { id: "delete", label: t("احذف المحادثة"), onSelect: onDelete, danger: true },
       ])}
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0, transition: { duration: 0.25, delay: Math.min(index, 8) * 0.02, ease: easeOutExpo } }}
@@ -267,11 +268,11 @@ function Row({
             {chat.message_count > 0 && (
               <>
                 <span className="opacity-50">·</span>
-                <span className="shrink-0 tabular-nums">{chat.message_count} رسالة</span>
+                <span className="shrink-0 tabular-nums">{t("{0} رسالة", { 0: chat.message_count })}</span>
               </>
             )}
             {chat.summary && (
-              <span title="متلخّصة — الرسائل القديمة انطوت" className="flex shrink-0">
+              <span title={t("متلخّصة — الرسائل القديمة انطوت")} className="flex shrink-0">
                 <CompressIcon className="h-3 w-3" />
               </span>
             )}
@@ -294,13 +295,13 @@ function Row({
           }`}
           style={{ background: "var(--color-surface-2)" }}
         >
-          <Action label={chat.pinned ? "إلغاء التثبيت" : "ثبّت"} onClick={onPin} active={chat.pinned}>
+          <Action label={chat.pinned ? t("إلغاء التثبيت") : t("ثبّت")} onClick={onPin} active={chat.pinned}>
             <PinIcon className="h-3.5 w-3.5" />
           </Action>
-          <Action label="إعادة تسمية" onClick={onStartRename}>
+          <Action label={t("إعادة تسمية")} onClick={onStartRename}>
             <PencilIcon className="h-3.5 w-3.5" />
           </Action>
-          <Action label={confirming ? "اضغط مرة ثانية للحذف" : "حذف"} onClick={onDelete} danger={confirming}>
+          <Action label={confirming ? t("اضغط مرة ثانية للحذف") : t("حذف")} onClick={onDelete} danger={confirming}>
             <TrashIcon className="h-3.5 w-3.5" />
           </Action>
         </span>

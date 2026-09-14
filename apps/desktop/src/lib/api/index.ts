@@ -5,6 +5,7 @@
 
 export * from "./client";
 export * from "./models";
+export * from "./accounts";
 export * from "./tasks";
 export * from "./attachments";
 export * from "./chats";

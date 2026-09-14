@@ -47,7 +47,7 @@
 
 The whole interface is Arabic and right-to-left from the ground up, everything runs locally, and nothing sensitive happens without your approval.
 
-> 🔑 **Bring your own model:** Rafiq has no account system and no cloud of its own. You add an API key for the provider you choose (stored in Windows Credential Manager), or run a model locally with Ollama.
+> 🔑 **Bring your own model:** Rafiq has no account system and no cloud of its own. You add an API key for the provider you choose (stored in Windows Credential Manager), sign in with a GitHub account that has Copilot, or run a model locally with Ollama.
 
 ---
 
@@ -70,9 +70,13 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 - 🎨 **Designs** — A brief (`/impeccable init`), bundled design skills that work with every model, a live HTML preview at phone/tablet/desktop widths, and a one-click hand-off to the session that will build it
 - 📥 **My Work** — Issues assigned to you across Jira Cloud, Linear, GitHub Issues, and GitLab Issues in one inbox: change status, comment, or turn an issue into a task
 - 🧠 **Any model** — Anthropic, OpenAI, Google Gemini, DeepSeek, Groq, Mistral, xAI, OpenRouter, Ollama (local), or any OpenAI-compatible endpoint
+- 🐙 **GitHub Copilot sign-in** — Connect a GitHub account with an active Copilot plan through GitHub's device flow and the official Copilot SDK — no key, no password in Rafiq; each agent uses the account you pick for it
+- 🔗 **OpenRouter sign-in** — Approve Rafiq on openrouter.ai (OAuth PKCE) instead of pasting a key; the issued key goes straight to Windows Credential Manager
+- 🧪 **AuthAI (experimental, off by default)** — An optional adapter for the third-party [AuthAI](https://github.com/authai-io/authai) relay. Unofficial and not affiliated with any provider; see the warning in Settings before enabling it
 - 🛡️ **Permission policy** — Every tool that writes files, runs commands, manages processes, or edits issues is set to *ask*, *allow*, or *deny* — per category, from Settings
 - 🔐 **Local-first** — Chats, tasks, and designs live in a local SQLite database; API keys go to Windows Credential Manager, never into the database
-- 🌗 **Arabic RTL, light & dark** — Designed right-to-left from the start, with a warm `#e68835` accent and both themes
+- 🌐 **Arabic, English, Russian** — Arabic-first and right-to-left, with full English and Russian translations (left-to-right) switchable from Settings — including messages from the agent
+- 🌗 **Light & dark** — A warm `#e68835` accent and both themes
 
 ---
 
@@ -83,7 +87,7 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 | Desktop shell | Tauri 2 (Rust) |
 | UI | React 19 · TypeScript · Tailwind CSS 4 · Motion |
 | Agent runtime | Python 3.11+ · FastAPI · Uvicorn |
-| Model layer | LiteLLM |
+| Model layer | LiteLLM · GitHub Copilot SDK (optional) |
 | Database | SQLite via SQLAlchemy (async) + aiosqlite |
 | Secrets | `keyring` → Windows Credential Manager |
 | Packaging | PyInstaller (agent) · NSIS installer (Tauri bundler) |
@@ -116,7 +120,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.1.0_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.2.1_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)
@@ -132,7 +136,7 @@ pnpm install
 ```bash
 cd apps/agent
 python -m venv .venv
-.venv\Scripts\pip install -e ".[dev]"
+.venv\Scripts\pip install -e ".[dev,copilot]"
 ```
 
 ### 4 — Run
@@ -171,6 +175,7 @@ RAFIQ_DATA_DIR=        # where the database, attachments, and your own skills li
 RAFIQ_WORKSPACE_DIR=   # where tasks and designs without a chosen folder save files (default: Documents\Rafiq)
 RAFIQ_TOKEN=           # bearer token for the local API (set automatically by the desktop app)
 RAFIQ_CORS_ORIGINS=    # comma-separated allowed origins (defaults cover the app and the dev server)
+RAFIQ_GITHUB_CLIENT_ID= # GitHub OAuth App (device flow) used for Copilot sign-in — set this in a fork
 ```
 
 ### Where your data lives
@@ -181,7 +186,7 @@ RAFIQ_CORS_ORIGINS=    # comma-separated allowed origins (defaults cover the app
 | Attachments | `%APPDATA%\Rafiq\attachments` |
 | Your own skills | `%APPDATA%\Rafiq\skills` |
 | Files from tasks and designs with no folder | `Documents\Rafiq\tasks\…` and `Documents\Rafiq\designs\…` |
-| API keys and tracker tokens | Windows Credential Manager |
+| API keys, account tokens, tracker tokens | Windows Credential Manager |
 | Agent log (installed app) | `%APPDATA%\Rafiq\agent.log` |
 
 All of these sit outside the install folder, so updating or reinstalling Rafiq never touches your data.
@@ -259,5 +264,5 @@ The bundled design skills by [Emil Kowalski](https://github.com/emilkowalski/ski
 ---
 
 <div align="center">
-  Built with ❤️ by <a href="https://github.com/AhmadALSaffan">Ahmad AlSaffan · أحمد عليوي السفان</a>
+  Built with ❤️ by <a href="https://github.com/AhmadALSaffan">Ahmed Eliwi AL Saffan · أحمد عليوي السفان</a>
 </div>

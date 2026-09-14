@@ -23,20 +23,21 @@ import { Button, EmptyState } from "../../components/ui";
 import { IssuePanel } from "./IssuePanel";
 import { CATEGORY_LABEL, FilterChip, IssueRow, isOverdue, issueId } from "./pieces";
 
+import { t } from "../../i18n";
 type GroupBy = "none" | "provider" | "project" | "status";
 type SortBy = "updated" | "priority" | "due";
 
 const GROUPS: { id: GroupBy; label: string }[] = [
-  { id: "none", label: "بدون تجميع" },
-  { id: "provider", label: "حسب المنصّة" },
-  { id: "project", label: "حسب المشروع" },
-  { id: "status", label: "حسب الحالة" },
+  { id: "none", label: t("بدون تجميع") },
+  { id: "provider", label: t("حسب المنصّة") },
+  { id: "project", label: t("حسب المشروع") },
+  { id: "status", label: t("حسب الحالة") },
 ];
 
 const SORTS: { id: SortBy; label: string }[] = [
-  { id: "updated", label: "الأحدث تحديثاً" },
-  { id: "priority", label: "الأهم أولاً" },
-  { id: "due", label: "الأقرب استحقاقاً" },
+  { id: "updated", label: t("الأحدث تحديثاً") },
+  { id: "priority", label: t("الأهم أولاً") },
+  { id: "due", label: t("الأقرب استحقاقاً") },
 ];
 
 /** Trackers name priorities differently; this is the order a person actually means. */
@@ -80,7 +81,7 @@ export function WorkPage() {
         setFetchedAt(new Date());
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "ما قدرت أجيب المهام");
+        setError(err instanceof Error ? err.message : t("ما قدرت أجيب المهام"));
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -90,19 +91,19 @@ export function WorkPage() {
   );
 
   usePageMenu(() => [
-    { id: "refresh", label: "حدّث المهام", onSelect: () => void load(true) },
-    { id: "done", label: includeDone ? "أخفِ المكتملة" : "اعرض المكتملة", onSelect: () => setIncludeDone((v) => !v) },
-    { id: "overdue", label: overdueOnly ? "اعرض الكل" : "المتأخرة بس", onSelect: () => setOverdueOnly((v) => !v) },
+    { id: "refresh", label: t("حدّث المهام"), onSelect: () => void load(true) },
+    { id: "done", label: includeDone ? t("أخفِ المكتملة") : t("اعرض المكتملة"), onSelect: () => setIncludeDone((v) => !v) },
+    { id: "overdue", label: overdueOnly ? t("اعرض الكل") : t("المتأخرة بس"), onSelect: () => setOverdueOnly((v) => !v) },
     {
       id: "clear",
-      label: "امسح البحث والفلاتر",
+      label: t("امسح البحث والفلاتر"),
       onSelect: () => {
         setSearch("");
         setProviderFilter(null);
         setOverdueOnly(false);
       },
     },
-    { id: "accounts", label: "حسابات الربط", onSelect: () => navigate("/integrations") },
+    { id: "accounts", label: t("حسابات الربط"), onSelect: () => navigate("/integrations") },
   ]);
 
   useEffect(() => {
@@ -140,15 +141,15 @@ export function WorkPage() {
   }, [issues, search, providerFilter, overdueOnly, sortBy]);
 
   const groups = useMemo(() => {
-    if (groupBy === "none") return [{ label: `الكل (${filtered.length})`, items: filtered }];
+    if (groupBy === "none") return [{ label: t("الكل ({0})", { 0: filtered.length }), items: filtered }];
     const map = new Map<string, TrackerIssue[]>();
     for (const issue of filtered) {
       const key =
         groupBy === "provider"
           ? issue.integration_name
           : groupBy === "project"
-            ? issue.project || "بدون مشروع"
-            : (CATEGORY_LABEL[issue.status_category ?? ""] ?? (issue.status || "غير محدد"));
+            ? issue.project || t("بدون مشروع")
+            : (CATEGORY_LABEL[issue.status_category ?? ""] ?? (issue.status || t("غير محدد")));
       map.set(key, [...(map.get(key) ?? []), issue]);
     }
     return [...map.entries()].map(([label, items]) => ({ label: `${label} (${items.length})`, items }));
@@ -185,11 +186,11 @@ export function WorkPage() {
   if (!loading && connected.length === 0) {
     return (
       <div className="mx-auto max-w-3xl px-8 py-10">
-        <h1 className="mb-8 text-xl font-semibold">شغلي</h1>
+        <h1 className="mb-8 text-xl font-semibold">{t("شغلي")}</h1>
         <EmptyState
           icon={<TasksIcon className="h-8 w-8" />}
-          text="اربط حساب Jira أو Linear أو GitHub أو GitLab، وهون بتشوف كل المهام المسندة إلك بتفاصيلها."
-          action={<Button onClick={() => navigate("/integrations")}>روح لصفحة الربط</Button>}
+          text={t("اربط حساب Jira أو Linear أو GitHub أو GitLab، وهون بتشوف كل المهام المسندة إلك بتفاصيلها.")}
+          action={<Button onClick={() => navigate("/integrations")}>{t("روح لصفحة الربط")}</Button>}
         />
       </div>
     );
@@ -201,13 +202,13 @@ export function WorkPage() {
         <header className="flex flex-col gap-3 border-b px-6 py-4" style={{ borderColor: "var(--color-border)" }}>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h1 className="text-xl font-semibold">شغلي</h1>
+              <h1 className="text-xl font-semibold">{t("شغلي")}</h1>
               <p className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                <span>{filtered.length} مهمة</span>
+                <span>{t("{0} مهمة", { 0: filtered.length })}</span>
                 {overdueCount > 0 && (
-                  <span style={{ color: "var(--color-danger)" }}>· {overdueCount} متأخرة</span>
+                  <span style={{ color: "var(--color-danger)" }}>· {t("{0} متأخرة", { 0: overdueCount })}</span>
                 )}
-                {fetchedAt && <span>· آخر تحديث {timeAgo(fetchedAt.toISOString())}</span>}
+                {fetchedAt && <span>{t("· آخر تحديث")} {timeAgo(fetchedAt.toISOString())}</span>}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -218,13 +219,13 @@ export function WorkPage() {
                   onChange={(e) => setIncludeDone(e.target.checked)}
                   className="h-3.5 w-3.5 accent-[var(--color-accent)]"
                 />
-                اعرض المكتملة
+                {t("اعرض المكتملة")}
               </label>
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={() => void load(true)}
-                aria-label="تحديث"
-                title="تحديث"
+                aria-label={t("تحديث")}
+                title={t("تحديث")}
                 className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
                 style={{ color: "var(--color-ink-muted)" }}
               >
@@ -249,13 +250,13 @@ export function WorkPage() {
                 ref={searchRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="دوّر بالعنوان، المفتاح، المشروع، الوسم…  (/)"
+                placeholder={t("دوّر بالعنوان، المفتاح، المشروع، الوسم…  (/)")}
                 className="w-full bg-transparent py-2 text-sm outline-none"
                 style={{ color: "var(--color-ink)" }}
                 dir={fieldDir(search)}
               />
               {search && (
-                <button onClick={() => setSearch("")} aria-label="مسح" style={{ color: "var(--color-ink-muted)" }}>
+                <button onClick={() => setSearch("")} aria-label={t("مسح")} style={{ color: "var(--color-ink-muted)" }}>
                   <XIcon className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -264,7 +265,7 @@ export function WorkPage() {
             {providers.length > 1 && (
               <div className="flex gap-1">
                 <FilterChip active={providerFilter === null} onClick={() => setProviderFilter(null)}>
-                  الكل
+                  {t("الكل")}
                 </FilterChip>
                 {providers.map((p) => (
                   <FilterChip key={p} active={providerFilter === p} onClick={() => setProviderFilter(p)}>
@@ -276,7 +277,7 @@ export function WorkPage() {
 
             {overdueCount > 0 && (
               <FilterChip active={overdueOnly} onClick={() => setOverdueOnly((v) => !v)}>
-                متأخرة {overdueCount}
+                {t("متأخرة")} {overdueCount}
               </FilterChip>
             )}
 
@@ -317,7 +318,7 @@ export function WorkPage() {
             </div>
           ) : filtered.length === 0 ? (
             <p className="py-16 text-center text-sm" style={{ color: "var(--color-ink-muted)" }}>
-              ما في مهام مطابقة.
+              {t("ما في مهام مطابقة.")}
             </p>
           ) : (
             <div className="flex flex-col gap-6">
@@ -363,10 +364,10 @@ export function WorkPage() {
             }}
             onRunTask={async (issue) => {
               const model = models.find((m) => m.verify_ok !== false);
-              if (!model) throw new Error("أضف نموذج شغّال أولاً من صفحة النماذج.");
+              if (!model) throw new Error(t("أضف نموذج شغّال أولاً من صفحة النماذج."));
               const task = await createTask({
                 title: `${issue.key}: ${issue.title}`.slice(0, 100),
-                prompt: `اشتغل على هالمهمة من ${issue.integration_name}:\n\n${issue.key} — ${issue.title}\nالحالة: ${issue.status}\nالرابط: ${issue.url}\n\n${issue.description ?? ""}\n\nلما تخلص، اكتب تعليق على المهمة بأداة issue_comment يشرح شو عملت.`,
+                prompt: t("اشتغل على هالمهمة من {0}:\n\n{1} — {2}\nالحالة: {3}\nالرابط: {4}\n\n{5}\n\nلما تخلص، اكتب تعليق على المهمة بأداة issue_comment يشرح شو عملت.", { 0: issue.integration_name, 1: issue.key, 2: issue.title, 3: issue.status, 4: issue.url, 5: issue.description ?? "" }),
                 modelId: model.id,
                 workingDir: recentFolders()[0],
               });

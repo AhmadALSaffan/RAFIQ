@@ -17,6 +17,9 @@ playwright>=1.49
 pyautogui>=0.9.54
 mss>=10.0
 
+[copilot]
+github-copilot-sdk>=1.0
+
 [dev]
 pytest>=8.3
 pytest-asyncio>=0.24

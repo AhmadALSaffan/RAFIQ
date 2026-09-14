@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isolateMentions } from "../lib/bidi";
 
+import { t } from "../i18n";
 function CodeBlock({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -18,7 +19,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
             });
           }}
         >
-          {copied ? "انتسخ ✓" : "نسخ"}
+          {copied ? t("انتسخ ✓") : t("نسخ")}
         </button>
       </div>
       <pre dir="ltr">

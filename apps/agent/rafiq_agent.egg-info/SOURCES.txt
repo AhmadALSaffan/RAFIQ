@@ -8,6 +8,7 @@ rafiq_agent.egg-info/dependency_links.txt
 rafiq_agent.egg-info/requires.txt
 rafiq_agent.egg-info/top_level.txt
 rafiq_agent/api/__init__.py
+rafiq_agent/api/accounts.py
 rafiq_agent/api/attachments.py
 rafiq_agent/api/chats.py
 rafiq_agent/api/deps.py
@@ -17,6 +18,11 @@ rafiq_agent/api/integrations.py
 rafiq_agent/api/models.py
 rafiq_agent/api/settings.py
 rafiq_agent/api/tasks.py
+rafiq_agent/auth/__init__.py
+rafiq_agent/auth/base.py
+rafiq_agent/auth/github_copilot.py
+rafiq_agent/auth/registry.py
+rafiq_agent/auth/resolve.py
 rafiq_agent/core/__init__.py
 rafiq_agent/core/agent_runtime.py
 rafiq_agent/core/attachments.py
@@ -33,8 +39,10 @@ rafiq_agent/integrations/providers.py
 rafiq_agent/integrations/tools.py
 rafiq_agent/llm/__init__.py
 rafiq_agent/llm/base.py
+rafiq_agent/llm/copilot.py
 rafiq_agent/llm/discovery.py
 rafiq_agent/schemas/__init__.py
+rafiq_agent/schemas/accounts.py
 rafiq_agent/schemas/chats.py
 rafiq_agent/schemas/models.py
 rafiq_agent/schemas/settings.py
@@ -76,6 +84,7 @@ rafiq_agent/tools/skills.py
 rafiq_agent/tools/tasks.py
 rafiq_agent/tools/os_adapters/__init__.py
 tests/test_api.py
+tests/test_auth.py
 tests/test_designs.py
 tests/test_loop.py
 tests/test_skills.py

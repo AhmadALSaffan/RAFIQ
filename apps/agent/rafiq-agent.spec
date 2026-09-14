@@ -29,6 +29,18 @@ hiddenimports += [
     "email.mime.multipart",
 ]
 
+# GitHub Copilot's SDK is optional: bundled when installed in the build venv. Its runtime
+# (~100 MB) is not — the SDK downloads and checksum-verifies it on the first Copilot sign-in.
+try:
+    import copilot  # noqa: F401
+
+    copilot_datas, copilot_binaries, copilot_hidden = collect_all("copilot")
+    datas += copilot_datas
+    binaries += copilot_binaries
+    hiddenimports += copilot_hidden
+except ImportError:
+    pass
+
 # The skills ship with the app: they're markdown next to the package, not importable code.
 datas += collect_data_files("rafiq_agent", includes=["skills/bundled/**/*"])
 

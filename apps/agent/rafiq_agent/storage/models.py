@@ -33,6 +33,34 @@ class LlmModel(Base):
     verify_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     supports_tools: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # How this agent signs in: "api_key" (api_key_ref above) or "oauth" (a connected account).
+    # Each model carries its own binding, so two agents never share or overwrite a login.
+    auth_method: Mapped[str] = mapped_column(String, default="api_key")
+    account_id: Mapped[str | None] = mapped_column(String, ForeignKey("auth_accounts.id"), nullable=True)
+    # Loaded with the model so resolving credentials never needs a second query.
+    account: Mapped["AuthAccount | None"] = relationship(lazy="joined")
+
+
+class AuthAccount(Base):
+    """A signed-in provider account (e.g. a GitHub login used for Copilot).
+
+    Only non-secret facts live here; the token itself is in the OS keychain under
+    `secret_ref`. Disconnecting deletes the token but keeps the row while an agent still
+    points at it, so reconnecting the same login brings those agents back.
+    """
+
+    __tablename__ = "auth_accounts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    provider: Mapped[str] = mapped_column(String)
+    method: Mapped[str] = mapped_column(String, default="oauth")
+    # The provider's stable user id and a human label (e.g. GitHub login) — never a secret.
+    external_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    label: Mapped[str] = mapped_column(String)
+    secret_ref: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="connected")  # connected | disconnected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Task(Base):

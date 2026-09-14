@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 const RECENT_KEY = "rafiq-recent-folders";
 const MAX_RECENT = 5;
 
@@ -10,7 +11,7 @@ export async function canPickNatively(): Promise<boolean> {
 export async function pickFolder(defaultPath?: string): Promise<string | null> {
   if (!(await canPickNatively())) return null;
   const { open } = await import("@tauri-apps/plugin-dialog");
-  const picked = await open({ directory: true, multiple: false, defaultPath, title: "اختار مجلد العمل" });
+  const picked = await open({ directory: true, multiple: false, defaultPath, title: t("اختار مجلد العمل") });
   return typeof picked === "string" ? picked : null;
 }
 

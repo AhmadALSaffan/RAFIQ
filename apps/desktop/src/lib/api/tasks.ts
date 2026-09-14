@@ -9,6 +9,7 @@ import type {
   TaskSummary,
 } from "../types";
 
+import { t } from "../../i18n";
 type RawEvent = { id: string; type: string; payload: Record<string, unknown>; created_at: string };
 
 function toTaskEvent(raw: RawEvent): TaskEvent {
@@ -106,16 +107,16 @@ export function subscribeTask(id: string, onUpdate: (task: TaskDetail) => void):
 export function statusLabel(status: TaskStatus): string {
   switch (status) {
     case "queued":
-      return "بالدور";
+      return t("بالدور");
     case "pending":
-      return "بالانتظار";
+      return t("بالانتظار");
     case "running":
-      return "شغّال";
+      return t("شغّال");
     case "completed":
-      return "مكتمل";
+      return t("مكتمل");
     case "failed":
-      return "فشل";
+      return t("فشل");
     case "cancelled":
-      return "أُلغي";
+      return t("أُلغي");
   }
 }

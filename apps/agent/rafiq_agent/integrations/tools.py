@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy import select
 
+from rafiq_agent.i18n import tr
 from rafiq_agent.integrations.base import Integration, IntegrationError
 from rafiq_agent.integrations.providers import build
 from rafiq_agent.storage.db import SessionLocal
@@ -26,14 +27,14 @@ async def _resolve(key: str) -> tuple[IntegrationAccount, Integration]:
     """Finds which connected account owns an issue key (keys are provider-shaped)."""
     pairs = await _accounts()
     if not pairs:
-        raise IntegrationError("ما في حساب مربوط. اربط Jira أو Linear أو GitHub أو GitLab من صفحة الربط.")
+        raise IntegrationError(tr("ما في حساب مربوط. اربط Jira أو Linear أو GitHub أو GitLab من صفحة الربط."))
     for row, client in pairs:
         try:
             await client.get_issue(key)
             return row, client
         except Exception:  # noqa: BLE001 - try the next account
             continue
-    raise IntegrationError(f"ما لقيت المهمة «{key}» بأي حساب مربوط.")
+    raise IntegrationError(tr("ما لقيت المهمة «{0}» بأي حساب مربوط.", key))
 
 
 class IssueListTool(Tool):
@@ -49,12 +50,12 @@ class IssueListTool(Tool):
         try:
             pairs = await _accounts()
             if not pairs:
-                return ToolResult(ok=False, output="ما في حساب مربوط.")
+                return ToolResult(ok=False, output=tr("ما في حساب مربوط."))
             lines = []
             for row, client in pairs:
                 for issue in await client.list_issues(args.get("query"), 20):
                     lines.append(f"[{row.provider}] {issue.key} — {issue.title} ({issue.status}) {issue.url}")
-            return ToolResult(ok=True, output="\n".join(lines) or "ما في مهام مفتوحة مسندة إلك.")
+            return ToolResult(ok=True, output="\n".join(lines) or tr("ما في مهام مفتوحة مسندة إلك."))
         except IntegrationError as exc:
             return ToolResult(ok=False, output=str(exc))
 
@@ -75,7 +76,7 @@ class IssueReadTool(Tool):
             issue = await client.get_issue(args["key"])
         except IntegrationError as exc:
             return ToolResult(ok=False, output=str(exc))
-        body = f"{issue.key} — {issue.title}\nالحالة: {issue.status}\nالرابط: {issue.url}"
+        body = tr("{0} — {1}\nالحالة: {2}\nالرابط: {3}", issue.key, issue.title, issue.status, issue.url)
         if issue.description:
             body += f"\n\n{issue.description[:4000]}"
         return ToolResult(ok=True, output=body)
@@ -97,7 +98,7 @@ class IssueCommentTool(Tool):
             await client.add_comment(args["key"], args["body"])
         except IntegrationError as exc:
             return ToolResult(ok=False, output=str(exc))
-        return ToolResult(ok=True, output=f"انكتب التعليق على {args['key']}.")
+        return ToolResult(ok=True, output=tr("انكتب التعليق على {0}.", args["key"]))
 
 
 class IssueCompleteTool(Tool):
@@ -118,7 +119,7 @@ class IssueCompleteTool(Tool):
             status = await client.complete(args["key"])
         except IntegrationError as exc:
             return ToolResult(ok=False, output=str(exc))
-        return ToolResult(ok=True, output=f"{args['key']} صارت «{status}».")
+        return ToolResult(ok=True, output=tr("{0} صارت «{1}».", args["key"], status))
 
 
 def issue_tools() -> list[Tool]:

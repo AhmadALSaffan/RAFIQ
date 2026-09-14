@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { createModel, deleteModel, discoverModels, listModels, providerLabel, verifyModel } from "../lib/api";
+import {
+  createModel,
+  deleteModel,
+  discoverModels,
+  listAccounts,
+  listModels,
+  providerLabel,
+  setModelAccount,
+  verifyModel,
+} from "../lib/api";
 import { PROVIDERS, providerMeta } from "../lib/providers";
-import type { DiscoveredModel, LlmModel, Provider } from "../lib/types";
+import type { AuthAccount, DiscoveredModel, LlmModel, Provider } from "../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../lib/motion";
 import { timeAgo } from "../lib/time";
 import { useElementMenu, usePageMenu } from "../components/ContextMenu";
@@ -11,18 +20,25 @@ import { ActionProgress } from "../components/Feedback";
 import { AlertIcon, ModelsIcon, PlusIcon, RefreshIcon, SearchIcon, SpinnerIcon, TrashIcon } from "../components/Icons";
 import { Button, DrawnCheck, EmptyState, ErrorText, Field, Reveal } from "../components/ui";
 import { BrandMark } from "../components/BrandMark";
+import { fieldDir } from "../lib/bidi";
+import { ConnectAccount } from "../features/accounts/ConnectAccount";
+import { accountLabel } from "../features/accounts/labels";
 
+import { t } from "../i18n";
 export function ModelsPage() {
   const [models, setModels] = useState<LlmModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [accounts, setAccounts] = useState<AuthAccount[]>([]);
 
   async function refresh() {
     setRefreshing(true);
     try {
-      setModels(await listModels());
+      const [m, a] = await Promise.all([listModels(), listAccounts().catch(() => [] as AuthAccount[])]);
+      setModels(m);
+      setAccounts(a);
     } catch {
       // Keep what's on screen; the next visit tries again.
     } finally {
@@ -32,8 +48,8 @@ export function ModelsPage() {
   }
 
   usePageMenu(() => [
-    { id: "add-model", label: "أضف نموذج", onSelect: () => setFormOpen(true) },
-    { id: "refresh", label: "حدّث القائمة", onSelect: () => void refresh() },
+    { id: "add-model", label: t("أضف نموذج"), onSelect: () => setFormOpen(true) },
+    { id: "refresh", label: t("حدّث القائمة"), onSelect: () => void refresh() },
   ]);
 
   useEffect(() => {
@@ -48,15 +64,15 @@ export function ModelsPage() {
   return (
     <div className="mx-auto max-w-3xl px-8 py-10">
       <PageHeader
-        title="النماذج"
-        description="اختار المزوّد، حط مفتاحك، وبنجيبلك الموديلات المتاحة إلك مباشرة من عنده."
+        title={t("النماذج")}
+        description={t("اختار المزوّد، حط مفتاحك، وبنجيبلك الموديلات المتاحة إلك مباشرة من عنده.")}
         actions={
           <>
             <RefreshButton spinning={refreshing} onClick={() => void refresh()} />
             {!formOpen && (
               <Button onClick={() => setFormOpen(true)}>
                 <PlusIcon className="h-4 w-4" />
-                إضافة نموذج
+                {t("إضافة نموذج")}
               </Button>
             )}
           </>
@@ -79,8 +95,8 @@ export function ModelsPage() {
       ) : models.length === 0 && !formOpen ? (
         <EmptyState
           icon={<ModelsIcon className="h-8 w-8" />}
-          text="ما في نماذج مضافة بعد. أضف أول نموذج عشان تقدر تبلّش مهمة."
-          action={<Button onClick={() => setFormOpen(true)}>إضافة نموذج</Button>}
+          text={t("ما في نماذج مضافة بعد. أضف أول نموذج عشان تقدر تبلّش مهمة.")}
+          action={<Button onClick={() => setFormOpen(true)}>{t("إضافة نموذج")}</Button>}
         />
       ) : (
         <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
@@ -90,6 +106,7 @@ export function ModelsPage() {
                 key={m.id}
                 model={m}
                 highlight={m.id === justAdded}
+                accounts={accounts.filter((a) => a.provider === m.provider && a.status === "connected")}
                 onDelete={() => handleDelete(m.id)}
                 onUpdated={(next) => setModels((prev) => prev.map((x) => (x.id === next.id ? next : x)))}
               />
@@ -118,11 +135,14 @@ function ListSkeleton() {
 function ModelRow({
   model,
   highlight,
+  accounts,
   onDelete,
   onUpdated,
 }: {
   model: LlmModel;
   highlight: boolean;
+  /** Connected accounts this agent could sign in with (same provider). */
+  accounts: AuthAccount[];
   onDelete: () => void;
   onUpdated: (m: LlmModel) => void;
 }) {
@@ -154,9 +174,9 @@ function ModelRow({
       className={`relative overflow-hidden rounded-lg border px-4 py-3 ${highlight ? "flash-accent" : ""}`}
       style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
       onContextMenu={menu(() => [
-        { id: "verify", label: "افحص من جديد", onSelect: () => void retest(), disabled: testing },
-        { id: "copy-id", label: "انسخ اسم الموديل", onSelect: () => void navigator.clipboard.writeText(model.model_id) },
-        { id: "delete", label: "احذف النموذج", onSelect: () => setConfirmDelete(true), danger: true },
+        { id: "verify", label: t("افحص من جديد"), onSelect: () => void retest(), disabled: testing },
+        { id: "copy-id", label: t("انسخ اسم الموديل"), onSelect: () => void navigator.clipboard.writeText(model.model_id) },
+        { id: "delete", label: t("احذف النموذج"), onSelect: () => setConfirmDelete(true), danger: true },
       ])}
     >
       <ActionProgress active={testing} />
@@ -176,11 +196,25 @@ function ModelRow({
           <p className="mt-1 truncate font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
             {model.model_id}
           </p>
+          {model.auth_method === "oauth" && (
+            <AccountLine
+              model={model}
+              accounts={accounts}
+              onSwitch={async (accountId) => {
+                setTesting(true);
+                try {
+                  onUpdated(await setModelAccount(model.id, accountId));
+                } finally {
+                  setTesting(false);
+                }
+              }}
+            />
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
           <VerifyStatus model={model} testing={testing} />
-          <RefreshButton spinning={testing} onClick={() => void retest()} label="افحص إذا الموديل شغّال" />
+          <RefreshButton spinning={testing} onClick={() => void retest()} label={t("افحص إذا الموديل شغّال")} />
           <AnimatePresence mode="wait" initial={false}>
             {confirmDelete ? (
               <motion.div
@@ -192,10 +226,10 @@ function ModelRow({
                 className="flex items-center gap-1"
               >
                 <Button variant="danger" className="px-2.5 py-1 text-xs" onClick={onDelete}>
-                  حذف
+                  {t("حذف")}
                 </Button>
                 <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setConfirmDelete(false)}>
-                  لا
+                  {t("لا")}
                 </Button>
               </motion.div>
             ) : (
@@ -206,7 +240,7 @@ function ModelRow({
                 exit={{ opacity: 0 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setConfirmDelete(true)}
-                aria-label="حذف"
+                aria-label={t("حذف")}
                 className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
                 style={{ color: "var(--color-ink-muted)" }}
               >
@@ -233,7 +267,7 @@ function ModelRow({
       {model.verify_ok && model.supports_tools === false && (
         <p className="mt-2 flex items-center gap-1.5 text-xs" style={{ color: "var(--color-pending)" }}>
           <AlertIcon className="h-3.5 w-3.5" />
-          هالموديل ما بيدعم استدعاء الأدوات — ممكن يحكي بس ما يقدر ينفّذ شي على جهازك.
+          {t("هالموديل ما بيدعم استدعاء الأدوات — ممكن يحكي بس ما يقدر ينفّذ شي على جهازك.")}
         </p>
       )}
     </motion.li>
@@ -250,7 +284,7 @@ function VerifyStatus({ model, testing }: { model: LlmModel; testing: boolean })
     content = (
       <>
         <SpinnerIcon className="h-3.5 w-3.5" />
-        جارِ الفحص
+        {t("جارِ الفحص")}
       </>
     );
   } else if (model.verify_ok) {
@@ -259,7 +293,7 @@ function VerifyStatus({ model, testing }: { model: LlmModel; testing: boolean })
     content = (
       <>
         <DrawnCheck className="h-3.5 w-3.5" />
-        شغّال{model.verify_latency_ms != null ? ` · ${model.verify_latency_ms}ms` : ""}
+        {t("شغّال")}{model.verify_latency_ms != null ? ` · ${model.verify_latency_ms}ms` : ""}
       </>
     );
   } else if (model.verify_ok === false) {
@@ -268,11 +302,11 @@ function VerifyStatus({ model, testing }: { model: LlmModel; testing: boolean })
     content = (
       <>
         <AlertIcon className="h-3.5 w-3.5" />
-        ما اشتغل
+        {t("ما اشتغل")}
       </>
     );
   } else {
-    content = "ما انفحص";
+    content = t("ما انفحص");
   }
 
   return (
@@ -285,7 +319,7 @@ function VerifyStatus({ model, testing }: { model: LlmModel; testing: boolean })
         transition={{ duration: 0.18, ease: easeOutExpo }}
         className="flex items-center gap-1 whitespace-nowrap px-1 text-xs font-medium"
         style={{ color }}
-        title={model.verified_at ? `آخر فحص ${timeAgo(model.verified_at)}` : undefined}
+        title={model.verified_at ? t("آخر فحص {0}", { 0: timeAgo(model.verified_at) }) : undefined}
       >
         {content}
       </motion.span>
@@ -294,6 +328,48 @@ function VerifyStatus({ model, testing }: { model: LlmModel; testing: boolean })
 }
 
 type FetchState = { status: "idle" } | { status: "loading" } | { status: "done"; models: DiscoveredModel[] } | { status: "error"; message: string };
+
+/** Which account an OAuth agent signs in as — and a switch, when there's more than one. */
+function AccountLine({
+  model,
+  accounts,
+  onSwitch,
+}: {
+  model: LlmModel;
+  accounts: AuthAccount[];
+  onSwitch: (accountId: string) => void;
+}) {
+  const disconnected = model.account_status !== "connected";
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+      <span style={{ color: disconnected ? "var(--color-danger)" : "var(--color-ink-muted)" }}>
+        {disconnected ? t("الحساب مفصول — اربطه من الإعدادات ← الحسابات المتصلة") : t("بيسجّل دخول بحساب")}
+      </span>
+      {accounts.length > 1 ? (
+        <select
+          value={model.account_id ?? ""}
+          onChange={(e) => onSwitch(e.target.value)}
+          className="rounded-md border bg-transparent px-1.5 py-0.5 text-xs"
+          style={{ borderColor: "var(--color-border)" }}
+          dir="ltr"
+          aria-label={t("الحساب")}
+        >
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {accountLabel(a.provider, a.label)}
+            </option>
+          ))}
+        </select>
+      ) : (
+        model.account_label && (
+          <bdi dir="ltr" className="font-medium" style={{ color: "var(--color-ink)" }}>
+            {accountLabel(model.provider, model.account_label)}
+          </bdi>
+        )
+      )}
+    </div>
+  );
+}
 
 function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: (m: LlmModel) => void }) {
   const [provider, setProvider] = useState<Provider>("anthropic");
@@ -306,11 +382,26 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<AuthAccount[]>([]);
+  const [accountId, setAccountId] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  // Providers that take a key *or* an account (OpenRouter): which one this agent uses.
+  const [useAccount, setUseAccount] = useState(false);
 
   const meta = providerMeta(provider);
+  const isAccount = Boolean(meta.account || (meta.accountOptional && useAccount));
   const effectiveBaseUrl = baseUrl || meta.defaultBaseUrl || "";
-  const canFetch = (!meta.needsKey || apiKey.trim().length > 0) && (!meta.needsBaseUrl || effectiveBaseUrl.length > 0);
+  const providerAccounts = accounts.filter((a) => a.provider === provider && a.status === "connected");
+  const canFetch = isAccount
+    ? Boolean(accountId)
+    : (!meta.needsKey || apiKey.trim().length > 0) && (!meta.needsBaseUrl || effectiveBaseUrl.length > 0);
   const modelId = picked?.id ?? manualId.trim();
+
+  useEffect(() => {
+    listAccounts()
+      .then(setAccounts)
+      .catch(() => setAccounts([]));
+  }, []);
 
   function selectProvider(p: Provider) {
     setProvider(p);
@@ -319,22 +410,34 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
     setManualId("");
     setQuery("");
     setError(null);
-    if (!providerMeta(p).needsKey) void fetchModels(p);
+    setConnecting(false);
+    setUseAccount(false);
+    const next = providerMeta(p);
+    if (next.account) {
+      const first = accounts.find((a) => a.provider === p && a.status === "connected");
+      setAccountId(first?.id ?? "");
+      if (first) void fetchModels(p, first.id);
+      else setConnecting(true);
+    } else if (!next.needsKey) {
+      void fetchModels(p);
+    }
   }
 
-  async function fetchModels(p: Provider = provider) {
+  async function fetchModels(p: Provider = provider, account: string = accountId, viaAccount: boolean = isAccount) {
     const m = providerMeta(p);
+    const signIn = Boolean(m.account || viaAccount);
     setFetchState({ status: "loading" });
     setPicked(null);
     try {
       const found = await discoverModels({
         provider: p,
-        apiKey: apiKey || undefined,
-        baseUrl: (p === provider ? baseUrl : "") || m.defaultBaseUrl || undefined,
+        apiKey: signIn ? undefined : apiKey || undefined,
+        baseUrl: signIn ? undefined : (p === provider ? baseUrl : "") || m.defaultBaseUrl || undefined,
+        accountId: signIn ? account : undefined,
       });
       setFetchState({ status: "done", models: found });
     } catch (err) {
-      setFetchState({ status: "error", message: err instanceof Error ? err.message : "صار خطأ" });
+      setFetchState({ status: "error", message: err instanceof Error ? err.message : t("صار خطأ") });
     }
   }
 
@@ -357,11 +460,12 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
         provider,
         modelId,
         baseUrl: meta.needsBaseUrl ? effectiveBaseUrl : undefined,
-        apiKey: apiKey || undefined,
+        apiKey: isAccount ? undefined : apiKey || undefined,
+        accountId: isAccount ? accountId : undefined,
       });
       onCreated(created);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "صار خطأ غير متوقع");
+      setError(err instanceof Error ? err.message : t("صار خطأ غير متوقع"));
     } finally {
       setSaving(false);
     }
@@ -375,10 +479,13 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
     >
       <div className="flex flex-col gap-2">
         <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
-          المزوّد
+          {t("المزوّد")}
         </span>
         <div className="flex flex-wrap gap-1.5">
-          {PROVIDERS.map((p) => {
+          {PROVIDERS.filter(
+            // Experimental integrations appear only once an account for them is connected.
+            (p) => !p.experimental || accounts.some((a) => a.provider === p.value && a.status === "connected"),
+          ).map((p) => {
             const active = p.value === provider;
             return (
               <motion.button
@@ -415,6 +522,96 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
         )}
       </div>
 
+      {meta.accountOptional && (
+        <div className="flex gap-1.5" role="radiogroup" aria-label={t("طريقة الدخول")}>
+          {[
+            { value: false, label: t("مفتاح API") },
+            { value: true, label: t("حساب {0}", { 0: meta.label }) },
+          ].map((option) => (
+            <button
+              type="button"
+              key={String(option.value)}
+              role="radio"
+              aria-checked={useAccount === option.value}
+              onClick={() => {
+                setUseAccount(option.value);
+                setFetchState({ status: "idle" });
+                setPicked(null);
+                if (option.value) {
+                  const first = accounts.find((a) => a.provider === provider && a.status === "connected");
+                  setAccountId(first?.id ?? "");
+                  if (first) void fetchModels(provider, first.id, true);
+                  else setConnecting(true);
+                } else {
+                  setConnecting(false);
+                }
+              }}
+              className="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+              style={{
+                borderColor: useAccount === option.value ? "var(--color-accent)" : "var(--color-border)",
+                background:
+                  useAccount === option.value ? "color-mix(in oklch, var(--color-accent) 12%, transparent)" : "transparent",
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isAccount && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
+              {t("الحساب")}
+            </span>
+            {!connecting && !meta.experimental && (
+              <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={() => setConnecting(true)}>
+                <PlusIcon className="h-3.5 w-3.5" />
+                {t("اربط حساب")}
+              </Button>
+            )}
+          </div>
+          {providerAccounts.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {providerAccounts.map((a) => (
+                <button
+                  type="button"
+                  key={a.id}
+                  onClick={() => {
+                    setAccountId(a.id);
+                    void fetchModels(provider, a.id, true);
+                  }}
+                  className="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+                  style={{
+                    borderColor: a.id === accountId ? "var(--color-accent)" : "var(--color-border)",
+                    background:
+                      a.id === accountId ? "color-mix(in oklch, var(--color-accent) 12%, transparent)" : "transparent",
+                  }}
+                >
+                  <bdi dir="ltr">{accountLabel(a.provider, a.label)}</bdi>
+                </button>
+              ))}
+            </div>
+          )}
+          <Reveal open={connecting}>
+            {connecting && (
+              <ConnectAccount
+                provider={provider}
+                providerName={provider === "github_copilot" ? "GitHub" : meta.label}
+                onCancel={() => setConnecting(false)}
+                onConnected={(account) => {
+                  setConnecting(false);
+                  setAccounts((prev) => [...prev.filter((a) => a.id !== account.id), account]);
+                  setAccountId(account.id);
+                  void fetchModels(provider, account.id, true);
+                }}
+              />
+            )}
+          </Reveal>
+        </div>
+      )}
+
       <div className="grid gap-4" style={{ gridTemplateColumns: meta.needsKey && meta.needsBaseUrl ? "1fr 1fr" : "1fr" }}>
         {meta.needsBaseUrl && (
           <Field label="Base URL">
@@ -428,8 +625,8 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
             />
           </Field>
         )}
-        {meta.needsKey && (
-          <Field label="مفتاح API" hint="بيتخزّن مشفّر بخزنة ويندوز، وما رح يظهر مرة ثانية.">
+        {meta.needsKey && !isAccount && (
+          <Field label={t("مفتاح API")} hint={t("بيتخزّن مشفّر بخزنة ويندوز، وما رح يظهر مرة ثانية.")}>
             <input
               value={apiKey}
               onChange={(e) => {
@@ -450,7 +647,7 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
-            الموديل
+            {t("الموديل")}
           </span>
           <Button
             type="button"
@@ -460,7 +657,7 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
             onClick={() => fetchModels()}
           >
             <RefreshIcon className="h-3.5 w-3.5" />
-            {fetchState.status === "done" ? "تحديث القائمة" : "جلب الموديلات"}
+            {fetchState.status === "done" ? t("تحديث القائمة") : t("جلب الموديلات")}
           </Button>
         </div>
 
@@ -476,13 +673,14 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
           }}
           canFetch={canFetch}
           needsKey={meta.needsKey}
+          needsAccount={isAccount}
           manualId={manualId}
           onManualId={setManualId}
         />
       </div>
 
       <Reveal open={Boolean(modelId)}>
-        <Field label="اسم يظهرلك بالتطبيق">
+        <Field label={t("اسم يظهرلك بالتطبيق")}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={modelId} className="input" />
         </Field>
       </Reveal>
@@ -494,14 +692,14 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
           {saving ? (
             <>
               <SpinnerIcon className="h-4 w-4" />
-              جارِ التحقق إنه شغّال…
+              {t("جارِ التحقق إنه شغّال…")}
             </>
           ) : (
-            "تحقق واحفظ"
+            t("تحقق واحفظ")
           )}
         </Button>
         <Button type="button" variant="ghost" onClick={onCancel}>
-          إلغاء
+          {t("إلغاء")}
         </Button>
         {saving && (
           <motion.span
@@ -510,7 +708,7 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
             className="text-xs"
             style={{ color: "var(--color-ink-muted)" }}
           >
-            بنبعت رسالة تجريبية للموديل
+            {t("بنبعت رسالة تجريبية للموديل")}
           </motion.span>
         )}
       </div>
@@ -527,6 +725,7 @@ function ModelChooser({
   onPick,
   canFetch,
   needsKey,
+  needsAccount,
   manualId,
   onManualId,
 }: {
@@ -538,6 +737,7 @@ function ModelChooser({
   onPick: (m: DiscoveredModel) => void;
   canFetch: boolean;
   needsKey: boolean;
+  needsAccount?: boolean;
   manualId: string;
   onManualId: (v: string) => void;
 }) {
@@ -547,7 +747,13 @@ function ModelChooser({
   if (state.status === "idle") {
     return (
       <div className={`${box} px-4 py-6 text-center text-xs`} style={{ ...boxStyle, color: "var(--color-ink-muted)" }}>
-        {canFetch ? "اضغط «جلب الموديلات» لنجيب القائمة من المزوّد." : needsKey ? "حط مفتاح الـ API أول، وبنجيب الموديلات المتاحة إلك." : "حدد الـ Base URL."}
+        {canFetch
+          ? t("اضغط «جلب الموديلات» لنجيب القائمة من المزوّد.")
+          : needsAccount
+            ? t("اربط حساب أول، وبنجيب الموديلات اللي حسابك بيقدر يستعملها.")
+            : needsKey
+              ? t("حط مفتاح الـ API أول، وبنجيب الموديلات المتاحة إلك.")
+              : t("حدد الـ Base URL.")}
       </div>
     );
   }
@@ -569,7 +775,7 @@ function ModelChooser({
         <input
           value={manualId}
           onChange={(e) => onManualId(e.target.value)}
-          placeholder="أو اكتب معرّف الموديل يدوياً"
+          placeholder={t("أو اكتب معرّف الموديل يدوياً")}
           className="input font-mono"
           dir="ltr"
         />
@@ -581,7 +787,7 @@ function ModelChooser({
     return (
       <div className="flex flex-col gap-2">
         <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-          المزوّد ما رجّع أي موديل. اكتب المعرّف يدوياً:
+          {t("المزوّد ما رجّع أي موديل. اكتب المعرّف يدوياً:")}
         </p>
         <input value={manualId} onChange={(e) => onManualId(e.target.value)} className="input font-mono" dir="ltr" />
       </div>
@@ -600,10 +806,10 @@ function ModelChooser({
         <input
           value={query}
           onChange={(e) => onQuery(e.target.value)}
-          placeholder={`ابحث بين ${state.models.length} موديل…`}
+          placeholder={t("ابحث بين {0} موديل…", { 0: state.models.length })}
           className="w-full bg-transparent py-2.5 text-sm outline-none"
           style={{ color: "var(--color-ink)" }}
-          dir="rtl"
+          dir={fieldDir(query)}
         />
       </div>
       <motion.ul
@@ -653,7 +859,7 @@ function ModelChooser({
         })}
         {filtered.length === 0 && (
           <li className="px-3 py-4 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            ما في نتائج لـ «{query}»
+            {t("ما في نتائج لـ «")}{query}»
           </li>
         )}
       </motion.ul>

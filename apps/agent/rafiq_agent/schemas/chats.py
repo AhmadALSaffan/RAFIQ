@@ -19,7 +19,7 @@ class ReplySettings(BaseModel):
     """How this chat's replies are generated. Every field maps to a real request knob."""
 
     length: str = "balanced"  # short | balanced | detailed
-    language: str = "auto"  # auto | ar | en
+    language: str = "auto"  # auto | ar | en | ru
     temperature: float | None = None  # None = the provider's own default
     tools: bool = True  # off = don't send tool schemas at all (cheaper, read-only chat)
     reasoning: bool = True  # off = ask thinking models to skip it, and never show it

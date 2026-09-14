@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import WebSocket
 from sqlalchemy import select
 
+from rafiq_agent.i18n import tr
 from rafiq_agent.storage.db import SessionLocal
 from rafiq_agent.storage.models import Task, TaskEvent
 
@@ -64,7 +65,9 @@ class TaskManager:
                     t.status = "failed"
             await session.commit()
         for task_id in interrupted:
-            await self.emit_event(task_id, "error", {"message": "انقطعت المهمة لأن التطبيق انسكّر وهي شغّالة."})
+            await self.emit_event(
+                task_id, "error", {"message": tr("انقطعت المهمة لأن التطبيق انسكّر وهي شغّالة.")}
+            )
         for task_id in queued:
             self.enqueue(task_id)
 

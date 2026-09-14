@@ -5,6 +5,7 @@ import { easeOutExpo } from "../lib/motion";
 import { Logo } from "./Logo";
 import { Button } from "./ui";
 
+import { t } from "../i18n";
 /**
  * The app's engine is a separate process that needs a second or two to come up — longer on
  * the first launch after an install. Without this the window opens on empty lists and looks
@@ -64,10 +65,10 @@ export function BootGate({ children }: { children: React.ReactNode }) {
               </div>
               <p className="mt-2.5 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
                 {stuck
-                  ? "المحرك تأخّر أكتر من المتوقع."
+                  ? t("المحرك تأخّر أكتر من المتوقع.")
                   : slow
-                    ? "أول تشغيل بعد التثبيت بياخد وقت أطول شوي…"
-                    : "جارِ تشغيل محرك رفيق…"}
+                    ? t("أول تشغيل بعد التثبيت بياخد وقت أطول شوي…")
+                    : t("جارِ تشغيل محرك رفيق…")}
               </p>
             </div>
 
@@ -79,7 +80,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
                   className="flex flex-col items-center gap-2"
                 >
                   <p className="max-w-xs text-center text-[11px] leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-                    إذا ضلّت هيك، سكّر التطبيق وافتحه من جديد. السجل بـ{" "}
+                    {t("إذا ضلّت هيك، سكّر التطبيق وافتحه من جديد. السجل بـ")}{" "}
                     <span className="font-mono" dir="ltr">
                       %APPDATA%/Rafiq/agent.log
                     </span>
@@ -91,7 +92,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
                       setAttempt((n) => n + 1);
                     }}
                   >
-                    جرّب مرة ثانية
+                    {t("جرّب مرة ثانية")}
                   </Button>
                 </motion.div>
               )}

@@ -23,15 +23,16 @@ import { easeOutExpo, snappy } from "../lib/motion";
 import { ToastStack, type Toast } from "./Toasts";
 import { Logo } from "./Logo";
 
+import { t } from "../i18n";
 const navItems = [
-  { to: "/chat", label: "المحادثات", Icon: ChatIcon },
-  { to: "/work", label: "شغلي", Icon: InboxIcon },
-  { to: "/designs", label: "التصاميم", Icon: SparkIcon },
-  { to: "/tasks", label: "المهام", Icon: TasksIcon },
-  { to: "/models", label: "النماذج", Icon: ModelsIcon },
-  { to: "/integrations", label: "الربط", Icon: LinkIcon },
-  { to: "/settings", label: "الإعدادات", Icon: SettingsIcon },
-  { to: "/about", label: "من نحن", Icon: InfoIcon },
+  { to: "/chat", label: t("المحادثات"), Icon: ChatIcon },
+  { to: "/work", label: t("شغلي"), Icon: InboxIcon },
+  { to: "/designs", label: t("التصاميم"), Icon: SparkIcon },
+  { to: "/tasks", label: t("المهام"), Icon: TasksIcon },
+  { to: "/models", label: t("النماذج"), Icon: ModelsIcon },
+  { to: "/integrations", label: t("الربط"), Icon: LinkIcon },
+  { to: "/settings", label: t("الإعدادات"), Icon: SettingsIcon },
+  { to: "/about", label: t("من نحن"), Icon: InfoIcon },
 ];
 
 /** Polls the task list app-wide: drives the nav lamp/badge and raises toasts for tasks that
@@ -73,7 +74,7 @@ function useTaskWatcher(currentPath: string, navigate: (to: string) => void) {
           const onPage = pathRef.current === `/tasks/${task.id}`;
           const approvalId = `approval-${task.id}`;
           if (task.needs_approval && !onPage && !dismissed.current.has(approvalId) && !next.some((t) => t.id === approvalId)) {
-            next = [...next, { id: approvalId, tone: "approval", title: "رفيق بدّه إذنك", body: task.title, actionLabel: "افتح المهمة", onAction: () => navigate(`/tasks/${task.id}`) }];
+            next = [...next, { id: approvalId, tone: "approval", title: t("رفيق بدّه إذنك"), body: task.title, actionLabel: t("افتح المهمة"), onAction: () => navigate(`/tasks/${task.id}`) }];
           }
           if (old && old.status !== task.status && !onPage && (task.status === "completed" || task.status === "failed")) {
             const id = `done-${task.id}`;
@@ -82,9 +83,9 @@ function useTaskWatcher(currentPath: string, navigate: (to: string) => void) {
               {
                 id,
                 tone: task.status === "completed" ? "success" : "danger",
-                title: task.status === "completed" ? "خلصت مهمة" : "مهمة ما نجحت",
+                title: task.status === "completed" ? t("خلصت مهمة") : t("مهمة ما نجحت"),
                 body: task.title,
-                actionLabel: "عرض",
+                actionLabel: t("عرض"),
                 onAction: () => navigate(`/tasks/${task.id}`),
               },
             ];
@@ -163,16 +164,16 @@ export function Shell() {
                 )}
               </AnimatePresence>
             </div>
-            {!collapsed && <span className="truncate text-base font-semibold">رفيق</span>}
+            {!collapsed && <span className="truncate text-base font-semibold">{t("رفيق")}</span>}
             {!collapsed && (
               <button
                 onClick={() => setLayout({ navCollapsed: true })}
-                title="اطوِ الشريط الجانبي"
-                aria-label="اطوِ الشريط الجانبي"
+                title={t("اطوِ الشريط الجانبي")}
+                aria-label={t("اطوِ الشريط الجانبي")}
                 className="ms-auto rounded-lg p-1 transition-colors hover:bg-[var(--color-surface-2)]"
                 style={{ color: "var(--color-ink-muted)" }}
               >
-                <CollapseIcon className="h-4 w-4" />
+                <CollapseIcon className="h-4 w-4 ltr:-scale-x-100" />
               </button>
             )}
           </div>
@@ -210,7 +211,7 @@ export function Shell() {
                             transition={snappy}
                             className="rounded-full px-1.5 text-[11px] font-medium tabular-nums"
                             style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
-                            title={`${queued} بالدور`}
+                            title={t("{0} بالدور", { 0: queued })}
                           >
                             <AnimatePresence mode="popLayout" initial={false}>
                               <motion.span key={queued} className="inline-block" initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -8, opacity: 0 }}>
@@ -228,7 +229,7 @@ export function Shell() {
                             animate={{ scale: approvals > 0 ? [1, 1.7, 1] : [1, 1.35, 1] }}
                             exit={{ scale: 0 }}
                             transition={{ duration: approvals > 0 ? 0.9 : 1.6, repeat: Infinity, ease: "easeInOut" }}
-                            title={approvals > 0 ? "في مهمة بدها إذنك" : "في مهمة شغّالة"}
+                            title={approvals > 0 ? t("في مهمة بدها إذنك") : t("في مهمة شغّالة")}
                           />
                         )}
                       </AnimatePresence>
@@ -242,12 +243,12 @@ export function Shell() {
           {collapsed && (
             <button
               onClick={() => setLayout({ navCollapsed: false })}
-              title="وسّع الشريط الجانبي"
-              aria-label="وسّع الشريط الجانبي"
+              title={t("وسّع الشريط الجانبي")}
+              aria-label={t("وسّع الشريط الجانبي")}
               className="mb-1 flex justify-center rounded-lg p-2 transition-colors hover:bg-[var(--color-surface-2)]"
               style={{ color: "var(--color-ink-muted)" }}
             >
-              <CollapseIcon className="h-4 w-4 rotate-180" />
+              <CollapseIcon className="h-4 w-4 rotate-180 ltr:-scale-x-100" />
             </button>
           )}
 
@@ -256,7 +257,7 @@ export function Shell() {
             whileTap={{ scale: 0.96 }}
             className={`flex items-center gap-2.5 rounded-lg py-2 text-sm transition-colors hover:bg-[var(--color-surface-2)] ${collapsed ? "justify-center px-2" : "px-3"}`}
             style={{ color: "var(--color-ink-muted)" }}
-            title={theme === "dark" ? "وضع فاتح" : "وضع غامق"}
+            title={theme === "dark" ? t("وضع فاتح") : t("وضع غامق")}
           >
             <span className="relative h-5 w-5 shrink-0">
               <AnimatePresence initial={false} mode="wait">
@@ -272,7 +273,7 @@ export function Shell() {
                 </motion.span>
               </AnimatePresence>
             </span>
-            {!collapsed && (theme === "dark" ? "وضع فاتح" : "وضع غامق")}
+            {!collapsed && (theme === "dark" ? t("وضع فاتح") : t("وضع غامق"))}
           </motion.button>
         </motion.nav>
 
@@ -283,7 +284,7 @@ export function Shell() {
             max={NAV_MAX}
             onChange={(nav) => setLayout({ nav })}
             onDoubleClick={() => setLayout({ nav: DEFAULT_LAYOUT.nav })}
-            label="عرض الشريط الجانبي"
+            label={t("عرض الشريط الجانبي")}
           />
         )}
 

@@ -7,10 +7,11 @@ import { parseUtc, timeAgo } from "../../lib/time";
 import { BrandMark } from "../../components/BrandMark";
 import { ChatIcon, ClockIcon } from "../../components/Icons";
 
+import { intlLocale, t } from "../../i18n";
 export const CATEGORY_LABEL: Record<string, string> = {
-  todo: "لسا ما بلّشت",
-  in_progress: "شغّال عليها",
-  done: "مكتملة",
+  todo: t("لسا ما بلّشت"),
+  in_progress: t("شغّال عليها"),
+  done: t("مكتملة"),
 };
 
 export const CATEGORY_COLOR: Record<string, string> = {
@@ -27,7 +28,7 @@ export function dateLabel(value: string | null): string | null {
   if (!value) return null;
   const date = parseUtc(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("ar", { year: "numeric", month: "short", day: "numeric" });
+  return date.toLocaleDateString(intlLocale(), { year: "numeric", month: "short", day: "numeric" });
 }
 
 /** Past due and not finished — the one thing worth colouring red in a list. */

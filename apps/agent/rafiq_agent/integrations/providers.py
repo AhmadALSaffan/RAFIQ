@@ -5,6 +5,7 @@ import base64
 from typing import Any
 from urllib.parse import quote
 
+from rafiq_agent.i18n import tr
 from rafiq_agent.integrations.base import (
     Account,
     FieldSpec,
@@ -195,7 +196,7 @@ class JiraIntegration(Integration):
         options = await self.list_statuses(key)
         target = next((o for o in options if o.id == status_id), None)
         if not target:
-            raise IntegrationError("هالانتقال مو متاح على هالمهمة هلق.")
+            raise IntegrationError(tr("هالانتقال مو متاح على هالمهمة هلق."))
         async with self.client() as c:
             self.check(
                 await c.post(
@@ -219,7 +220,7 @@ class JiraIntegration(Integration):
                 if ((t.get("to") or {}).get("statusCategory") or {}).get("key") == "done"
             ]
             if not done:
-                raise IntegrationError("ما في انتقال متاح لحالة «مكتمل» على هالمهمة.")
+                raise IntegrationError(tr("ما في انتقال متاح لحالة «مكتمل» على هالمهمة."))
             transition = done[0]
             self.check(
                 await c.post(
@@ -251,7 +252,7 @@ class LinearIntegration(Integration):
                 await c.post(self.ENDPOINT, json={"query": query, "variables": variables or {}})
             ).json()
         if data.get("errors"):
-            raise IntegrationError(str(data["errors"][0].get("message", "خطأ من Linear")))
+            raise IntegrationError(str(data["errors"][0].get("message", tr("خطأ من Linear"))))
         return data.get("data", {})
 
     async def verify(self) -> Account:
@@ -327,7 +328,7 @@ class LinearIntegration(Integration):
         )
         issue = data.get("issue")
         if not issue:
-            raise IntegrationError(f"ما لقيت المهمة {key}")
+            raise IntegrationError(tr("ما لقيت المهمة {0}", key))
         return self._issue(issue)
 
     async def list_comments(self, key: str, limit: int = 50) -> list[IssueComment]:
@@ -369,7 +370,7 @@ class LinearIntegration(Integration):
         data = await self._gql("query($key: String!) { issue(id: $key) { id } }", {"key": key})
         issue = data.get("issue") or {}
         if not issue.get("id"):
-            raise IntegrationError("ما لقيت المهمة على Linear.")
+            raise IntegrationError(tr("ما لقيت المهمة على Linear."))
         await self._gql(
             "mutation($id: String!, $state: String!) { issueUpdate(id: $id, input: { stateId: $state }) { success } }",
             {"id": issue["id"], "state": status_id},
@@ -378,7 +379,7 @@ class LinearIntegration(Integration):
             return (await self.get_issue(key)).status
         except IntegrationError:
             target = next((o for o in await self.list_statuses(key) if o.id == status_id), None)
-            return target.name if target else "تم التحديث"
+            return target.name if target else tr("تم التحديث")
 
     async def complete(self, key: str) -> str:
         data = await self._gql(
@@ -388,7 +389,7 @@ class LinearIntegration(Integration):
         issue = data.get("issue") or {}
         states = (((issue.get("team") or {}).get("states")) or {}).get("nodes", [])
         if not states:
-            raise IntegrationError("ما في حالة «مكتمل» معرّفة بهالفريق على Linear.")
+            raise IntegrationError(tr("ما في حالة «مكتمل» معرّفة بهالفريق على Linear."))
         await self._gql(
             "mutation($id: String!, $state: String!) { issueUpdate(id: $id, input: { stateId: $state }) { success } }",
             {"id": issue["id"], "state": states[0]["id"]},
@@ -476,7 +477,7 @@ class GitHubIntegration(Integration):
     def _split(key: str) -> tuple[str, str]:
         repo, _, number = key.partition("#")
         if not repo or not number:
-            raise IntegrationError("صيغة المهمة لازم تكون owner/repo#123")
+            raise IntegrationError(tr("صيغة المهمة لازم تكون owner/repo#123"))
         return repo, number
 
     async def get_issue(self, key: str) -> Issue:
@@ -518,7 +519,7 @@ class GitHubIntegration(Integration):
 
     async def set_status(self, key: str, status_id: str) -> str:
         if status_id not in ("open", "closed"):
-            raise IntegrationError("GitHub بيقبل open أو closed بس.")
+            raise IntegrationError(tr("GitHub بيقبل open أو closed بس."))
         repo, number = self._split(key)
         async with self.client() as c:
             self.check(
@@ -601,7 +602,7 @@ class GitLabIntegration(Integration):
             return project, iid
         path, _, iid = key.partition("#")
         if not path or not iid:
-            raise IntegrationError("صيغة المهمة لازم تكون group/project#123")
+            raise IntegrationError(tr("صيغة المهمة لازم تكون group/project#123"))
         return quote(path, safe=""), iid
 
     async def get_issue(self, key: str) -> Issue:
@@ -643,7 +644,7 @@ class GitLabIntegration(Integration):
 
     async def set_status(self, key: str, status_id: str) -> str:
         if status_id not in ("close", "reopen"):
-            raise IntegrationError("GitLab بيقبل close أو reopen بس.")
+            raise IntegrationError(tr("GitLab بيقبل close أو reopen بس."))
         project, iid = await self._resolve(key)
         async with self.client() as c:
             self.check(
@@ -671,7 +672,7 @@ REGISTRY: dict[str, type[Integration]] = {
 def build(provider: str, config: dict[str, Any], secret: str | None) -> Integration:
     cls = REGISTRY.get(provider)
     if not cls:
-        raise IntegrationError(f"مزوّد غير مدعوم: {provider}")
+        raise IntegrationError(tr("مزوّد غير مدعوم: {0}", provider))
     return cls(config, secret)
 
 

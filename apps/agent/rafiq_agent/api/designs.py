@@ -10,9 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
-from rafiq_agent.core.designs import QUESTIONS, brief_message, handoff_message
+from rafiq_agent.core.designs import brief_message, handoff_message, localized_questions
 from rafiq_agent.core.tasks_service import TaskCreateError, create_task, resolve_working_dir
 from rafiq_agent.core.workspace import session_dir, workspace_root
+from rafiq_agent.i18n import tr
 from rafiq_agent.skills.registry import USER_DIR, all_skills, get_skill, reload_skills
 from rafiq_agent.storage.db import get_session
 from rafiq_agent.storage.models import Chat, Design, LlmModel
@@ -146,7 +147,7 @@ async def add_skill(body: SkillImport) -> SkillOut:
             shutil.copyfile(source, target / "SKILL.md")
         elif source.is_dir():
             if not (source / "SKILL.md").is_file():
-                raise HTTPException(status_code=400, detail="المجلد لازم يكون فيه ملف SKILL.md")
+                raise HTTPException(status_code=400, detail=tr("المجلد لازم يكون فيه ملف SKILL.md"))
             name = _skill_name(body.name) or source.name
             target = USER_DIR / name
             if target.exists():
@@ -155,26 +156,26 @@ async def add_skill(body: SkillImport) -> SkillOut:
                 source, target, ignore=shutil.ignore_patterns(".git", "node_modules", "__pycache__")
             )
         else:
-            raise HTTPException(status_code=400, detail="ما لقيت هالمسار")
+            raise HTTPException(status_code=400, detail=tr("ما لقيت هالمسار"))
     elif body.content:
         name = _skill_name(body.name)
         if not name:
-            raise HTTPException(status_code=400, detail="لازم اسم للمهارة")
+            raise HTTPException(status_code=400, detail=tr("لازم اسم للمهارة"))
         target = USER_DIR / name
         target.mkdir(parents=True, exist_ok=True)
         text = body.content
         if not text.lstrip().startswith("---"):
-            text = f"---\nname: {name}\ndescription: مهارة من عند المستخدم\n---\n\n{text}"
+            text = f"---\nname: {name}\ndescription: {tr('مهارة من عند المستخدم')}\n---\n\n{text}"
         (target / "SKILL.md").write_text(text, encoding="utf-8")
     else:
-        raise HTTPException(status_code=400, detail="ابعت مسار مجلد أو محتوى المهارة")
+        raise HTTPException(status_code=400, detail=tr("ابعت مسار مجلد أو محتوى المهارة"))
 
     reload_skills()
     skill = get_skill(_skill_name(body.name) or target.name) or next(
         (s for s in all_skills() if s.path == target), None
     )
     if not skill:
-        raise HTTPException(status_code=500, detail="انضافت المهارة بس ما قدرت أقرأها")
+        raise HTTPException(status_code=500, detail=tr("انضافت المهارة بس ما قدرت أقرأها"))
     return SkillOut(name=skill.name, description=skill.description, source=skill.source, files=skill.files)
 
 
@@ -183,7 +184,7 @@ async def remove_skill(name: str) -> None:
     """Only the user's own skills can be removed; the bundled ones stay."""
     skill = get_skill(name)
     if not skill or skill.source != "user":
-        raise HTTPException(status_code=404, detail="ما في مهارة خاصة فيك بهالاسم")
+        raise HTTPException(status_code=404, detail=tr("ما في مهارة خاصة فيك بهالاسم"))
     shutil.rmtree(skill.path, ignore_errors=True)
     reload_skills()
 
@@ -205,7 +206,7 @@ async def workspace() -> dict[str, str]:
 @router.get("/designs/questions")
 async def init_questions() -> list[dict[str, Any]]:
     """`impeccable init` — the brief Rafiq collects before the design chat opens."""
-    return QUESTIONS
+    return localized_questions()
 
 
 @router.get("/designs", response_model=list[DesignSummaryOut])
@@ -233,10 +234,10 @@ async def create_design(body: DesignCreate, session: AsyncSession = Depends(get_
     if not model:
         raise HTTPException(status_code=404, detail="model not found")
 
-    title = (body.title or str(body.brief.get("what") or "").strip() or "تصميم جديد")[:80]
+    title = (body.title or str(body.brief.get("what") or "").strip() or tr("تصميم جديد"))[:80]
     folder = _checked_dir(body.working_dir)
     # The design chat gets the same folder, so the model can read the project it designs for.
-    chat = Chat(title=f"تصميم: {title}", model_id=model.id, mode="design", working_dir=folder)
+    chat = Chat(title=tr("تصميم: {0}", title), model_id=model.id, mode="design", working_dir=folder)
     session.add(chat)
     await session.flush()
 
@@ -304,14 +305,14 @@ async def handoff(
     if not design:
         raise HTTPException(status_code=404, detail="design not found")
     if not design.preview_html and not design.spec:
-        raise HTTPException(status_code=400, detail="لسا ما في تصميم — خلّص التصميم أول.")
+        raise HTTPException(status_code=400, detail=tr("لسا ما في تصميم — خلّص التصميم أول."))
 
     message = handoff_message(design.title, design.spec, design.preview_html)
 
     if body.target == "task":
         try:
             task = await create_task(
-                title=f"ابنِ تصميم: {design.title}",
+                title=tr("ابنِ تصميم: {0}", design.title),
                 prompt=message,
                 model_id=body.model_id or design.model_id or "",
                 working_dir=body.working_dir or design.working_dir,
@@ -325,7 +326,7 @@ async def handoff(
         return HandoffOut(message=message, task_id=task.id)
 
     if body.target != "chat":
-        raise HTTPException(status_code=400, detail="target لازم يكون chat أو task")
+        raise HTTPException(status_code=400, detail=tr("target لازم يكون chat أو task"))
 
     chat_id = body.chat_id
     if chat_id:
@@ -333,7 +334,7 @@ async def handoff(
         if not chat:
             raise HTTPException(status_code=404, detail="chat not found")
     else:
-        chat = Chat(title=f"برمجة: {design.title}", model_id=body.model_id or design.model_id)
+        chat = Chat(title=tr("برمجة: {0}", design.title), model_id=body.model_id or design.model_id)
         session.add(chat)
         await session.flush()
         chat_id = chat.id

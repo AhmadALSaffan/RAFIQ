@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { easeOutExpo } from "../lib/motion";
 
+import { t } from "../i18n";
 export interface MenuItem {
   id: string;
   label: string;
@@ -41,7 +42,7 @@ function editingEntries(target: HTMLElement | null, selection: string): MenuEntr
   if (selection) {
     entries.push({
       id: "copy",
-      label: "نسخ",
+      label: t("نسخ"),
       hint: "Ctrl+C",
       onSelect: () => void navigator.clipboard.writeText(selection),
     });
@@ -50,7 +51,7 @@ function editingEntries(target: HTMLElement | null, selection: string): MenuEntr
     if (selection) {
       entries.push({
         id: "cut",
-        label: "قص",
+        label: t("قص"),
         hint: "Ctrl+X",
         onSelect: () => {
           void navigator.clipboard.writeText(selection);
@@ -61,7 +62,7 @@ function editingEntries(target: HTMLElement | null, selection: string): MenuEntr
     }
     entries.push({
       id: "paste",
-      label: "لصق",
+      label: t("لصق"),
       hint: "Ctrl+V",
       onSelect: async () => {
         const text = await navigator.clipboard.readText().catch(() => "");
@@ -74,7 +75,7 @@ function editingEntries(target: HTMLElement | null, selection: string): MenuEntr
   if (field) {
     entries.push({
       id: "select-all",
-      label: "اختيار الكل",
+      label: t("اختيار الكل"),
       hint: "Ctrl+A",
       onSelect: () => {
         field.focus();

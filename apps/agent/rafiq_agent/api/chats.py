@@ -23,6 +23,7 @@ from rafiq_agent.core.chat_service import (
 )
 from rafiq_agent.core.prompts import DEFAULT_TITLE
 from rafiq_agent.core.tasks_service import TaskCreateError, resolve_working_dir
+from rafiq_agent.i18n import tr
 from rafiq_agent.schemas.chats import (
     ChatCreate,
     ChatDetailOut,
@@ -80,7 +81,7 @@ async def list_chats(session: AsyncSession = Depends(get_session)) -> list[ChatS
 
 @router.post("", response_model=ChatDetailOut, status_code=201)
 async def create_chat(body: ChatCreate, session: AsyncSession = Depends(get_session)) -> ChatDetailOut:
-    chat = Chat(title=DEFAULT_TITLE, model_id=body.model_id, working_dir=_checked_dir(body.working_dir))
+    chat = Chat(title=tr(DEFAULT_TITLE), model_id=body.model_id, working_dir=_checked_dir(body.working_dir))
     session.add(chat)
     await session.commit()
     await session.refresh(chat)
@@ -151,7 +152,7 @@ async def summarize_chat(chat_id: str, body: SummarizeIn) -> SummarizeOut:
             raise HTTPException(status_code=404, detail="chat not found")
         model = await session.get(LlmModel, body.model_id or chat.model_id or "")
         if not model:
-            raise HTTPException(status_code=400, detail="اختار نموذج أول عشان ألخّص فيه.")
+            raise HTTPException(status_code=400, detail=tr("اختار نموذج أول عشان ألخّص فيه."))
 
         llm = provider_for(model, settings_of(chat))
         try:

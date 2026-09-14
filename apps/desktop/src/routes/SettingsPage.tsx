@@ -5,6 +5,7 @@ import { revealPath } from "../lib/folders";
 import { Button, DrawnCheck } from "../components/ui";
 import { PageHeader, StatusStripe } from "../components/Page";
 import { ActionProgress } from "../components/Feedback";
+import { ConnectedAccountsSection } from "../features/accounts/ConnectedAccountsSection";
 import { listContainer, listItem, snappy } from "../lib/motion";
 import type { AppSettings, PermissionKey, PermissionMode } from "../lib/types";
 import { usePageMenu } from "../components/ContextMenu";
@@ -21,19 +22,20 @@ import {
   type ReadingWidth,
 } from "../lib/layout";
 
+import { LOCALES, locale, setLocale, t } from "../i18n";
 const permissionRows: { key: PermissionKey; label: string; hint: string }[] = [
-  { key: "filesystem_write", label: "الكتابة على الملفات", hint: "إنشاء/تعديل/حذف ملفات" },
-  { key: "shell", label: "أوامر Shell", hint: "تنفيذ أوامر على الجهاز" },
-  { key: "process", label: "إدارة العمليات", hint: "إيقاف أو تشغيل عمليات" },
-  { key: "browser_navigate", label: "تصفح مواقع خارجية", hint: "فتح روابط خارج localhost" },
-  { key: "desktop_control", label: "التحكم بسطح المكتب", hint: "تحريك الفأرة والكتابة على أي تطبيق" },
-  { key: "issue_write", label: "التعديل على مهام Jira وغيرها", hint: "كتابة تعليق أو تعليم مهمة كمكتملة" },
+  { key: "filesystem_write", label: t("الكتابة على الملفات"), hint: t("إنشاء/تعديل/حذف ملفات") },
+  { key: "shell", label: t("أوامر Shell"), hint: t("تنفيذ أوامر على الجهاز") },
+  { key: "process", label: t("إدارة العمليات"), hint: t("إيقاف أو تشغيل عمليات") },
+  { key: "browser_navigate", label: t("تصفح مواقع خارجية"), hint: t("فتح روابط خارج localhost") },
+  { key: "desktop_control", label: t("التحكم بسطح المكتب"), hint: t("تحريك الفأرة والكتابة على أي تطبيق") },
+  { key: "issue_write", label: t("التعديل على مهام Jira وغيرها"), hint: t("كتابة تعليق أو تعليم مهمة كمكتملة") },
 ];
 
 const modeLabel: Record<PermissionMode, string> = {
-  auto: "سماح تلقائي",
-  ask: "اسأل دايماً",
-  deny: "ممنوع",
+  auto: t("سماح تلقائي"),
+  ask: t("اسأل دايماً"),
+  deny: t("ممنوع"),
 };
 
 /** Where the files of sessions without a folder end up — so nothing gets lost. */
@@ -50,32 +52,31 @@ function StorageSection() {
   async function open() {
     if (!workspace) return;
     const ok = await revealPath(workspace);
-    if (!ok) setNote("افتح المسار يدوياً — فتح المجلد بيشتغل من التطبيق بس.");
+    if (!ok) setNote(t("افتح المسار يدوياً — فتح المجلد بيشتغل من التطبيق بس."));
   }
 
   return (
     <section className="mb-8">
-      <h2 className="mb-3 text-sm font-medium">مكان الملفات</h2>
+      <h2 className="mb-3 text-sm font-medium">{t("مكان الملفات")}</h2>
       <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
-        <p className="text-sm font-medium">مجلد رفيق</p>
+        <p className="text-sm font-medium">{t("مجلد رفيق")}</p>
         <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-          أي مهمة أو تصميم ما حددت إله مجلد، رفيق بيعطيه مجلد خاص فيه هون باسم الجلسة — فما
-          بتضيع ملفاتك ولا بتنرمي بمجلد المستخدم.
+          {t("أي مهمة أو تصميم ما حددت إله مجلد، رفيق بيعطيه مجلد خاص فيه هون باسم الجلسة — فما بتضيع ملفاتك ولا بتنرمي بمجلد المستخدم.")}
         </p>
         <div className="mt-2 flex items-center justify-between gap-3">
           <code className="md-inline min-w-0 truncate text-xs" dir="ltr" title={workspace ?? ""}>
             {workspace ?? "…"}
           </code>
           <Button variant="ghost" onClick={open} disabled={!workspace}>
-            افتح المجلد
+            {t("افتح المجلد")}
           </Button>
         </div>
         <p className="mt-2 text-[11px] leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-          المحادثات والمهام والمرفقات نفسها بتنحفظ بقاعدة بيانات التطبيق:{" "}
+          {t("المحادثات والمهام والمرفقات نفسها بتنحفظ بقاعدة بيانات التطبيق:")}{" "}
           <span className="font-mono" dir="ltr">
             %APPDATA%/Rafiq
           </span>{" "}
-          — وبتضل موجودة حتى لو حدّثت التطبيق.
+          {t("— وبتضل موجودة حتى لو حدّثت التطبيق.")}
         </p>
         {note && (
           <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
@@ -87,27 +88,69 @@ function StorageSection() {
   );
 }
 
+/** Interface language. Switching reloads the window so direction and every label change at once. */
+function LanguageSection() {
+  const current = locale();
+  return (
+    <section className="mb-8">
+      <h2 className="mb-3 text-sm font-medium">{t("اللغة")}</h2>
+      <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+        <div className="flex rounded-lg p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("اللغة")}>
+          {LOCALES.map((option) => {
+            const active = option.id === current;
+            return (
+              <button
+                key={option.id}
+                role="radio"
+                aria-checked={active}
+                lang={option.id}
+                dir={option.dir}
+                onClick={() => setLocale(option.id)}
+                className="relative flex-1 rounded-md px-3 py-1.5 text-sm transition-colors"
+                style={{ color: active ? "var(--color-accent-ink)" : "var(--color-ink)" }}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="locale-pill"
+                    className="absolute inset-0 rounded-md"
+                    style={{ background: "var(--color-accent)" }}
+                    transition={snappy}
+                  />
+                )}
+                <span className="relative">{option.name}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+          {t("التطبيق بيعيد التحميل لحظة ليطبّق اللغة والاتجاه.")}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function LayoutSection() {
   const layout = useLayout();
   const widths: { key: keyof Pick<LayoutPrefs, "nav" | "list">; label: string; min: number; max: number }[] = [
-    { key: "nav", label: "عرض الشريط الجانبي", min: NAV_MIN, max: NAV_MAX },
-    { key: "list", label: "عرض قائمة المحادثات", min: LIST_MIN, max: LIST_MAX },
+    { key: "nav", label: t("عرض الشريط الجانبي"), min: NAV_MIN, max: NAV_MAX },
+    { key: "list", label: t("عرض قائمة المحادثات"), min: LIST_MIN, max: LIST_MAX },
   ];
 
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-medium">الشكل</h2>
+        <h2 className="text-sm font-medium">{t("الشكل")}</h2>
         <button onClick={resetLayout} className="text-xs underline underline-offset-2" style={{ color: "var(--color-ink-muted)" }}>
-          رجّع الافتراضي
+          {t("رجّع الافتراضي")}
         </button>
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
-          <p className="text-sm font-medium">عرض المحادثة</p>
+          <p className="text-sm font-medium">{t("عرض المحادثة")}</p>
           <p className="mb-2.5 mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            قدّيش بدك يكون عرض النص والرد بصفحة المحادثة.
+            {t("قدّيش بدك يكون عرض النص والرد بصفحة المحادثة.")}
           </p>
           <div className="flex gap-1 rounded-xl p-1" style={{ background: "var(--color-surface-2)" }}>
             {(Object.keys(READING_LABELS) as ReadingWidth[]).map((key) => (
@@ -154,20 +197,20 @@ function LayoutSection() {
               className="mt-2 w-full accent-[var(--color-accent)]"
             />
             <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
-              أو اسحب الحد بين الأعمدة مباشرة (دبل كليك بيرجّعه للافتراضي).
+              {t("أو اسحب الحد بين الأعمدة مباشرة (دبل كليك بيرجّعه للافتراضي).")}
             </p>
           </div>
         ))}
 
         <ToggleRow
-          label="اطوِ الشريط الجانبي"
-          hint="بيصير أيقونات بس، فبتاخد مساحة أقل."
+          label={t("اطوِ الشريط الجانبي")}
+          hint={t("بيصير أيقونات بس، فبتاخد مساحة أقل.")}
           checked={layout.navCollapsed}
           onChange={(navCollapsed) => setLayout({ navCollapsed })}
         />
         <ToggleRow
-          label="أخفِ قائمة المحادثات"
-          hint="بتقدر تفتحها وقت ما بدك من زر «المحادثات» فوق."
+          label={t("أخفِ قائمة المحادثات")}
+          hint={t("بتقدر تفتحها وقت ما بدك من زر «المحادثات» فوق.")}
           checked={layout.listHidden}
           onChange={(listHidden) => setLayout({ listHidden })}
         />
@@ -212,7 +255,7 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
-  usePageMenu(() => [{ id: "reset-layout", label: "رجّع الشكل للافتراضي", onSelect: resetLayout }]);
+  usePageMenu(() => [{ id: "reset-layout", label: t("رجّع الشكل للافتراضي"), onSelect: resetLayout }]);
 
   useEffect(() => {
     getSettings().then(setSettings);
@@ -251,17 +294,21 @@ export function SettingsPage() {
     <div className="relative mx-auto max-w-2xl px-8 py-10">
       <ActionProgress active={saving} className="fixed inset-x-0 top-0" />
       <PageHeader
-        title="الإعدادات"
-        description="تحكّم بشو يقدر رفيق يعمله لحاله، وشو لازم ياخد إذنك عليه."
+        title={t("الإعدادات")}
+        description={t("تحكّم بشو يقدر رفيق يعمله لحاله، وشو لازم ياخد إذنك عليه.")}
         actions={<SavedNote at={savedAt} />}
       />
 
+      <LanguageSection />
+
       <StorageSection />
+
+      <ConnectedAccountsSection />
 
       <LayoutSection />
 
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-medium">سياسة الصلاحيات</h2>
+        <h2 className="mb-3 text-sm font-medium">{t("سياسة الصلاحيات")}</h2>
         <motion.div variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
           {permissionRows.map((row) => (
             <motion.div
@@ -300,9 +347,9 @@ export function SettingsPage() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">تفعيل التحكم الكامل بسطح المكتب</p>
+            <p className="text-sm font-medium">{t("تفعيل التحكم الكامل بسطح المكتب")}</p>
             <p className="mt-1 max-w-md text-xs" style={{ color: "var(--color-ink-muted)" }}>
-              يسمح لرفيق يحرّك الفأرة ويكتب على أي تطبيق مفتوح، مو بس داخل التطبيق. خليه مطفي إلا إذا كنت متأكد إنك بتحتاجه.
+              {t("يسمح لرفيق يحرّك الفأرة ويكتب على أي تطبيق مفتوح، مو بس داخل التطبيق. خليه مطفي إلا إذا كنت متأكد إنك بتحتاجه.")}
             </p>
           </div>
           <button
@@ -345,7 +392,7 @@ function SavedNote({ at }: { at: number | null }) {
           style={{ color: "var(--color-success)" }}
         >
           <DrawnCheck className="h-3.5 w-3.5" />
-          انحفظ
+          {t("انحفظ")}
         </motion.span>
       )}
     </AnimatePresence>

@@ -6,6 +6,7 @@ import { toolLabel } from "../lib/tools";
 import { AlertIcon, ShieldIcon, SpinnerIcon, TerminalIcon } from "./Icons";
 import { Button, DrawnCheck } from "./ui";
 
+import { t } from "../i18n";
 const COLLAPSE_AT = 12;
 
 export function formatArgs(args: Record<string, unknown>): string {
@@ -61,7 +62,7 @@ export function ToolCard({
             {state === "running" && <SpinnerIcon className="h-3.5 w-3.5" />}
             {state === "ok" && <DrawnCheck className="h-3.5 w-3.5" />}
             {state === "fail" && <AlertIcon className="h-3.5 w-3.5" />}
-            {state === "running" ? "عم ينفّذ" : state === "ok" ? "تم" : "ما نجح"}
+            {state === "running" ? t("عم ينفّذ") : state === "ok" ? t("تم") : t("ما نجح")}
           </motion.span>
         </AnimatePresence>
       </div>
@@ -92,7 +93,7 @@ export function ToolCard({
                 className="w-full border-t px-4 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
                 style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
               >
-                {expanded ? "إخفاء" : `عرض الكل (${lines.length} سطر)`}
+                {expanded ? t("إخفاء") : t("عرض الكل ({0} سطر)", { 0: lines.length })}
               </button>
             )}
           </motion.div>
@@ -139,17 +140,17 @@ export function PermissionCard({
         >
           <ShieldIcon className="h-4 w-4" style={{ color: "var(--color-pending)" }} />
         </motion.span>
-        رفيق بدّه إذنك قبل ما يكمّل
+        {t("رفيق بدّه إذنك قبل ما يكمّل")}
       </div>
       <ArgsPanel call={call} />
       <AnimatePresence mode="wait" initial={false}>
         {pending ? (
           <motion.div key="actions" exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }} className="mt-3 flex gap-2">
             <Button onClick={() => onResolve("approved")} className="px-3.5 py-1.5">
-              سماح
+              {t("سماح")}
             </Button>
             <Button variant="danger" onClick={() => onResolve("denied")} className="px-3.5 py-1.5">
-              رفض
+              {t("رفض")}
             </Button>
           </motion.div>
         ) : (
@@ -161,7 +162,7 @@ export function PermissionCard({
             style={{ color: resolution === "approved" ? "var(--color-success)" : "var(--color-danger)" }}
           >
             {resolution === "approved" ? <DrawnCheck className="h-3.5 w-3.5" /> : <AlertIcon className="h-3.5 w-3.5" />}
-            {resolution === "approved" ? "سمحتله" : "رفضت"}
+            {resolution === "approved" ? t("سمحتله") : t("رفضت")}
           </motion.p>
         )}
       </AnimatePresence>
@@ -169,7 +170,7 @@ export function PermissionCard({
   );
 }
 
-export function ThinkingDots({ label = "رفيق عم يفكّر…" }: { label?: string }) {
+export function ThinkingDots({ label = t("رفيق عم يفكّر…") }: { label?: string }) {
   return (
     <div className="flex items-center gap-2.5 py-1 text-sm" style={{ color: "var(--color-ink-muted)" }} role="status">
       <span className="flex items-center gap-1">

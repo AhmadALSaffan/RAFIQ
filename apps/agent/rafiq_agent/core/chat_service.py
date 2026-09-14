@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from rafiq_agent.auth.resolve import llm_for
 from rafiq_agent.core.agent_runtime import (
     build_registry,
     load_settings,
@@ -43,6 +44,7 @@ from rafiq_agent.core.prompts import (
     SUMMARY_PROMPT,
     TASKS_NOTE,
 )
+from rafiq_agent.i18n import all_translations, tr
 from rafiq_agent.integrations.tools import issue_tools
 from rafiq_agent.llm.base import LlmProvider
 from rafiq_agent.llm.discovery import friendly_error, supports_vision
@@ -54,7 +56,6 @@ from rafiq_agent.schemas.chats import (
 )
 from rafiq_agent.storage.db import SessionLocal
 from rafiq_agent.storage.models import Chat, ChatMessage, Design, LlmModel, Task
-from rafiq_agent.storage.secrets import get_api_key
 from rafiq_agent.tools.base import ToolRegistry
 from rafiq_agent.tools.skills import skill_tools
 from rafiq_agent.tools.tasks import CreateTaskTool
@@ -84,7 +85,7 @@ def sse(payload: dict[str, Any]) -> str:
 
 
 def clip(text: str) -> str:
-    return text if len(text) <= MAX_STORED_OUTPUT else text[:MAX_STORED_OUTPUT] + "\n… (مقطوع)"
+    return text if len(text) <= MAX_STORED_OUTPUT else text[:MAX_STORED_OUTPUT] + tr("\n… (مقطوع)")
 
 
 def settings_of(chat: Chat) -> ReplySettings:
@@ -123,7 +124,7 @@ async def summarize(chat: Chat, messages: list[ChatMessage], llm: LlmProvider, k
     """Folds everything except the last `keep` messages into chat.summary. Returns a report."""
     older = messages[: max(0, len(messages) - keep)] if keep else messages
     if not older:
-        raise ChatError("المحادثة قصيرة، ما في شي يستاهل التلخيص.")
+        raise ChatError(tr("المحادثة قصيرة، ما في شي يستاهل التلخيص."))
 
     body = transcript_of(older)
     if chat.summary:
@@ -133,7 +134,7 @@ async def summarize(chat: Chat, messages: list[ChatMessage], llm: LlmProvider, k
         max_tokens=700,
     )
     if not summary:
-        raise ChatError("النموذج رجّع ملخص فاضي.", status=502)
+        raise ChatError(tr("النموذج رجّع ملخص فاضي."), status=502)
 
     chat.summary = summary
     chat.summary_until = older[-1].id
@@ -146,11 +147,8 @@ async def summarize(chat: Chat, messages: list[ChatMessage], llm: LlmProvider, k
 
 
 def provider_for(model: LlmModel, reply: ReplySettings) -> LlmProvider:
-    return LlmProvider(
-        model.provider,
-        model.model_id,
-        get_api_key(model.api_key_ref),
-        model.base_url,
+    return llm_for(
+        model,
         temperature=reply.temperature,
         max_tokens=LENGTH_MAX_TOKENS.get(reply.length),
         reasoning_effort="none" if not reply.reasoning else reply.reasoning_effort,
@@ -228,7 +226,7 @@ class ChatTurn:
     async def prepare(self) -> None:
         """Validates the request, stores the user's message, and loads the history."""
         if not self.content and not self.attachment_ids:
-            raise ChatError("الرسالة فاضية")
+            raise ChatError(tr("الرسالة فاضية"))
 
         try:
             self.new_attachments = await load_attachments(self.attachment_ids)
@@ -261,7 +259,7 @@ class ChatTurn:
                 cut = next((i for i, m in enumerate(past) if m.id == chat.summary_until), -1)
                 past = past[cut + 1 :]
 
-            if not past and chat.title == DEFAULT_TITLE:
+            if not past and chat.title in all_translations(DEFAULT_TITLE):
                 first_line = self.content.splitlines()[0] if self.content else self.new_attachments[0].name
                 chat.title = first_line[:60]
             chat.model_id = model.id
@@ -434,8 +432,9 @@ class ChatTurn:
                 await self.queue.put(
                     {
                         "type": "error",
-                        "message": "النموذج رجّع رد فاضي. جرّب ابعت «أكمل» أو بدّل النموذج — "
-                        "بعض النماذج بتقصّر لما يوصلها سياق كبير.",
+                        "message": tr(
+                            "النموذج رجّع رد فاضي. جرّب ابعت «أكمل» أو بدّل النموذج — بعض النماذج بتقصّر لما يوصلها سياق كبير."
+                        ),
                     }
                 )
             saved = await save_assistant(

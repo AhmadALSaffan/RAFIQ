@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from rafiq_agent.api.deps import require_token
+from rafiq_agent.i18n import tr
 
 router = APIRouter(prefix="/files", tags=["files"], dependencies=[Depends(require_token)])
 
@@ -36,7 +37,7 @@ async def list_files(
     """Files under a folder for the chat's @-mention picker. Skips build/vendor noise."""
     root = Path(dir).expanduser()
     if not root.is_dir():
-        raise HTTPException(status_code=400, detail=f"المجلد غير موجود: {root}")
+        raise HTTPException(status_code=400, detail=tr("المجلد غير موجود: {0}", root))
     root = root.resolve()
 
     needle = query.lower().strip()

@@ -24,6 +24,7 @@ import { systemFileIcon } from "../lib/fileIcons";
 import { fieldDir } from "../lib/bidi";
 import { Button, DrawnCheck } from "./ui";
 
+import { t } from "../i18n";
 export type CommandId =
   | "task"
   | "file"
@@ -49,19 +50,19 @@ export interface CommandDef {
 }
 
 export const COMMANDS: CommandDef[] = [
-  { id: "task", label: "/مهمة", hint: "اذكر مهمة من Jira أو غيرها", aliases: ["task", "issue", "مهمة", "جيرا"], Icon: TasksIcon, needs: "integration" },
-  { id: "file", label: "/ملف", hint: "اذكر ملف من مجلد المحادثة (أو اكتب @)", aliases: ["file", "ملف"], Icon: FileIcon, needs: "folder" },
-  { id: "attach", label: "/أرفق", hint: "ارفع صورة أو ملف من جهازك", aliases: ["attach", "upload", "ارفق", "أرفق", "مرفق"], Icon: PaperclipIcon },
-  { id: "folder", label: "/مجلد", hint: "حدد مجلد العمل لهالمحادثة", aliases: ["folder", "dir", "مجلد"], Icon: FolderIcon },
-  { id: "model", label: "/نموذج", hint: "بدّل النموذج اللي بيرد عليك", aliases: ["model", "نموذج", "موديل"], Icon: ModelsIcon },
-  { id: "config", label: "/إعدادات", hint: "طول الرد، لغته، الحرارة، وتشغيل الأدوات", aliases: ["config", "settings", "اعدادات", "إعدادات", "ضبط"], Icon: SettingsIcon },
-  { id: "summarize", label: "/لخّص", hint: "اطوِ المحادثة بملخص عشان توفّر توكنز", aliases: ["summarize", "compact", "لخص", "لخّص", "تلخيص"], Icon: CompressIcon, needs: "chat" },
-  { id: "retry", label: "/أعد", hint: "احذف آخر رد وجرّب من جديد", aliases: ["retry", "again", "اعد", "أعد", "كرر"], Icon: RefreshIcon, needs: "chat" },
-  { id: "copy", label: "/انسخ", hint: "انسخ آخر رد للحافظة", aliases: ["copy", "انسخ", "نسخ"], Icon: CopyIcon, needs: "chat" },
-  { id: "export", label: "/صدّر", hint: "احفظ المحادثة كملف Markdown", aliases: ["export", "save", "صدر", "صدّر", "تصدير", "حفظ"], Icon: DownloadIcon, needs: "chat" },
-  { id: "done", label: "/خلصت", hint: "اكتب تعليق على المهمة وعلّمها مكتملة", aliases: ["done", "complete", "خلصت", "انجزت", "أنجزت"], Icon: DrawnCheckIconShim, needs: "integration" },
-  { id: "new", label: "/جديد", hint: "ابدأ محادثة جديدة", aliases: ["new", "جديد"], Icon: PlusIcon },
-  { id: "help", label: "/مساعدة", hint: "كل الأوامر والاختصارات", aliases: ["help", "مساعدة", "اوامر", "أوامر"], Icon: HelpIcon },
+  { id: "task", label: t("/مهمة"), hint: t("اذكر مهمة من Jira أو غيرها"), aliases: ["task", "issue", t("مهمة"), t("جيرا")], Icon: TasksIcon, needs: "integration" },
+  { id: "file", label: t("/ملف"), hint: t("اذكر ملف من مجلد المحادثة (أو اكتب @)"), aliases: ["file", t("ملف")], Icon: FileIcon, needs: "folder" },
+  { id: "attach", label: t("/أرفق"), hint: t("ارفع صورة أو ملف من جهازك"), aliases: ["attach", "upload", t("ارفق"), t("أرفق"), t("مرفق")], Icon: PaperclipIcon },
+  { id: "folder", label: t("/مجلد"), hint: t("حدد مجلد العمل لهالمحادثة"), aliases: ["folder", "dir", t("مجلد")], Icon: FolderIcon },
+  { id: "model", label: t("/نموذج"), hint: t("بدّل النموذج اللي بيرد عليك"), aliases: ["model", t("نموذج"), t("موديل")], Icon: ModelsIcon },
+  { id: "config", label: t("/إعدادات"), hint: t("طول الرد، لغته، الحرارة، وتشغيل الأدوات"), aliases: ["config", "settings", t("اعدادات"), t("إعدادات"), t("ضبط")], Icon: SettingsIcon },
+  { id: "summarize", label: t("/لخّص"), hint: t("اطوِ المحادثة بملخص عشان توفّر توكنز"), aliases: ["summarize", "compact", t("لخص"), t("لخّص"), t("تلخيص")], Icon: CompressIcon, needs: "chat" },
+  { id: "retry", label: t("/أعد"), hint: t("احذف آخر رد وجرّب من جديد"), aliases: ["retry", "again", t("اعد"), t("أعد"), t("كرر")], Icon: RefreshIcon, needs: "chat" },
+  { id: "copy", label: t("/انسخ"), hint: t("انسخ آخر رد للحافظة"), aliases: ["copy", t("انسخ"), t("نسخ")], Icon: CopyIcon, needs: "chat" },
+  { id: "export", label: t("/صدّر"), hint: t("احفظ المحادثة كملف Markdown"), aliases: ["export", "save", t("صدر"), t("صدّر"), t("تصدير"), t("حفظ")], Icon: DownloadIcon, needs: "chat" },
+  { id: "done", label: t("/خلصت"), hint: t("اكتب تعليق على المهمة وعلّمها مكتملة"), aliases: ["done", "complete", t("خلصت"), t("انجزت"), t("أنجزت")], Icon: DrawnCheckIconShim, needs: "integration" },
+  { id: "new", label: t("/جديد"), hint: t("ابدأ محادثة جديدة"), aliases: ["new", t("جديد")], Icon: PlusIcon },
+  { id: "help", label: t("/مساعدة"), hint: t("كل الأوامر والاختصارات"), aliases: ["help", t("مساعدة"), t("اوامر"), t("أوامر")], Icon: HelpIcon },
 ];
 
 function DrawnCheckIconShim({ className }: { className?: string }) {
@@ -202,7 +203,7 @@ export function CommandMenu({
         active={active}
         onHover={setActive}
         onPick={onPick}
-        empty="ما في أمر بهالاسم"
+        empty={t("ما في أمر بهالاسم")}
         render={(cmd) => (
           <span className="flex items-center gap-2.5">
             <cmd.Icon className="h-4 w-4 shrink-0" style={{ color: "var(--color-accent)" }} />
@@ -210,9 +211,9 @@ export function CommandMenu({
               <span className="block text-sm">{cmd.label}</span>
               <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
                 {cmd.hint}
-                {!available(cmd) && cmd.needs === "folder" && " — لازم تحدد مجلد أول"}
-                {!available(cmd) && cmd.needs === "integration" && " — لازم تربط حساب أول"}
-                {!available(cmd) && cmd.needs === "chat" && " — لازم تبدأ المحادثة أول"}
+                {!available(cmd) && cmd.needs === "folder" && t(" — لازم تحدد مجلد أول")}
+                {!available(cmd) && cmd.needs === "integration" && t(" — لازم تربط حساب أول")}
+                {!available(cmd) && cmd.needs === "chat" && t(" — لازم تبدأ المحادثة أول")}
               </span>
             </span>
           </span>
@@ -279,7 +280,7 @@ export function FileMenu({
     return (
       <MenuShell>
         <p className="px-4 py-4 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
-          حدد مجلد للمحادثة أول (من زر المجلد فوق) عشان تقدر تشاور على ملفاته.
+          {t("حدد مجلد للمحادثة أول (من زر المجلد فوق) عشان تقدر تشاور على ملفاته.")}
         </p>
       </MenuShell>
     );
@@ -292,7 +293,7 @@ export function FileMenu({
         active={active}
         onHover={setActive}
         onPick={onPick}
-        empty={loading ? "جارِ البحث…" : "ما في ملفات مطابقة"}
+        empty={loading ? t("جارِ البحث…") : t("ما في ملفات مطابقة")}
         render={(file) => (
           <span className="flex items-center justify-between gap-3">
             <span className="flex min-w-0 items-center gap-2">
@@ -351,7 +352,7 @@ export function IssueMenu({
         active={active}
         onHover={setActive}
         onPick={onPick}
-        empty={loading ? "جارِ جلب مهامك…" : "ما في مهام مطابقة"}
+        empty={loading ? t("جارِ جلب مهامك…") : t("ما في مهام مطابقة")}
         render={(issue) => (
           <span className="flex items-center justify-between gap-3">
             <span className="flex min-w-0 items-center gap-2">
@@ -455,14 +456,14 @@ export function DoneDialog({
     try {
       if (markDone) {
         const res = await completeIssue(selected.integration_id, selected.key, comment.trim() || undefined);
-        onDone(`${selected.key} صارت «${res.status}»${comment.trim() ? " مع تعليق" : ""}`);
+        onDone(t("{0} صارت «{1}»{2}", { 0: selected.key, 1: res.status, 2: comment.trim() ? t(" مع تعليق") : "" }));
       } else {
         await commentOnIssue(selected.integration_id, selected.key, comment.trim());
-        onDone(`انكتب تعليق على ${selected.key}`);
+        onDone(t("انكتب تعليق على {0}", { 0: selected.key }));
       }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أحدّث المهمة");
+      setError(err instanceof Error ? err.message : t("ما قدرت أحدّث المهمة"));
     } finally {
       setBusy(false);
     }
@@ -487,19 +488,19 @@ export function DoneDialog({
         style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
       >
         <div>
-          <h2 className="text-sm font-semibold">وثّق النتيجة على المهمة</h2>
+          <h2 className="text-sm font-semibold">{t("وثّق النتيجة على المهمة")}</h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            بينكتب التعليق على حسابك بالمنصّة، وإذا فعّلت الخيار بتنعلّم مكتملة.
+            {t("بينكتب التعليق على حسابك بالمنصّة، وإذا فعّلت الخيار بتنعلّم مكتملة.")}
           </p>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            المهمة
+            {t("المهمة")}
           </span>
           {issues.length === 0 ? (
             <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}>
-              ما في مهام مفتوحة — تأكد إنك رابط حساب من صفحة الربط.
+              {t("ما في مهام مفتوحة — تأكد إنك رابط حساب من صفحة الربط.")}
             </p>
           ) : (
             <div className="max-h-40 overflow-y-auto rounded-lg border p-1" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}>
@@ -529,21 +530,21 @@ export function DoneDialog({
 
         <label className="flex flex-col gap-1.5">
           <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            التعليق
+            {t("التعليق")}
           </span>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={6}
             className="input resize-none text-sm"
-            placeholder="شو انعمل بالضبط…"
+            placeholder={t("شو انعمل بالضبط…")}
             dir={fieldDir(comment)}
           />
         </label>
 
         <label className="flex cursor-pointer items-center gap-2 text-sm">
           <input type="checkbox" checked={markDone} onChange={(e) => setMarkDone(e.target.checked)} className="h-4 w-4 accent-[var(--color-accent)]" />
-          علّمها مكتملة كمان
+          {t("علّمها مكتملة كمان")}
         </label>
 
         {error && (
@@ -558,16 +559,16 @@ export function DoneDialog({
             {busy ? (
               <>
                 <SpinnerIcon className="h-4 w-4" />
-                جارِ الإرسال…
+                {t("جارِ الإرسال…")}
               </>
             ) : markDone ? (
-              "علّمها مكتملة"
+              t("علّمها مكتملة")
             ) : (
-              "اكتب التعليق"
+              t("اكتب التعليق")
             )}
           </Button>
           <Button variant="ghost" onClick={onClose}>
-            إلغاء
+            {t("إلغاء")}
           </Button>
         </div>
       </motion.div>

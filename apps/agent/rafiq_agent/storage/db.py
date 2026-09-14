@@ -18,6 +18,8 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "verify_latency_ms": "INTEGER",
         "verified_at": "DATETIME",
         "supports_tools": "BOOLEAN",
+        "auth_method": "VARCHAR DEFAULT 'api_key'",
+        "account_id": "VARCHAR",
     },
     "tasks": {"working_dir": "VARCHAR", "attachments": "JSON", "origin": "JSON"},
     "chats": {

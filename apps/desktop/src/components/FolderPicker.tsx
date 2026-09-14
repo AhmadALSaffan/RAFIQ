@@ -5,6 +5,7 @@ import { easeOutExpo, listContainer, listItem } from "../lib/motion";
 import { FolderIcon, XIcon } from "./Icons";
 import { Button } from "./ui";
 
+import { t } from "../i18n";
 function useNativePicker() {
   const [native, setNative] = useState(false);
   useEffect(() => {
@@ -25,7 +26,7 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (v:
   return (
     <div className="flex flex-col gap-2">
       <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
-        مجلد العمل
+        {t("مجلد العمل")}
       </span>
 
       <motion.div
@@ -51,7 +52,7 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (v:
         <div className="min-w-0 flex-1">
           {native ? (
             <>
-              <p className="truncate text-sm font-medium">{value ? folderName(value) : "مجلد المستخدم (الافتراضي)"}</p>
+              <p className="truncate text-sm font-medium">{value ? folderName(value) : t("مجلد المستخدم (الافتراضي)")}</p>
               <p className="truncate font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
                 {value || "~"}
               </p>
@@ -70,7 +71,7 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (v:
 
         {native && (
           <Button type="button" variant="ghost" className="shrink-0 border" style={{ borderColor: "var(--color-border)" }} onClick={browse}>
-            {value ? "تغيير" : "اختيار مجلد"}
+            {value ? t("تغيير") : t("اختيار مجلد")}
           </Button>
         )}
         {value && (
@@ -80,13 +81,13 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (v:
             className="shrink-0 text-xs underline-offset-2 hover:underline"
             style={{ color: "var(--color-ink-muted)" }}
           >
-            مسح
+            {t("مسح")}
           </button>
         )}
       </motion.div>
 
       <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-        رفيق ما بيقدر يقرأ أو يكتب ملفات برّا هالمجلد، والأوامر بتنفّذ جوّاه.
+        {t("رفيق ما بيقدر يقرأ أو يكتب ملفات برّا هالمجلد، والأوامر بتنفّذ جوّاه.")}
       </p>
 
       {recents.length > 0 && (
@@ -145,7 +146,7 @@ export function FolderChip({
       if (path) rememberFolder(path);
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أحدد المجلد");
+      setError(err instanceof Error ? err.message : t("ما قدرت أحدد المجلد"));
     } finally {
       setBusy(false);
     }
@@ -167,7 +168,7 @@ export function FolderChip({
           background: value ? "color-mix(in oklch, var(--color-accent) 10%, transparent)" : "transparent",
           color: value ? "var(--color-ink)" : "var(--color-ink-muted)",
         }}
-        title={value ?? "حدد مجلد عشان رفيق يقدر يعدّل ملفاته من المحادثة"}
+        title={value ?? t("حدد مجلد عشان رفيق يقدر يعدّل ملفاته من المحادثة")}
         aria-expanded={open}
       >
         <FolderIcon className="h-3.5 w-3.5" style={{ color: value ? "var(--color-accent)" : undefined }} />
@@ -180,7 +181,7 @@ export function FolderChip({
             transition={{ duration: 0.16 }}
             className="max-w-44 truncate"
           >
-            {value ? folderName(value) : "بدون مجلد"}
+            {value ? folderName(value) : t("بدون مجلد")}
           </motion.span>
         </AnimatePresence>
       </motion.button>
@@ -196,7 +197,7 @@ export function FolderChip({
             style={{ zIndex: "var(--z-index-dropdown)" as unknown as number, borderColor: "var(--color-border)", background: "var(--color-surface)" }}
           >
             <p className="text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-              لما تحدد مجلد، رفيق بيقدر يقرأ ويعدّل ملفاته ويشغّل أوامر جوّاه من هالمحادثة — والكتابة والأوامر بتاخد إذنك.
+              {t("لما تحدد مجلد، رفيق بيقدر يقرأ ويعدّل ملفاته ويشغّل أوامر جوّاه من هالمحادثة — والكتابة والأوامر بتاخد إذنك.")}
             </p>
 
             {value && (
@@ -209,7 +210,7 @@ export function FolderChip({
               {native ? (
                 <Button onClick={browse} disabled={busy}>
                   <FolderIcon className="h-4 w-4" />
-                  {value ? "تغيير المجلد" : "اختيار مجلد"}
+                  {value ? t("تغيير المجلد") : t("اختيار مجلد")}
                 </Button>
               ) : (
                 <div className="flex gap-2">
@@ -222,7 +223,7 @@ export function FolderChip({
                     onKeyDown={(e) => e.key === "Enter" && draft.trim() && apply(draft.trim())}
                   />
                   <Button onClick={() => apply(draft.trim())} disabled={busy || !draft.trim()} className="px-3">
-                    حفظ
+                    {t("حفظ")}
                   </Button>
                 </div>
               )}
@@ -251,7 +252,7 @@ export function FolderChip({
                   style={{ color: "var(--color-danger)" }}
                 >
                   <XIcon className="h-3.5 w-3.5" />
-                  إزالة المجلد
+                  {t("إزالة المجلد")}
                 </button>
               )}
 

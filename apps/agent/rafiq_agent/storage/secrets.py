@@ -24,3 +24,18 @@ def delete_api_key(ref: str | None) -> None:
         return
     with contextlib.suppress(keyring.errors.PasswordDeleteError):
         keyring.delete_password(KEYRING_SERVICE, ref)
+
+
+# Named entries, for app-level secrets that belong to no single row (e.g. an experimental
+# integration's per-app credential). Same keychain, same service — just a fixed name.
+def set_named_secret(name: str, value: str) -> None:
+    keyring.set_password(KEYRING_SERVICE, f"named:{name}", value)
+
+
+def get_named_secret(name: str) -> str | None:
+    return keyring.get_password(KEYRING_SERVICE, f"named:{name}")
+
+
+def delete_named_secret(name: str) -> None:
+    with contextlib.suppress(keyring.errors.PasswordDeleteError):
+        keyring.delete_password(KEYRING_SERVICE, f"named:{name}")

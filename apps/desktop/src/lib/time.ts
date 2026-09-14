@@ -1,9 +1,10 @@
+import { intlLocale, t } from "../i18n";
 /** The backend stores UTC timestamps; SQLite drops the offset, so treat bare ISO strings as UTC. */
 export function parseUtc(iso: string): Date {
   return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
 }
 
-const rtf = new Intl.RelativeTimeFormat("ar", { numeric: "auto" });
+const rtf = new Intl.RelativeTimeFormat(intlLocale(), { numeric: "auto" });
 
 export function timeAgo(iso: string): string {
   const seconds = Math.round((parseUtc(iso).getTime() - Date.now()) / 1000);
@@ -14,16 +15,16 @@ export function timeAgo(iso: string): string {
   return rtf.format(Math.round(seconds / 86400), "day");
 }
 
-const dayFormat = new Intl.DateTimeFormat("ar", { weekday: "long", day: "numeric", month: "long" });
-const clockFormat = new Intl.DateTimeFormat("ar", { hour: "2-digit", minute: "2-digit" });
+const dayFormat = new Intl.DateTimeFormat(intlLocale(), { weekday: "long", day: "numeric", month: "long" });
+const clockFormat = new Intl.DateTimeFormat(intlLocale(), { hour: "2-digit", minute: "2-digit" });
 
 /** "اليوم" / "أمس" / "الثلاثاء ١٢ مارس" — the label above a day's first message. */
 export function dayLabel(iso: string): string {
   const date = parseUtc(iso);
   const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const days = Math.round((midnight(new Date()) - midnight(date)) / 86_400_000);
-  if (days <= 0) return "اليوم";
-  if (days === 1) return "أمس";
+  if (days <= 0) return t("اليوم");
+  if (days === 1) return t("أمس");
   return dayFormat.format(date);
 }
 

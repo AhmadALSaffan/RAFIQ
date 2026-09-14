@@ -26,6 +26,7 @@ import {
   type CommandId,
 } from "../../components/ComposerMenus";
 
+import { t } from "../../i18n";
 export function Composer({
   disabled,
   streaming,
@@ -198,8 +199,8 @@ export function Composer({
           }}
           disabled={disabled}
           rows={1}
-          placeholder={disabled ? "أضف نموذج شغّال أولاً" : "اكتب رسالتك…  /  للأوامر  ·  @ لملف  ·  # لمهمة"}
-          title="Enter للإرسال · Shift+Enter لسطر جديد"
+          placeholder={disabled ? t("أضف نموذج شغّال أولاً") : t("اكتب رسالتك…  /  للأوامر  ·  @ لملف  ·  # لمهمة")}
+          title={t("Enter للإرسال · Shift+Enter لسطر جديد")}
           onScroll={(e) => {
             if (mirror.current) mirror.current.scrollTop = e.currentTarget.scrollTop;
           }}
@@ -214,8 +215,8 @@ export function Composer({
               whileTap={{ scale: 0.9, rotate: -20 }}
               onClick={() => fileInput.current?.click()}
               disabled={disabled}
-              aria-label="إرفاق ملفات"
-              title="أرفق صور أو ملفات (أو اسحبها لهون، أو الصق صورة)"
+              aria-label={t("إرفاق ملفات")}
+              title={t("أرفق صور أو ملفات (أو اسحبها لهون، أو الصق صورة)")}
               className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-40"
               style={{ color: "var(--color-ink-muted)" }}
             >
@@ -243,8 +244,8 @@ export function Composer({
                 transition={{ duration: 0.18 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onStop}
-                aria-label="إيقاف"
-                title="إيقاف (Esc)"
+                aria-label={t("إيقاف")}
+                title={t("إيقاف (Esc)")}
                 className="flex h-9 w-9 items-center justify-center rounded-full"
                 style={{ background: "var(--color-ink)", color: "var(--color-bg)" }}
               >
@@ -260,8 +261,8 @@ export function Composer({
                 whileTap={{ scale: 0.88, y: -2 }}
                 onClick={submit}
                 disabled={!canSend}
-                aria-label="إرسال"
-                title={uploads.busy ? "استنى لتخلص المرفقات" : undefined}
+                aria-label={t("إرسال")}
+                title={uploads.busy ? t("استنى لتخلص المرفقات") : undefined}
                 className="flex h-9 w-9 items-center justify-center rounded-full transition-opacity disabled:opacity-35"
                 style={{ background: "var(--color-accent)", color: "var(--color-accent-ink)" }}
               >
@@ -319,7 +320,7 @@ function ModelMenu({
       >
         {current ? <BrandMark provider={current.provider} className="h-3.5 w-3.5" /> : <ModelsIcon className="h-3.5 w-3.5" />}
         <span className="max-w-48 truncate" style={{ color: "var(--color-ink)" }}>
-          {current?.name ?? "اختار نموذج"}
+          {current?.name ?? t("اختار نموذج")}
         </span>
         <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
           ▾
@@ -353,7 +354,7 @@ function ModelMenu({
                     <span className="block truncate text-sm">{m.name}</span>
                     <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
                       {providerLabel(m.provider)}
-                      {m.supports_tools === false ? " · بدون أدوات" : ""}
+                      {m.supports_tools === false ? t(" · بدون أدوات") : ""}
                     </span>
                   </span>
                 </button>

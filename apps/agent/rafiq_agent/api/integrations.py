@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
+from rafiq_agent.i18n import tr
 from rafiq_agent.integrations.base import Integration, IntegrationError, Issue
 from rafiq_agent.integrations.providers import REGISTRY, build, secret_field
 from rafiq_agent.storage.db import SessionLocal, get_session
@@ -147,16 +148,16 @@ async def providers() -> list[dict[str, Any]]:
                 "icon": spec.icon,
                 "color": spec.color,
                 "docs_url": spec.docs_url,
-                "blurb": spec.blurb,
+                "blurb": tr(spec.blurb),
                 "secret_field": secret_field(spec.id),
                 "fields": [
                     {
                         "key": f.key,
-                        "label": f.label,
+                        "label": tr(f.label),
                         "kind": f.kind,
                         "placeholder": f.placeholder,
                         "required": f.required,
-                        "help": f.help,
+                        "help": tr(f.help) if f.help else "",
                     }
                     for f in spec.fields
                 ],
@@ -178,20 +179,20 @@ async def list_integrations(session: AsyncSession = Depends(get_session)) -> lis
 @router.post("", response_model=IntegrationOut, status_code=201)
 async def connect(body: IntegrationCreate, session: AsyncSession = Depends(get_session)) -> IntegrationOut:
     if body.provider not in REGISTRY:
-        raise HTTPException(status_code=400, detail="مزوّد غير مدعوم")
+        raise HTTPException(status_code=400, detail=tr("مزوّد غير مدعوم"))
     field = secret_field(body.provider)
     config = {k: v for k, v in body.config.items() if k != field and v not in (None, "")}
     secret = str(body.config.get(field) or "")
     if not secret:
-        raise HTTPException(status_code=400, detail="لازم تحط المفتاح")
+        raise HTTPException(status_code=400, detail=tr("لازم تحط المفتاح"))
 
     # Only store a connection that actually answers.
     try:
         account = await build(body.provider, config, secret).verify()
     except IntegrationError as exc:
-        raise HTTPException(status_code=400, detail=f"ما قدرت أتصل: {exc}") from exc
+        raise HTTPException(status_code=400, detail=tr("ما قدرت أتصل: {0}", exc)) from exc
     except Exception as exc:  # noqa: BLE001 - network/parse failures are user-facing here
-        raise HTTPException(status_code=400, detail=f"ما قدرت أتصل: {exc}") from exc
+        raise HTTPException(status_code=400, detail=tr("ما قدرت أتصل: {0}", exc)) from exc
 
     row = IntegrationAccount(
         provider=body.provider,

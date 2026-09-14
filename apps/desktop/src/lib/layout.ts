@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 
+import { t } from "../i18n";
 /**
  * How wide the user wants each column. Kept in one tiny store (not React context) because
  * the shell's nav and the chat's own list live in different parts of the tree and both
@@ -43,10 +44,10 @@ export const READING_WIDTHS: Record<ReadingWidth, string> = {
 };
 
 export const READING_LABELS: Record<ReadingWidth, string> = {
-  narrow: "ضيّق",
-  medium: "متوسط",
-  wide: "عريض",
-  full: "كامل",
+  narrow: t("ضيّق"),
+  medium: t("متوسط"),
+  wide: t("عريض"),
+  full: t("كامل"),
 };
 
 const KEY = "rafiq-layout";

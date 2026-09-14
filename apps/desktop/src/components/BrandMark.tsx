@@ -2,6 +2,7 @@ import {
   siAnthropic,
   siDeepseek,
   siGithub,
+  siGithubcopilot,
   siGitlab,
   siGooglegemini,
   siJira,
@@ -24,6 +25,7 @@ const ICONS: Record<string, SimpleIcon> = {
   jira: siJira,
   linear: siLinear,
   github: siGithub,
+  github_copilot: siGithubcopilot,
   gitlab: siGitlab,
 };
 
@@ -31,6 +33,7 @@ const ICONS: Record<string, SimpleIcon> = {
 const MONOGRAMS: Record<string, { text: string; color: string }> = {
   xai: { text: "X", color: "#111111" },
   custom: { text: "⚙", color: "#8B8B8B" },
+  authai: { text: "A", color: "#B7791F" },
 };
 
 function isDark(hex: string): boolean {

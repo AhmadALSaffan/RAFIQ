@@ -47,6 +47,7 @@ import { AssistantBlock, DayDivider, MessageView, startsNewDay, SummaryDivider, 
 import { applyEvent, textOf, type Draft } from "./draft";
 import { DEFAULT_REPLY_SETTINGS, MODEL_KEY, savedModel } from "./constants";
 
+import { t } from "../../i18n";
 export function ChatPage({
   chatId,
   embedded = false,
@@ -87,6 +88,10 @@ export function ChatPage({
 
   const abortRef = useRef<AbortController | null>(null);
   const skipLoadRef = useRef<string | null>(null);
+  // The open chat's own model and the model list arrive separately; whichever lands second
+  // applies the chat's model, so it never gets replaced by the remembered/first one.
+  const chatModelRef = useRef<string | null>(null);
+  const modelsRef = useRef<LlmModel[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const uploads = useUploads();
@@ -105,8 +110,11 @@ export function ChatPage({
       .then(setChats)
       .finally(() => setLoadingChats(false));
     listModels().then((m) => {
+      modelsRef.current = m;
       setModels(m);
       const ok = m.filter((x) => x.verify_ok !== false);
+      const own = ok.find((x) => x.id === chatModelRef.current);
+      if (own) return setModelId(own.id);
       const remembered = savedModel();
       setModelId((cur) => cur || (ok.find((x) => x.id === remembered) ?? ok[0])?.id || "");
     });
@@ -114,6 +122,7 @@ export function ChatPage({
 
   useEffect(() => {
     setError(null);
+    chatModelRef.current = null;
     if (!routeId) {
       setMessages([]);
       return;
@@ -128,12 +137,11 @@ export function ChatPage({
       .then((chat) => {
         setMessages(chat.messages);
         setChats((prev) => (prev.some((c) => c.id === chat.id) ? prev.map((c) => (c.id === chat.id ? { ...c, ...chat } : c)) : [chat, ...prev]));
-        if (chat.model_id && models.some((m) => m.id === chat.model_id && m.verify_ok !== false)) setModelId(chat.model_id);
+        chatModelRef.current = chat.model_id ?? null;
+        if (chat.model_id && modelsRef.current.some((m) => m.id === chat.model_id && m.verify_ok !== false)) setModelId(chat.model_id);
       })
       .catch(() => !embedded && navigate("/chat", { replace: true }))
       .finally(() => setLoadingChat(false));
-    // models intentionally omitted: switching chats shouldn't wait on / refire for the model list
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeId, navigate, embedded]);
 
   const autoSent = useRef(false);
@@ -190,7 +198,7 @@ export function ChatPage({
         setNewChatFolder(null);
         navigate(`/chat/${chat.id}`, { replace: true });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "ما قدرت أبدأ محادثة");
+        setError(err instanceof Error ? err.message : t("ما قدرت أبدأ محادثة"));
         return;
       }
     }
@@ -235,7 +243,7 @@ export function ChatPage({
       );
     } catch (err) {
       if (!(err instanceof DOMException && err.name === "AbortError")) {
-        setError(err instanceof Error ? err.message : "صار خطأ");
+        setError(err instanceof Error ? err.message : t("صار خطأ"));
       }
     } finally {
       // Stopped or failed mid-reply: keep what arrived (the backend saved it too).
@@ -274,7 +282,7 @@ export function ChatPage({
     if (!routeId) return;
     const updated = await updateChatSettings(routeId, settings);
     setChats((prev) => prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)));
-    note("انحفظت إعدادات الرد");
+    note(t("انحفظت إعدادات الرد"));
   }
 
   /** Folds the old turns into a summary so the next messages cost far fewer tokens. */
@@ -288,9 +296,9 @@ export function ChatPage({
         prev.map((c) => (c.id === routeId ? { ...c, summary: result.summary, summary_until: result.summary_until } : c)),
       );
       const saved = Math.max(0, result.approx_tokens_before - result.approx_tokens_after);
-      note(`انطوت ${result.folded_messages} رسالة بملخص — توفير ~${saved} توكن بكل رسالة جاية (تقريبي)`);
+      note(t("انطوت {0} رسالة بملخص — توفير ~{1} توكن بكل رسالة جاية (تقريبي)", { 0: result.folded_messages, 1: saved }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت ألخّص");
+      setError(err instanceof Error ? err.message : t("ما قدرت ألخّص"));
     } finally {
       setSummarizing(false);
     }
@@ -309,7 +317,7 @@ export function ChatPage({
       if (lastAssistant && stored(lastAssistant)) await deleteChatMessage(routeId, lastAssistant.id);
       if (stored(lastUser)) await deleteChatMessage(routeId, lastUser.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أحذف آخر رد");
+      setError(err instanceof Error ? err.message : t("ما قدرت أحذف آخر رد"));
       return;
     }
     const dropped = new Set([lastUser.id, lastAssistant?.id]);
@@ -318,24 +326,24 @@ export function ChatPage({
   }
 
   async function exportChat() {
-    const title = current?.title ?? "محادثة";
+    const title = current?.title ?? t("محادثة");
     const name = `${title.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "rafiq-chat"}.md`;
     try {
       const path = await saveTextFile(name, chatToMarkdown(title, messages));
-      if (path) note(`انحفظت المحادثة: ${path}`);
+      if (path) note(t("انحفظت المحادثة: {0}", { 0: path }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أصدّر المحادثة");
+      setError(err instanceof Error ? err.message : t("ما قدرت أصدّر المحادثة"));
     }
   }
 
   async function copyLastReply() {
     const text = lastAssistantText();
-    if (!text) return setError("ما في رد لأنسخه.");
+    if (!text) return setError(t("ما في رد لأنسخه."));
     try {
       await navigator.clipboard.writeText(text);
-      note("انتسخ آخر رد");
+      note(t("انتسخ آخر رد"));
     } catch {
-      setError("المتصفح منع النسخ — حدد النص وانسخه يدوياً.");
+      setError(t("المتصفح منع النسخ — حدد النص وانسخه يدوياً."));
     }
   }
 
@@ -352,7 +360,7 @@ export function ChatPage({
     if (id === "folder") {
       const picked = await pickFolder(folder ?? undefined);
       if (picked) await changeFolder(picked);
-      else if (!(await canPickNatively())) setError("افتح زر المجلد فوق وحط المسار يدوياً.");
+      else if (!(await canPickNatively())) setError(t("افتح زر المجلد فوق وحط المسار يدوياً."));
     }
   }
 
@@ -381,11 +389,11 @@ export function ChatPage({
   }
 
   usePageMenu(() => [
-    { id: "new-chat", label: "محادثة جديدة", onSelect: () => navigate("/chat") },
-    { id: "config", label: "إعدادات الرد", onSelect: () => setConfigOpen(true), disabled: !routeId },
-    { id: "summarize", label: "لخّص المحادثة", onSelect: () => void summarizeNow(), disabled: !routeId || summarizing },
-    { id: "export", label: "صدّر المحادثة", onSelect: () => void exportChat(), disabled: !routeId },
-    { id: "help", label: "الأوامر والاختصارات", onSelect: () => setHelpOpen(true) },
+    { id: "new-chat", label: t("محادثة جديدة"), onSelect: () => navigate("/chat") },
+    { id: "config", label: t("إعدادات الرد"), onSelect: () => setConfigOpen(true), disabled: !routeId },
+    { id: "summarize", label: t("لخّص المحادثة"), onSelect: () => void summarizeNow(), disabled: !routeId || summarizing },
+    { id: "export", label: t("صدّر المحادثة"), onSelect: () => void exportChat(), disabled: !routeId },
+    { id: "help", label: t("الأوامر والاختصارات"), onSelect: () => setHelpOpen(true) },
   ]);
 
   const empty = !routeId && messages.length === 0 && !draft;
@@ -422,7 +430,7 @@ export function ChatPage({
               max={LIST_MAX}
               onChange={(list) => setLayout({ list })}
               onDoubleClick={() => setLayout({ list: DEFAULT_LAYOUT.list })}
-              label="عرض قائمة المحادثات"
+              label={t("عرض قائمة المحادثات")}
             />
           </div>
         </>
@@ -466,10 +474,10 @@ export function ChatPage({
             onClick={() => setListOpen(true)}
             className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface-2)] ${layout.listHidden ? "" : "lg:hidden"}`}
             style={{ color: "var(--color-ink-muted)" }}
-            aria-label="كل المحادثات"
+            aria-label={t("كل المحادثات")}
           >
             <ChatIcon className="h-4 w-4" />
-            المحادثات
+            {t("المحادثات")}
           </button>
           <AnimatePresence mode="wait" initial={false}>
             <motion.h2
@@ -481,7 +489,7 @@ export function ChatPage({
               className="min-w-0 flex-1 truncate text-sm font-medium"
               dir="auto"
             >
-              <TokenText text={current?.title ?? "محادثة جديدة"} />
+              <TokenText text={current?.title ?? t("محادثة جديدة")} />
             </motion.h2>
           </AnimatePresence>
           <FolderChip value={folder} onChange={changeFolder} />
@@ -528,7 +536,7 @@ export function ChatPage({
                     style={{ color: "var(--color-ink-muted)" }}
                   >
                     <CompressIcon className="h-4 w-4" />
-                    جارِ تلخيص المحادثة…
+                    {t("جارِ تلخيص المحادثة…")}
                   </motion.p>
                 )}
                 {draft && (
@@ -577,8 +585,8 @@ export function ChatPage({
                 }}
                 className="absolute bottom-4 left-1/2 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border shadow-lg"
                 style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-ink)" }}
-                aria-label="انزل لآخر المحادثة"
-                title="انزل لآخر المحادثة"
+                aria-label={t("انزل لآخر المحادثة")}
+                title={t("انزل لآخر المحادثة")}
               >
                 <ArrowDownIcon className="h-4 w-4" />
               </motion.button>
@@ -597,7 +605,7 @@ export function ChatPage({
               <div className="mx-auto flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ maxWidth: reading, borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
                 <span className="flex items-center gap-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
                   <CompressIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-accent)" }} />
-                  المحادثة صارت طويلة — كل رسالة عم تبعت التاريخ كله للنموذج.
+                  {t("المحادثة صارت طويلة — كل رسالة عم تبعت التاريخ كله للنموذج.")}
                 </span>
                 <button
                   onClick={summarizeNow}
@@ -605,7 +613,7 @@ export function ChatPage({
                   className="shrink-0 rounded-lg px-2.5 py-1 text-xs transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-50"
                   style={{ color: "var(--color-accent)" }}
                 >
-                  {summarizing ? "جارِ التلخيص…" : "لخّصها"}
+                  {summarizing ? t("جارِ التلخيص…") : t("لخّصها")}
                 </button>
               </div>
             </motion.div>

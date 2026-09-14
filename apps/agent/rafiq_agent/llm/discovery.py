@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import httpx
 import litellm
 
+from rafiq_agent.auth.base import redact
+from rafiq_agent.i18n import tr
 from rafiq_agent.llm.base import litellm_model_string
 
 OLLAMA_DEFAULT_BASE = "http://localhost:11434"
@@ -39,9 +41,9 @@ class DiscoveredModel:
 
 def _raise_for_status(resp: httpx.Response) -> None:
     if resp.status_code in (401, 403):
-        raise DiscoveryError("المفتاح غير صحيح أو ما عنده صلاحية.")
+        raise DiscoveryError(tr("المفتاح غير صحيح أو ما عنده صلاحية."))
     if resp.status_code >= 400:
-        raise DiscoveryError(f"المزوّد رجّع خطأ ({resp.status_code}).")
+        raise DiscoveryError(tr("المزوّد رجّع خطأ ({0}).", resp.status_code))
 
 
 def _openai_style(data: list[dict], name_key: str | None = None) -> list[DiscoveredModel]:
@@ -104,12 +106,12 @@ async def discover_models(provider: str, api_key: str | None, base_url: str | No
             }
             if provider == "custom":
                 if not base_url:
-                    raise DiscoveryError("لازم تحدد Base URL للمزوّد المخصص.")
+                    raise DiscoveryError(tr("لازم تحدد Base URL للمزوّد المخصص."))
                 url = f"{base_url.rstrip('/')}/models"
             elif provider in endpoints:
                 url = endpoints[provider]
             else:
-                raise DiscoveryError(f"مزوّد غير معروف: {provider}")
+                raise DiscoveryError(tr("مزوّد غير معروف: {0}", provider))
 
             headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
             resp = await client.get(url, headers=headers)
@@ -121,9 +123,9 @@ async def discover_models(provider: str, api_key: str | None, base_url: str | No
                 models.sort(key=lambda m: created.get(m.id, 0), reverse=True)
             return models
     except httpx.ConnectError as exc:
-        raise DiscoveryError("ما قدرت اتصل بالمزوّد — تأكد من الإنترنت أو من الـ Base URL.") from exc
+        raise DiscoveryError(tr("ما قدرت اتصل بالمزوّد — تأكد من الإنترنت أو من الـ Base URL.")) from exc
     except httpx.TimeoutException as exc:
-        raise DiscoveryError("المزوّد ما رد بالوقت المحدد.") from exc
+        raise DiscoveryError(tr("المزوّد ما رد بالوقت المحدد.")) from exc
 
 
 @dataclass
@@ -186,11 +188,11 @@ async def verify_model(
 def friendly_error(exc: Exception) -> str:
     name = type(exc).__name__
     if "Authentication" in name:
-        return "المفتاح غير صحيح."
+        return tr("المفتاح غير صحيح.")
     if "NotFound" in name:
-        return "الموديل غير موجود عند هالمزوّد، أو ما عندك صلاحية عليه."
+        return tr("الموديل غير موجود عند هالمزوّد، أو ما عندك صلاحية عليه.")
     if "RateLimit" in name:
-        return "تجاوزت حد الاستخدام أو الرصيد خلص."
+        return tr("تجاوزت حد الاستخدام أو الرصيد خلص.")
     if "Connection" in name or "Timeout" in name:
-        return "ما قدرت اتصل بالمزوّد."
-    return str(exc)[:300]
+        return tr("ما قدرت اتصل بالمزوّد.")
+    return redact(str(exc))[:300]

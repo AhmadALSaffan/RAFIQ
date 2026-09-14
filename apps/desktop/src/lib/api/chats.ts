@@ -1,3 +1,4 @@
+import { locale } from "../../i18n";
 /** Conversations, their settings, and the streaming send. */
 
 import { getApiConfig } from "../config";
@@ -90,7 +91,7 @@ export async function sendChatMessage(
     method: "POST",
     cache: "no-store",
     signal,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "Accept-Language": locale() },
     body: JSON.stringify({ content, model_id: modelId, attachment_ids: attachmentIds }),
   });
   if (!res.ok || !res.body) {

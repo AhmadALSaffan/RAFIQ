@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "رفيق",
   "mainBinaryName": "Rafiq",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "identifier": "com.rafiq.app",
   "build": {
     "frontendDist": "../dist",
@@ -32,8 +32,8 @@
     "targets": [
       "nsis"
     ],
-    "publisher": "Ahmad AlSaffan",
-    "copyright": "© 2026 أحمد عليوي السفان (Ahmad AlSaffan)",
+    "publisher": "Ahmed Eliwi AL Saffan",
+    "copyright": "© 2026 أحمد عليوي السفان (Ahmed Eliwi AL Saffan)",
     "homepage": "https://github.com/AhmadALSaffan",
     "category": "Productivity",
     "shortDescription": "رفيق — مساعد ذكي على ويندوز بيحكي عربي وبيشتغل على جهازك",
@@ -56,7 +56,8 @@
         "installMode": "currentUser",
         "languages": [
           "Arabic",
-          "English"
+          "English",
+          "Russian"
         ],
         "displayLanguageSelector": true,
         "installerIcon": "icons/icon.ico",

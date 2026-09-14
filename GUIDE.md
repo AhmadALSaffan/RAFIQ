@@ -86,7 +86,7 @@ pnpm install
 # الـ backend
 cd apps/agent
 python -m venv .venv
-./.venv/Scripts/pip install -e ".[dev]"
+./.venv/Scripts/pip install -e ".[dev,copilot]"
 ```
 
 ## التشغيل (تطبيق دسكتوب حقيقي)

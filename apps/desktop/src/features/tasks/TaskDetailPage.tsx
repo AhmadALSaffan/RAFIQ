@@ -36,6 +36,7 @@ import { PermissionCard, ThinkingDots, ToolCard } from "../../components/steps";
 import { AttachmentGallery } from "../../components/Attachments";
 import { formatDuration } from "./pieces";
 
+import { t } from "../../i18n";
 type Block =
   | { kind: "message"; key: string; text: string }
   | { kind: "tool"; key: string; call?: ToolCall; tool: string; result?: { ok: boolean; output: string } }
@@ -163,12 +164,12 @@ export function TaskDetailPage() {
   }, [task, rerunning, navigate]);
 
   usePageMenu(() => [
-    { id: "back", label: "رجوع للمهام", onSelect: () => navigate("/tasks") },
-    { id: "copy-prompt", label: "انسخ الطلب", onSelect: copyPrompt, disabled: !task },
-    { id: "rerun", label: "شغّلها من جديد", onSelect: () => void rerun(), disabled: !task },
+    { id: "back", label: t("رجوع للمهام"), onSelect: () => navigate("/tasks") },
+    { id: "copy-prompt", label: t("انسخ الطلب"), onSelect: copyPrompt, disabled: !task },
+    { id: "rerun", label: t("شغّلها من جديد"), onSelect: () => void rerun(), disabled: !task },
     {
       id: "folder",
-      label: "افتح المجلد",
+      label: t("افتح المجلد"),
       onSelect: () => task?.working_dir && void revealPath(task.working_dir),
       disabled: !task?.working_dir,
     },
@@ -230,7 +231,7 @@ export function TaskDetailPage() {
                   whileHover={{ y: -1 }}
                   onClick={() => void revealPath(task.working_dir!)}
                   className="flex items-center gap-1 underline-offset-2 hover:underline"
-                  title={`افتح ${task.working_dir}`}
+                  title={t("افتح {0}", { 0: task.working_dir })}
                 >
                   <FolderIcon className="h-4 w-4" />
                   {folderName(task.working_dir)}
@@ -244,7 +245,7 @@ export function TaskDetailPage() {
                   style={{ color: "var(--color-accent)" }}
                 >
                   <ChatIcon className="h-4 w-4" />
-                  انعملت من محادثة
+                  {t("انعملت من محادثة")}
                 </motion.button>
               )}
             </p>
@@ -256,7 +257,7 @@ export function TaskDetailPage() {
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
                   <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => id && void cancelTask(id)}>
                     <StopIcon className="h-3.5 w-3.5" />
-                    إيقاف
+                    {t("إيقاف")}
                   </Button>
                 </motion.div>
               )}
@@ -276,16 +277,16 @@ export function TaskDetailPage() {
           className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-4 py-2 text-xs"
           style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-ink-muted)" }}
         >
-          <Stat icon={<TerminalIcon className="h-3.5 w-3.5" />} label="خطوة" value={blocks.length} />
-          <Stat icon={<RefreshIcon className="h-3.5 w-3.5" />} label="أداة" value={toolsUsed} />
+          <Stat icon={<TerminalIcon className="h-3.5 w-3.5" />} value={blocks.length} text={(n) => t("{0} خطوة", { 0: n })} />
+          <Stat icon={<RefreshIcon className="h-3.5 w-3.5" />} value={toolsUsed} text={(n) => t("{0} أداة", { 0: n })} />
           {duration && (
             <span className="flex items-center gap-1.5">
               <ClockIcon className="h-3.5 w-3.5" />
-              {running ? "شغّالة من" : "استغرقت"} {duration}
+              {running ? t("شغّالة من") : t("استغرقت")} {duration}
             </span>
           )}
           <span className="ms-auto flex items-center gap-1.5" title={task.created_at}>
-            بلّشت {clockTime(task.created_at)}
+            {t("بلّشت")} {clockTime(task.created_at)}
           </span>
         </div>
       </header>
@@ -301,16 +302,16 @@ export function TaskDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" className="px-2 py-1 text-xs" onClick={copyPrompt}>
             {copied ? <DrawnCheck className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
-            {copied ? "انتسخ" : "انسخ الطلب"}
+            {copied ? t("انتسخ") : t("انسخ الطلب")}
           </Button>
           <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => void rerun()} disabled={rerunning}>
             {rerunning ? <SpinnerIcon className="h-3.5 w-3.5" /> : <RefreshIcon className="h-3.5 w-3.5" />}
-            شغّلها من جديد
+            {t("شغّلها من جديد")}
           </Button>
           {task.working_dir && (
             <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => void revealPath(task.working_dir!)}>
               <FolderIcon className="h-3.5 w-3.5" />
-              افتح المجلد
+              {t("افتح المجلد")}
             </Button>
           )}
         </div>
@@ -333,7 +334,7 @@ export function TaskDetailPage() {
             >
               <ClockIcon className="h-5 w-5" />
             </motion.span>
-            بانتظار دورها — رح تبلّش لحالها أول ما تخلص المهمة اللي قبلها.
+            {t("بانتظار دورها — رح تبلّش لحالها أول ما تخلص المهمة اللي قبلها.")}
           </motion.div>
         )}
       </AnimatePresence>
@@ -383,11 +384,11 @@ export function TaskDetailPage() {
             }}
           >
             <DrawnCheck className="h-5 w-5" />
-            خلصت المهمة{duration ? ` بـ${duration}` : ""}
+            {t("خلصت المهمة")}{duration ? t(" بـ{0}", { 0: duration }) : ""}
             {task.working_dir && (
               <Button variant="ghost" className="ms-auto px-2 py-1 text-xs" onClick={() => void revealPath(task.working_dir!)}>
                 <FolderIcon className="h-3.5 w-3.5" />
-                شوف الملفات
+                {t("شوف الملفات")}
               </Button>
             )}
           </motion.div>
@@ -399,14 +400,14 @@ export function TaskDetailPage() {
   );
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+/** A count with its noun, phrased by the dictionary so plurals read right in every language. */
+function Stat({ icon, value, text }: { icon: React.ReactNode; value: number; text: (n: number) => string }) {
   return (
     <span className="flex items-center gap-1.5">
       {icon}
       <motion.span key={value} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="tabular-nums">
-        {value}
+        {text(value)}
       </motion.span>
-      {label}
     </span>
   );
 }
@@ -436,10 +437,10 @@ function DeleteTaskButton({ running, onConfirm }: { running: boolean; onConfirm:
             }}
           >
             {busy ? <SpinnerIcon className="h-3.5 w-3.5" /> : <TrashIcon className="h-3.5 w-3.5" />}
-            {running ? "أوقف واحذف" : "تأكيد الحذف"}
+            {running ? t("أوقف واحذف") : t("تأكيد الحذف")}
           </Button>
           <Button variant="ghost" className="px-2 py-1.5 text-xs" onClick={() => setConfirming(false)}>
-            لا
+            {t("لا")}
           </Button>
         </motion.div>
       ) : (
@@ -450,8 +451,8 @@ function DeleteTaskButton({ running, onConfirm }: { running: boolean; onConfirm:
           exit={{ opacity: 0 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => setConfirming(true)}
-          aria-label="حذف المهمة"
-          title="حذف المهمة"
+          aria-label={t("حذف المهمة")}
+          title={t("حذف المهمة")}
           className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
           style={{ color: "var(--color-ink-muted)" }}
         >
@@ -465,7 +466,7 @@ function DeleteTaskButton({ running, onConfirm }: { running: boolean; onConfirm:
 function BackLink({ onClick }: { onClick: () => void }) {
   return (
     <motion.button whileHover={{ x: 3 }} onClick={onClick} className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
-      → رجوع للمهام
+      {t("→ رجوع للمهام")}
     </motion.button>
   );
 }

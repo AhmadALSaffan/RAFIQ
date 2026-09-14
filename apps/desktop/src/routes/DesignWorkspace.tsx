@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -18,6 +18,7 @@ import { easeOutExpo, snappy } from "../lib/motion";
 import { queueChatMessage } from "../lib/handoff";
 import { fieldDir } from "../lib/bidi";
 import { folderName, pickFolder } from "../lib/folders";
+import { openExternal } from "../lib/links";
 import { FolderChip } from "../components/FolderPicker";
 import { Markdown } from "../components/Markdown";
 import { Button, DrawnCheck } from "../components/ui";
@@ -37,22 +38,63 @@ import {
   XIcon,
 } from "../components/Icons";
 
+import { t } from "../i18n";
 const DEVICES = [
-  { id: "mobile", label: "موبايل", width: 390 },
-  { id: "tablet", label: "تابلت", width: 820 },
-  { id: "desktop", label: "شاشة", width: 0 },
+  { id: "mobile", label: t("موبايل"), width: 390 },
+  { id: "tablet", label: t("تابلت"), width: 820 },
+  { id: "desktop", label: t("شاشة"), width: 0 },
 ] as const;
 
 type Tab = "preview" | "spec" | "skills";
 
 /**
- * The preview is a separate document, so our window-level handler can't reach it — without
- * this the webview's own menu (with Inspect) would still open inside the frame. Only the
- * rendered copy is touched; what we copy, save and hand off stays the model's HTML.
+ * The preview is a `srcdoc` document, so it inherits the app's URL as its base: the design's
+ * own links (`#contact`, `about.html`) would load the app — or nothing — into the frame
+ * instead of the design's page. This runtime keeps navigation inside the design: `#id` links
+ * move within the document (hashchange included, for designs that route on it), links to
+ * another page jump to the section with that name, web links open in the browser, and forms
+ * don't navigate. It also keeps the webview's own menu (with Inspect) out of the frame.
+ * Only the rendered copy is touched; what we copy, save and hand off stays the model's HTML.
  */
+const PREVIEW_RUNTIME = `(function () {
+  var post = function (data) { data.source = "rafiq-preview"; parent.postMessage(data, "*"); };
+  var find = function (name) {
+    if (!name) return null;
+    var esc = CSS.escape(name);
+    return document.getElementById(name) ||
+      document.querySelector('[name="' + esc + '"], [data-page="' + esc + '"], #page-' + esc + ', #' + esc + '-page');
+  };
+  var go = function (name) {
+    var target = find(name);
+    var id = target && target.id ? target.id : name;
+    var hash = id ? "#" + id : "";
+    if (location.hash !== hash) location.hash = hash;
+    if (target) target.scrollIntoView();
+    else if (!name) scrollTo(0, 0);
+  };
+  document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  document.addEventListener("submit", function (e) { if (!e.defaultPrevented) e.preventDefault(); });
+  document.addEventListener("click", function (e) {
+    if (e.defaultPrevented || e.button !== 0) return;
+    var link = e.target.closest ? e.target.closest("a[href]") : null;
+    if (!link) return;
+    var href = link.getAttribute("href").trim();
+    if (!href || /^javascript:/i.test(href)) return;
+    e.preventDefault();
+    if (/^(https?:|mailto:|tel:)/i.test(href)) return post({ type: "open", url: href });
+    var parts = href.split("#");
+    var fragment = decodeURIComponent(parts[1] || "");
+    var file = parts[0].split("?")[0].replace(/\\/+$/, "").split("/").pop() || "";
+    var page = file.replace(/\\.html?$/i, "");
+    if (!page || /^(index|home)$/i.test(page)) return go(fragment);
+    if (find(page)) return go(page);
+    post({ type: "missing", page: file });
+  });
+})();`;
+
 function guarded(html: string): string {
   return `${html}
-<script>document.addEventListener("contextmenu",e=>e.preventDefault());<\/script>`; // eslint-disable-line no-useless-escape
+<script>${PREVIEW_RUNTIME}<\/script>`; // eslint-disable-line no-useless-escape
 }
 
 export function DesignWorkspace() {
@@ -72,7 +114,7 @@ export function DesignWorkspace() {
       const next = await getDesign(id);
       setDesign(next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما لقيت التصميم");
+      setError(err instanceof Error ? err.message : t("ما لقيت التصميم"));
     }
   }, [id]);
 
@@ -86,24 +128,24 @@ export function DesignWorkspace() {
   }
 
   usePageMenu(() => [
-    { id: "refresh", label: "حدّث المعاينة", onSelect: () => void refresh() },
+    { id: "refresh", label: t("حدّث المعاينة"), onSelect: () => void refresh() },
     {
       id: "copy-html",
-      label: "انسخ كود الواجهة",
+      label: t("انسخ كود الواجهة"),
       disabled: !design?.preview_html,
       onSelect: () => {
-        if (design?.preview_html) void navigator.clipboard.writeText(design.preview_html).then(() => flash("انتسخ كود الواجهة"));
+        if (design?.preview_html) void navigator.clipboard.writeText(design.preview_html).then(() => flash(t("انتسخ كود الواجهة")));
       },
     },
-    { id: "spec", label: "اعرض المواصفات", onSelect: () => setTab("spec") },
-    { id: "skills", label: "المهارات", onSelect: () => setTab("skills") },
+    { id: "spec", label: t("اعرض المواصفات"), onSelect: () => setTab("spec") },
+    { id: "skills", label: t("المهارات"), onSelect: () => setTab("skills") },
     {
       id: "handoff",
-      label: "بدء البرمجة",
+      label: t("بدء البرمجة"),
       disabled: !design?.preview_html && !design?.spec,
       onSelect: () => setHandoffOpen(true),
     },
-    { id: "designs", label: "كل التصاميم", onSelect: () => navigate("/designs") },
+    { id: "designs", label: t("كل التصاميم"), onSelect: () => navigate("/designs") },
   ]);
 
   if (error) {
@@ -112,7 +154,7 @@ export function DesignWorkspace() {
         <AlertIcon className="mx-auto h-6 w-6" style={{ color: "var(--color-danger)" }} />
         <p className="mt-3 text-sm">{error}</p>
         <Button variant="ghost" className="mt-4" onClick={() => navigate("/designs")}>
-          رجوع للتصاميم
+          {t("رجوع للتصاميم")}
         </Button>
       </div>
     );
@@ -137,7 +179,7 @@ export function DesignWorkspace() {
           className="shrink-0 rounded-lg px-2 py-1 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
           style={{ color: "var(--color-ink-muted)" }}
         >
-          التصاميم ›
+          {t("التصاميم ›")}
         </button>
 
         {renaming ? (
@@ -157,7 +199,7 @@ export function DesignWorkspace() {
         ) : (
           <h1
             onDoubleClick={() => setRenaming(true)}
-            title="دبل كليك لإعادة التسمية"
+            title={t("دبل كليك لإعادة التسمية")}
             className="min-w-0 flex-1 cursor-text truncate text-sm font-medium"
             dir="auto"
           >
@@ -181,7 +223,7 @@ export function DesignWorkspace() {
                   transition={snappy}
                 />
               )}
-              <span className="relative">{key === "preview" ? "معاينة" : key === "spec" ? "المواصفات" : "المهارات"}</span>
+              <span className="relative">{key === "preview" ? t("معاينة") : key === "spec" ? t("المواصفات") : t("المهارات")}</span>
             </button>
           ))}
         </div>
@@ -193,7 +235,7 @@ export function DesignWorkspace() {
 
         <Button onClick={() => setHandoffOpen(true)} disabled={!design.preview_html && !design.spec}>
           <TasksIcon className="h-4 w-4" />
-          بدء البرمجة
+          {t("بدء البرمجة")}
         </Button>
       </header>
 
@@ -224,7 +266,7 @@ export function DesignWorkspace() {
           max={720}
           onChange={setChatWidth}
           onDoubleClick={() => setChatWidth(420)}
-          label="عرض الشات"
+          label={t("عرض الشات")}
         />
 
         <div className="flex min-h-0 flex-1 flex-col" style={{ background: "var(--color-surface-2)" }}>
@@ -236,13 +278,13 @@ export function DesignWorkspace() {
               device={device}
               onDevice={setDevice}
               onRefresh={refresh}
-              onCopied={() => flash("انتسخ كود الواجهة")}
+              onCopied={() => flash(t("انتسخ كود الواجهة"))}
             />
           )}
           {tab === "spec" && (
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
               <div className="mx-auto max-w-2xl">
-                {design.spec ? <Markdown text={design.spec} /> : <Empty text="المواصفات بتظهر هون بعد أول رد من النموذج." />}
+                {design.spec ? <Markdown text={design.spec} /> : <Empty text={t("المواصفات بتظهر هون بعد أول رد من النموذج.")} />}
               </div>
             </div>
           )}
@@ -292,6 +334,30 @@ function PreviewPane({
   onCopied: () => void;
 }) {
   const [nonce, setNonce] = useState(0);
+  const [missing, setMissing] = useState<string | null>(null);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+
+  // What the preview runtime (PREVIEW_RUNTIME) asks of us: open a web link, or say a page
+  // the design links to doesn't exist in it.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    function onMessage(event: MessageEvent) {
+      if (event.source !== frameRef.current?.contentWindow) return;
+      const data = event.data as { source?: string; type?: string; url?: string; page?: string } | null;
+      if (data?.source !== "rafiq-preview") return;
+      if (data.type === "open" && data.url) void openExternal(data.url);
+      if (data.type === "missing" && data.page) {
+        setMissing(data.page);
+        clearTimeout(timer);
+        timer = setTimeout(() => setMissing(null), 6000);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      clearTimeout(timer);
+    };
+  }, []);
 
   return (
     <>
@@ -311,15 +377,30 @@ function PreviewPane({
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 items-center gap-1">
+          <AnimatePresence>
+            {missing && (
+              <motion.span
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="me-1 flex min-w-0 items-center gap-1 truncate text-[11px]"
+                style={{ color: "var(--color-accent)" }}
+                role="status"
+              >
+                <AlertIcon className="h-3 w-3 shrink-0" />
+                <span className="truncate">{t("الصفحة «{0}» مو موجودة بالتصميم — اطلبها من النموذج بالشات.", { 0: missing })}</span>
+              </motion.span>
+            )}
+          </AnimatePresence>
           {savedPath && (
             <span className="me-1 flex items-center gap-1 text-[11px]" style={{ color: "var(--color-ink-muted)" }} title={savedPath}>
               <FolderIcon className="h-3 w-3" />
-              انحفظ بـ {folderName(savedPath)}
+              {t("انحفظ بـ")} {folderName(savedPath)}
             </span>
           )}
           <IconButton
-            label="حدّث المعاينة"
+            label={t("حدّث المعاينة")}
             onClick={() => {
               onRefresh();
               setNonce((n) => n + 1);
@@ -328,7 +409,7 @@ function PreviewPane({
             <RefreshIcon className="h-3.5 w-3.5" />
           </IconButton>
           <IconButton
-            label="انسخ كود الواجهة"
+            label={t("انسخ كود الواجهة")}
             disabled={!html}
             onClick={() => {
               if (html) void navigator.clipboard.writeText(html).then(onCopied);
@@ -346,9 +427,10 @@ function PreviewPane({
             style={{ width: width ? `${width}px` : "100%", maxWidth: "100%", borderColor: "var(--color-border)", background: "white" }}
           >
             <iframe
+              ref={frameRef}
               key={nonce}
               srcDoc={guarded(html)}
-              title="معاينة التصميم"
+              title={t("معاينة التصميم")}
               sandbox="allow-scripts allow-forms"
               className="h-full w-full"
               style={{ border: 0, minHeight: "600px" }}
@@ -357,10 +439,9 @@ function PreviewPane({
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <SparkIcon className="h-6 w-6" style={{ color: "var(--color-accent)" }} />
-            <p className="text-sm font-medium">المعاينة بتطلع هون</p>
+            <p className="text-sm font-medium">{t("المعاينة بتطلع هون")}</p>
             <p className="max-w-xs text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-              أول ما النموذج يرجّع أول نسخة من الواجهة رح تشوفها حيّة، وتقدر تناقشه بالشات على اليمين
-              وتشوف التعديل مباشرة.
+              {t("أول ما النموذج يرجّع أول نسخة من الواجهة رح تشوفها حيّة، وتقدر تناقشه بالشات على اليمين وتشوف التعديل مباشرة.")}
             </p>
           </div>
         )}
@@ -420,10 +501,10 @@ function SkillsPane() {
     setAdding(true);
     try {
       const skill = await addSkill({ path });
-      setStatus(`انضافت المهارة ${skill.name}`);
+      setStatus(t("انضافت المهارة {0}", { 0: skill.name }));
       reload();
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "ما قدرت أضيف المهارة");
+      setStatus(err instanceof Error ? err.message : t("ما قدرت أضيف المهارة"));
     } finally {
       setAdding(false);
     }
@@ -438,21 +519,21 @@ function SkillsPane() {
     setOpen(`${name}${file ? `/${file}` : ""}`);
     setContent("");
     const doc = await readSkill(name, file).catch(() => null);
-    setContent(doc?.content ?? "ما قدرت أقرأ المهارة.");
+    setContent(doc?.content ?? t("ما قدرت أقرأ المهارة."));
   }
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
       <div className="mx-auto max-w-2xl">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium">المهارات</h2>
+          <h2 className="text-sm font-medium">{t("المهارات")}</h2>
           <div className="flex items-center gap-1.5">
             <Button variant="ghost" onClick={() => setPasting(true)}>
-              الصق مهارة
+              {t("الصق مهارة")}
             </Button>
             <Button onClick={importFolder} disabled={adding}>
               <PlusIcon className="h-4 w-4" />
-              {adding ? "جارِ الإضافة…" : "أضف مهارة"}
+              {adding ? t("جارِ الإضافة…") : t("أضف مهارة")}
             </Button>
           </div>
         </div>
@@ -462,8 +543,7 @@ function SkillsPane() {
           </p>
         )}
         <p className="mb-4 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-          هاي المهارات المدمجة اللي رفيق بيقرأها قبل ما يصمّم وبيرجعلها بكل تعديل. بتشتغل مع أي نموذج
-          لأنها بتنمرّر كأدوات عادية (skill_list و skill_read). بتقدر تضيف مهاراتك بمجلد{" "}
+          {t("هاي المهارات المدمجة اللي رفيق بيقرأها قبل ما يصمّم وبيرجعلها بكل تعديل. بتشتغل مع أي نموذج لأنها بتنمرّر كأدوات عادية (skill_list و skill_read). بتقدر تضيف مهاراتك بمجلد")}{" "}
           <span className="font-mono" dir="ltr">
             %APPDATA%/Rafiq/skills
           </span>
@@ -479,7 +559,7 @@ function SkillsPane() {
                   </span>
                   {skill.source === "user" && (
                     <span className="rounded-full px-1.5 text-[10px]" style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}>
-                      مهارتك
+                      {t("مهارتك")}
                     </span>
                   )}
                 </span>
@@ -495,7 +575,7 @@ function SkillsPane() {
                     style={{ color: "var(--color-danger)" }}
                   >
                     <TrashIcon className="h-3 w-3" />
-                    احذف المهارة
+                    {t("احذف المهارة")}
                   </button>
                 </div>
               )}
@@ -524,7 +604,7 @@ function SkillsPane() {
           <PasteSkillDialog
             onClose={() => setPasting(false)}
             onAdded={(name) => {
-              setStatus(`انضافت المهارة ${name}`);
+              setStatus(t("انضافت المهارة {0}", { 0: name }));
               reload();
             }}
           />
@@ -551,7 +631,7 @@ function SkillsPane() {
                 <span className="font-mono text-xs" dir="ltr">
                   {open}
                 </span>
-                <button onClick={() => setOpen(null)} aria-label="إغلاق" style={{ color: "var(--color-ink-muted)" }}>
+                <button onClick={() => setOpen(null)} aria-label={t("إغلاق")} style={{ color: "var(--color-ink-muted)" }}>
                   <XIcon className="h-4 w-4" />
                 </button>
               </header>
@@ -581,7 +661,7 @@ function PasteSkillDialog({ onClose, onAdded }: { onClose: () => void; onAdded: 
       onAdded(skill.name);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أحفظ المهارة");
+      setError(err instanceof Error ? err.message : t("ما قدرت أحفظ المهارة"));
       setBusy(false);
     }
   }
@@ -605,22 +685,22 @@ function PasteSkillDialog({ onClose, onAdded }: { onClose: () => void; onAdded: 
         style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
       >
         <div>
-          <h2 className="text-base font-semibold">الصق مهارة</h2>
+          <h2 className="text-base font-semibold">{t("الصق مهارة")}</h2>
           <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            الصق محتوى SKILL.md. إذا ما فيه front matter، رفيق بيضيفه لحاله.
+            {t("الصق محتوى SKILL.md. إذا ما فيه front matter، رفيق بيضيفه لحاله.")}
           </p>
         </div>
         <input
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="اسم المهارة (إنجليزي، بدون مسافات)"
+          placeholder={t("اسم المهارة (إنجليزي، بدون مسافات)")}
           className="input w-full"
           dir="ltr"
         />
         <textarea
           value={content}
           onChange={(e) => setContent(e.currentTarget.value)}
-          placeholder="# محتوى المهارة…"
+          placeholder={t("# محتوى المهارة…")}
           rows={10}
           className="input w-full resize-y font-mono text-xs"
           dir={fieldDir(content)}
@@ -632,10 +712,10 @@ function PasteSkillDialog({ onClose, onAdded }: { onClose: () => void; onAdded: 
         )}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
-            إلغاء
+            {t("إلغاء")}
           </Button>
           <Button onClick={save} disabled={busy || !name.trim() || !content.trim()}>
-            {busy ? "جارِ الحفظ…" : "احفظ المهارة"}
+            {busy ? t("جارِ الحفظ…") : t("احفظ المهارة")}
           </Button>
         </div>
       </motion.div>
@@ -676,7 +756,7 @@ function HandoffDialog({ design, onClose, onDone }: { design: Design; onClose: (
     try {
       if (target === "task") {
         const result = await handoffDesign(design.id, { target: "task", model_id: modelId });
-        onDone("انبعت التصميم كمهمة — رفيق بيشتغل عليها بالدور.");
+        onDone(t("انبعت التصميم كمهمة — رفيق بيشتغل عليها بالدور."));
         onClose();
         if (result.task_id) navigate(`/tasks/${result.task_id}`);
         return;
@@ -689,20 +769,20 @@ function HandoffDialog({ design, onClose, onDone }: { design: Design; onClose: (
       if (result.chat_id) {
         // The message lands in the composer of that session, ready to send.
         queueChatMessage(result.message);
-        onDone("انبعت التصميم للمحادثة.");
+        onDone(t("انبعت التصميم للمحادثة."));
         onClose();
         navigate(`/chat/${result.chat_id}`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ما قدرت أبعت التصميم");
+      setError(err instanceof Error ? err.message : t("ما قدرت أبعت التصميم"));
       setBusy(false);
     }
   }
 
   const options = [
-    { id: "new", label: "محادثة جديدة", hint: "بتفتح جلسة برمجة نضيفة ومعها التصميم" },
-    { id: "existing", label: "محادثة موجودة", hint: "ابعتها لجلسة شغّالة على المشروع" },
-    { id: "task", label: "مهمة بالخلفية", hint: "رفيق بينفّذها لحاله بالدور" },
+    { id: "new", label: t("محادثة جديدة"), hint: t("بتفتح جلسة برمجة نضيفة ومعها التصميم") },
+    { id: "existing", label: t("محادثة موجودة"), hint: t("ابعتها لجلسة شغّالة على المشروع") },
+    { id: "task", label: t("مهمة بالخلفية"), hint: t("رفيق بينفّذها لحاله بالدور") },
   ] as const;
 
   return (
@@ -724,9 +804,9 @@ function HandoffDialog({ design, onClose, onDone }: { design: Design; onClose: (
         style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
       >
         <div>
-          <h2 className="text-base font-semibold">ابعت التصميم للبرمجة</h2>
+          <h2 className="text-base font-semibold">{t("ابعت التصميم للبرمجة")}</h2>
           <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-            بينبعت القرارات + كود الواجهة المعتمد، مع تعليمات إنه يقرأ مهارة impeccable قبل ما يبدأ.
+            {t("بينبعت القرارات + كود الواجهة المعتمد، مع تعليمات إنه يقرأ مهارة impeccable قبل ما يبدأ.")}
           </p>
         </div>
 
@@ -763,7 +843,7 @@ function HandoffDialog({ design, onClose, onDone }: { design: Design; onClose: (
         )}
 
         <label className="flex items-center justify-between gap-3 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-          النموذج اللي رح يبرمج
+          {t("النموذج اللي رح يبرمج")}
           <select value={modelId} onChange={(e) => setModelId(e.currentTarget.value)} className="input w-48">
             {models.map((m) => (
               <option key={m.id} value={m.id}>
@@ -781,10 +861,10 @@ function HandoffDialog({ design, onClose, onDone }: { design: Design; onClose: (
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
-            إلغاء
+            {t("إلغاء")}
           </Button>
           <Button onClick={send} disabled={busy || (target === "existing" && !chatId)}>
-            {busy ? "جارِ الإرسال…" : "ابعت وابدأ"}
+            {busy ? t("جارِ الإرسال…") : t("ابعت وابدأ")}
           </Button>
         </div>
       </motion.div>

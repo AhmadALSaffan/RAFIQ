@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from rafiq_agent.i18n import tr
 from rafiq_agent.skills.registry import skills_index
 
 # `impeccable init` — the questions Rafiq asks before the design chat opens. They mirror
@@ -86,6 +87,10 @@ DESIGN_SYSTEM_PROMPT = (
     "بعدين الشاشة نفسها، وبعدين قائمة مكافحة الـ slop.\n"
     "3. كل رد تصميمي لازم ينتهي بمستند HTML واحد مكتفي بذاته داخل بلوك ```html — ستايل داخلي، "
     "بدون ملفات خارجية، بمحتوى حقيقي بلغة المنتج، ويشتغل على عرض 380px.\n"
+    "   إذا التصميم فيه أكتر من صفحة، حط كل الصفحات بنفس المستند: كل صفحة بـ "
+    '<section id="..."> بمعرّف إنجليزي قصير، والتنقل بينها بروابط href="#id"، مع سكربت صغير '
+    "بيعرض الصفحة اللي معرّفها بـ location.hash ويخفي الباقي (الرئيسية بتظهر لما ما يكون في hash). "
+    "لا تربط لملفات .html منفصلة ولا تقسم الصفحات على كذا بلوك — المعاينة بتعرض بلوك واحد بس.\n"
     "4. فوق البلوك اكتب بالعربي: وظيفة الشاشة بجملة، القرارات اللي أخذتها وليش، وشو تركته عمداً.\n"
     "5. بكل تعديل: ارجع للمهارات، وقول أي قاعدة بيخدمها التعديل، وغيّر أصغر شي بيحل ملاحظة المستخدم.\n\n"
     "لا تسأل المستخدم أسئلة الـ brief من جديد — وصلتك جاهزة. إذا في شي ناقص، افترض افتراض معقول "
@@ -97,18 +102,37 @@ def skills_note() -> str:
     return f"المهارات المتاحة عندك (اقرأها بـ skill_read قبل ما تبدأ، وارجعلها بكل مراجعة):\n{skills_index()}"
 
 
+def localized_questions() -> list[dict[str, Any]]:
+    """QUESTIONS in the user's language (labels, placeholders, options)."""
+    out = []
+    for question in QUESTIONS:
+        q = dict(question)
+        q["label"] = tr(q["label"])
+        if q.get("placeholder"):
+            q["placeholder"] = tr(q["placeholder"])
+        if q.get("options"):
+            q["options"] = [tr(o) for o in q["options"]]
+        out.append(q)
+    return out
+
+
 def brief_message(brief: dict[str, Any]) -> str:
-    """The first user message of a design chat: the answers, as the model will read them."""
-    lines = ["هاي معلومات المشروع من `impeccable init`:", ""]
+    """The first user message of a design chat: the answers, as the model will read them.
+
+    It's shown in the chat as the user's own message, so it's in the user's language."""
+    lines = [tr("هاي معلومات المشروع من `impeccable init`:"), ""]
     for question in QUESTIONS:
         value = brief.get(question["id"])
         if isinstance(value, list):
-            value = "، ".join(value)
-        lines.append(f"- **{question['label']}** {str(value).strip() if value else '— (ما حددها المستخدم)'}")
+            value = tr("، ").join(value)
+        answer = str(value).strip() if value else tr("— (ما حددها المستخدم)")
+        lines.append(f"- **{tr(question['label'])}** {answer}")
     lines += [
         "",
-        "ابدأ: اقرأ مهارة impeccable وأي مهارة ثانية بتلزمك، لخّصلي القرارات، وبعدين اعطيني أول "
-        "نسخة من التصميم كمستند HTML كامل.",
+        tr(
+            "ابدأ: اقرأ مهارة impeccable وأي مهارة ثانية بتلزمك، لخّصلي القرارات، وبعدين اعطيني أول "
+            "نسخة من التصميم كمستند HTML كامل."
+        ),
     ]
     return "\n".join(lines)
 
@@ -130,22 +154,24 @@ def strip_preview(text: str) -> str:
 def handoff_message(title: str, spec: str | None, html: str | None) -> str:
     """What gets sent to the session that will actually build the thing."""
     parts = [
-        f"# التصميم الجاهز: {title}",
+        tr("# التصميم الجاهز: {0}", title),
         "",
-        "هاد تصميم متفق عليه من صفحة التصاميم. ابنيه بالشفرة زي ما هو: نفس التسلسل، نفس الـ tokens "
-        "(الألوان، الخطوط، المسافات، الحواف)، ونفس الحركة. إذا اضطريت تغيّر شي، قول ليش.",
+        tr(
+            "هاد تصميم متفق عليه من صفحة التصاميم. ابنيه بالشفرة زي ما هو: نفس التسلسل، نفس الـ tokens "
+            "(الألوان، الخطوط، المسافات، الحواف)، ونفس الحركة. إذا اضطريت تغيّر شي، قول ليش."
+        ),
         "",
     ]
     if spec:
-        parts += ["## القرارات", "", spec, ""]
+        parts += [tr("## القرارات"), "", spec, ""]
     if html:
-        parts += ["## الواجهة المعتمدة (HTML مرجعي)", "", "```html", html, "```", ""]
+        parts += [tr("## الواجهة المعتمدة (HTML مرجعي)"), "", "```html", html, "```", ""]
     parts += [
-        "## المطلوب",
+        tr("## المطلوب"),
         "",
-        "1. اقرأ مهارة impeccable بـ skill_read قبل ما تبدأ، وطبّق قواعدها على الشفرة.",
-        "2. حوّل التصميم لمكوّنات حقيقية بالمشروع الحالي (مو ملف HTML واحد).",
-        "3. خلّي الحالات كلها موجودة: فاضي، تحميل، خطأ، وبيانات كتيرة.",
+        tr("1. اقرأ مهارة impeccable بـ skill_read قبل ما تبدأ، وطبّق قواعدها على الشفرة."),
+        tr("2. حوّل التصميم لمكوّنات حقيقية بالمشروع الحالي (مو ملف HTML واحد)."),
+        tr("3. خلّي الحالات كلها موجودة: فاضي، تحميل، خطأ، وبيانات كتيرة."),
     ]
     return "\n".join(parts)
 

@@ -46,6 +46,23 @@ async def run_agent_loop(
     cb: LoopCallbacks,
     max_iterations: int = 25,
 ) -> LoopResult:
+    try:
+        return await _run(llm, messages, registry, cb, max_iterations)
+    finally:
+        # Stateful providers (Copilot keeps a live session across tool steps) release it
+        # here, however the run ended — finished, failed, or cancelled.
+        close = getattr(llm, "aclose", None)
+        if close is not None:
+            await close()
+
+
+async def _run(
+    llm: LlmProvider,
+    messages: list[dict[str, Any]],
+    registry: ToolRegistry,
+    cb: LoopCallbacks,
+    max_iterations: int,
+) -> LoopResult:
     all_text, all_reasoning = "", ""
     schemas = registry.schemas()
     nudged = False

@@ -1,9 +1,12 @@
+import contextlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from rafiq_agent.api.accounts import callback_router as accounts_callback_router
+from rafiq_agent.api.accounts import router as accounts_router
 from rafiq_agent.api.attachments import router as attachments_router
 from rafiq_agent.api.chats import router as chats_router
 from rafiq_agent.api.designs import router as designs_router
@@ -16,6 +19,7 @@ from rafiq_agent.api.tasks import ws_router as tasks_ws_router
 from rafiq_agent.config import CORS_ORIGINS
 from rafiq_agent.core.agent_runtime import run_task
 from rafiq_agent.core.manager import manager
+from rafiq_agent.i18n import reset_request_locale, set_request_locale
 from rafiq_agent.storage.db import init_db
 
 
@@ -24,7 +28,36 @@ async def lifespan(app: FastAPI):
     await init_db()
     await manager.recover()
     manager.start(run_task)
+    # Optional experimental adapter: load its saved config, or skip it silently.
+    with contextlib.suppress(Exception):
+        from rafiq_agent.auth.experimental.authai import load_config
+
+        await load_config()
     yield
+    # Copilot runtimes are child processes — don't leave them behind.
+    from rafiq_agent.llm import copilot
+
+    await copilot.shutdown_all()
+
+
+class LocaleMiddleware:
+    """Makes the UI's language (Accept-Language) the language of every message in this request."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] not in ("http", "websocket"):
+            await self.app(scope, receive, send)
+            return
+        header = next(
+            (v.decode("latin-1") for k, v in scope.get("headers", []) if k == b"accept-language"), None
+        )
+        token = set_request_locale(header)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            reset_request_locale(token)
 
 
 class NoStoreMiddleware:
@@ -51,6 +84,7 @@ class NoStoreMiddleware:
 app = FastAPI(title="Rafiq Agent", lifespan=lifespan)
 
 app.add_middleware(NoStoreMiddleware)
+app.add_middleware(LocaleMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -60,6 +94,8 @@ app.add_middleware(
 )
 
 app.include_router(models_router)
+app.include_router(accounts_router)
+app.include_router(accounts_callback_router)
 app.include_router(settings_router)
 app.include_router(tasks_router)
 app.include_router(tasks_ws_router)
@@ -68,6 +104,13 @@ app.include_router(attachments_router)
 app.include_router(integrations_router)
 app.include_router(files_router)
 app.include_router(designs_router)
+
+
+# AuthAI's own settings routes — mounted only if the experimental module loads.
+with contextlib.suppress(Exception):
+    from rafiq_agent.auth.experimental.authai import router as authai_router
+
+    app.include_router(authai_router)
 
 
 @app.get("/health")
