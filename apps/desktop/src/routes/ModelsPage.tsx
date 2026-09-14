@@ -1,0 +1,662 @@
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { createModel, deleteModel, discoverModels, listModels, providerLabel, verifyModel } from "../lib/api";
+import { PROVIDERS, providerMeta } from "../lib/providers";
+import type { DiscoveredModel, LlmModel, Provider } from "../lib/types";
+import { easeOutExpo, listContainer, listItem, snappy } from "../lib/motion";
+import { timeAgo } from "../lib/time";
+import { useElementMenu, usePageMenu } from "../components/ContextMenu";
+import { PageHeader, RefreshButton, StatusStripe } from "../components/Page";
+import { ActionProgress } from "../components/Feedback";
+import { AlertIcon, ModelsIcon, PlusIcon, RefreshIcon, SearchIcon, SpinnerIcon, TrashIcon } from "../components/Icons";
+import { Button, DrawnCheck, EmptyState, ErrorText, Field, Reveal } from "../components/ui";
+import { BrandMark } from "../components/BrandMark";
+
+export function ModelsPage() {
+  const [models, setModels] = useState<LlmModel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      setModels(await listModels());
+    } catch {
+      // Keep what's on screen; the next visit tries again.
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  }
+
+  usePageMenu(() => [
+    { id: "add-model", label: "أضف نموذج", onSelect: () => setFormOpen(true) },
+    { id: "refresh", label: "حدّث القائمة", onSelect: () => void refresh() },
+  ]);
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function handleDelete(id: string) {
+    setModels((prev) => prev.filter((m) => m.id !== id));
+    await deleteModel(id);
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl px-8 py-10">
+      <PageHeader
+        title="النماذج"
+        description="اختار المزوّد، حط مفتاحك، وبنجيبلك الموديلات المتاحة إلك مباشرة من عنده."
+        actions={
+          <>
+            <RefreshButton spinning={refreshing} onClick={() => void refresh()} />
+            {!formOpen && (
+              <Button onClick={() => setFormOpen(true)}>
+                <PlusIcon className="h-4 w-4" />
+                إضافة نموذج
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      <Reveal open={formOpen}>
+        <NewModelForm
+          onCancel={() => setFormOpen(false)}
+          onCreated={(m) => {
+            setModels((prev) => [...prev, m]);
+            setJustAdded(m.id);
+            setFormOpen(false);
+          }}
+        />
+      </Reveal>
+
+      {loading ? (
+        <ListSkeleton />
+      ) : models.length === 0 && !formOpen ? (
+        <EmptyState
+          icon={<ModelsIcon className="h-8 w-8" />}
+          text="ما في نماذج مضافة بعد. أضف أول نموذج عشان تقدر تبلّش مهمة."
+          action={<Button onClick={() => setFormOpen(true)}>إضافة نموذج</Button>}
+        />
+      ) : (
+        <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
+          <AnimatePresence initial={false}>
+            {models.map((m) => (
+              <ModelRow
+                key={m.id}
+                model={m}
+                highlight={m.id === justAdded}
+                onDelete={() => handleDelete(m.id)}
+                onUpdated={(next) => setModels((prev) => prev.map((x) => (x.id === next.id ? next : x)))}
+              />
+            ))}
+          </AnimatePresence>
+        </motion.ul>
+      )}
+    </div>
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="flex flex-col gap-2">
+      {[0, 1].map((i) => (
+        <div
+          key={i}
+          className="shimmer h-[66px] rounded-lg border"
+          style={{ borderColor: "var(--color-border)", animationDelay: `${i * 120}ms` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ModelRow({
+  model,
+  highlight,
+  onDelete,
+  onUpdated,
+}: {
+  model: LlmModel;
+  highlight: boolean;
+  onDelete: () => void;
+  onUpdated: (m: LlmModel) => void;
+}) {
+  const [testing, setTesting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const menu = useElementMenu();
+  const stripe = testing
+    ? "var(--color-accent)"
+    : model.verify_ok === true
+      ? "var(--color-success)"
+      : model.verify_ok === false
+        ? "var(--color-danger)"
+        : "var(--color-border)";
+
+  async function retest() {
+    setTesting(true);
+    try {
+      onUpdated(await verifyModel(model.id));
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <motion.li
+      layout
+      variants={listItem}
+      exit="exit"
+      className={`relative overflow-hidden rounded-lg border px-4 py-3 ${highlight ? "flash-accent" : ""}`}
+      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      onContextMenu={menu(() => [
+        { id: "verify", label: "افحص من جديد", onSelect: () => void retest(), disabled: testing },
+        { id: "copy-id", label: "انسخ اسم الموديل", onSelect: () => void navigator.clipboard.writeText(model.model_id) },
+        { id: "delete", label: "احذف النموذج", onSelect: () => setConfirmDelete(true), danger: true },
+      ])}
+    >
+      <ActionProgress active={testing} />
+      <StatusStripe color={stripe} />
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <BrandMark provider={model.provider} className="h-4 w-4 shrink-0" />
+            <span className="text-sm font-medium">{model.name}</span>
+            <span
+              className="rounded-full px-2 py-0.5 text-xs"
+              style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
+            >
+              {providerLabel(model.provider)}
+            </span>
+          </div>
+          <p className="mt-1 truncate font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
+            {model.model_id}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          <VerifyStatus model={model} testing={testing} />
+          <RefreshButton spinning={testing} onClick={() => void retest()} label="افحص إذا الموديل شغّال" />
+          <AnimatePresence mode="wait" initial={false}>
+            {confirmDelete ? (
+              <motion.div
+                key="confirm"
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 8 }}
+                transition={{ duration: 0.18 }}
+                className="flex items-center gap-1"
+              >
+                <Button variant="danger" className="px-2.5 py-1 text-xs" onClick={onDelete}>
+                  حذف
+                </Button>
+                <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setConfirmDelete(false)}>
+                  لا
+                </Button>
+              </motion.div>
+            ) : (
+              <motion.button
+                key="trash"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setConfirmDelete(true)}
+                aria-label="حذف"
+                className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
+                style={{ color: "var(--color-ink-muted)" }}
+              >
+                <TrashIcon className="h-4 w-4" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {model.verify_ok === false && model.verify_error && !testing && (
+          <motion.p
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-2 text-xs"
+            style={{ color: "var(--color-danger)" }}
+          >
+            {model.verify_error}
+          </motion.p>
+        )}
+      </AnimatePresence>
+      {model.verify_ok && model.supports_tools === false && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs" style={{ color: "var(--color-pending)" }}>
+          <AlertIcon className="h-3.5 w-3.5" />
+          هالموديل ما بيدعم استدعاء الأدوات — ممكن يحكي بس ما يقدر ينفّذ شي على جهازك.
+        </p>
+      )}
+    </motion.li>
+  );
+}
+
+function VerifyStatus({ model, testing }: { model: LlmModel; testing: boolean }) {
+  let content: React.ReactNode;
+  let color = "var(--color-ink-muted)";
+  let key = "unknown";
+
+  if (testing) {
+    key = "testing";
+    content = (
+      <>
+        <SpinnerIcon className="h-3.5 w-3.5" />
+        جارِ الفحص
+      </>
+    );
+  } else if (model.verify_ok) {
+    key = `ok-${model.verified_at}`;
+    color = "var(--color-success)";
+    content = (
+      <>
+        <DrawnCheck className="h-3.5 w-3.5" />
+        شغّال{model.verify_latency_ms != null ? ` · ${model.verify_latency_ms}ms` : ""}
+      </>
+    );
+  } else if (model.verify_ok === false) {
+    key = `fail-${model.verified_at}`;
+    color = "var(--color-danger)";
+    content = (
+      <>
+        <AlertIcon className="h-3.5 w-3.5" />
+        ما اشتغل
+      </>
+    );
+  } else {
+    content = "ما انفحص";
+  }
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.span
+        key={key}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.18, ease: easeOutExpo }}
+        className="flex items-center gap-1 whitespace-nowrap px-1 text-xs font-medium"
+        style={{ color }}
+        title={model.verified_at ? `آخر فحص ${timeAgo(model.verified_at)}` : undefined}
+      >
+        {content}
+      </motion.span>
+    </AnimatePresence>
+  );
+}
+
+type FetchState = { status: "idle" } | { status: "loading" } | { status: "done"; models: DiscoveredModel[] } | { status: "error"; message: string };
+
+function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: (m: LlmModel) => void }) {
+  const [provider, setProvider] = useState<Provider>("anthropic");
+  const [apiKey, setApiKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
+  const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState<DiscoveredModel | null>(null);
+  const [manualId, setManualId] = useState("");
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const meta = providerMeta(provider);
+  const effectiveBaseUrl = baseUrl || meta.defaultBaseUrl || "";
+  const canFetch = (!meta.needsKey || apiKey.trim().length > 0) && (!meta.needsBaseUrl || effectiveBaseUrl.length > 0);
+  const modelId = picked?.id ?? manualId.trim();
+
+  function selectProvider(p: Provider) {
+    setProvider(p);
+    setFetchState({ status: "idle" });
+    setPicked(null);
+    setManualId("");
+    setQuery("");
+    setError(null);
+    if (!providerMeta(p).needsKey) void fetchModels(p);
+  }
+
+  async function fetchModels(p: Provider = provider) {
+    const m = providerMeta(p);
+    setFetchState({ status: "loading" });
+    setPicked(null);
+    try {
+      const found = await discoverModels({
+        provider: p,
+        apiKey: apiKey || undefined,
+        baseUrl: (p === provider ? baseUrl : "") || m.defaultBaseUrl || undefined,
+      });
+      setFetchState({ status: "done", models: found });
+    } catch (err) {
+      setFetchState({ status: "error", message: err instanceof Error ? err.message : "صار خطأ" });
+    }
+  }
+
+  const filtered = useMemo(() => {
+    if (fetchState.status !== "done") return [];
+    const q = query.trim().toLowerCase();
+    return q
+      ? fetchState.models.filter((m) => m.id.toLowerCase().includes(q) || m.display_name.toLowerCase().includes(q))
+      : fetchState.models;
+  }, [fetchState, query]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!modelId) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await createModel({
+        name: name.trim() || picked?.display_name || modelId,
+        provider,
+        modelId,
+        baseUrl: meta.needsBaseUrl ? effectiveBaseUrl : undefined,
+        apiKey: apiKey || undefined,
+      });
+      onCreated(created);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "صار خطأ غير متوقع");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mb-6 flex flex-col gap-5 rounded-xl border p-5"
+      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+    >
+      <div className="flex flex-col gap-2">
+        <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
+          المزوّد
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {PROVIDERS.map((p) => {
+            const active = p.value === provider;
+            return (
+              <motion.button
+                type="button"
+                key={p.value}
+                onClick={() => selectProvider(p.value)}
+                whileTap={{ scale: 0.95 }}
+                className="relative rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  borderColor: active ? "transparent" : "var(--color-border)",
+                  color: active ? "var(--color-accent-ink)" : "var(--color-ink)",
+                }}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="provider-pill"
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: "var(--color-accent)" }}
+                    transition={snappy}
+                  />
+                )}
+                <span className="relative flex items-center gap-1.5">
+                  <BrandMark provider={p.value} className="h-3.5 w-3.5" />
+                  {p.label}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+        {meta.hint && (
+          <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+            {meta.hint}
+          </p>
+        )}
+      </div>
+
+      <div className="grid gap-4" style={{ gridTemplateColumns: meta.needsKey && meta.needsBaseUrl ? "1fr 1fr" : "1fr" }}>
+        {meta.needsBaseUrl && (
+          <Field label="Base URL">
+            <input
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              onBlur={() => canFetch && fetchState.status === "idle" && fetchModels()}
+              placeholder={meta.defaultBaseUrl}
+              className="input font-mono"
+              dir="ltr"
+            />
+          </Field>
+        )}
+        {meta.needsKey && (
+          <Field label="مفتاح API" hint="بيتخزّن مشفّر بخزنة ويندوز، وما رح يظهر مرة ثانية.">
+            <input
+              value={apiKey}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+                if (fetchState.status !== "idle") setFetchState({ status: "idle" });
+              }}
+              onBlur={() => canFetch && fetchState.status === "idle" && fetchModels()}
+              type="password"
+              placeholder={meta.keyPlaceholder ?? "…"}
+              className="input font-mono"
+              dir="ltr"
+              autoComplete="off"
+            />
+          </Field>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
+            الموديل
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            className="px-2 py-1 text-xs"
+            disabled={!canFetch || fetchState.status === "loading"}
+            onClick={() => fetchModels()}
+          >
+            <RefreshIcon className="h-3.5 w-3.5" />
+            {fetchState.status === "done" ? "تحديث القائمة" : "جلب الموديلات"}
+          </Button>
+        </div>
+
+        <ModelChooser
+          state={fetchState}
+          filtered={filtered}
+          query={query}
+          onQuery={setQuery}
+          picked={picked}
+          onPick={(m) => {
+            setPicked(m);
+            setName(m.display_name);
+          }}
+          canFetch={canFetch}
+          needsKey={meta.needsKey}
+          manualId={manualId}
+          onManualId={setManualId}
+        />
+      </div>
+
+      <Reveal open={Boolean(modelId)}>
+        <Field label="اسم يظهرلك بالتطبيق">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={modelId} className="input" />
+        </Field>
+      </Reveal>
+
+      <ErrorText message={error} />
+
+      <div className="flex items-center justify-start gap-2">
+        <Button type="submit" disabled={saving || !modelId}>
+          {saving ? (
+            <>
+              <SpinnerIcon className="h-4 w-4" />
+              جارِ التحقق إنه شغّال…
+            </>
+          ) : (
+            "تحقق واحفظ"
+          )}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onCancel}>
+          إلغاء
+        </Button>
+        {saving && (
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-xs"
+            style={{ color: "var(--color-ink-muted)" }}
+          >
+            بنبعت رسالة تجريبية للموديل
+          </motion.span>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function ModelChooser({
+  state,
+  filtered,
+  query,
+  onQuery,
+  picked,
+  onPick,
+  canFetch,
+  needsKey,
+  manualId,
+  onManualId,
+}: {
+  state: FetchState;
+  filtered: DiscoveredModel[];
+  query: string;
+  onQuery: (q: string) => void;
+  picked: DiscoveredModel | null;
+  onPick: (m: DiscoveredModel) => void;
+  canFetch: boolean;
+  needsKey: boolean;
+  manualId: string;
+  onManualId: (v: string) => void;
+}) {
+  const box = "rounded-lg border";
+  const boxStyle = { borderColor: "var(--color-border)", background: "var(--color-bg)" };
+
+  if (state.status === "idle") {
+    return (
+      <div className={`${box} px-4 py-6 text-center text-xs`} style={{ ...boxStyle, color: "var(--color-ink-muted)" }}>
+        {canFetch ? "اضغط «جلب الموديلات» لنجيب القائمة من المزوّد." : needsKey ? "حط مفتاح الـ API أول، وبنجيب الموديلات المتاحة إلك." : "حدد الـ Base URL."}
+      </div>
+    );
+  }
+
+  if (state.status === "loading") {
+    return (
+      <div className={`${box} flex flex-col gap-1.5 p-2`} style={boxStyle}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="shimmer h-9 rounded-md" style={{ animationDelay: `${i * 90}ms` }} />
+        ))}
+      </div>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <div className="flex flex-col gap-2">
+        <ErrorText message={state.message} />
+        <input
+          value={manualId}
+          onChange={(e) => onManualId(e.target.value)}
+          placeholder="أو اكتب معرّف الموديل يدوياً"
+          className="input font-mono"
+          dir="ltr"
+        />
+      </div>
+    );
+  }
+
+  if (state.models.length === 0) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+          المزوّد ما رجّع أي موديل. اكتب المعرّف يدوياً:
+        </p>
+        <input value={manualId} onChange={(e) => onManualId(e.target.value)} className="input font-mono" dir="ltr" />
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0, transition: { duration: 0.3, ease: easeOutExpo } }}
+      className={`${box} overflow-hidden`}
+      style={boxStyle}
+    >
+      <div className="flex items-center gap-2 border-b px-3" style={{ borderColor: "var(--color-border)" }}>
+        <SearchIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
+        <input
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          placeholder={`ابحث بين ${state.models.length} موديل…`}
+          className="w-full bg-transparent py-2.5 text-sm outline-none"
+          style={{ color: "var(--color-ink)" }}
+          dir="rtl"
+        />
+      </div>
+      <motion.ul
+        variants={listContainer}
+        initial="hidden"
+        animate="show"
+        className="max-h-64 overflow-y-auto p-1.5"
+        role="listbox"
+      >
+        {filtered.slice(0, 120).map((m) => {
+          const active = picked?.id === m.id;
+          return (
+            <motion.li key={m.id} variants={listItem} layout="position">
+              <button
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => onPick(m)}
+                className="relative flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-start transition-colors hover:bg-[var(--color-surface-2)]"
+              >
+                {active && (
+                  <motion.span
+                    layoutId="model-pick"
+                    className="absolute inset-0 rounded-md"
+                    style={{ background: "color-mix(in oklch, var(--color-accent) 16%, transparent)", border: "1px solid var(--color-accent)" }}
+                    transition={snappy}
+                  />
+                )}
+                <span className="relative min-w-0 text-start">
+                  <span className="block truncate text-sm" dir="auto">
+                    {m.display_name}
+                  </span>
+                  {m.display_name !== m.id && (
+                    <span className="block truncate font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
+                      {m.id}
+                    </span>
+                  )}
+                </span>
+                {active && (
+                  <span className="relative" style={{ color: "var(--color-accent)" }}>
+                    <DrawnCheck />
+                  </span>
+                )}
+              </button>
+            </motion.li>
+          );
+        })}
+        {filtered.length === 0 && (
+          <li className="px-3 py-4 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
+            ما في نتائج لـ «{query}»
+          </li>
+        )}
+      </motion.ul>
+    </motion.div>
+  );
+}

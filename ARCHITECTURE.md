@@ -1,0 +1,111 @@
+# بنية رفيق
+
+هالملف بيقول **وين تعدّل** لما تيجي تغيّر شي. القاعدة العامة: الواجهة بتعرض وبتنادي، والـ
+backend بيقرر وبينفّذ، وما في منطق أعمال مكرر بالطرفين.
+
+```
+Rafiq/
+├── apps/
+│   ├── desktop/          # الواجهة: Tauri 2 + React + TypeScript + Tailwind (RTL)
+│   └── agent/            # المحرّك: FastAPI + SQLite + أدوات + طبقة النماذج
+└── ARCHITECTURE.md
+```
+
+---
+
+## المحرّك (`apps/agent/rafiq_agent`)
+
+أربع طبقات، وكل وحدة بتعتمد على اللي تحتها بس:
+
+| الطبقة | المجلد | مسؤوليتها | ما بتعملوش |
+| --- | --- | --- | --- |
+| الواجهة البرمجية | `api/` | HTTP فقط: تحقق من المدخلات، نداء الخدمة، تشكيل الرد | ما فيها منطق نماذج ولا أدوات |
+| الخدمات | `core/` | المنطق: تشغيل دور المحادثة، المهام، التصاميم، مجلد العمل | ما بتعرف شي عن FastAPI |
+| القدرات | `tools/`, `integrations/`, `llm/`, `skills/` | الأدوات اللي بيستدعيها النموذج، المزوّدين، المهارات | ما بتلمس قاعدة البيانات مباشرة |
+| التخزين | `storage/` | SQLAlchemy، الترحيل الإضافي، خزنة المفاتيح | ما فيها قرارات |
+
+نقاط مهمة:
+
+- **`core/chat_service.py`** — قلب المحادثة: `ChatTurn` بيجهّز الدور (`prepare`)، بيبني السياق
+  (`_build_context`)، وبيبثّه (`stream`). أي تغيير على «شو بيشوف النموذج» أو «شو بينبعت للواجهة»
+  بيصير هون، مو بالـ route.
+- **`core/prompts.py`** — كل نص بينبعت للنموذج. تعديل نبرة رفيق = تعديل نص بملف واحد.
+- **`core/loop.py`** — حلقة الأداة: نداء، إذن، نتيجة، إعادة. فيها النخزة الوحيدة لما النموذج
+  يسكت بعد نتيجة أداة.
+- **`core/workspace.py`** — وين بتروح ملفات جلسة ما إلها مجلد (Documents/Rafiq).
+- **`skills/registry.py`** + **`tools/skills.py`** — المهارات بتوصل للنموذج كأدوات عادية، عشان
+  تشتغل مع كل المزوّدين مو بس كلود.
+- **`schemas/`** — شكل الطلب والرد (Pydantic). هو العقد مع الواجهة.
+
+### الإذن قبل التنفيذ
+
+كل أداة عندها `category`: `read_only` بتمشي، و`write`/`exec` بتمرق على
+`policy_decision` (الإعدادات) وبعدين على المستخدم من جوّا المحادثة. إضافة أداة جديدة = صنف
+مشتق من `Tool` + تسجيلها بـ `build_registry` أو `chat_service._tools`.
+
+---
+
+## الواجهة (`apps/desktop/src`)
+
+```
+src/
+├── lib/           # منطق بدون واجهة: العميل، الأنواع، الاتجاه، الوقت، التخطيط
+│   └── api/       # وحدة لكل نطاق (chats, tasks, designs…) فوق client.ts
+├── features/      # ميزة كاملة بملفاتها
+│   ├── chat/      # ChatPage (السلوك) + Composer + Transcript + draft (منطق صافي)
+│   ├── tasks/     # قائمة المهام + صفحة المهمة + pieces (منطق صافي)
+│   └── work/      # صندوق المهام من أنظمة التتبّع + IssuePanel
+├── components/    # قطع مشتركة بين أكتر من صفحة
+└── routes/        # صفحة لكل مسار
+```
+
+قواعد بسيطة:
+
+- **ما في `fetch` برّا `lib/api/`.** كل نداء بيمرق على `request()` عشان ياخد التوكن، ويمنع
+  الكاش، ويعدّ نفسه بشريط التقدّم العلوي.
+- **الملف الكبير بينكسر لميزة.** لما صفحة تتجاوز ~400 سطر، بتنقل لـ `features/<name>/`
+  وبتنقسم: السلوك بملف، العرض بملف، والمنطق الصافي بملف يتختبر لحاله (زي `draft.ts`).
+- **المنطق الصافي بينختبر.** `draft.ts`, `lib/bidi.ts`, `lib/layout.ts`, `lib/time.ts` عندهم
+  اختبارات؛ المكوّنات لأ (بتتفحص بالتشغيل).
+- **العربي و RTL**: خصائص منطقية (`ms-*`/`me-*`) مو يمين/يسار، والمنشن والمسارات بتنعزل
+  بـ `lib/bidi.ts` عشان ما تنقلب الجملة.
+
+---
+
+## الأوامر
+
+```bash
+# تطوير
+cd apps/desktop && pnpm tauri dev      # الواجهة + المحرّك من الـ venv
+
+# فحص كل شي قبل ما تبني
+cd apps/desktop && pnpm check          # tsc + eslint + vitest
+cd apps/agent && .venv/Scripts/ruff check rafiq_agent && .venv/Scripts/python -m pytest -q
+
+# نسخة تثبيت
+cd apps/desktop && pnpm build:app      # PyInstaller للمحرّك + مثبّت NSIS
+cd apps/desktop && pnpm release        # فحص + بناء + نسخة للنشر بـ release/ مع SHA256SUMS.txt
+```
+
+---
+
+## وين أعدّل لو بدي…
+
+| التغيير | المكان |
+| --- | --- |
+| نبرة رفيق أو تعليماته | `core/prompts.py` |
+| خطوة جديدة بدور المحادثة | `core/chat_service.py` |
+| أداة جديدة للنموذج | `tools/` + تسجيلها بـ `core/agent_runtime.py` |
+| مزوّد نماذج جديد | `llm/discovery.py` + `lib/providers.ts` (الواجهة) |
+| نظام تتبّع مهام جديد | `integrations/providers.py` (صنف من `Integration`) |
+| مهارة جديدة | مجلد تحت `skills/bundled/` أو من زر «أضف مهارة» بالتطبيق |
+| شكل الشات | `features/chat/Transcript.tsx` |
+| صفحة المهام أو تفاصيل مهمة | `features/tasks/` |
+| شريط تقدّم أو أنيميشن إنجاز | `components/Feedback.tsx` |
+| رأس صفحة، زر تحديث، أو شريط الحالة على حافة الصف | `components/Page.tsx` |
+| رابط بيفتح بالمتصفح | `lib/links.ts` (كل روابط http بتمرق عليه تلقائياً) |
+| صفحة «من نحن» أو معلومات المطوّر | `routes/AboutPage.tsx` |
+| بيانات المثبّت (الناشر، اللغات، الصور) | `src-tauri/tauri.conf.json` → `bundle` + `src-tauri/installer/` |
+| صندوق الكتابة والأوامر | `features/chat/Composer.tsx` + `components/ComposerMenus.tsx` |
+| نداء API جديد | وحدة النطاق تحت `lib/api/` |
+| حقل جديد بقاعدة البيانات | `storage/models.py` + سطر بـ `storage/db.py::_ADDED_COLUMNS` |

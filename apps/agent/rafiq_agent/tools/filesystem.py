@@ -1,0 +1,115 @@
+from pathlib import Path
+from typing import Any
+
+from rafiq_agent.tools.base import Tool, ToolResult
+
+
+class PathEscapeError(Exception):
+    pass
+
+
+def _resolve(working_dir: Path, relative: str) -> Path:
+    root = working_dir.resolve()
+    candidate = (root / relative).resolve()
+    if root not in candidate.parents and candidate != root:
+        raise PathEscapeError(f"path '{relative}' escapes the task working directory")
+    return candidate
+
+
+class FilesystemListTool(Tool):
+    name = "filesystem_list"
+    category = "read_only"
+    description = "List files and folders inside a directory relative to the task's working directory."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "Relative path, '.' for the working dir root"}
+        },
+        "required": ["path"],
+    }
+
+    def __init__(self, working_dir: Path) -> None:
+        self.working_dir = working_dir
+
+    async def run(self, args: dict[str, Any]) -> ToolResult:
+        try:
+            target = _resolve(self.working_dir, args.get("path", "."))
+            if not target.exists():
+                return ToolResult(ok=False, output=f"path not found: {target}")
+            entries = sorted(p.name + ("/" if p.is_dir() else "") for p in target.iterdir())
+            return ToolResult(ok=True, output="\n".join(entries) if entries else "(empty)")
+        except PathEscapeError as e:
+            return ToolResult(ok=False, output=str(e))
+
+
+class FilesystemReadTool(Tool):
+    name = "filesystem_read"
+    category = "read_only"
+    description = "Read a text file's contents, relative to the task's working directory."
+    parameters = {
+        "type": "object",
+        "properties": {"path": {"type": "string"}},
+        "required": ["path"],
+    }
+
+    def __init__(self, working_dir: Path) -> None:
+        self.working_dir = working_dir
+
+    async def run(self, args: dict[str, Any]) -> ToolResult:
+        try:
+            target = _resolve(self.working_dir, args["path"])
+            if not target.is_file():
+                return ToolResult(ok=False, output=f"file not found: {target}")
+            content = target.read_text(encoding="utf-8", errors="replace")
+            if len(content) > 20_000:
+                content = content[:20_000] + "\n… (truncated)"
+            return ToolResult(ok=True, output=content)
+        except PathEscapeError as e:
+            return ToolResult(ok=False, output=str(e))
+
+
+class FilesystemWriteTool(Tool):
+    name = "filesystem_write"
+    category = "write"
+    description = "Create or overwrite a text file, relative to the task's working directory."
+    parameters = {
+        "type": "object",
+        "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
+        "required": ["path", "content"],
+    }
+
+    def __init__(self, working_dir: Path) -> None:
+        self.working_dir = working_dir
+
+    async def run(self, args: dict[str, Any]) -> ToolResult:
+        try:
+            target = _resolve(self.working_dir, args["path"])
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(args["content"], encoding="utf-8")
+            return ToolResult(ok=True, output=f"wrote {len(args['content'])} bytes to {target.name}")
+        except PathEscapeError as e:
+            return ToolResult(ok=False, output=str(e))
+
+
+class FilesystemDeleteTool(Tool):
+    name = "filesystem_delete"
+    category = "write"
+    description = "Delete a file, relative to the task's working directory."
+    parameters = {
+        "type": "object",
+        "properties": {"path": {"type": "string"}},
+        "required": ["path"],
+    }
+
+    def __init__(self, working_dir: Path) -> None:
+        self.working_dir = working_dir
+
+    async def run(self, args: dict[str, Any]) -> ToolResult:
+        try:
+            target = _resolve(self.working_dir, args["path"])
+            if not target.is_file():
+                return ToolResult(ok=False, output=f"file not found: {target}")
+            target.unlink()
+            return ToolResult(ok=True, output=f"deleted {target.name}")
+        except PathEscapeError as e:
+            return ToolResult(ok=False, output=str(e))

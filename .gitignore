@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+.data/
+*.db
+.env
+.env.local
+apps/desktop/src-tauri/target/
+
+# PyInstaller work dir for the agent build
+apps/agent/build/
+*.spec.bak
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+coverage/
+
+# Release output — installers go to GitHub Releases, not into the repo
+release/
+
+# Local-only
+.claude/
+*.log

@@ -1,0 +1,67 @@
+[project]
+name = "rafiq-agent"
+version = "0.1.0"
+description = "Rafiq local agent runtime (FastAPI sidecar)"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "sqlalchemy>=2.0",
+  "aiosqlite>=0.20",
+  "pydantic>=2.9",
+  "keyring>=25.5",
+  "psutil>=6.1",
+  "litellm>=1.55",
+  "websockets>=13.1",
+  "python-multipart>=0.0.20",
+  "pypdf>=5.1",
+  "pillow>=11.0",
+]
+
+[project.optional-dependencies]
+agent = [
+  "litellm>=1.55",
+  "playwright>=1.49",
+  "pyautogui>=0.9.54",
+  "mss>=10.0",
+]
+# Everything needed to lint, test, and freeze the agent: `pip install -e ".[dev]"`.
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "httpx>=0.27",
+  "ruff>=0.8",
+  "pyinstaller>=6.11",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["rafiq_agent*"]
+
+# The bundled skills are data files, not modules — ship them with the package.
+[tool.setuptools.package-data]
+rafiq_agent = ["skills/bundled/**/*.md", "skills/bundled/*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+# Correctness and clarity, not style policing: pyflakes, bugbear, comprehensions,
+# import order, simplify, plus pyupgrade.
+select = ["E", "F", "W", "I", "B", "C4", "SIM", "UP"]
+ignore = [
+  "E501",    # long lines are handled by the formatter's judgement, not a hard error
+  "B008",    # FastAPI's Depends() in defaults is the framework's idiom
+  "SIM108",  # ternaries aren't always clearer
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,0 +1,10 @@
+{
+  "name": "rafiq",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm --filter rafiq-desktop dev",
+    "tauri": "pnpm --filter rafiq-desktop tauri"
+  }
+}

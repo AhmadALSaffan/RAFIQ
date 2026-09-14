@@ -1,0 +1,72 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "رفيق",
+  "mainBinaryName": "Rafiq",
+  "version": "0.1.0",
+  "identifier": "com.rafiq.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "رفيق",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 860,
+        "minHeight": 600,
+        "dragDropEnabled": false,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "publisher": "Ahmad AlSaffan",
+    "copyright": "© 2026 أحمد عليوي السفان (Ahmad AlSaffan)",
+    "homepage": "https://github.com/AhmadALSaffan",
+    "category": "Productivity",
+    "shortDescription": "رفيق — مساعد ذكي على ويندوز بيحكي عربي وبيشتغل على جهازك",
+    "longDescription": "رفيق تطبيق سطح مكتب بيربطك بنماذج الذكاء الاصطناعي اللي بتختارها ويعطيها أدوات حقيقية: محادثات، مهام بتنفّذ على ملفاتك بإذنك، تصميم واجهات بمعاينة حيّة، ومتابعة مهامك من Jira و Linear و GitHub و GitLab.",
+    "resources": {
+      "../../agent/dist/rafiq-agent/": "agent/"
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Arabic",
+          "English"
+        ],
+        "displayLanguageSelector": true,
+        "installerIcon": "icons/icon.ico",
+        "sidebarImage": "installer/sidebar.bmp",
+        "headerImage": "installer/header.bmp",
+        "compression": "lzma"
+      }
+    },
+    "android": {
+      "debugApplicationIdSuffix": ".debug"
+    }
+  }
+}

@@ -1,0 +1,425 @@
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
+import { createDesign, deleteDesign, getDesign, initQuestions, listDesigns, listModels, listSkills } from "../lib/api";
+import type { AgentSkill, DesignSummary, InitQuestion, LlmModel } from "../lib/types";
+import { easeOutExpo, listContainer, listItem, snappy } from "../lib/motion";
+import { timeAgo } from "../lib/time";
+import { BrandMark } from "../components/BrandMark";
+import { Button, EmptyState } from "../components/ui";
+import { AlertIcon, FolderIcon, PlusIcon, SparkIcon, TrashIcon, XIcon } from "../components/Icons";
+import { FolderChip } from "../components/FolderPicker";
+import { useElementMenu, usePageMenu } from "../components/ContextMenu";
+import { PageHeader, RefreshButton } from "../components/Page";
+import { folderName } from "../lib/folders";
+import { fieldDir } from "../lib/bidi";
+
+/** Cheap live thumbnail: the real document, scaled down and inert. */
+function Thumb({ html }: { html: string | null }) {
+  if (!html) {
+    return (
+      <div
+        className="flex h-36 items-center justify-center rounded-lg border text-xs"
+        style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
+      >
+        لسا ما في معاينة
+      </div>
+    );
+  }
+  return (
+    <div
+      className="relative h-36 overflow-hidden rounded-lg border"
+      style={{ borderColor: "var(--color-border)", background: "white" }}
+    >
+      <iframe
+        srcDoc={html}
+        title="معاينة"
+        tabIndex={-1}
+        sandbox="allow-scripts"
+        className="pointer-events-none absolute start-0 top-0 origin-top-right"
+        style={{ width: "1200px", height: "900px", transform: "scale(0.28)", transformOrigin: "top right", border: 0 }}
+      />
+    </div>
+  );
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: "قيد التصميم",
+  ready: "جاهز",
+  handed_off: "انبعت للبرمجة",
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  draft: "var(--color-accent)",
+  ready: "var(--color-success)",
+  handed_off: "var(--color-ink-muted)",
+};
+
+export function DesignsPage() {
+  const navigate = useNavigate();
+  const [designs, setDesigns] = useState<DesignSummary[]>([]);
+  const [previews, setPreviews] = useState<Record<string, string | null>>({});
+  const [models, setModels] = useState<LlmModel[]>([]);
+  const [skills, setSkills] = useState<AgentSkill[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [wizard, setWizard] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadDesigns = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const list = await listDesigns();
+      setDesigns(list);
+      setError(null);
+      const withPreview = await Promise.all(
+        list.filter((d) => d.has_preview).slice(0, 12).map((d) => getDesign(d.id).catch(() => null)),
+      );
+      setPreviews(Object.fromEntries(withPreview.filter(Boolean).map((d) => [d!.id, d!.preview_html])));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ما قدرت أجيب التصاميم");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    listModels().then(setModels).catch(() => setModels([]));
+    listSkills().then(setSkills).catch(() => setSkills([]));
+    void loadDesigns();
+  }, [loadDesigns]);
+
+  const usable = models.filter((m) => m.verify_ok !== false);
+  const menu = useElementMenu();
+
+  usePageMenu(() => [
+    { id: "new-design", label: "تصميم جديد", onSelect: () => setWizard(true), disabled: usable.length === 0 },
+    { id: "refresh", label: "حدّث القائمة", onSelect: () => void loadDesigns() },
+  ]);
+
+  async function remove(id: string) {
+    setDesigns((prev) => prev.filter((d) => d.id !== id));
+    await deleteDesign(id).catch(() => undefined);
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl px-8 py-10">
+      <PageHeader
+        title="التصاميم"
+        description="صمّم الواجهة قبل ما تبرمجها: رفيق بيسألك أسئلة الـ brief، بيقرأ مهارات التصميم المدمجة، بيعطيك معاينة حيّة تناقشه فيها، ولما تجهز بتبعتها للجلسة اللي رح تبرمجها."
+        actions={
+          <>
+            <RefreshButton spinning={refreshing} onClick={() => void loadDesigns()} />
+            <Button onClick={() => setWizard(true)} disabled={usable.length === 0}>
+              <PlusIcon className="h-4 w-4" />
+              تصميم جديد
+            </Button>
+          </>
+        }
+      />
+
+      {usable.length === 0 && !loading && (
+        <p className="mb-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}>
+          <AlertIcon className="h-4 w-4 shrink-0" />
+          أضف نموذج شغّال أولاً من صفحة النماذج.
+        </p>
+      )}
+
+      {error && (
+        <p className="mb-4 rounded-lg border px-4 py-3 text-sm" style={{ borderColor: "var(--color-danger)", color: "var(--color-danger)" }}>
+          {error}
+        </p>
+      )}
+
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="shimmer h-56 rounded-xl" />
+          ))}
+        </div>
+      ) : designs.length === 0 ? (
+        <EmptyState
+          icon={<SparkIcon className="h-8 w-8" />}
+          text="ما في تصاميم بعد. اضغط «تصميم جديد» وجاوب على تسع أسئلة — بعدها بتفتحلك جلسة تصميم فيها شات ومعاينة حيّة."
+          action={
+            usable.length > 0 ? <Button onClick={() => setWizard(true)}>تصميم جديد</Button> : undefined
+          }
+        />
+      ) : (
+        <motion.div variants={listContainer} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-2">
+          <AnimatePresence initial={false}>
+          {designs.map((design) => (
+            <motion.div
+              key={design.id}
+              variants={listItem}
+              exit="exit"
+              layout="position"
+              whileHover={{ y: -3 }}
+              transition={snappy}
+              className="group relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-xl border p-3"
+              style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+              onClick={() => navigate(`/designs/${design.id}`)}
+              onContextMenu={menu(() => [
+                { id: "open", label: "افتح التصميم", onSelect: () => navigate(`/designs/${design.id}`) },
+                {
+                  id: "copy-html",
+                  label: "انسخ كود الواجهة",
+                  disabled: !previews[design.id],
+                  onSelect: () => void navigator.clipboard.writeText(previews[design.id] ?? ""),
+                },
+                { id: "delete", label: "احذف التصميم", onSelect: () => void remove(design.id), danger: true },
+              ])}
+            >
+              <span
+                className="absolute inset-x-0 top-0 h-0.5"
+                style={{ background: STATUS_COLOR[design.status] ?? "var(--color-border)" }}
+                aria-hidden
+              />
+              <Thumb html={previews[design.id] ?? null} />
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium" dir="auto">
+                    {design.title}
+                  </p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                    {models.find((m) => m.id === design.model_id) && (
+                      <BrandMark provider={models.find((m) => m.id === design.model_id)!.provider} className="h-3 w-3" />
+                    )}
+                    {timeAgo(design.updated_at)}
+                  </p>
+                </div>
+                <span
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[11px]"
+                  style={{
+                    background: design.status === "ready" ? "color-mix(in oklch, var(--color-success) 14%, transparent)" : "var(--color-surface-2)",
+                    color: design.status === "ready" ? "var(--color-success)" : "var(--color-ink-muted)",
+                  }}
+                >
+                  {STATUS_LABEL[design.status] ?? design.status}
+                </span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void remove(design.id);
+                }}
+                aria-label="احذف التصميم"
+                title="احذف التصميم"
+                className="absolute end-2 top-2 rounded-md p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
+                style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
+              >
+                <TrashIcon className="h-3.5 w-3.5" />
+              </button>
+            </motion.div>
+          ))}
+          </AnimatePresence>
+        </motion.div>
+      )}
+
+      <section className="mt-10">
+        <h2 className="mb-2 text-sm font-medium">المهارات اللي بيشتغل فيها</h2>
+        <p className="mb-3 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
+          مدمجة بالتطبيق — ما بدها تنزيل ولا إعداد، وبتشتغل مع أي نموذج (رفيق بيمرّرها كأدوات عادية، مو
+          كميزة خاصة بمزوّد).
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {skills.map((skill) => (
+            <span
+              key={skill.name}
+              title={skill.description}
+              className="rounded-full border px-2.5 py-1 font-mono text-[11px]"
+              style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
+              dir="ltr"
+            >
+              {skill.name}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <AnimatePresence>
+        {wizard && (
+          <InitWizard
+            models={usable}
+            onClose={() => setWizard(false)}
+            onDone={(id) => navigate(`/designs/${id}`)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** `/impeccable init` — the brief, asked once, before the design chat opens. */
+function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: () => void; onDone: (id: string) => void }) {
+  const [questions, setQuestions] = useState<InitQuestion[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  const [modelId, setModelId] = useState(models[0]?.id ?? "");
+  const [folder, setFolder] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    initQuestions().then(setQuestions).catch(() => setError("ما قدرت أجيب الأسئلة"));
+  }, []);
+
+  const missing = questions.filter((q) => q.required && !answers[q.id]).map((q) => q.id);
+  const answered = questions.filter((q) => answers[q.id]).length;
+
+  function set(id: string, value: string | string[]) {
+    setAnswers((prev) => ({ ...prev, [id]: value }));
+  }
+
+  function toggle(id: string, option: string) {
+    const current = (answers[id] as string[] | undefined) ?? [];
+    set(id, current.includes(option) ? current.filter((o) => o !== option) : [...current, option]);
+  }
+
+  async function start() {
+    if (missing.length || !modelId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const design = await createDesign(modelId, answers, folder);
+      onDone(design.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ما قدرت أبدأ التصميم");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 flex items-center justify-center p-6"
+      style={{ zIndex: "var(--z-index-modal)" as unknown as number, background: "rgba(0,0,0,0.5)" }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        onClick={(e) => e.stopPropagation()}
+        initial={{ scale: 0.96, y: 14, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        exit={{ scale: 0.97, opacity: 0, transition: { duration: 0.15 } }}
+        transition={{ duration: 0.3, ease: easeOutExpo }}
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border shadow-2xl"
+        style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      >
+        <header className="flex items-start justify-between gap-3 border-b px-5 py-4" style={{ borderColor: "var(--color-border)" }}>
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-semibold">
+              <span className="font-mono text-xs" style={{ color: "var(--color-accent)" }} dir="ltr">
+                /impeccable init
+              </span>
+              جمع معلومات المشروع
+            </h2>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              تسع أسئلة. اللي بتتركه فاضي رفيق بيفترضه وبيقلّك شو افترض.
+            </p>
+          </div>
+          <button onClick={onClose} aria-label="إغلاق" className="rounded-lg p-1 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+            <XIcon className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="flex flex-col gap-5">
+            {questions.map((question, i) => (
+              <div key={question.id}>
+                <label className="mb-1.5 flex items-baseline gap-2 text-sm">
+                  <span className="font-mono text-[11px] tabular-nums" style={{ color: "var(--color-ink-muted)" }}>
+                    {i + 1}
+                  </span>
+                  {question.label}
+                  {!question.required && (
+                    <span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+                      (اختياري)
+                    </span>
+                  )}
+                </label>
+
+                {question.kind === "text" && (
+                  <input
+                    value={(answers[question.id] as string) ?? ""}
+                    onChange={(e) => set(question.id, e.currentTarget.value)}
+                    placeholder={question.placeholder}
+                    className="input w-full"
+                    dir={fieldDir(answers[question.id] as string)}
+                  />
+                )}
+
+                {question.kind !== "text" && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {question.options?.map((option) => {
+                      const selected =
+                        question.kind === "multi"
+                          ? ((answers[question.id] as string[] | undefined) ?? []).includes(option)
+                          : answers[question.id] === option;
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => (question.kind === "multi" ? toggle(question.id, option) : set(question.id, option))}
+                          className="rounded-full border px-3 py-1.5 text-xs transition-colors"
+                          style={{
+                            borderColor: selected ? "var(--color-accent)" : "var(--color-border)",
+                            background: selected ? "color-mix(in oklch, var(--color-accent) 14%, transparent)" : "transparent",
+                            color: selected ? "var(--color-ink)" : "var(--color-ink-muted)",
+                          }}
+                        >
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t px-5 py-3" style={{ borderColor: "var(--color-border)" }}>
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-sm">
+              <FolderIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
+              مجلد التصميم
+            </p>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              {folder
+                ? `كل نسخة من التصميم بتنحفظ بـ ${folderName(folder)} كملف HTML، والنموذج بيقدر يقرأ ملفات المجلد.`
+                : "اختياري — لو حددته، التصميم بينحفظ عندك تلقائياً والنموذج بيقدر يشوف ملفات المشروع."}
+            </p>
+          </div>
+          <FolderChip value={folder} onChange={(path) => setFolder(path)} />
+        </div>
+
+        <footer className="flex items-center justify-between gap-3 border-t px-5 py-3" style={{ borderColor: "var(--color-border)" }}>
+          <div className="flex items-center gap-2">
+            <select value={modelId} onChange={(e) => setModelId(e.currentTarget.value)} className="input w-44">
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs tabular-nums" style={{ color: "var(--color-ink-muted)" }}>
+              {answered}/{questions.length}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {error && (
+              <span className="text-xs" style={{ color: "var(--color-danger)" }}>
+                {error}
+              </span>
+            )}
+            <Button onClick={start} disabled={busy || missing.length > 0 || !modelId}>
+              {busy ? "جارِ البدء…" : "ابدأ التصميم"}
+            </Button>
+          </div>
+        </footer>
+      </motion.div>
+    </motion.div>
+  );
+}
