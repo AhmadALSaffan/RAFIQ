@@ -25,10 +25,18 @@ export async function createDesign(
   brief: Record<string, string | string[]>,
   workingDir?: string | null,
   title?: string,
+  /** Rafiq's search tool for the design chat (null = decide by the model). */
+  webSearch?: boolean | null,
 ): Promise<Design> {
   return request<Design>("/designs", {
     method: "POST",
-    body: JSON.stringify({ model_id: modelId, brief, title, working_dir: workingDir ?? null }),
+    body: JSON.stringify({
+      model_id: modelId,
+      brief,
+      title,
+      working_dir: workingDir ?? null,
+      web_search: webSearch ?? null,
+    }),
   });
 }
 

@@ -45,6 +45,8 @@ export interface LlmModel {
   fallback_model_id?: string | null;
   /** Non-secret provider settings (region, api_version, project…). */
   options?: Record<string, string>;
+  /** Tools this model brings itself, so Rafiq doesn't offer a second one (e.g. web_fetch). */
+  native_tools?: string[];
 }
 
 export type AuthMethod = "api_key" | "oauth";
@@ -166,6 +168,9 @@ export interface ReplySettings {
   reasoning: boolean;
   reasoning_effort: "low" | "medium" | "high" | null;
   auto_summarize: boolean;
+  /** Rafiq's search tool for this chat. null = decide by the model: one that searches the
+   *  web itself uses its own; anything else gets Rafiq's. */
+  web_search: boolean | null;
 }
 
 export interface ChatSummary {

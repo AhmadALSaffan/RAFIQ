@@ -22,6 +22,10 @@ class ReplySettings(BaseModel):
     language: str = "auto"  # auto | ar | en | ru
     temperature: float | None = None  # None = the provider's own default
     tools: bool = True  # off = don't send tool schemas at all (cheaper, read-only chat)
+    # Whether this chat's model gets Rafiq's search tool. None = decide by the model: one
+    # that searches the web itself (Copilot) uses its own, anything else gets Rafiq's.
+    # True forces Rafiq's even on a model that has its own; False switches search off.
+    web_search: bool | None = None
     reasoning: bool = True  # off = ask thinking models to skip it, and never show it
     reasoning_effort: str | None = None  # low | medium | high, when the model supports it
     auto_summarize: bool = True  # fold old turns into the summary once the chat gets long

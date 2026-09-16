@@ -14,6 +14,7 @@ from rafiq_agent.core.designs import brief_message, handoff_message, localized_q
 from rafiq_agent.core.tasks_service import TaskCreateError, create_task, resolve_working_dir
 from rafiq_agent.core.workspace import session_dir, workspace_root
 from rafiq_agent.i18n import tr
+from rafiq_agent.schemas.chats import ReplySettings
 from rafiq_agent.skills.registry import USER_DIR, all_skills, get_skill, reload_skills
 from rafiq_agent.storage.db import get_session
 from rafiq_agent.storage.models import Chat, Design, LlmModel
@@ -30,6 +31,9 @@ class DesignCreate(BaseModel):
     brief: dict[str, Any] = {}
     title: str | None = None
     working_dir: str | None = None
+    # The design chat starts by sending on its own, so the search tool has to be settled
+    # before it exists. None = decide by the model (see ReplySettings.web_search).
+    web_search: bool | None = None
 
 
 class DesignUpdate(BaseModel):
@@ -237,7 +241,13 @@ async def create_design(body: DesignCreate, session: AsyncSession = Depends(get_
     title = (body.title or str(body.brief.get("what") or "").strip() or tr("تصميم جديد"))[:80]
     folder = _checked_dir(body.working_dir)
     # The design chat gets the same folder, so the model can read the project it designs for.
-    chat = Chat(title=tr("تصميم: {0}", title), model_id=model.id, mode="design", working_dir=folder)
+    chat = Chat(
+        title=tr("تصميم: {0}", title),
+        model_id=model.id,
+        mode="design",
+        working_dir=folder,
+        settings=ReplySettings(web_search=body.web_search).model_dump(),
+    )
     session.add(chat)
     await session.flush()
 

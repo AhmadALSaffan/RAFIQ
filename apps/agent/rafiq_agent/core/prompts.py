@@ -53,7 +53,11 @@ FOLDER_NOTE = (
 )
 
 WEB_NOTE = (
-    "وعندك أدوات للويب: web_fetch لقراءة صفحة، و web_search للبحث إذا كان مفعّل، وأدوات browser_* لمتصفح حقيقي "
-    "(صفحات JavaScript، تعبئة نماذج، تجربة سيرفر localhost). وإذا المستخدم ربط خوادم MCP، أدواتها بتبلش بـ mcp__. "
+    "وعندك أدوات browser_* لمتصفح حقيقي (صفحات JavaScript، تعبئة نماذج، تجربة سيرفر localhost). "
+    "وإذا المستخدم ربط خوادم MCP، أدواتها بتبلش بـ mcp__. "
     "إذا المعلومة ممكن تكون تغيّرت أو إنت مش متأكد منها، دوّر عليها بدل ما تخمّن، واذكر المصدر."
 )
+
+# Named separately because a model that brings its own web tools isn't given Rafiq's, and
+# a prompt that describes tools the model doesn't have only makes it apologise for them.
+RAFIQ_WEB_TOOLS_NOTE = "لقراءة صفحة استخدم web_fetch، وللبحث web_search إذا كان مفعّل."

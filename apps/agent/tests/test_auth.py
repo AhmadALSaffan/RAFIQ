@@ -280,6 +280,9 @@ async def test_copilot_tool_calls_run_through_rafiqs_loop(monkeypatch):
     # Copilot's shell, file and editing tools are never offered — only Rafiq's, plus the
     # built-ins Rafiq deliberately leaves to Copilot (checked below).
     assert "custom:filesystem_list" in session.options["available_tools"].to_list()
+    # Each session authenticates itself; the client's own token isn't enough for the
+    # runtime to resolve the model.
+    assert session.options["github_token"] == "gho_x"
     assert session.options["system_message"] == {"mode": "replace", "content": "sys"}
     assert "النتيجة: a.txt" in result.text
     assert session.disconnected  # released when the loop ended
@@ -287,7 +290,7 @@ async def test_copilot_tool_calls_run_through_rafiqs_loop(monkeypatch):
     # Copilot brings its own web_fetch, so Rafiq leaves that one to it (and stops the SDK
     # refusing the session over the duplicate name) while keeping its own tools custom.
     entries = session.options["available_tools"].to_list()
-    assert entries == ["custom:filesystem_list", "builtin:web_fetch"]
+    assert entries == ["custom:filesystem_list", "builtin:web_fetch", "builtin:web_search"]
 
 
 async def test_copilots_own_web_fetch_still_asks_rafiqs_permission():

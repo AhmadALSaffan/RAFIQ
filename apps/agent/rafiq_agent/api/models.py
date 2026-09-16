@@ -9,6 +9,7 @@ from rafiq_agent.api.deps import require_token
 from rafiq_agent.auth.base import redact
 from rafiq_agent.i18n import tr
 from rafiq_agent.llm.discovery import DiscoveryError, VerifyResult, discover_models, verify_model
+from rafiq_agent.llm.presets import native_tools
 from rafiq_agent.schemas.models import (
     DiscoveredModelOut,
     DiscoverRequest,
@@ -44,6 +45,7 @@ def _to_out(model: LlmModel) -> ModelOut:
         account_status=model.account.status if model.account else None,
         fallback_model_id=model.fallback_model_id,
         options=dict(model.options or {}),
+        native_tools=sorted(native_tools(model.provider, model.model_id)),
     )
 
 

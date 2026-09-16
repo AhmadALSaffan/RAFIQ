@@ -259,10 +259,16 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
   const [folder, setFolder] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // null = whatever suits the model; the switch below makes it an explicit yes or no.
+  const [webSearch, setWebSearch] = useState<boolean | null>(null);
 
   useEffect(() => {
     initQuestions().then(setQuestions).catch(() => setError(t("ما قدرت أجيب الأسئلة")));
   }, []);
+
+  // A model that searches the web itself doesn't get Rafiq's tool unless asked to.
+  const ownsSearch = Boolean(models.find((m) => m.id === modelId)?.native_tools?.includes("web_search"));
+  const searchOn = webSearch ?? !ownsSearch;
 
   const missing = questions.filter((q) => q.required && !answers[q.id]).map((q) => q.id);
   const answered = questions.filter((q) => answers[q.id]).length;
@@ -281,7 +287,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
     setBusy(true);
     setError(null);
     try {
-      const design = await createDesign(modelId, answers, folder);
+      const design = await createDesign(modelId, answers, folder, undefined, webSearch);
       onDone(design.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("ما قدرت أبدأ التصميم"));
@@ -393,6 +399,35 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
             </p>
           </div>
           <FolderChip value={folder} onChange={(path) => setFolder(path)} />
+        </div>
+
+        {/* The design chat sends its first message by itself, so this has to be decided
+            here — after it starts there is no moment to switch the tool off in time. */}
+        <div className="flex items-center justify-between gap-3 border-t px-5 py-3" style={{ borderColor: "var(--color-border)" }}>
+          <div className="min-w-0">
+            <p className="text-sm">{t("أداة البحث تبع رفيق")}</p>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              {searchOn
+                ? t("النموذج بيقدر يدوّر على الويب بمفتاح البحث تبعك.")
+                : ownsSearch
+                  ? t("مطفية — النموذج بيدوّر بأداته هو.")
+                  : t("مطفية — النموذج ما رح يدوّر على الويب بهالتصميم.")}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={searchOn}
+            aria-label={t("أداة البحث تبع رفيق")}
+            onClick={() => setWebSearch(!searchOn)}
+            className="flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
+            style={{
+              background: searchOn ? "var(--color-accent)" : "var(--color-surface-2)",
+              justifyContent: searchOn ? "flex-end" : "flex-start",
+            }}
+          >
+            <motion.span layout transition={snappy} className="h-5 w-5 rounded-full bg-white shadow-sm" />
+          </button>
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t px-5 py-3" style={{ borderColor: "var(--color-border)" }}>

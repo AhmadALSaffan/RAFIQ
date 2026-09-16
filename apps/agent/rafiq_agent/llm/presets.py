@@ -132,8 +132,10 @@ def with_cache_marks(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # Only add a tool here once the provider really runs it through the API Rafiq calls; a
 # wrong entry means the model is offered nothing at all.
 NATIVE_TOOLS: dict[str, frozenset[str]] = {
-    # The Copilot SDK ships web_fetch, and refuses a session that redefines the name.
-    "github_copilot": frozenset({"web_fetch"}),
+    # Copilot reads and searches the web itself. Leaving both to it also means a Copilot
+    # chat never spends the user's Brave/Tavily quota. (It refuses a session outright if
+    # web_fetch is redefined, so this is required for that one, not just preferable.)
+    "github_copilot": frozenset({"web_fetch", "web_search"}),
 }
 
 

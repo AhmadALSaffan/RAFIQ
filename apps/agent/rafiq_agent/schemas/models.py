@@ -81,6 +81,9 @@ class ModelOut(BaseModel):
     account_label: str | None = None
     account_status: str | None = None
     fallback_model_id: str | None = None
+    # Tools this model brings itself, so the UI knows Rafiq's aren't offered by default
+    # (see llm/presets.py). Filled in by the route.
+    native_tools: list[str] = []
 
 
 class DiscoverRequest(BaseModel):

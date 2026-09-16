@@ -13,6 +13,7 @@ export const DEFAULT_REPLY_SETTINGS: ReplySettings = {
   reasoning: true,
   reasoning_effort: null,
   auto_summarize: true,
+  web_search: null,
 };
 export const SUGGESTIONS = [
   { text: t("اشرحلي الفرق بين Promise و async/await بمثال"), hint: t("سؤال عادي") },

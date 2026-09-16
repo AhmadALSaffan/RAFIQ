@@ -801,6 +801,12 @@ export function ChatPage({
           onCommand={runCommand}
           onIssueMentioned={setLastIssue}
           prefill={prefill}
+          webSearch={current?.settings?.web_search ?? undefined}
+          onWebSearch={
+            routeId
+              ? (on) => void saveSettings({ ...(current?.settings ?? DEFAULT_REPLY_SETTINGS), web_search: on })
+              : undefined
+          }
         />
       </DropZone>
 

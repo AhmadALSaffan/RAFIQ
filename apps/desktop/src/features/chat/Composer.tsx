@@ -10,7 +10,7 @@ import type { LlmModel, TrackerIssue } from "../../lib/types";
 import { fieldDir, isolate } from "../../lib/bidi";
 import { stripBidi } from "../../lib/bidi";
 import { takeChatMessage } from "../../lib/handoff";
-import { easeOutExpo } from "../../lib/motion";
+import { easeOutExpo, snappy } from "../../lib/motion";
 import { READING_WIDTHS, useLayout } from "../../lib/layout";
 import { BrandMark } from "../../components/BrandMark";
 import { TokenText } from "../../components/TokenText";
@@ -44,6 +44,8 @@ export function Composer({
   onCommand,
   onIssueMentioned,
   prefill,
+  webSearch,
+  onWebSearch,
 }: {
   disabled: boolean;
   streaming: boolean;
@@ -61,6 +63,10 @@ export function Composer({
   onIssueMentioned: (issue: TrackerIssue) => void;
   /** Text to drop in the box (a question being edited); `at` makes repeats take effect. */
   prefill?: { text: string; at: number } | null;
+  /** This chat's explicit choice for Rafiq's search tool; undefined = decide by the model. */
+  webSearch?: boolean;
+  /** Absent when there's no chat yet, so there's nothing to save the choice on. */
+  onWebSearch?: (on: boolean) => void;
 }) {
   const reading = READING_WIDTHS[useLayout().reading];
   const [text, setText] = useState(() => takeChatMessage() ?? "");
@@ -252,7 +258,14 @@ export function Composer({
               disabled={disabled}
               onText={(spoken) => setText((prev) => (prev ? `${prev.replace(/\s*$/, "")} ${spoken}` : spoken))}
             />
-            <ModelMenu models={models} value={modelId} onChange={onModel} openSignal={openModelMenu} />
+            <ModelMenu
+              models={models}
+              value={modelId}
+              onChange={onModel}
+              openSignal={openModelMenu}
+              webSearch={webSearch}
+              onWebSearch={onWebSearch}
+            />
           </div>
           <AnimatePresence mode="wait" initial={false}>
             {streaming ? (
@@ -303,15 +316,22 @@ function ModelMenu({
   value,
   onChange,
   openSignal,
+  webSearch,
+  onWebSearch,
 }: {
   models: LlmModel[];
   value: string;
   onChange: (id: string) => void;
   openSignal: number;
+  webSearch?: boolean;
+  onWebSearch?: (on: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = models.find((m) => m.id === value);
+  // A model that searches the web itself doesn't get Rafiq's tool unless asked to.
+  const ownsSearch = Boolean(current?.native_tools?.includes("web_search"));
+  const searchOn = webSearch ?? !ownsSearch;
 
   // /نموذج opens this dropdown from the command menu.
   useEffect(() => {
@@ -380,6 +400,40 @@ function ModelMenu({
                 </button>
               </motion.li>
             ))}
+
+            {/* Rafiq's own search tool for this chat. A model that searches the web itself
+                (Copilot) starts with this off and uses its own; switching it on hands it
+                Rafiq's — which is the one that spends the user's search key. */}
+            {onWebSearch && (
+              <li className="mt-1 border-t pt-1" style={{ borderColor: "var(--color-border)" }}>
+                <button
+                  role="switch"
+                  aria-checked={searchOn}
+                  onClick={() => onWebSearch(!searchOn)}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-start transition-colors hover:bg-[var(--color-surface-2)]"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm">{t("أداة البحث تبع رفيق")}</span>
+                    <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                      {searchOn
+                        ? t("بتستخدم مفتاح البحث تبعك")
+                        : ownsSearch
+                          ? t("مطفية — الموديل بيدوّر بأداته")
+                          : t("مطفية لهالمحادثة")}
+                    </span>
+                  </span>
+                  <span
+                    className="flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
+                    style={{
+                      background: searchOn ? "var(--color-accent)" : "var(--color-surface-2)",
+                      justifyContent: searchOn ? "flex-end" : "flex-start",
+                    }}
+                  >
+                    <motion.span layout transition={snappy} className="h-4 w-4 rounded-full bg-white shadow-sm" />
+                  </span>
+                </button>
+              </li>
+            )}
           </motion.ul>
         )}
       </AnimatePresence>

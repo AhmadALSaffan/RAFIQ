@@ -102,6 +102,15 @@ async def shutdown_all() -> None:
         await drop_client(account_id)
 
 
+def _is_auth_failure(message: str) -> bool:
+    """Whether a runtime error means "this token is no longer good" rather than a hiccup."""
+    text = message.lower()
+    return any(
+        s in text
+        for s in ('"status":401', "status: 401", "unauthorized", "bad credentials", "not authenticated")
+    )
+
+
 async def check_token(token: str) -> None:
     """Confirms a freshly issued token can actually use Copilot, before it is saved."""
     if not sdk_available():
@@ -117,6 +126,8 @@ async def check_token(token: str) -> None:
     except AuthError:
         raise
     except Exception as exc:  # noqa: BLE001 - any SDK failure means the account isn't usable
+        if _is_auth_failure(str(exc)):
+            raise AuthError(tr("GitHub رفض التوكن — جرّب تربط الحساب من جديد.")) from exc
         raise AuthError(tr("ما قدرت اتأكد من Copilot: {0}", redact(str(exc))[:200])) from exc
     finally:
         with contextlib.suppress(Exception):
@@ -257,6 +268,11 @@ class CopilotProvider:
         self._events = asyncio.Queue()
         client = await client_for(self._account_id, self._token)
 
+        # Tools Copilot has of its own. Rafiq normally leaves those to it, but the user can
+        # switch its own search back on for a chat — and then ours has to say it replaces
+        # Copilot's, or the SDK refuses the session over the duplicate name.
+        native = native_tools("github_copilot", self._model_id)
+        offered = {t["function"]["name"] for t in tools}
         sdk_tools = [
             Tool(
                 name=t["function"]["name"],
@@ -265,6 +281,7 @@ class CopilotProvider:
                 handler=self._bridge(t["function"]["name"]),
                 # Rafiq's loop already asked the user (or the policy) before we get here.
                 skip_permission=True,
+                overrides_built_in_tool=t["function"]["name"] in native,
             )
             for t in tools
         ]
@@ -276,11 +293,17 @@ class CopilotProvider:
         allowed = ToolSet()
         for tool in sdk_tools:
             allowed.add_custom(tool.name)
-        for builtin in sorted(native_tools("github_copilot", self._model_id)):
+        # Only the built-ins Rafiq left to Copilot: one it offered itself is served by
+        # Rafiq's version instead (the override above), not by both.
+        for builtin in sorted(native - offered):
             allowed.add_builtin(builtin)
 
         options: dict[str, Any] = {
             "model": self._model_id,
+            # The client's token authenticates the runtime process; a session carries its
+            # own, and without it the runtime can't even resolve which model was asked for
+            # ("Session was not created with authentication info").
+            "github_token": self._token,
             "tools": sdk_tools,
             "available_tools": allowed,
             "system_message": {"mode": "replace", "content": system or "You are Rafiq."},
@@ -325,7 +348,14 @@ class CopilotProvider:
                 if self._reasoning != "none":
                     yield StreamEvent(reasoning_delta=data.delta_content)
             elif isinstance(data, SessionErrorData):
-                raise RuntimeError(redact(data.message or "Copilot error"))
+                message = data.message or "Copilot error"
+                # A token that GitHub has since revoked or expired comes back as a 401
+                # buried in a runtime error. Say what actually has to happen instead.
+                if _is_auth_failure(message):
+                    raise AuthError(
+                        tr("انتهت صلاحية دخولك لـ GitHub — اربط الحساب من جديد من الإعدادات ← الحسابات المتصلة.")
+                    )
+                raise RuntimeError(redact(message))
             elif isinstance(data, SessionIdleData):
                 if calls:
                     yield StreamEvent(tool_calls=calls, finish_reason="tool_calls")

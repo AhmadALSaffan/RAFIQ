@@ -42,6 +42,7 @@ from rafiq_agent.core.prompts import (
     LENGTH_MAX_TOKENS,
     LENGTH_NOTES,
     MAX_STORED_OUTPUT,
+    RAFIQ_WEB_TOOLS_NOTE,
     SUMMARY_PROMPT,
     TASKS_NOTE,
     WEB_NOTE,
@@ -377,7 +378,14 @@ class ChatTurn:
 
         # Skills are read through ordinary tool calls, so every provider can use them.
         folder = Path(self.working_dir) if self.working_dir else None
-        registry = await build_registry(folder, self.settings, self.native_tools)
+        # Tools the model brings itself — minus any the user explicitly asked Rafiq to
+        # provide anyway, plus any they switched off for this chat.
+        skip = set(self.native_tools)
+        if self.reply.web_search is True:
+            skip.discard("web_search")
+        elif self.reply.web_search is False:
+            skip.add("web_search")
+        registry = await build_registry(folder, self.settings, frozenset(skip))
         system += f"\n\n{skills_note()}"
         if folder is not None:
             system += f"\n\n{FOLDER_NOTE}\n{working_dir_system_note(folder)}"
@@ -388,6 +396,9 @@ class ChatTurn:
         )
         registry.register(WaitForTasksTool(lambda: list(self.created_task_ids)))
         system += f"\n\n{TASKS_NOTE}\n\n{ISSUES_NOTE}\n\n{WEB_NOTE}"
+        # Only mention Rafiq's web tools to a model that was actually given them.
+        if "web_fetch" not in self.native_tools:
+            system += f" {RAFIQ_WEB_TOOLS_NOTE}"
         return registry, system
 
     async def _task_model(self) -> str:

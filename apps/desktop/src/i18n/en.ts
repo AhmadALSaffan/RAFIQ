@@ -913,4 +913,11 @@ export const en: Dictionary = {
   "انسخ المحادثة لهون بمحادثة جديدة، وخلّي هاي متل ما هي": "Copy the chat up to here into a new one, and leave this one as it is",
   "ما قدرت أعدّل الرسالة": "Couldn't edit the message",
   "ما قدرت أفرّع المحادثة": "Couldn't fork the chat",
+  "أداة البحث تبع رفيق": "Rafiq's search tool",
+  "بتستخدم مفتاح البحث تبعك": "Uses your search key",
+  "مطفية — الموديل بيدوّر بأداته": "Off — the model searches with its own",
+  "مطفية لهالمحادثة": "Off for this chat",
+  "النموذج بيقدر يدوّر على الويب بمفتاح البحث تبعك.": "The model can search the web with your search key.",
+  "مطفية — النموذج بيدوّر بأداته هو.": "Off — the model searches with its own tool.",
+  "مطفية — النموذج ما رح يدوّر على الويب بهالتصميم.": "Off — the model won't search the web for this design.",
 };
