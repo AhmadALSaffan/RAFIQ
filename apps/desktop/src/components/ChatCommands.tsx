@@ -334,17 +334,23 @@ export function chatToMarkdown(title: string, messages: ChatMessage[]): string {
  * Saves text to disk: the OS save dialog inside the app, a browser download in `vite dev`.
  * Returns the path it wrote to, or null if the user cancelled.
  */
-export async function saveTextFile(suggestedName: string, contents: string): Promise<string | null> {
+export async function saveTextFile(
+  suggestedName: string,
+  contents: string,
+  kind: "md" | "json" = "md",
+): Promise<string | null> {
   const { isTauri, invoke } = await import("@tauri-apps/api/core");
+  const filter = kind === "json" ? { name: "JSON", extensions: ["json"] } : { name: "Markdown", extensions: ["md"] };
   if (isTauri()) {
     const { save } = await import("@tauri-apps/plugin-dialog");
-    const path = await save({ defaultPath: suggestedName, filters: [{ name: "Markdown", extensions: ["md"] }] });
+    const path = await save({ defaultPath: suggestedName, filters: [filter] });
     if (!path) return null;
     await invoke("save_text_file", { path, contents });
     return path;
   }
 
-  const url = URL.createObjectURL(new Blob([contents], { type: "text/markdown;charset=utf-8" }));
+  const type = kind === "json" ? "application/json;charset=utf-8" : "text/markdown;charset=utf-8";
+  const url = URL.createObjectURL(new Blob([contents], { type }));
   const link = document.createElement("a");
   link.href = url;
   link.download = suggestedName;

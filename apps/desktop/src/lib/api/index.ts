@@ -14,3 +14,5 @@ export * from "./files";
 export * from "./settings";
 export * from "./skills";
 export * from "./designs";
+export * from "./automation";
+export * from "./insights";

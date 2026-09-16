@@ -24,3 +24,7 @@ release/
 # Local-only
 .claude/
 *.log
+
+# Updater signing keys never belong in the repo (they live in ~/.tauri).
+*.key
+*.key.pub

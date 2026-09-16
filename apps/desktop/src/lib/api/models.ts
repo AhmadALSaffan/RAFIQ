@@ -20,6 +20,8 @@ export async function createModel(input: {
   apiKey?: string;
   /** Sign in with this connected account instead of a key. */
   accountId?: string;
+  /** Non-secret provider settings (region, api_version, project…). */
+  options?: Record<string, string>;
 }): Promise<LlmModel> {
   return request<LlmModel>("/models", {
     method: "POST",
@@ -31,6 +33,7 @@ export async function createModel(input: {
       api_key: input.apiKey,
       auth_method: input.accountId ? "oauth" : "api_key",
       account_id: input.accountId,
+      options: input.options,
     }),
   });
 }
@@ -43,6 +46,14 @@ export async function setModelAccount(id: string, accountId: string): Promise<Ll
   });
 }
 
+/** Which agent takes over when this one's provider keeps failing (null = none). */
+export async function setModelFallback(id: string, fallbackId: string | null): Promise<LlmModel> {
+  return request<LlmModel>(`/models/${id}/fallback`, {
+    method: "PUT",
+    body: JSON.stringify({ fallback_model_id: fallbackId }),
+  });
+}
+
 export async function deleteModel(id: string): Promise<void> {
   await request<void>(`/models/${id}`, { method: "DELETE" });
 }
@@ -52,6 +63,7 @@ export async function discoverModels(input: {
   apiKey?: string;
   baseUrl?: string;
   accountId?: string;
+  options?: Record<string, string>;
 }): Promise<DiscoveredModel[]> {
   return request<DiscoveredModel[]>("/models/discover", {
     method: "POST",
@@ -60,6 +72,7 @@ export async function discoverModels(input: {
       api_key: input.apiKey,
       base_url: input.baseUrl,
       account_id: input.accountId,
+      options: input.options,
     }),
   });
 }

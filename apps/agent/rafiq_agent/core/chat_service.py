@@ -32,6 +32,7 @@ from rafiq_agent.core.designs import (
     strip_preview,
 )
 from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
+from rafiq_agent.core.project_notes import project_instructions
 from rafiq_agent.core.prompts import (
     CHAT_SYSTEM_PROMPT,
     DEFAULT_TITLE,
@@ -43,11 +44,13 @@ from rafiq_agent.core.prompts import (
     MAX_STORED_OUTPUT,
     SUMMARY_PROMPT,
     TASKS_NOTE,
+    WEB_NOTE,
 )
 from rafiq_agent.i18n import all_translations, tr
-from rafiq_agent.integrations.tools import issue_tools
+from rafiq_agent.llm import usage
 from rafiq_agent.llm.base import LlmProvider
 from rafiq_agent.llm.discovery import friendly_error, supports_vision
+from rafiq_agent.llm.presets import native_tools
 from rafiq_agent.schemas.chats import (
     AUTO_SUMMARIZE_AFTER,
     AUTO_SUMMARIZE_KEEP,
@@ -57,15 +60,44 @@ from rafiq_agent.schemas.chats import (
 from rafiq_agent.storage.db import SessionLocal
 from rafiq_agent.storage.models import Chat, ChatMessage, Design, LlmModel, Task
 from rafiq_agent.tools.base import ToolRegistry
-from rafiq_agent.tools.skills import skill_tools
-from rafiq_agent.tools.tasks import CreateTaskTool
+from rafiq_agent.tools.tasks import CreateTasksTool, WaitForTasksTool
 
-MAX_TURN_ITERATIONS = 15
+# Steps per reply. Waiting on tasks is one step however long it takes, and a whole batch of
+# tasks is created in one call.
+MAX_TURN_ITERATIONS = 25
+TASK_TOOLS = frozenset({"create_tasks", "create_task"})  # create_task: transcripts from before batching
 
-# Approvals waiting on the user, keyed by request id (and grouped per chat so a dropped
-# stream can release them all).
+# Approvals waiting on the user, keyed by request id (and grouped per chat so stopping a
+# reply can release them all).
 _pending: dict[str, asyncio.Future[str]] = {}
 _pending_by_chat: dict[str, set[str]] = {}
+
+# Replies being written right now, one per chat. They run on their own — leaving the chat
+# page doesn't stop them — and whoever opens the chat again reattaches to the live one.
+_turns: dict[str, "ChatTurn"] = {}
+
+
+def active_turn(chat_id: str) -> "ChatTurn | None":
+    return _turns.get(chat_id)
+
+
+def stop_turn(chat_id: str) -> bool:
+    """Stops the reply being written in this chat. Returns whether there was one."""
+    turn = _turns.get(chat_id)
+    if turn is None:
+        return False
+    turn.stop()
+    return True
+
+
+async def stop_all_turns() -> None:
+    """App shutdown: stop every reply and let each save what it has."""
+    turns = list(_turns.values())
+    for turn in turns:
+        turn.stop()
+    workers = [t.worker for t in turns if t.worker is not None]
+    if workers:
+        await asyncio.wait(workers, timeout=5)
 
 
 class ChatError(Exception):
@@ -146,13 +178,18 @@ async def summarize(chat: Chat, messages: list[ChatMessage], llm: LlmProvider, k
     }
 
 
-def provider_for(model: LlmModel, reply: ReplySettings) -> LlmProvider:
+def provider_for(model: LlmModel, reply: ReplySettings, fallback: LlmModel | None = None) -> LlmProvider:
     return llm_for(
         model,
         temperature=reply.temperature,
         max_tokens=LENGTH_MAX_TOKENS.get(reply.length),
         reasoning_effort="none" if not reply.reasoning else reply.reasoning_effort,
+        fallback=fallback,
     )
+
+
+async def fallback_of(session: Any, model: LlmModel) -> LlmModel | None:
+    return await session.get(LlmModel, model.fallback_model_id) if model.fallback_model_id else None
 
 
 # ── Persisting a reply ────────────────────────────────────────────────────────────────
@@ -206,11 +243,13 @@ async def _sync_design(session: Any, chat_id: str, content: str) -> None:
 
 
 class ChatTurn:
-    """One user message and the reply it produces, as a stream of SSE lines.
+    """One user message and the reply it produces.
 
-    Built in three stages so each is readable on its own:
-    `prepare()` touches the database, `_build_context()` decides what the model sees, and
-    `stream()` runs the loop and reports it.
+    Built in stages so each is readable on its own: `prepare()` touches the database,
+    `_build_context()` decides what the model sees, `start()` runs the loop in the
+    background, and `subscribe()` streams its events as SSE lines — from the beginning, so a
+    page that reopens the chat mid-reply catches up. Closing a stream never stops the reply;
+    only `stop()` does.
     """
 
     def __init__(self, chat_id: str, content: str, model_id: str, attachment_ids: list[str]) -> None:
@@ -220,11 +259,27 @@ class ChatTurn:
         self.attachment_ids = attachment_ids
 
         self.parts: list[dict[str, Any]] = []
-        self.queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+        self.events: list[dict[str, Any]] = []
+        self.listeners: set[asyncio.Queue[dict[str, Any] | None]] = set()
+        self.ended = False
         self.saved = False
+        self.worker: asyncio.Task | None = None
+        self.created_task_ids: list[str] = []
+        self.native_tools: frozenset[str] = frozenset()
 
     async def prepare(self) -> None:
-        """Validates the request, stores the user's message, and loads the history."""
+        """Claims the chat for this reply, then validates and stores the user's message."""
+        if self.chat_id in _turns:
+            raise ChatError(tr("في رد لسا عم ينكتب بهالمحادثة — استنى يخلص أو وقّفه."), status=409)
+        _turns[self.chat_id] = self
+        try:
+            await self._prepare()
+        except BaseException:
+            if _turns.get(self.chat_id) is self:
+                del _turns[self.chat_id]
+            raise
+
+    async def _prepare(self) -> None:
         if not self.content and not self.attachment_ids:
             raise ChatError(tr("الرسالة فاضية"))
 
@@ -248,7 +303,7 @@ class ChatTurn:
                 raise ChatError("model not found", status=404)
 
             self.reply = settings_of(chat)
-            self.llm = provider_for(model, self.reply)
+            self.llm = provider_for(model, self.reply, await fallback_of(session, model))
 
             past = list(chat.messages)
             if self.reply.auto_summarize and len(past) > AUTO_SUMMARIZE_AFTER:
@@ -281,6 +336,8 @@ class ChatTurn:
             self.title = chat.title
             self.working_dir = chat.working_dir
             self.supports_tools = model.supports_tools
+            # Tools this model already has of its own — Rafiq won't offer a second one.
+            self.native_tools = native_tools(model.provider, model.model_id)
             self.design_mode = chat.mode == "design"
 
     async def _history(self) -> list[dict[str, Any]]:
@@ -311,33 +368,43 @@ class ChatTurn:
             )
         return system
 
-    def _tools(self, system: str) -> tuple[ToolRegistry, str]:
+    async def _tools(self, system: str) -> tuple[ToolRegistry, str]:
         """The tools this turn gets, plus the notes that explain them to the model."""
-        registry = ToolRegistry()
+        if self.working_dir and (notes := project_instructions(self.working_dir)):
+            system += f"\n\n{notes}"
         if self.supports_tools is False or not self.reply.tools:
-            return registry, system
+            return ToolRegistry(), system
 
         # Skills are read through ordinary tool calls, so every provider can use them.
-        for tool in skill_tools():
-            registry.register(tool)
+        folder = Path(self.working_dir) if self.working_dir else None
+        registry = await build_registry(folder, self.settings, self.native_tools)
         system += f"\n\n{skills_note()}"
-
-        if self.working_dir:
-            registry = build_registry(Path(self.working_dir))
-            system += f"\n\n{FOLDER_NOTE}\n{working_dir_system_note(Path(self.working_dir))}"
-        else:
-            for tool in issue_tools():  # trackers work with or without a folder
-                registry.register(tool)
+        if folder is not None:
+            system += f"\n\n{FOLDER_NOTE}\n{working_dir_system_note(folder)}"
         registry.register(
-            CreateTaskTool(self.model_id, self.working_dir, {"chat_id": self.chat_id}, self._on_task_created)
+            CreateTasksTool(
+                await self._task_model(), self.working_dir, {"chat_id": self.chat_id}, self._on_task_created
+            )
         )
-        system += f"\n\n{TASKS_NOTE}\n\n{ISSUES_NOTE}"
+        registry.register(WaitForTasksTool(lambda: list(self.created_task_ids)))
+        system += f"\n\n{TASKS_NOTE}\n\n{ISSUES_NOTE}\n\n{WEB_NOTE}"
         return registry, system
+
+    async def _task_model(self) -> str:
+        """Who carries out the tasks this chat creates: the model set for tasks in Settings
+        (if it still exists and works), otherwise the chat's own."""
+        chosen = self.settings.task_model_id
+        if chosen and chosen != self.model_id:
+            async with SessionLocal() as session:
+                model = await session.get(LlmModel, chosen)
+            if model is not None and model.verify_ok is not False:
+                return model.id
+        return self.model_id
 
     async def _build_context(self) -> tuple[list[dict[str, Any]], ToolRegistry]:
         history = await self._history()
         system = self._system_prompt()
-        registry, system = self._tools(system)
+        registry, system = await self._tools(system)
         vision = supports_vision(self.llm.model)
         messages = [
             {"role": "system", "content": system},
@@ -351,38 +418,43 @@ class ChatTurn:
     def _find_part(self, part_id: str) -> dict[str, Any] | None:
         return next((p for p in self.parts if p.get("id") == part_id), None)
 
+    def _emit(self, item: dict[str, Any]) -> None:
+        """Records an event and hands it to every page watching this reply."""
+        self.events.append(item)
+        for listener in self.listeners:
+            listener.put_nowait(item)
+
     async def _on_task_created(self, task: Task) -> None:
+        self.created_task_ids.append(task.id)
         self.parts.append({"kind": "task", "task_id": task.id, "title": task.title})
-        await self.queue.put(
-            {"type": "task_created", "task": {"id": task.id, "title": task.title, "status": task.status}}
-        )
+        self._emit({"type": "task_created", "task": {"id": task.id, "title": task.title, "status": task.status}})
 
     async def _on_text_delta(self, text: str) -> None:
         if self.parts and self.parts[-1]["kind"] == "text":
             self.parts[-1]["text"] += text
         else:
             self.parts.append({"kind": "text", "text": text})
-        await self.queue.put({"type": "delta", "text": text})
+        self._emit({"type": "delta", "text": text})
 
     async def _on_reasoning_delta(self, text: str) -> None:
-        await self.queue.put({"type": "reasoning", "text": text})
+        self._emit({"type": "reasoning", "text": text})
 
     async def _on_tool_call(self, call_id: str, name: str, _category: str, args: dict[str, Any]) -> None:
-        if name == "create_task":
-            return  # shown as a task card instead of a raw tool step
+        if name in TASK_TOOLS:
+            return  # shown as task cards instead of a raw tool step
         self.parts.append({"kind": "tool", "id": call_id, "tool": name, "args": args})
-        await self.queue.put({"type": "tool_call", "id": call_id, "tool": name, "args": args})
+        self._emit({"type": "tool_call", "id": call_id, "tool": name, "args": args})
 
     async def _on_tool_result(self, call_id: str, name: str, ok: bool, output: str) -> None:
-        if name == "create_task" and ok:
+        if name in TASK_TOOLS and ok:
             return
         part = self._find_part(call_id)
         if part is None:  # denied before running — no tool_call part exists yet
             part = {"kind": "tool", "id": call_id, "tool": name, "args": {}}
             self.parts.append(part)
-            await self.queue.put({"type": "tool_call", "id": call_id, "tool": name, "args": {}})
+            self._emit({"type": "tool_call", "id": call_id, "tool": name, "args": {}})
         part.update(ok=ok, output=clip(output))
-        await self.queue.put({"type": "tool_result", "id": call_id, "ok": ok, "output": clip(output)})
+        self._emit({"type": "tool_result", "id": call_id, "ok": ok, "output": clip(output)})
 
     async def _permit(self, name: str, category: str, args: dict[str, Any]) -> bool:
         decision = policy_decision(name, category, self.settings.permissions)
@@ -395,7 +467,7 @@ class ChatTurn:
         future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
         _pending[request_id] = future
         _pending_by_chat.setdefault(self.chat_id, set()).add(request_id)
-        await self.queue.put({"type": "permission", "id": request_id, "call": call})
+        self._emit({"type": "permission", "id": request_id, "call": call})
         try:
             resolution = await future
         finally:
@@ -403,7 +475,7 @@ class ChatTurn:
         part = self._find_part(request_id)
         if part:
             part["resolution"] = resolution
-        await self.queue.put({"type": "permission_resolved", "id": request_id, "resolution": resolution})
+        self._emit({"type": "permission_resolved", "id": request_id, "resolution": resolution})
         return resolution == "approved"
 
     # ── Running ──────────────────────────────────────────────────────────────────────
@@ -412,6 +484,8 @@ class ChatTurn:
         return "".join(p.get("text", "") for p in self.parts if p["kind"] == "text")
 
     async def _run(self, messages: list[dict[str, Any]], registry: ToolRegistry) -> None:
+        # Everything this turn spends is counted against the chat (see llm/usage.py).
+        usage.scope("chat", self.chat_id, self.model_id).apply()
         try:
             result = await run_agent_loop(
                 self.llm,
@@ -429,7 +503,7 @@ class ChatTurn:
             if result.status == "empty":
                 # The model ended its turn without writing anything — say so instead of
                 # leaving the UI on a spinner forever.
-                await self.queue.put(
+                self._emit(
                     {
                         "type": "error",
                         "message": tr(
@@ -441,39 +515,85 @@ class ChatTurn:
                 self.chat_id, result.text, result.reasoning, self.parts, self.model_id
             )
             self.saved = True
-            await self.queue.put({"type": "done", "message": saved.model_dump()})
+            self._emit({"type": "done", "message": saved.model_dump()})
         except asyncio.CancelledError:
-            raise
+            # Stopped (by the user, or the app closing): keep whatever was produced, so the
+            # history stays honest. The stop was asked for, so it ends the reply quietly.
+            await self._save_partial()
         except Exception as exc:  # noqa: BLE001 - provider failures are reported in-stream
             text = self._text_so_far()
             if text or self.parts:
                 await save_assistant(self.chat_id, text, "", self.parts, self.model_id)
                 self.saved = True
-            await self.queue.put({"type": "error", "message": friendly_error(exc)})
+            self._emit({"type": "error", "message": friendly_error(exc)})
         finally:
-            await self.queue.put(None)
+            await registry.aclose()  # the turn's browser tab, its hold on the desktop
+            self._end()
+
+    async def _save_partial(self) -> None:
+        if self.saved:
+            return
+        self.saved = True
+        text = self._text_so_far()
+        if not text and not self.parts:
+            self._emit({"type": "stopped"})
+            return
+        parts = [
+            {**p, "resolution": "denied"} if p["kind"] == "permission" and p.get("resolution") == "pending" else p
+            for p in self.parts
+        ]
+        saved = await asyncio.shield(save_assistant(self.chat_id, text, "", parts, self.model_id))
+        self._emit({"type": "done", "message": saved.model_dump()})
+
+    def _end(self) -> None:
+        self.ended = True
+        for listener in self.listeners:
+            listener.put_nowait(None)
+        if _turns.get(self.chat_id) is self:
+            del _turns[self.chat_id]
 
     def _release_pending(self) -> None:
-        """The user stopped or closed the window: treat open approvals as denied."""
+        """The reply was stopped: treat open approvals as denied."""
         for request_id in list(_pending_by_chat.pop(self.chat_id, set())):
             future = _pending.pop(request_id, None)
             if future and not future.done():
                 future.set_result("denied")
 
-    async def stream(self) -> AsyncIterator[str]:
-        messages, registry = await self._build_context()
-        self.settings = await load_settings()
+    def stop(self) -> None:
+        self._release_pending()
+        if self.worker is not None and not self.worker.done():
+            self.worker.cancel()
 
-        yield sse({"type": "start", "user_message": self.user_out.model_dump(), "title": self.title})
-        worker = asyncio.create_task(self._run(messages, registry))
+    async def start(self) -> None:
+        """Builds the context and starts the reply in the background."""
         try:
-            while (item := await self.queue.get()) is not None:
-                yield sse(item)
-        except (asyncio.CancelledError, GeneratorExit):
-            self._release_pending()
-            worker.cancel()
-            text = self._text_so_far()
-            if (text or self.parts) and not self.saved:
-                # Keep whatever was produced, so the history stays honest.
-                await asyncio.shield(save_assistant(self.chat_id, text, "", self.parts, self.model_id))
+            self.settings = await load_settings()
+            messages, registry = await self._build_context()
+        except BaseException:
+            self._end()
             raise
+        self._emit({"type": "start", "user_message": self.user_out.model_dump(), "title": self.title})
+        self.worker = asyncio.create_task(self._run(messages, registry))
+        self.worker.add_done_callback(self._on_worker_done)
+
+    def _on_worker_done(self, _: asyncio.Task) -> None:
+        # Stopped before it even began: _run's own cleanup never ran, so close up here.
+        if not self.ended:
+            if not self.saved:
+                self._emit({"type": "stopped"})
+            self._end()
+
+    async def subscribe(self) -> AsyncIterator[str]:
+        """The reply's events as SSE lines: everything so far, then live until it ends.
+        Leaving (the page closes the stream) only stops the watching, never the reply."""
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+        for item in self.events:
+            queue.put_nowait(item)
+        if self.ended:
+            queue.put_nowait(None)
+        self.listeners.add(queue)
+        try:
+            while (item := await queue.get()) is not None:
+                yield sse(item)
+        finally:
+            self.listeners.discard(queue)

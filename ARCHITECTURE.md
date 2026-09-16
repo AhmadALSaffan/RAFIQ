@@ -112,7 +112,8 @@ cd apps/desktop && pnpm release        # فحص + بناء + نسخة للنشر
 | نبرة رفيق أو تعليماته | `core/prompts.py` |
 | خطوة جديدة بدور المحادثة | `core/chat_service.py` |
 | أداة جديدة للنموذج | `tools/` + تسجيلها بـ `core/agent_runtime.py` |
-| مزوّد نماذج جديد | `llm/discovery.py` + `lib/providers.ts` (الواجهة) |
+| مزوّد نماذج جديد | `llm/presets.py` (العنوان وشكل بيانات الدخول) + `llm/discovery.py` + `lib/providers.ts` (الواجهة) |
+| موديل عنده أداة جاهزة (متل web_fetch) ما بدنا نكرّرها | `llm/presets.py::NATIVE_TOOLS` — `build_registry` بيتخطّى الأداة، وبالنسبة لـ Copilot `llm/copilot.py` بيسمح للمدمجة وبيمرّق إذنها على نفس صلاحية رفيق |
 | تسجيل دخول بحساب لمزوّد جديد | صنف adapter بـ `auth/` + سطر بـ `auth/registry.py` (الواجهة بتطلعه لحالها بـ «الحسابات المتصلة») |
 | وين بينقرأ مفتاح أو توكن أي نموذج | `auth/resolve.py` — المكان الوحيد |
 | نظام تتبّع مهام جديد | `integrations/providers.py` (صنف من `Integration`) |
@@ -129,3 +130,18 @@ cd apps/desktop && pnpm release        # فحص + بناء + نسخة للنشر
 | صندوق الكتابة والأوامر | `features/chat/Composer.tsx` + `components/ComposerMenus.tsx` |
 | نداء API جديد | وحدة النطاق تحت `lib/api/` |
 | حقل جديد بقاعدة البيانات | `storage/models.py` + سطر بـ `storage/db.py::_ADDED_COLUMNS` |
+| جدولة المهام بالتوازي (التعارض، الاعتماد، الحد) | `core/manager.py` (`Claim` + `_fill`) |
+| worktree المهمة، التطبيق والإرجاع | `core/gitops.py` (أوامر git) + `core/task_git.py` (دورة حياة المهمة) |
+| حدود المزوّدين، إعادة المحاولة، النموذج الاحتياطي | `llm/resilience.py` (بيلفّ كل مزوّد من `auth/resolve.py::llm_for`) |
+| تعليمات المشروع (`RAFIQ.md`) | `core/project_notes.py` |
+| أدوات الويب / المتصفح / سطح المكتب | `tools/web.py` · `tools/browser.py` · `tools/desktop.py` + `tools/os_adapters/windows.py` |
+| خوادم MCP | `mcp_bridge.py` (الاتصال والأدوات) + `api/automation.py` (الإعدادات) |
+| المهام المجدولة والقوالب | `core/schedules.py` + `api/automation.py` · الواجهة `features/tasks/automation.tsx` |
+| رد المحادثة اللي بيكمل بالخلفية | `core/chat_service.py` (`ChatTurn.start/subscribe/stop`) |
+| الأيقونة بجنب الساعة، الإغلاق للخلفية، التشغيل مع ويندوز | `src-tauri/src/lib.rs` + `lib/background.ts` |
+| ربط المحرّك بعمر التطبيق (ما يضل شغّال بعده) | `src-tauri/src/job.rs` (Windows Job Object) + `src-tauri/installer/hooks.nsh` |
+| حساب كلفة النداءات وحدود المصروف | `llm/usage.py` (العدّ والحدود) + `api/insights.py` (العرض) · الواجهة `features/settings/usage.tsx` |
+| تقرير المشاكل (شو بينحط فيه) | `api/insights.py::diagnostics` — ما بيدخله مفتاح ولا محتوى محادثة |
+| تسجيل الصوت وتحويله لنص | `api/voice.py` + `features/chat/MicButton.tsx` |
+| تعديل سؤال أو تفريع محادثة | `api/chats.py` (`truncate` و `fork`) · الواجهة `features/chat/Transcript.tsx` |
+| التحديث التلقائي (الفحص والتنزيل) | `src-tauri/tauri.conf.json` → `plugins.updater` + `features/updates/UpdateCard.tsx` · المفتاح والبيان `scripts/build-app.mjs` و `scripts/release.mjs` |

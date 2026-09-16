@@ -46,6 +46,11 @@ async def run_agent_loop(
     cb: LoopCallbacks,
     max_iterations: int = 25,
 ) -> LoopResult:
+    # A provider that runs tools of its own (Copilot's web_fetch) asks the same permission
+    # gate Rafiq's tools go through, instead of deciding for itself.
+    hook = getattr(llm, "set_permission_hook", None)
+    if hook is not None:
+        hook(cb.permit)
     try:
         return await _run(llm, messages, registry, cb, max_iterations)
     finally:
@@ -114,6 +119,7 @@ async def _run(
             assistant_turn["reasoning_content"] = reasoning
         messages.append(assistant_turn)
 
+        images: list[str] = []
         for tc in tool_calls:
             try:
                 args = json.loads(tc.arguments_json or "{}")
@@ -129,8 +135,40 @@ async def _run(
                 await cb.on_tool_call(tc.id, tool.name, tool.category, args)
                 result = await tool.run(args)
                 ok, output = result.ok, result.output
+                images += result.images or []
 
             await cb.on_tool_result(tc.id, tc.name, ok, output)
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": output})
 
+        if images:
+            _show_images(llm, messages, images)
+
     return LoopResult("max_iterations", all_text, all_reasoning)
+
+
+IMAGES_NOTE = "الصور اللي رجعت من الأدوات:"
+
+
+def _show_images(llm: LlmProvider, messages: list[dict[str, Any]], images: list[str]) -> None:
+    """Tool results are text-only on most APIs, so screenshots follow as a user message.
+    Only the latest set stays in the context — older ones become a one-line placeholder,
+    or a few screenshots in, every request would carry megabytes of old images."""
+    from rafiq_agent.llm.discovery import supports_vision
+
+    # Unknown (None) counts as able, the same as for attachments.
+    if supports_vision(getattr(llm, "model", "")) is False:
+        messages.append({"role": "user", "content": "(الأداة رجّعت صورة، بس هالنموذج ما بيقرأ الصور.)"})
+        return
+    for message in messages:
+        content = message.get("content")
+        if message.get("role") == "user" and isinstance(content, list) and content and content[0].get("text") == IMAGES_NOTE:
+            message["content"] = "(صورة قديمة من أداة — انشالت لتوفير السياق)"
+    messages.append(
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": IMAGES_NOTE},
+                *({"type": "image_url", "image_url": {"url": url}} for url in images[-4:]),
+            ],
+        }
+    )

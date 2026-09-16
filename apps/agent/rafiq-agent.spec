@@ -13,7 +13,29 @@ hiddenimports = []
 
 # litellm reads its model-price table and tokenizer data at runtime, and imports provider
 # modules dynamically — nothing short of collect_all catches all of it.
-for package in ("litellm", "tiktoken", "tiktoken_ext", "keyring", "jiter"):
+# The MCP client (and its own HTTP stack) is imported lazily when a server connects, so it's
+# collected whole as well.
+# (mcp's own `mcp.cli` needs typer and exits when imported — Rafiq only uses the client.)
+mcp_datas, mcp_binaries, mcp_hidden = collect_all("mcp", filter_submodules=lambda name: not name.startswith("mcp.cli"))
+datas += mcp_datas
+binaries += mcp_binaries
+hiddenimports += mcp_hidden
+
+for package in (
+    "litellm",
+    "tiktoken",
+    "tiktoken_ext",
+    "keyring",
+    "jiter",
+    "mcp_types",
+    "httpx2",
+    "httpcore2",
+    "sse_starlette",
+    "opentelemetry",
+    # Vertex AI signs its requests with a service account; boto3 signs Bedrock's.
+    "google.auth",
+    "botocore",
+):
     package_datas, package_binaries, package_hidden = collect_all(package)
     datas += package_datas
     binaries += package_binaries

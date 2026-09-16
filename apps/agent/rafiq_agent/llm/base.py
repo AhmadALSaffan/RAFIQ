@@ -51,11 +51,14 @@ class LlmProvider:
         max_tokens: int | None = None,
         reasoning_effort: str | None = None,
         extra_headers: dict[str, str] | None = None,
+        options: dict[str, Any] | None = None,
     ) -> None:
+        from rafiq_agent.llm.presets import call_kwargs
+
         self.model = litellm_model_string(provider, model_id)
         self.extra_headers = extra_headers or None
-        self.api_key = api_key
-        self.base_url = base_url or ("http://localhost:11434" if provider == "ollama" else None)
+        # Endpoint and credentials, in the shape this provider takes them (see llm/presets.py).
+        self.connection = call_kwargs(provider, api_key, base_url, options)
         self.temperature = temperature
         self.max_tokens = max_tokens
         # "none" asks models that can turn thinking off to do so; providers that don't
@@ -73,32 +76,51 @@ class LlmProvider:
             out["reasoning_effort"] = self.reasoning_effort
         return out
 
+    @property
+    def api_key(self) -> str | None:
+        return self.connection.get("api_key")
+
+    @property
+    def base_url(self) -> str | None:
+        return self.connection.get("api_base")
+
+    def _prepared(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        from rafiq_agent.llm.presets import caches_prompts, with_cache_marks
+
+        return with_cache_marks(messages) if caches_prompts(self.model) else messages
+
     async def aclose(self) -> None:
         """Nothing to release — litellm calls are stateless. Copilot's provider overrides this."""
 
     async def complete(self, messages: list[dict[str, Any]], max_tokens: int | None = None) -> str:
         """One-shot, no tools, no streaming — used for summarising a chat."""
+        from rafiq_agent.llm import usage
+
         response = await litellm.acompletion(
             model=self.model,
-            messages=messages,
-            api_key=self.api_key,
-            api_base=self.base_url,
+            messages=self._prepared(messages),
             max_tokens=max_tokens,
             extra_headers=self.extra_headers,
+            **self.connection,
         )
+        usage.record(self.model, getattr(response, "usage", None))
         return (response.choices[0].message.content or "").strip()
 
     async def stream_chat(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
     ) -> AsyncIterator[StreamEvent]:
+        from rafiq_agent.llm import usage
+
         response = await litellm.acompletion(
             model=self.model,
-            messages=messages,
+            messages=self._prepared(messages),
             tools=tools or None,
-            api_key=self.api_key,
-            api_base=self.base_url,
             extra_headers=self.extra_headers,
             stream=True,
+            # Providers that can't report usage mid-stream have this dropped; litellm then
+            # counts the tokens itself.
+            stream_options={"include_usage": True},
+            **self.connection,
             **self._tuning(),
         )
 
@@ -106,8 +128,12 @@ class LlmProvider:
         # since some providers finish a tool-call turn with "stop" rather than "tool_calls".
         pending_tool_calls: dict[int, dict[str, str]] = {}
         finish_reason: str | None = None
+        counted: Any = None
+        produced: list[str] = []  # what came back, in case the provider reports no usage
 
         async for chunk in response:
+            # The usage block arrives on its own chunk at the very end (or on the last one).
+            counted = getattr(chunk, "usage", None) or counted
             if not chunk.choices:
                 continue
             choice = chunk.choices[0]
@@ -130,7 +156,18 @@ class LlmProvider:
                 finish_reason = choice.finish_reason
 
             if text or reasoning:
+                produced.append(text or reasoning or "")
                 yield StreamEvent(text_delta=text, reasoning_delta=reasoning)
+
+        usage.record(
+            self.model,
+            counted
+            or usage.estimate(
+                self.model,
+                messages,
+                "".join(produced) + "".join(v["arguments"] for v in pending_tool_calls.values()),
+            ),
+        )
 
         if pending_tool_calls:
             yield StreamEvent(

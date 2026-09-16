@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: rafiq-agent
-Version: 0.1.0
+Version: 0.4.0
 Summary: Rafiq local agent runtime (FastAPI sidecar)
 Requires-Python: >=3.11
 Requires-Dist: fastapi>=0.115
@@ -15,6 +15,9 @@ Requires-Dist: websockets>=13.1
 Requires-Dist: python-multipart>=0.0.20
 Requires-Dist: pypdf>=5.1
 Requires-Dist: pillow>=11.0
+Requires-Dist: mcp>=2.2
+Requires-Dist: google-auth>=2.36
+Requires-Dist: boto3>=1.35
 Provides-Extra: agent
 Requires-Dist: litellm>=1.55; extra == "agent"
 Requires-Dist: playwright>=1.49; extra == "agent"

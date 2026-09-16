@@ -6,7 +6,7 @@ Routes only: validate input, call `core.chat_service`, shape the response. The t
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,9 +16,12 @@ from rafiq_agent.api.deps import require_token
 from rafiq_agent.core.chat_service import (
     ChatError,
     ChatTurn,
+    active_turn,
+    fallback_of,
     provider_for,
     resolve_permission,
     settings_of,
+    stop_turn,
     summarize,
 )
 from rafiq_agent.core.prompts import DEFAULT_TITLE
@@ -27,6 +30,7 @@ from rafiq_agent.i18n import tr
 from rafiq_agent.schemas.chats import (
     ChatCreate,
     ChatDetailOut,
+    ChatFork,
     ChatSummaryOut,
     ChatUpdate,
     MessageCreate,
@@ -75,6 +79,7 @@ async def list_chats(session: AsyncSession = Depends(get_session)) -> list[ChatS
     for chat, count in rows.all():
         summary = ChatSummaryOut.model_validate(chat)
         summary.message_count = count
+        summary.streaming = active_turn(chat.id) is not None
         out.append(summary)
     return out
 
@@ -96,7 +101,9 @@ async def get_chat(chat_id: str, session: AsyncSession = Depends(get_session)) -
     chat = result.scalar_one_or_none()
     if not chat:
         raise HTTPException(status_code=404, detail="chat not found")
-    return ChatDetailOut.model_validate(chat)
+    out = ChatDetailOut.model_validate(chat)
+    out.streaming = active_turn(chat_id) is not None
+    return out
 
 
 @router.patch("/{chat_id}", response_model=ChatSummaryOut)
@@ -129,6 +136,7 @@ async def delete_chat(chat_id: str, session: AsyncSession = Depends(get_session)
     chat = result.scalar_one_or_none()
     if not chat:
         raise HTTPException(status_code=404, detail="chat not found")
+    stop_turn(chat_id)
     await session.delete(chat)
     await session.commit()
 
@@ -154,7 +162,7 @@ async def summarize_chat(chat_id: str, body: SummarizeIn) -> SummarizeOut:
         if not model:
             raise HTTPException(status_code=400, detail=tr("اختار نموذج أول عشان ألخّص فيه."))
 
-        llm = provider_for(model, settings_of(chat))
+        llm = provider_for(model, settings_of(chat), await fallback_of(session, model))
         try:
             report = await summarize(chat, list(chat.messages), llm, max(0, body.keep))
         except ChatError as exc:
@@ -179,13 +187,107 @@ async def delete_message(chat_id: str, message_id: str, session: AsyncSession = 
     await session.commit()
 
 
+@router.post("/{chat_id}/messages/{message_id}/truncate", response_model=ChatDetailOut)
+async def truncate_from(
+    chat_id: str, message_id: str, session: AsyncSession = Depends(get_session)
+) -> ChatDetailOut:
+    """Drops this message and everything after it — how editing a question works: the
+    chat goes back to just before it, then the new wording is sent."""
+    message = await session.get(ChatMessage, message_id)
+    if not message or message.chat_id != chat_id:
+        raise HTTPException(status_code=404, detail="message not found")
+    stop_turn(chat_id)
+    result = await session.execute(
+        select(Chat).where(Chat.id == chat_id).options(selectinload(Chat.messages))
+    )
+    chat = result.scalar_one_or_none()
+    if not chat:
+        raise HTTPException(status_code=404, detail="chat not found")
+    cutoff = message.created_at
+    for m in list(chat.messages):
+        if m.created_at > cutoff or m.id == message_id:
+            await session.delete(m)
+    await session.commit()
+    await session.refresh(chat)
+    return await get_chat(chat_id, session)
+
+
+@router.post("/{chat_id}/fork", response_model=ChatDetailOut, status_code=201)
+async def fork_chat(
+    chat_id: str, body: ChatFork, session: AsyncSession = Depends(get_session)
+) -> ChatDetailOut:
+    """Copies the chat up to a message into a new one, so a different direction can be
+    tried without losing this one."""
+    result = await session.execute(
+        select(Chat).where(Chat.id == chat_id).options(selectinload(Chat.messages))
+    )
+    chat = result.scalar_one_or_none()
+    if not chat:
+        raise HTTPException(status_code=404, detail="chat not found")
+    history = sorted(chat.messages, key=lambda m: m.created_at)
+    if body.until_message_id:
+        index = next((i for i, m in enumerate(history) if m.id == body.until_message_id), None)
+        if index is None:
+            raise HTTPException(status_code=404, detail="message not found")
+        history = history[: index + 1]
+
+    fork = Chat(
+        title=tr("نسخة: {0}", chat.title)[:120],
+        model_id=chat.model_id,
+        working_dir=chat.working_dir,
+        settings=chat.settings,
+        mode=chat.mode,
+        # The summary only describes turns that were kept whole; a partial copy re-summarises.
+        summary=chat.summary if len(history) == len(chat.messages) else None,
+        summary_until=chat.summary_until if len(history) == len(chat.messages) else None,
+    )
+    session.add(fork)
+    await session.flush()
+    for m in history:
+        session.add(
+            ChatMessage(
+                chat_id=fork.id,
+                role=m.role,
+                content=m.content,
+                reasoning=m.reasoning,
+                model_id=m.model_id,
+                parts=m.parts,
+                attachments=m.attachments,
+                created_at=m.created_at,
+            )
+        )
+    await session.commit()
+    return await get_chat(fork.id, session)
+
+
+def _sse(turn: ChatTurn) -> StreamingResponse:
+    return StreamingResponse(
+        turn.subscribe(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"}
+    )
+
+
 @router.post("/{chat_id}/messages")
 async def send_message(chat_id: str, body: MessageCreate) -> StreamingResponse:
+    """Starts a reply and streams it. The reply keeps going if the stream is closed."""
     turn = ChatTurn(chat_id, body.content, body.model_id, body.attachment_ids)
     try:
         await turn.prepare()
+        await turn.start()
     except ChatError as exc:
         raise _http(exc) from exc
-    return StreamingResponse(
-        turn.stream(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"}
-    )
+    return _sse(turn)
+
+
+@router.get("/{chat_id}/stream", response_model=None)
+async def reattach(chat_id: str) -> StreamingResponse | Response:
+    """The reply being written in this chat, from its first event; 204 when there is none."""
+    turn = active_turn(chat_id)
+    if turn is None:
+        return Response(status_code=204)
+    return _sse(turn)
+
+
+@router.post("/{chat_id}/stop", status_code=202)
+async def stop_reply(chat_id: str) -> dict[str, bool]:
+    """Stops the reply being written; what it produced so far is kept."""
+    return {"stopped": stop_turn(chat_id)}

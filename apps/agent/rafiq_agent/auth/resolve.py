@@ -32,6 +32,33 @@ def llm_for(
     temperature: float | None = None,
     max_tokens: int | None = None,
     reasoning_effort: str | None = None,
+    fallback: LlmModel | None = None,
+):
+    """A provider for this agent, capped per credential, retried when the provider pushes
+    back, and — if `fallback` is given — handed to that agent when it still fails."""
+    from rafiq_agent.llm.resilience import ResilientProvider
+
+    backup = None
+    if fallback is not None and fallback.id != model.id:
+        try:
+            backup = llm_for(
+                fallback, temperature=temperature, max_tokens=max_tokens, reasoning_effort=reasoning_effort
+            )
+        except AuthError:
+            backup = None  # a broken fallback must not break the agent itself
+    return ResilientProvider(
+        _provider_for(model, temperature=temperature, max_tokens=max_tokens, reasoning_effort=reasoning_effort),
+        key=f"{model.provider}:{model.account_id or model.api_key_ref or model.base_url or 'default'}",
+        fallback=backup,
+    )
+
+
+def _provider_for(
+    model: LlmModel,
+    *,
+    temperature: float | None,
+    max_tokens: int | None,
+    reasoning_effort: str | None,
 ):
     """An `LlmProvider` — or, for Copilot agents, a `CopilotProvider` with the same surface."""
     creds = credentials_for(model)
@@ -63,4 +90,5 @@ def llm_for(
         max_tokens=max_tokens,
         reasoning_effort=reasoning_effort,
         extra_headers=headers,
+        options=model.options,
     )

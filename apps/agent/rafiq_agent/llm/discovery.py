@@ -1,3 +1,4 @@
+import asyncio
 import time
 from dataclasses import dataclass
 
@@ -7,6 +8,7 @@ import litellm
 from rafiq_agent.auth.base import redact
 from rafiq_agent.i18n import tr
 from rafiq_agent.llm.base import litellm_model_string
+from rafiq_agent.llm.presets import PRESET_BASES, SUGGESTED, ProviderConfigError, call_kwargs
 
 OLLAMA_DEFAULT_BASE = "http://localhost:11434"
 
@@ -58,7 +60,50 @@ def _openai_style(data: list[dict], name_key: str | None = None) -> list[Discove
     return models
 
 
-async def discover_models(provider: str, api_key: str | None, base_url: str | None) -> list[DiscoveredModel]:
+def _suggested(provider: str) -> list[DiscoveredModel]:
+    return [DiscoveredModel(id=m, display_name=name) for m, name in SUGGESTED.get(provider, [])]
+
+
+def _bedrock_models(api_key: str | None, options: dict[str, str]) -> list[DiscoveredModel]:
+    """Foundation models you can call on demand, plus the cross-region inference profiles
+    that newer models (Claude 4 and up) require."""
+    import boto3
+
+    creds = call_kwargs("bedrock", api_key, None, options)
+    client = boto3.client(
+        "bedrock",
+        region_name=creds["aws_region_name"],
+        aws_access_key_id=creds["aws_access_key_id"],
+        aws_secret_access_key=creds["aws_secret_access_key"],
+        aws_session_token=creds.get("aws_session_token"),
+    )
+    out: list[DiscoveredModel] = []
+    for profile in client.list_inference_profiles().get("inferenceProfileSummaries", []):
+        out.append(
+            DiscoveredModel(id=profile["inferenceProfileId"], display_name=profile.get("inferenceProfileName", ""))
+        )
+    listed = client.list_foundation_models(byOutputModality="TEXT", byInferenceType="ON_DEMAND")
+    for model in listed.get("modelSummaries", []):
+        name = f"{model.get('providerName', '')} {model.get('modelName', '')}".strip()
+        out.append(DiscoveredModel(id=model["modelId"], display_name=name or model["modelId"]))
+    return out
+
+
+async def discover_models(
+    provider: str, api_key: str | None, base_url: str | None, options: dict[str, str] | None = None
+) -> list[DiscoveredModel]:
+    options = options or {}
+    if provider == "azure":
+        raise DiscoveryError(tr("Azure ما بيعرض قائمة — اكتب اسم الـ deployment تبعك كاسم للموديل."))
+    if provider == "vertex_ai":
+        return _suggested(provider)
+    if provider == "bedrock":
+        try:
+            return await asyncio.to_thread(_bedrock_models, api_key, options)
+        except ProviderConfigError as exc:
+            raise DiscoveryError(tr("بيانات AWS مو صحيحة.")) from exc
+        except Exception as exc:  # noqa: BLE001 - botocore raises many shapes
+            raise DiscoveryError(tr("ما قدرت أجيب موديلات Bedrock: {0}", redact(str(exc))[:200])) from exc
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             if provider == "anthropic":
@@ -108,6 +153,8 @@ async def discover_models(provider: str, api_key: str | None, base_url: str | No
                 if not base_url:
                     raise DiscoveryError(tr("لازم تحدد Base URL للمزوّد المخصص."))
                 url = f"{base_url.rstrip('/')}/models"
+            elif provider in PRESET_BASES:
+                url = f"{(base_url or PRESET_BASES[provider]).rstrip('/')}/models"
             elif provider in endpoints:
                 url = endpoints[provider]
             else:
@@ -115,8 +162,12 @@ async def discover_models(provider: str, api_key: str | None, base_url: str | No
 
             headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
             resp = await client.get(url, headers=headers)
+            if resp.status_code == 404 and SUGGESTED.get(provider):
+                return _suggested(provider)  # no model list on this endpoint
             _raise_for_status(resp)
-            data = resp.json().get("data", [])
+            payload = resp.json()
+            # Together answers with a bare list; everyone else wraps it in {"data": [...]}.
+            data = payload if isinstance(payload, list) else payload.get("data", [])
             models = _openai_style(data, name_key="name" if provider == "openrouter" else None)
             if provider == "openai":
                 created = {m.get("id"): m.get("created", 0) for m in data}
@@ -155,20 +206,22 @@ def supports_vision(model: str) -> bool | None:
 
 
 async def verify_model(
-    provider: str, model_id: str, api_key: str | None, base_url: str | None
+    provider: str,
+    model_id: str,
+    api_key: str | None,
+    base_url: str | None,
+    options: dict[str, str] | None = None,
 ) -> VerifyResult:
     model = litellm_model_string(provider, model_id)
-    if provider == "ollama" and not base_url:
-        base_url = OLLAMA_DEFAULT_BASE
     started = time.perf_counter()
     try:
+        connection = call_kwargs(provider, api_key, base_url, options)
         await litellm.acompletion(
             model=model,
             messages=[{"role": "user", "content": "ping"}],
             max_tokens=5,
-            api_key=api_key,
-            api_base=base_url,
             timeout=30,
+            **connection,
         )
     except Exception as exc:  # noqa: BLE001 - any provider failure is a verification failure
         return VerifyResult(

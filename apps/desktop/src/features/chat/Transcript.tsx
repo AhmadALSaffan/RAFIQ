@@ -4,9 +4,8 @@
  * summary marker. No data fetching lives here — it all arrives as props.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { getTask } from "../../lib/api";
 import type { ChatMessage, ChatPart, LlmModel, TaskStatus } from "../../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../../lib/motion";
 import { clockTime, dayLabel, isNewDay } from "../../lib/time";
@@ -16,11 +15,12 @@ import { Markdown } from "../../components/Markdown";
 import { TokenText } from "../../components/TokenText";
 import { AttachmentGallery } from "../../components/Attachments";
 import { PermissionCard, ThinkingDots, ToolCard } from "../../components/steps";
-import { CompressIcon, ModelsIcon, TasksIcon } from "../../components/Icons";
+import { CompressIcon, ForkIcon, ModelsIcon, TasksIcon } from "../../components/Icons";
 import { Button } from "../../components/ui";
 import { Logo } from "../../components/Logo";
 import { StatusPill } from "../../components/StatusPill";
 import { SILENT_TOOLS, textOf } from "./draft";
+import { isGone, useTaskSummaries } from "./taskStatus";
 import { SUGGESTIONS } from "./constants";
 
 import { t } from "../../i18n";
@@ -95,7 +95,21 @@ export function DayDivider({ iso }: { iso: string }) {
   );
 }
 
-export function MessageView({ message, model, onOpenTask }: { message: ChatMessage; model?: LlmModel; onOpenTask: (id: string) => void }) {
+export function MessageView({
+  message,
+  model,
+  onOpenTask,
+  onEdit,
+  onFork,
+}: {
+  message: ChatMessage;
+  model?: LlmModel;
+  onOpenTask: (id: string) => void;
+  /** Rewind to before this question and put it back in the box (off while a reply runs). */
+  onEdit?: (message: ChatMessage) => void;
+  /** Copy the chat up to here into a new one. */
+  onFork?: (message: ChatMessage) => void;
+}) {
   const menu = useElementMenu();
   if (message.role === "user") {
     return (
@@ -106,6 +120,8 @@ export function MessageView({ message, model, onOpenTask }: { message: ChatMessa
         className="group flex max-w-[85%] flex-col items-end gap-2 self-end"
         onContextMenu={menu(() => [
           { id: "copy", label: t("انسخ الرسالة"), onSelect: () => void navigator.clipboard.writeText(message.content) },
+          ...(onEdit ? [{ id: "edit", label: t("عدّل وابعت من جديد"), onSelect: () => onEdit(message) }] : []),
+          ...(onFork ? [{ id: "fork", label: t("افرع محادثة من هون"), onSelect: () => onFork(message) }] : []),
         ])}
       >
         {message.attachments && message.attachments.length > 0 && <AttachmentGallery attachments={message.attachments} align="end" />}
@@ -114,15 +130,34 @@ export function MessageView({ message, model, onOpenTask }: { message: ChatMessa
             <TokenText text={message.content} />
           </div>
         )}
-        {message.created_at && (
-          <span
-            className="px-1 text-[11px] opacity-0 transition-opacity group-hover:opacity-100"
-            style={{ color: "var(--color-ink-muted)" }}
-            dir="auto"
-          >
-            {clockTime(message.created_at)}
-          </span>
-        )}
+        <div className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+          {onEdit && message.content && (
+            <button
+              onClick={() => onEdit(message)}
+              title={t("عدّل السؤال وابعته من جديد — اللي بعده بينمسح")}
+              className="rounded-md px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--color-surface-2)]"
+              style={{ color: "var(--color-ink-muted)" }}
+            >
+              {t("عدّل")}
+            </button>
+          )}
+          {onFork && (
+            <button
+              onClick={() => onFork(message)}
+              title={t("انسخ المحادثة لهون بمحادثة جديدة، وخلّي هاي متل ما هي")}
+              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--color-surface-2)]"
+              style={{ color: "var(--color-ink-muted)" }}
+            >
+              <ForkIcon className="h-3 w-3" />
+              {t("فرّع")}
+            </button>
+          )}
+          {message.created_at && (
+            <span className="px-1 text-[11px]" style={{ color: "var(--color-ink-muted)" }} dir="auto">
+              {clockTime(message.created_at)}
+            </span>
+          )}
+        </div>
       </motion.div>
     );
   }
@@ -186,25 +221,33 @@ export function AssistantBlock({
       </motion.div>
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         {reasoning && <Reasoning text={reasoning} live={live && !text} />}
-        {visible.map((part, i) => (
+        {groupTasks(visible).map((item) => (
           <motion.div
-            key={part.kind === "text" ? `text-${i}` : `${part.kind}-${"id" in part ? part.id : part.task_id}`}
+            key={item.key}
             initial={live ? { opacity: 0, y: 3 } : false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, ease: easeOutExpo }}
           >
-            {part.kind === "text" ? (
+            {item.kind === "tasks" ? (
+              item.tasks.length === 1 ? (
+                <TaskCard taskId={item.tasks[0].task_id} title={item.tasks[0].title} onOpen={() => onOpenTask(item.tasks[0].task_id)} fresh={live} />
+              ) : (
+                <TaskGroup tasks={item.tasks} onOpen={onOpenTask} fresh={live} />
+              )
+            ) : item.part.kind === "text" ? (
               <div>
-                <Markdown text={part.text} />
-                {live && i === visible.length - 1 && <span className="stream-caret" aria-hidden />}
+                <Markdown text={item.part.text} />
+                {live && item.last && <span className="stream-caret" aria-hidden />}
               </div>
-            ) : part.kind === "tool" ? (
-              <ToolCard tool={part.tool} args={part.args} result={part.ok === undefined ? undefined : { ok: part.ok, output: part.output ?? "" }} />
-            ) : part.kind === "permission" ? (
-              <PermissionCard call={part.call} resolution={part.resolution} onResolve={(r) => onResolve?.(part.id, r)} />
-            ) : (
-              <TaskCard taskId={part.task_id} title={part.title} onOpen={() => onOpenTask(part.task_id)} fresh={live} />
-            )}
+            ) : item.part.kind === "tool" ? (
+              <ToolCard
+                tool={item.part.tool}
+                args={item.part.args}
+                result={item.part.ok === undefined ? undefined : { ok: item.part.ok, output: item.part.output ?? "" }}
+              />
+            ) : item.part.kind === "permission" ? (
+              <PermissionCard call={item.part.call} resolution={item.part.resolution} onResolve={(r) => onResolve?.(permissionId(item.part), r)} />
+            ) : null}
           </motion.div>
         ))}
         {thinking && <ThinkingDots label={visible.length ? t("عم يكمّل…") : t("عم يفكّر…")} />}
@@ -227,30 +270,36 @@ export function AssistantBlock({
   );
 }
 
+type TaskRef = { task_id: string; title: string };
+type Item =
+  | { kind: "tasks"; key: string; tasks: TaskRef[] }
+  | { kind: "part"; key: string; part: Exclude<ChatPart, { kind: "task" }>; last: boolean };
+
+/** Tasks created one after another read as one batch, so they're drawn as one card. */
+function groupTasks(parts: ChatPart[]): Item[] {
+  const items: Item[] = [];
+  parts.forEach((part, i) => {
+    if (part.kind === "task") {
+      const prev = items[items.length - 1];
+      if (prev?.kind === "tasks") prev.tasks.push(part);
+      else items.push({ kind: "tasks", key: `tasks-${part.task_id}`, tasks: [part] });
+      return;
+    }
+    const key = part.kind === "text" ? `text-${i}` : `${part.kind}-${part.id}`;
+    items.push({ kind: "part", key, part, last: i === parts.length - 1 });
+  });
+  return items;
+}
+
+function permissionId(part: ChatPart): string {
+  return part.kind === "permission" ? part.id : "";
+}
+
 /** A task the model created from the chat; tracks its live status until it settles. */
 function TaskCard({ taskId, title, onOpen, fresh }: { taskId: string; title: string; onOpen: () => void; fresh: boolean }) {
-  const [status, setStatus] = useState<TaskStatus | null>(null);
-  const [gone, setGone] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      const t = await getTask(taskId);
-      if (!alive) return;
-      if (!t) {
-        setGone(true);
-        return;
-      }
-      setStatus(t.status);
-      if (["queued", "pending", "running"].includes(t.status)) timer = setTimeout(poll, 2500);
-    };
-    poll();
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-    };
-  }, [taskId]);
+  const summary = useTaskSummaries([taskId]).get(taskId);
+  const gone = isGone(taskId);
+  const status: TaskStatus | null = summary?.status ?? null;
 
   return (
     <motion.button
@@ -272,8 +321,8 @@ function TaskCard({ taskId, title, onOpen, fresh }: { taskId: string; title: str
           <TasksIcon className="h-5 w-5" />
         </span>
         <span className="min-w-0">
-          <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            {gone ? t("مهمة انحذفت") : t("مهمة جديدة انضافت للدور")}
+          <span className="block text-xs" style={{ color: summary?.needs_approval ? "var(--color-accent)" : "var(--color-ink-muted)" }}>
+            {gone ? t("مهمة انحذفت") : summary?.needs_approval ? t("بتستنى موافقتك — افتحها") : t("مهمة من المحادثة")}
           </span>
           <span className="block truncate text-sm font-medium">
             <TokenText text={title} />
@@ -282,6 +331,93 @@ function TaskCard({ taskId, title, onOpen, fresh }: { taskId: string; title: str
       </span>
       {status && !gone && <StatusPill status={status} />}
     </motion.button>
+  );
+}
+
+/** A batch of tasks: how far along it is at a glance, and each task one click away. */
+function TaskGroup({ tasks, onOpen, fresh }: { tasks: TaskRef[]; onOpen: (id: string) => void; fresh: boolean }) {
+  const known = useTaskSummaries(tasks.map((task) => task.task_id));
+  const count = (status: TaskStatus) => tasks.filter((task) => known.get(task.task_id)?.status === status).length;
+  const done = count("completed");
+  const failed = count("failed") + count("cancelled");
+  const running = count("running");
+  const waiting = tasks.length - done - failed - running;
+  const approvals = tasks.filter((task) => known.get(task.task_id)?.needs_approval).length;
+  const settled = done + failed;
+
+  return (
+    <motion.div
+      initial={fresh ? { scale: 0.97, opacity: 0 } : false}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={snappy}
+      className={`overflow-hidden rounded-xl border ${fresh ? "flash-accent" : ""}`}
+      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+    >
+      <div className="flex items-center gap-3 px-4 pb-2 pt-3">
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+          style={{ background: "var(--color-surface-2)", color: "var(--color-accent)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+        >
+          <TasksIcon className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">
+            {/* Arabic counts: 2–10 take the plural, 11 and up the singular. */}
+            {tasks.length <= 10 ? t("{0} مهام", { 0: tasks.length }) : t("{0} من المهام", { 0: tasks.length })}
+          </span>
+          <span className="flex flex-wrap gap-x-2 text-xs tabular-nums" style={{ color: "var(--color-ink-muted)" }}>
+            {running > 0 && <span style={{ color: "var(--color-accent)" }}>{t("{0} شغّالة", { 0: running })}</span>}
+            {waiting > 0 && <span>{t("{0} بالانتظار", { 0: waiting })}</span>}
+            {done > 0 && <span style={{ color: "var(--color-success)" }}>{t("{0} خلصت", { 0: done })}</span>}
+            {failed > 0 && <span style={{ color: "var(--color-danger)" }}>{t("{0} وقفت", { 0: failed })}</span>}
+            {approvals > 0 && <span style={{ color: "var(--color-accent)" }}>{t("{0} بتستنى موافقتك", { 0: approvals })}</span>}
+          </span>
+        </span>
+        <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--color-ink-muted)" }}>
+          {settled}/{tasks.length}
+        </span>
+      </div>
+      <div className="mx-4 mb-2 h-1 overflow-hidden rounded-full" style={{ background: "var(--color-surface-2)" }}>
+        <motion.div
+          className="h-full rounded-full"
+          style={{ background: failed && !done ? "var(--color-danger)" : "var(--color-accent)" }}
+          initial={false}
+          animate={{ width: `${(settled / tasks.length) * 100}%` }}
+          transition={{ duration: 0.5, ease: easeOutExpo }}
+        />
+      </div>
+      <ul className="max-h-72 overflow-y-auto border-t py-1" style={{ borderColor: "var(--color-border)" }}>
+        {tasks.map((task) => {
+          const summary = known.get(task.task_id);
+          const gone = isGone(task.task_id);
+          return (
+            <li key={task.task_id}>
+              <button
+                onClick={gone ? undefined : () => onOpen(task.task_id)}
+                disabled={gone}
+                className="flex w-full items-center gap-3 px-4 py-1.5 text-start transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-50"
+              >
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  <TokenText text={task.title} />
+                </span>
+                {summary?.needs_approval && (
+                  <span className="shrink-0 text-[11px]" style={{ color: "var(--color-accent)" }}>
+                    {t("بتستنى موافقتك")}
+                  </span>
+                )}
+                {gone ? (
+                  <span className="shrink-0 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+                    {t("انحذفت")}
+                  </span>
+                ) : (
+                  summary && <StatusPill status={summary.status} />
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </motion.div>
   );
 }
 

@@ -14,6 +14,7 @@ from rafiq_agent.schemas.models import (
     DiscoverRequest,
     ModelAuthUpdate,
     ModelCreate,
+    ModelFallbackUpdate,
     ModelOut,
 )
 from rafiq_agent.storage.db import get_session
@@ -41,6 +42,8 @@ def _to_out(model: LlmModel) -> ModelOut:
         account_id=model.account_id,
         account_label=model.account.label if model.account else None,
         account_status=model.account.status if model.account else None,
+        fallback_model_id=model.fallback_model_id,
+        options=dict(model.options or {}),
     )
 
 
@@ -148,7 +151,7 @@ async def discover(
             ) from exc
         return [DiscoveredModelOut(id=model, display_name=name) for model, name in found]
     try:
-        found = await discover_models(body.provider, body.api_key, body.base_url)
+        found = await discover_models(body.provider, body.api_key, body.base_url, body.options)
     except DiscoveryError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return [DiscoveredModelOut(id=m.id, display_name=m.display_name) for m in found]
@@ -162,7 +165,7 @@ async def create_model(body: ModelCreate, session: AsyncSession = Depends(get_se
         result = await _verify_with_account(account, body.model_id, body.base_url)
     else:
         account = None
-        result = await verify_model(body.provider, body.model_id, body.api_key, body.base_url)
+        result = await verify_model(body.provider, body.model_id, body.api_key, body.base_url, body.options)
     if not result.ok:
         raise HTTPException(status_code=400, detail=tr("الموديل ما اشتغل: {0}", result.error))
 
@@ -175,6 +178,7 @@ async def create_model(body: ModelCreate, session: AsyncSession = Depends(get_se
         api_key_ref=api_key_ref,
         auth_method="oauth" if account else "api_key",
         account_id=account.id if account else None,
+        options={k: v for k, v in body.options.items() if v} or None,
     )
     _apply_verification(model, result)
     session.add(model)
@@ -195,7 +199,7 @@ async def reverify_model(model_id: str, session: AsyncSession = Depends(get_sess
             result = await _verify_with_account(model.account, model.model_id, model.base_url)
     else:
         result = await verify_model(
-            model.provider, model.model_id, get_api_key(model.api_key_ref), model.base_url
+            model.provider, model.model_id, get_api_key(model.api_key_ref), model.base_url, model.options
         )
     _apply_verification(model, result)
     await session.commit()
@@ -221,11 +225,31 @@ async def set_model_account(
     return _to_out(model)
 
 
+@router.put("/{model_id}/fallback", response_model=ModelOut)
+async def set_model_fallback(
+    model_id: str, body: ModelFallbackUpdate, session: AsyncSession = Depends(get_session)
+) -> ModelOut:
+    """Which agent takes over when this one's provider keeps failing."""
+    model = await session.get(LlmModel, model_id)
+    if not model:
+        raise HTTPException(status_code=404, detail="model not found")
+    target = body.fallback_model_id or None
+    if target is not None and (target == model_id or not await session.get(LlmModel, target)):
+        raise HTTPException(status_code=400, detail=tr("اختار نموذج تاني كاحتياطي."))
+    model.fallback_model_id = target
+    await session.commit()
+    await session.refresh(model)
+    return _to_out(model)
+
+
 @router.delete("/{model_id}", status_code=204)
 async def delete_model(model_id: str, session: AsyncSession = Depends(get_session)) -> None:
     model = await session.get(LlmModel, model_id)
     if not model:
         raise HTTPException(status_code=404, detail="model not found")
     delete_api_key(model.api_key_ref)
+    # Agents that fell back to this one simply have no fallback now.
+    for other in (await session.execute(select(LlmModel).where(LlmModel.fallback_model_id == model_id))).scalars():
+        other.fallback_model_id = None
     await session.delete(model)
     await session.commit()

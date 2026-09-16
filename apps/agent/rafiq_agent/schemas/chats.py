@@ -43,6 +43,12 @@ class ChatUpdate(BaseModel):
     settings: ReplySettings | None = None
 
 
+class ChatFork(BaseModel):
+    """Copy the chat up to this message (None = all of it)."""
+
+    until_message_id: str | None = None
+
+
 class MessageCreate(BaseModel):
     content: str
     model_id: str
@@ -72,6 +78,8 @@ class ChatSummaryOut(BaseModel):
     summary_until: str | None = None
     pinned: bool = False
     message_count: int = 0
+    # A reply is being written right now (the page can reattach to it).
+    streaming: bool = False
     created_at: datetime
     updated_at: datetime
 

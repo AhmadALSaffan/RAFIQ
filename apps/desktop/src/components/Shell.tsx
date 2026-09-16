@@ -17,7 +17,8 @@ import {
 import { DEFAULT_LAYOUT, NAV_COLLAPSED, NAV_MAX, NAV_MIN, setLayout, useLayout } from "../lib/layout";
 import { Resizer } from "./Resizer";
 import { useTheme } from "../lib/theme";
-import { listTasks } from "../lib/api";
+import { getSettings, listTasks } from "../lib/api";
+import { notify, syncBackground } from "../lib/background";
 import type { TaskSummary } from "../lib/types";
 import { easeOutExpo, snappy } from "../lib/motion";
 import { ToastStack, type Toast } from "./Toasts";
@@ -61,6 +62,15 @@ function useTaskWatcher(currentPath: string, navigate: (to: string) => void) {
       const before = previous.current;
       previous.current = new Map(list.map((t) => [t.id, t]));
       if (!before) return; // first load: don't toast history
+
+      // Rafiq may be hidden in the tray: say it with a Windows notification too.
+      for (const task of list) {
+        const old = before.get(task.id);
+        if (task.needs_approval && !old?.needs_approval) void notify(t("رفيق بدّه إذنك"), task.title);
+        if (old && old.status !== task.status && (task.status === "completed" || task.status === "failed")) {
+          void notify(task.status === "completed" ? t("خلصت مهمة") : t("مهمة ما نجحت"), task.title);
+        }
+      }
 
       setToasts((prev) => {
         let next = prev.filter((t) => {
@@ -122,6 +132,13 @@ export function Shell() {
   const location = useLocation();
   const navigate = useNavigate();
   const { running, queued, approvals, toasts, dismiss } = useTaskWatcher(location.pathname, navigate);
+
+  // The tray and close-to-tray follow the saved setting from the first moment.
+  useEffect(() => {
+    getSettings()
+      .then((s) => syncBackground(s.run_in_background ?? true))
+      .catch(() => undefined);
+  }, []);
   const section = "/" + (location.pathname.split("/")[1] ?? "");
   // Chat and the design workspace fill the window and scroll their own panes.
   const fullHeight = section === "/chat" || /^\/designs\/.+/.test(location.pathname);

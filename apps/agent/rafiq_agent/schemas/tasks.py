@@ -32,6 +32,11 @@ class TaskSummaryOut(BaseModel):
     origin: dict[str, Any] | None = None
     status: TaskStatus
     needs_approval: bool = False
+    # Its changes in git (core.task_git): "running" · "applied" · "pending" · "conflict" ·
+    # "reverted" · "empty" · "error" — None when the folder isn't a repository.
+    changes: str | None = None
+    # Works in its own git worktree (planned or running).
+    isolated: bool = False
     created_at: datetime
     # Last time anything moved on the task — the UI reads it as "finished at" once the
     # task is no longer running, which is how it shows how long a run took.

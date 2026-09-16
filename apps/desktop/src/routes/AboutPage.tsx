@@ -25,6 +25,7 @@ import {
   TasksIcon,
 } from "../components/Icons";
 import { DrawnCheck } from "../components/ui";
+import { UpdateCard } from "../features/updates/UpdateCard";
 
 import { locale, t } from "../i18n";
 const DEVELOPER = {
@@ -47,7 +48,7 @@ const FEATURES = [
     Icon: TasksIcon,
     title: t("المهام"),
     to: "/tasks",
-    body: t("اعطيه شغلة وخلّيه يخلصها لحاله بمجلدك: بيقرأ ويكتب ملفات ويشغّل أوامر، بالدور، وبيوقف ياخد إذنك قبل أي خطوة حسّاسة."),
+    body: t("اعطيه شغلة وخلّيه يخلصها لحاله بمجلدك: بيقرأ ويكتب ملفات ويشغّل أوامر، وكذا مهمة بنفس الوقت، وبيوقف ياخد إذنك قبل أي خطوة حسّاسة."),
   },
   {
     Icon: SparkIcon,
@@ -128,6 +129,10 @@ export function AboutPage() {
         >
           v{__APP_VERSION__}
         </motion.span>
+      </section>
+
+      <section className="mt-8">
+        <UpdateCard />
       </section>
 
       {/* What it is, in plain words. */}

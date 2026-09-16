@@ -20,8 +20,17 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "supports_tools": "BOOLEAN",
         "auth_method": "VARCHAR DEFAULT 'api_key'",
         "account_id": "VARCHAR",
+        "fallback_model_id": "VARCHAR",
+        "options": "JSON",
     },
-    "tasks": {"working_dir": "VARCHAR", "attachments": "JSON", "origin": "JSON"},
+    "tasks": {
+        "working_dir": "VARCHAR",
+        "attachments": "JSON",
+        "origin": "JSON",
+        "paths": "JSON",
+        "depends_on": "JSON",
+        "git": "JSON",
+    },
     "chats": {
         "working_dir": "VARCHAR",
         "settings": "JSON",

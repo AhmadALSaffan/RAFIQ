@@ -10,6 +10,9 @@ websockets>=13.1
 python-multipart>=0.0.20
 pypdf>=5.1
 pillow>=11.0
+mcp>=2.2
+google-auth>=2.36
+boto3>=1.35
 
 [agent]
 litellm>=1.55

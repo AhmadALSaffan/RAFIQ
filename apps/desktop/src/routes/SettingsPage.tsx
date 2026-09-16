@@ -6,6 +6,9 @@ import { Button, DrawnCheck } from "../components/ui";
 import { PageHeader, StatusStripe } from "../components/Page";
 import { ActionProgress } from "../components/Feedback";
 import { ConnectedAccountsSection } from "../features/accounts/ConnectedAccountsSection";
+import { ToggleRow } from "../features/settings/controls";
+import { BackgroundSettings, McpSettings, TasksSettings, WebSettings } from "../features/settings/sections";
+import { UsageSettings } from "../features/settings/usage";
 import { listContainer, listItem, snappy } from "../lib/motion";
 import type { AppSettings, PermissionKey, PermissionMode } from "../lib/types";
 import { usePageMenu } from "../components/ContextMenu";
@@ -27,9 +30,10 @@ const permissionRows: { key: PermissionKey; label: string; hint: string }[] = [
   { key: "filesystem_write", label: t("الكتابة على الملفات"), hint: t("إنشاء/تعديل/حذف ملفات") },
   { key: "shell", label: t("أوامر Shell"), hint: t("تنفيذ أوامر على الجهاز") },
   { key: "process", label: t("إدارة العمليات"), hint: t("إيقاف أو تشغيل عمليات") },
-  { key: "browser_navigate", label: t("تصفح مواقع خارجية"), hint: t("فتح روابط خارج localhost") },
+  { key: "browser_navigate", label: t("الويب والمتصفح"), hint: t("قراءة صفحات، البحث، واستخدام المتصفح (ضغط وكتابة)") },
   { key: "desktop_control", label: t("التحكم بسطح المكتب"), hint: t("تحريك الفأرة والكتابة على أي تطبيق") },
   { key: "issue_write", label: t("التعديل على مهام Jira وغيرها"), hint: t("كتابة تعليق أو تعليم مهمة كمكتملة") },
+  { key: "mcp", label: t("أدوات MCP"), hint: t("استدعاء أدوات خوادم MCP اللي ربطتها") },
 ];
 
 const modeLabel: Record<PermissionMode, string> = {
@@ -219,30 +223,6 @@ function LayoutSection() {
   );
 }
 
-function ToggleRow({ label, hint, checked, onChange }: { label: string; hint: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!checked)}
-      role="switch"
-      aria-checked={checked}
-      className="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-start"
-      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
-    >
-      <span>
-        <span className="block text-sm font-medium">{label}</span>
-        <span className="mt-0.5 block text-xs" style={{ color: "var(--color-ink-muted)" }}>
-          {hint}
-        </span>
-      </span>
-      <span
-        className="flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
-        style={{ background: checked ? "var(--color-accent)" : "var(--color-surface-2)", justifyContent: checked ? "flex-end" : "flex-start" }}
-      >
-        <motion.span layout transition={snappy} className="h-5 w-5 rounded-full bg-white shadow-sm" />
-      </span>
-    </button>
-  );
-}
 
 const MODE_COLOR: Record<PermissionMode, string> = {
   ask: "var(--color-pending)",
@@ -307,6 +287,16 @@ export function SettingsPage() {
 
       <LayoutSection />
 
+      <TasksSettings settings={settings} persist={persist} />
+
+      <UsageSettings settings={settings} persist={persist} />
+
+      <WebSettings settings={settings} persist={persist} />
+
+      <McpSettings />
+
+      <BackgroundSettings settings={settings} persist={persist} />
+
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-medium">{t("سياسة الصلاحيات")}</h2>
         <motion.div variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
@@ -369,6 +359,7 @@ export function SettingsPage() {
     </div>
   );
 }
+
 
 /** A quiet confirmation that fades in after each save and out a moment later. */
 function SavedNote({ at }: { at: number | null }) {

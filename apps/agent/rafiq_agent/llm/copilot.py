@@ -192,6 +192,8 @@ class CopilotProvider:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._events: asyncio.Queue[tuple[str, Any]] | None = None
         self._pending: dict[str, asyncio.Future[str]] = {}
+        # Set by the agent loop; without it Copilot's own tools get nothing approved.
+        self._permit: Any = None
 
     def __repr__(self) -> str:
         return f"CopilotProvider(model={self._model_id!r}, account_id={self._account_id!r})"
@@ -218,9 +220,38 @@ class CopilotProvider:
 
         return handler
 
-    async def _open(self, system: str, tools: list[dict[str, Any]]) -> None:
+    def set_permission_hook(self, ask: Any) -> None:
+        """The loop's permission gate, so Copilot's own web_fetch still asks the user."""
+        self._permit = ask
+
+    async def _url_permission(self, request: Any) -> Any:
+        """Copilot asks before its built-in web_fetch opens a URL — Rafiq's browsing
+        permission decides, exactly as it would for Rafiq's own tool."""
+        from copilot.generated.rpc import PermissionDecisionApproveOnce, PermissionDecisionReject
+
+        if self._permit is None:
+            return PermissionDecisionReject(feedback="not allowed in Rafiq")
+        allowed = await self._permit("web_fetch", "exec", {"url": getattr(request, "url", "")})
+        if allowed:
+            return PermissionDecisionApproveOnce()
+        # Feedback goes to Copilot's runtime, not to the user — the UI already showed the
+        # refusal on the permission card.
+        return PermissionDecisionReject(feedback="the user did not allow opening this URL")
+
+    async def _on_permission(self, request: Any, _context: Any) -> Any:
         from copilot.generated.rpc import PermissionDecisionReject
+
+        # A URL request comes from the built-in web_fetch we deliberately left switched on.
+        # Everything else is a Copilot built-in Rafiq never offered, so it stays refused.
+        if getattr(request, "kind", None) == "url":
+            return await self._url_permission(request)
+        return PermissionDecisionReject(feedback="not allowed in Rafiq")
+
+    async def _open(self, system: str, tools: list[dict[str, Any]]) -> None:
+        from copilot import ToolSet
         from copilot.tools import Tool
+
+        from rafiq_agent.llm.presets import native_tools
 
         self._loop = asyncio.get_running_loop()
         self._events = asyncio.Queue()
@@ -237,14 +268,23 @@ class CopilotProvider:
             )
             for t in tools
         ]
+        # Whitelist: Rafiq's tools, plus the built-ins Copilot does better itself (see
+        # NATIVE_TOOLS in llm/presets.py — Rafiq leaves those out of its own registry).
+        # Copilot's shell, file and editing tools are never offered, so they can't bypass
+        # Rafiq's policy, and the one built-in we do allow still asks through
+        # `on_permission_request` below.
+        allowed = ToolSet()
+        for tool in sdk_tools:
+            allowed.add_custom(tool.name)
+        for builtin in sorted(native_tools("github_copilot", self._model_id)):
+            allowed.add_builtin(builtin)
+
         options: dict[str, Any] = {
             "model": self._model_id,
             "tools": sdk_tools,
-            # Whitelist: only Rafiq's tools exist in this session — Copilot's own shell,
-            # file and web tools are never offered, so they can't bypass Rafiq's policy.
-            "available_tools": [t.name for t in sdk_tools],
+            "available_tools": allowed,
             "system_message": {"mode": "replace", "content": system or "You are Rafiq."},
-            "on_permission_request": lambda *_: PermissionDecisionReject(feedback="not allowed in Rafiq"),
+            "on_permission_request": self._on_permission,
             "streaming": True,
             "on_event": self._on_event,
             "enable_skills": False,

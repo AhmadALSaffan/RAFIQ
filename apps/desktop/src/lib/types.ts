@@ -7,6 +7,16 @@ export type Provider =
   | "mistral"
   | "xai"
   | "openrouter"
+  | "azure"
+  | "bedrock"
+  | "vertex_ai"
+  | "cerebras"
+  | "fireworks_ai"
+  | "together_ai"
+  | "dashscope"
+  | "moonshot"
+  | "zai"
+  | "lm_studio"
   | "ollama"
   | "custom"
   | "github_copilot"
@@ -31,6 +41,10 @@ export interface LlmModel {
   /** Who the agent signs in as — a display name, never a token. */
   account_label: string | null;
   account_status: "connected" | "disconnected" | null;
+  /** Another agent that takes over when this one's provider keeps failing. */
+  fallback_model_id?: string | null;
+  /** Non-secret provider settings (region, api_version, project…). */
+  options?: Record<string, string>;
 }
 
 export type AuthMethod = "api_key" | "oauth";
@@ -104,6 +118,10 @@ export interface TaskSummary {
   origin: { chat_id?: string } | null;
   status: TaskStatus;
   needs_approval: boolean;
+  /** Its changes in git (null when the folder isn't a repository). */
+  changes?: ChangesState | null;
+  /** Works in its own git worktree. */
+  isolated?: boolean;
   created_at: string;
   /** Last time the task moved; once it stops running this is when it finished. */
   updated_at: string;
@@ -160,6 +178,8 @@ export interface ChatSummary {
   summary_until: string | null;
   pinned: boolean;
   message_count: number;
+  /** A reply is being written right now — the chat page reattaches to it. */
+  streaming?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -285,11 +305,153 @@ export type PermissionKey =
   | "process"
   | "browser_navigate"
   | "desktop_control"
-  | "issue_write";
+  | "issue_write"
+  | "mcp";
+
+export type WebSearchProvider = "none" | "brave" | "tavily" | "searxng";
 
 export interface AppSettings {
   permissions: Record<PermissionKey, PermissionMode>;
   desktop_control_enabled: boolean;
+  /** How many tasks may run at once (1–100); tasks editing the same files still take turns. */
+  max_parallel_tasks: number;
+  /** Requests to one provider credential in flight at once (the rest wait instead of hitting 429s). */
+  provider_concurrency: number;
+  /** Tasks on a git repository each work in their own worktree. */
+  task_isolation: boolean;
+  /** Which agent runs the tasks a chat opens (null = the chat's own). */
+  task_model_id: string | null;
+  web_search_provider: WebSearchProvider;
+  searxng_url: string | null;
+  /** The browser tool opens a visible window (off = headless). */
+  browser_visible: boolean;
+  /** Closing the window keeps Rafiq running in the tray. */
+  run_in_background: boolean;
+  /** Stop calling providers once this much is spent today / this month (0 = no limit). */
+  daily_budget_usd: number;
+  monthly_budget_usd: number;
+  /** The speech-to-text model the composer's microphone uses. */
+  transcribe_model: string;
+}
+
+export interface UsageByModel {
+  model_ref: string | null;
+  name: string;
+  calls: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cached_tokens: number;
+  cost_usd: number;
+}
+
+export interface UsageSummary {
+  days: number;
+  today_usd: number;
+  month_usd: number;
+  daily_budget_usd: number;
+  monthly_budget_usd: number;
+  total_usd: number;
+  total_tokens: number;
+  by_model: UsageByModel[];
+  by_day: { date: string; cost_usd: number; tokens: number }[];
+}
+
+/** The bug report — see the agent's api/insights.py; carries nothing secret. */
+export interface Diagnostics {
+  generated_at: string;
+  version: string;
+  python: string;
+  platform: string;
+  frozen: boolean;
+  settings: Record<string, unknown>;
+  models: Record<string, unknown>[];
+  mcp_servers: Record<string, unknown>[];
+  counts: Record<string, number>;
+  recent_failures: Record<string, unknown>[];
+  usage: Record<string, number>;
+}
+
+export interface WebSearchKeys {
+  brave: boolean;
+  tavily: boolean;
+}
+
+/** A task's changes in git — see the agent's core/task_git.py. */
+export type ChangesState = "running" | "applied" | "pending" | "conflict" | "reverted" | "empty" | "error";
+
+export interface ChangedFile {
+  path: string;
+  status: "added" | "modified" | "deleted" | "renamed";
+  additions: number;
+  deletions: number;
+  binary: boolean;
+}
+
+export interface TaskChanges {
+  available: boolean;
+  mode: "worktree" | "inplace" | "none" | null;
+  state: ChangesState | null;
+  error: string | null;
+  files: ChangedFile[];
+  diff: string;
+  truncated: boolean;
+}
+
+export interface TaskTemplate {
+  id: string;
+  name: string;
+  prompt: string;
+  model_id: string | null;
+  working_dir: string | null;
+  created_at: string;
+}
+
+export type ScheduleKind = "interval" | "daily" | "weekly";
+
+export interface ScheduleInput {
+  title: string;
+  prompt: string;
+  model_id: string;
+  working_dir: string | null;
+  kind: ScheduleKind;
+  every_minutes: number | null;
+  at_time: string | null;
+  /** 0 = Monday … 6 = Sunday */
+  weekdays: number[] | null;
+  enabled: boolean;
+}
+
+export interface Schedule extends ScheduleInput {
+  id: string;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  last_task_id: string | null;
+  created_at: string;
+}
+
+export interface McpServerInput {
+  name: string;
+  transport: "stdio" | "http";
+  command: string | null;
+  args: string[];
+  url: string | null;
+  /** Secret values. On update an empty value keeps the saved one; a key left out is removed. */
+  env: Record<string, string>;
+  headers: Record<string, string>;
+  enabled: boolean;
+}
+
+export interface McpServer {
+  id: string;
+  name: string;
+  transport: "stdio" | "http";
+  command: string | null;
+  args: string[];
+  url: string | null;
+  enabled: boolean;
+  /** Names of the saved secrets — never their values. */
+  secret_keys: string[];
+  status: { connected: boolean; tools: string[]; error: string | null };
 }
 
 export interface InitQuestion {

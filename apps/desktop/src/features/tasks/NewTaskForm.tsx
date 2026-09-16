@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { motion } from "motion/react";
-import { createTask, providerLabel } from "../../lib/api";
+import { createTask, providerLabel, saveTemplate } from "../../lib/api";
 import type { LlmModel } from "../../lib/types";
 import { recentFolders, rememberFolder } from "../../lib/folders";
 import { snappy } from "../../lib/motion";
@@ -12,24 +12,45 @@ import { BrandMark } from "../../components/BrandMark";
 import { Button, ErrorText, Field } from "../../components/ui";
 import { FolderPicker } from "../../components/FolderPicker";
 import { DropZone, UploadChips, useUploads } from "../../components/Attachments";
+import type { TemplateSeed } from "./automation";
 
 import { t } from "../../i18n";
 export function NewTaskForm({
   models,
+  initial,
   onCancel,
   onCreated,
 }: {
   models: LlmModel[];
+  /** Filled in from a template. */
+  initial?: TemplateSeed | null;
   onCancel: () => void;
   onCreated: (task: { id: string }) => void;
 }) {
   const firstUsable = models.find((m) => m.verify_ok !== false);
-  const [title, setTitle] = useState("");
-  const [prompt, setPrompt] = useState("");
-  const [modelId, setModelId] = useState(firstUsable?.id ?? "");
-  const [folder, setFolder] = useState(recentFolders()[0] ?? "");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [prompt, setPrompt] = useState(initial?.prompt ?? "");
+  const [modelId, setModelId] = useState(initial?.model_id || firstUsable?.id || "");
+  const [folder, setFolder] = useState(initial?.working_dir ?? recentFolders()[0] ?? "");
   const [saving, setSaving] = useState(false);
+  const [savedTemplate, setSavedTemplate] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function keepAsTemplate() {
+    setError(null);
+    try {
+      await saveTemplate({
+        name: title.trim() || prompt.trim().slice(0, 48),
+        prompt,
+        model_id: modelId || null,
+        working_dir: folder.trim() || null,
+      });
+      setSavedTemplate(true);
+      setTimeout(() => setSavedTemplate(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("صار خطأ غير متوقع"));
+    }
+  }
   const uploads = useUploads();
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -188,6 +209,9 @@ export function NewTaskForm({
           </Button>
           <Button type="button" variant="ghost" onClick={onCancel}>
             {t("إلغاء")}
+          </Button>
+          <Button type="button" variant="ghost" className="ms-auto" onClick={keepAsTemplate} disabled={!prompt.trim()}>
+            {savedTemplate ? t("انحفظ كقالب ✓") : t("احفظ كقالب")}
           </Button>
         </div>
       </form>

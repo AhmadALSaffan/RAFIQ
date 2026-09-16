@@ -61,6 +61,19 @@ export async function deleteChatMessage(chatId: string, messageId: string): Prom
   await request<void>(`/chats/${chatId}/messages/${messageId}`, { method: "DELETE" });
 }
 
+/** Drops a message and everything after it — how editing a question starts. */
+export async function truncateChatFrom(chatId: string, messageId: string): Promise<ChatDetail> {
+  return request<ChatDetail>(`/chats/${chatId}/messages/${messageId}/truncate`, { method: "POST" });
+}
+
+/** Copies the chat up to a message into a new one (leaving this one untouched). */
+export async function forkChat(chatId: string, untilMessageId?: string): Promise<ChatDetail> {
+  return request<ChatDetail>(`/chats/${chatId}/fork`, {
+    method: "POST",
+    body: JSON.stringify({ until_message_id: untilMessageId ?? null }),
+  });
+}
+
 export async function deleteChat(id: string): Promise<void> {
   await request<void>(`/chats/${id}`, { method: "DELETE" });
 }
@@ -75,9 +88,14 @@ export type ChatStreamEvent =
   | { type: "permission_resolved"; id: string; resolution: Resolution }
   | { type: "task_created"; task: { id: string; title: string; status: TaskStatus } }
   | { type: "done"; message: ChatMessage }
+  | { type: "stopped" }
   | { type: "error"; message: string };
 
-/** Sends a message and streams the reply (Server-Sent Events over fetch). Abort via `signal`. */
+/**
+ * Sends a message and streams the reply (Server-Sent Events over fetch). Aborting `signal`
+ * only stops *watching*: the reply keeps being written on the agent, and
+ * `attachChatStream` picks it up again. `stopChat` is what stops it.
+ */
 export async function sendChatMessage(
   chatId: string,
   content: string,
@@ -94,6 +112,36 @@ export async function sendChatMessage(
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "Accept-Language": locale() },
     body: JSON.stringify({ content, model_id: modelId, attachment_ids: attachmentIds }),
   });
+  await readEvents(res, onEvent);
+}
+
+/**
+ * Rejoins the reply being written in a chat, replaying it from its first event.
+ * Resolves `false` when the chat has no reply in progress.
+ */
+export async function attachChatStream(
+  chatId: string,
+  onEvent: (event: ChatStreamEvent) => void,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  const { baseUrl, token } = await getApiConfig();
+  const res = await fetch(`${baseUrl}/chats/${chatId}/stream`, {
+    cache: "no-store",
+    signal,
+    headers: { Authorization: `Bearer ${token}`, "Accept-Language": locale() },
+  });
+  if (res.status === 204) return false;
+  await readEvents(res, onEvent);
+  return true;
+}
+
+/** Stops the reply being written; what it wrote so far is kept. */
+export async function stopChat(chatId: string): Promise<boolean> {
+  const out = await request<{ stopped: boolean }>(`/chats/${chatId}/stop`, { method: "POST" });
+  return out.stopped;
+}
+
+async function readEvents(res: Response, onEvent: (event: ChatStreamEvent) => void): Promise<void> {
   if (!res.ok || !res.body) {
     const detail = await res.json().catch(() => null);
     throw new Error(detail?.detail ?? `${res.status} ${res.statusText}`);

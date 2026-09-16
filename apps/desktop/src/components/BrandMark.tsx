@@ -34,6 +34,16 @@ const MONOGRAMS: Record<string, { text: string; color: string }> = {
   xai: { text: "X", color: "#111111" },
   custom: { text: "⚙", color: "#8B8B8B" },
   authai: { text: "A", color: "#B7791F" },
+  azure: { text: "Az", color: "#0078D4" },
+  bedrock: { text: "aws", color: "#FF9900" },
+  vertex_ai: { text: "V", color: "#4285F4" },
+  cerebras: { text: "C", color: "#F05A28" },
+  fireworks_ai: { text: "F", color: "#5C24E0" },
+  together_ai: { text: "T", color: "#0F6FFF" },
+  dashscope: { text: "Q", color: "#615CED" },
+  moonshot: { text: "K", color: "#1A1A1A" },
+  zai: { text: "Z", color: "#2B6CF5" },
+  lm_studio: { text: "LM", color: "#4338CA" },
 };
 
 function isDark(hex: string): boolean {

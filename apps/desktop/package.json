@@ -1,7 +1,7 @@
 {
   "name": "rafiq-desktop",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "build:agent": "cd ../agent && .venv\\Scripts\\pyinstaller.exe rafiq-agent.spec --noconfirm --distpath dist --workpath build",
-    "build:app": "pnpm build:agent && tauri build",
+    "build:app": "node scripts/build-app.mjs",
     "release": "pnpm check && pnpm build:app && node scripts/release.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -18,7 +18,11 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/plugin-autostart": "^2.5.1",
     "@tauri-apps/plugin-dialog": "^2.7.3",
+    "@tauri-apps/plugin-notification": "^2.4.0",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.11.0",
     "motion": "^13.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

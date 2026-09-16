@@ -35,6 +35,7 @@ import { Markdown } from "../../components/Markdown";
 import { PermissionCard, ThinkingDots, ToolCard } from "../../components/steps";
 import { AttachmentGallery } from "../../components/Attachments";
 import { formatDuration } from "./pieces";
+import { ChangesPanel } from "./ChangesPanel";
 
 import { t } from "../../i18n";
 type Block =
@@ -136,7 +137,12 @@ export function TaskDetailPage() {
   }, [blocks]);
 
   useEffect(() => {
-    if (isActive) bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    // Follow new steps only while the reader is already at the end — scrolling up to read an
+    // earlier step must not be yanked back down (nor fought by a smooth scroll) on every event.
+    const end = bottomRef.current;
+    if (isActive && end && end.getBoundingClientRect().top - window.innerHeight < 240) {
+      end.scrollIntoView({ block: "end" });
+    }
   }, [blocks.length, isActive]);
 
   const copyPrompt = useCallback(() => {
@@ -334,10 +340,12 @@ export function TaskDetailPage() {
             >
               <ClockIcon className="h-5 w-5" />
             </motion.span>
-            {t("بانتظار دورها — رح تبلّش لحالها أول ما تخلص المهمة اللي قبلها.")}
+            {t("بالانتظار — رح تبلّش لحالها أول ما تخلص المهام اللي بتعدّل نفس الملفات أو اللي لازم تخلص قبلها.")}
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ChangesPanel taskId={task.id} status={task.status} />
 
       <ol className="flex flex-col gap-3">
         <AnimatePresence initial={false}>

@@ -1,9 +1,10 @@
 /**
- * The task queue: what Rafiq is working on, what's waiting, and what it finished.
+ * The tasks: what Rafiq is working on (often several at once), what's waiting, and what it
+ * finished.
  *
  * Same treatment as the inbox — filters and search on top, one row per task, and each row
- * is a small status report: the running one carries a live line, waiting ones show their
- * place in the queue, and anything blocked on permission says so loudly.
+ * is a small status report: running ones carry a live line, and anything blocked on
+ * permission says so loudly.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,10 +33,45 @@ import { StatusPill } from "../../components/StatusPill";
 import { PageHeader, RefreshButton, StatusStripe } from "../../components/Page";
 import { Button, EmptyState, Reveal } from "../../components/ui";
 import { NewTaskForm } from "./NewTaskForm";
+import { SchedulesPanel, TemplatesPanel, type TemplateSeed } from "./automation";
 import { STATUS_COLOR, statusFilterLabel } from "./pieces";
 
 import { t } from "../../i18n";
 type Filter = "all" | "active" | "queued" | "completed" | "failed";
+type View = "tasks" | "schedules" | "templates";
+
+/** Tasks, the ones that start on a schedule, and saved templates — one page, three views. */
+function ViewTabs({ value, onChange }: { value: View; onChange: (v: View) => void }) {
+  const tabs: { id: View; label: string }[] = [
+    { id: "tasks", label: t("المهام") },
+    { id: "schedules", label: t("المجدولة") },
+    { id: "templates", label: t("القوالب") },
+  ];
+  return (
+    <div className="mb-5 flex gap-1 rounded-xl p-1" style={{ background: "var(--color-surface-2)" }} role="tablist">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          role="tab"
+          aria-selected={value === tab.id}
+          onClick={() => onChange(tab.id)}
+          className="relative flex-1 rounded-lg px-3 py-1.5 text-sm"
+          style={{ color: value === tab.id ? "var(--color-ink)" : "var(--color-ink-muted)" }}
+        >
+          {value === tab.id && (
+            <motion.span
+              layoutId="tasks-view"
+              className="absolute inset-0 rounded-lg"
+              style={{ background: "var(--color-surface)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+              transition={snappy}
+            />
+          )}
+          <span className="relative">{tab.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const FILTERS: Filter[] = ["all", "active", "queued", "completed", "failed"];
 
@@ -57,6 +93,8 @@ export function TasksPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [view, setView] = useState<View>("tasks");
+  const [seed, setSeed] = useState<TemplateSeed | null>(null);
   const [cursor, setCursor] = useState(-1);
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
@@ -112,13 +150,6 @@ export function TasksPage() {
         (!q || [t.title, t.working_dir].some((v) => String(v ?? "").toLowerCase().includes(q))),
     );
   }, [tasks, filter, search]);
-
-  // Oldest queued task runs next; show each waiting task its place in line.
-  const queue = useMemo(
-    () => tasks.filter((t) => t.status === "queued").sort((a, b) => a.created_at.localeCompare(b.created_at)),
-    [tasks],
-  );
-  const queuePosition = (id: string) => queue.findIndex((t) => t.id === id) + 1;
 
   async function removeTask(id: string) {
     setConfirming(null);
@@ -179,7 +210,7 @@ export function TasksPage() {
     <div className="mx-auto max-w-3xl px-8 py-10">
       <PageHeader
         title={t("المهام")}
-        description={t("المهام بتنفّذ بالدور، وحدة ورا التانية. فيك تضيف كتير مهام، أو تبعت خطة بالمحادثة ورفيق بيقسمها لمهام.")}
+        description={t("المهام بتشتغل بالتوازي، إلا اللي بتعدّل نفس الملفات فبتاخد دورها. فيك تضيف كتير مهام، أو تبعت خطة بالمحادثة ورفيق بيقسمها لمهام.")}
         actions={
           <>
             <RefreshButton spinning={refreshing} onClick={() => void refresh(true)} />
@@ -197,12 +228,33 @@ export function TasksPage() {
         }
       />
 
+      <ViewTabs value={view} onChange={setView} />
+
+      {view === "schedules" && <SchedulesPanel models={models} />}
+      {view === "templates" && (
+        <TemplatesPanel
+          models={models}
+          onUse={(seed) => {
+            setSeed(seed);
+            setView("tasks");
+            setComposing(true);
+          }}
+        />
+      )}
+
+      {view === "tasks" && (<>
       <Reveal open={composing}>
         <NewTaskForm
+          key={seed ? `${seed.title}-${seed.prompt.length}` : "blank"}
           models={models}
-          onCancel={() => setComposing(false)}
+          initial={seed}
+          onCancel={() => {
+            setComposing(false);
+            setSeed(null);
+          }}
           onCreated={(task) => {
             setComposing(false);
+            setSeed(null);
             navigate(`/tasks/${task.id}`);
           }}
         />
@@ -386,15 +438,6 @@ export function TasksPage() {
                           </motion.span>
                         )}
                       </AnimatePresence>
-                      {task.status === "queued" && queuePosition(task.id) > 0 && (
-                        <span
-                          className="text-xs tabular-nums"
-                          style={{ color: "var(--color-ink-muted)" }}
-                          title={t("مكانها بالدور")}
-                        >
-                          #{queuePosition(task.id)}
-                        </span>
-                      )}
                       <StatusPill status={task.status as TaskStatus} />
                     </span>
                   </motion.button>
@@ -404,6 +447,7 @@ export function TasksPage() {
           </AnimatePresence>
         </motion.ul>
       )}
+      </>)}
     </div>
   );
 }

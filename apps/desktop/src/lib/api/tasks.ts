@@ -3,6 +3,7 @@
 import { getApiConfig } from "../config";
 import { request } from "./client";
 import type {
+  TaskChanges,
   TaskDetail,
   TaskEvent,
   TaskStatus,
@@ -51,6 +52,21 @@ export async function createTask(input: {
 
 export async function deleteTask(id: string): Promise<void> {
   await request<void>(`/tasks/${id}`, { method: "DELETE" });
+}
+
+/** What the task changed in its folder (a git repository), with the diff. */
+export async function getTaskChanges(id: string): Promise<TaskChanges> {
+  return request<TaskChanges>(`/tasks/${id}/changes`);
+}
+
+/** Applies a task's changes to the folder; `threeWay` merges and may leave conflict markers. */
+export async function applyTaskChanges(id: string, threeWay = false): Promise<TaskChanges> {
+  return request<TaskChanges>(`/tasks/${id}/changes/apply?three_way=${threeWay}`, { method: "POST" });
+}
+
+/** Takes a task's changes back out of the folder. */
+export async function revertTaskChanges(id: string): Promise<TaskChanges> {
+  return request<TaskChanges>(`/tasks/${id}/changes/revert`, { method: "POST" });
 }
 
 export async function cancelTask(id: string): Promise<void> {

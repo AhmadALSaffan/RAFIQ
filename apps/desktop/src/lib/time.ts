@@ -28,6 +28,15 @@ export function dayLabel(iso: string): string {
   return dayFormat.format(date);
 }
 
+/** A time still to come: "اليوم 09:00" / "بكرة 09:00" / "الاثنين ٢١ أيلول 09:00". */
+export function upcomingLabel(iso: string): string {
+  const date = parseUtc(iso);
+  const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((midnight(date) - midnight(new Date())) / 86_400_000);
+  const day = days <= 0 ? t("اليوم") : days === 1 ? t("بكرة") : dayFormat.format(date);
+  return `${day} ${clockFormat.format(date)}`;
+}
+
 export function clockTime(iso: string): string {
   return clockFormat.format(parseUtc(iso));
 }

@@ -25,6 +25,7 @@ import {
   type CommandDef,
   type CommandId,
 } from "../../components/ComposerMenus";
+import { MicButton } from "./MicButton";
 
 import { t } from "../../i18n";
 export function Composer({
@@ -42,6 +43,7 @@ export function Composer({
   openModelMenu,
   onCommand,
   onIssueMentioned,
+  prefill,
 }: {
   disabled: boolean;
   streaming: boolean;
@@ -57,6 +59,8 @@ export function Composer({
   openModelMenu: number;
   onCommand: (id: CommandId) => void;
   onIssueMentioned: (issue: TrackerIssue) => void;
+  /** Text to drop in the box (a question being edited); `at` makes repeats take effect. */
+  prefill?: { text: string; at: number } | null;
 }) {
   const reading = READING_WIDTHS[useLayout().reading];
   const [text, setText] = useState(() => takeChatMessage() ?? "");
@@ -81,6 +85,18 @@ export function Composer({
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
   }, [text]);
+
+  // A question being edited: its text replaces whatever is in the box, caret at the end.
+  useEffect(() => {
+    if (!prefill) return;
+    setText(prefill.text);
+    setCaret(prefill.text.length);
+    const el = ref.current;
+    if (el) {
+      el.focus();
+      requestAnimationFrame(() => el.setSelectionRange(prefill.text.length, prefill.text.length));
+    }
+  }, [prefill]);
 
   function sync(el: HTMLTextAreaElement) {
     setText(el.value);
@@ -231,6 +247,10 @@ export function Composer({
                 if (e.target.files?.length) uploads.add(e.target.files);
                 e.target.value = "";
               }}
+            />
+            <MicButton
+              disabled={disabled}
+              onText={(spoken) => setText((prev) => (prev ? `${prev.replace(/\s*$/, "")} ${spoken}` : spoken))}
             />
             <ModelMenu models={models} value={modelId} onChange={onModel} openSignal={openModelMenu} />
           </div>

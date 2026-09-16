@@ -261,6 +261,16 @@ function Row({
             <span className="min-w-0 flex-1 truncate text-sm" dir="auto" style={{ color: active ? "var(--color-ink)" : undefined }}>
               <TokenText text={chat.title} />
             </span>
+            {chat.streaming && (
+              <motion.span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ background: "var(--color-accent)" }}
+                animate={{ opacity: [1, 0.3, 1] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+                title={t("عم يكتب رد…")}
+                aria-label={t("عم يكتب رد…")}
+              />
+            )}
           </span>
           <span className="flex w-full items-center gap-1.5 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
             {model && <BrandMark provider={model.provider} className="h-3 w-3 shrink-0" />}

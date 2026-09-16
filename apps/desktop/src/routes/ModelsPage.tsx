@@ -8,9 +8,11 @@ import {
   listModels,
   providerLabel,
   setModelAccount,
+  setModelFallback,
   verifyModel,
 } from "../lib/api";
-import { PROVIDERS, providerMeta } from "../lib/providers";
+import { GROUP_LABEL, PROVIDERS, providerMeta } from "../lib/providers";
+import type { ProviderGroup } from "../lib/providers";
 import type { AuthAccount, DiscoveredModel, LlmModel, Provider } from "../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../lib/motion";
 import { timeAgo } from "../lib/time";
@@ -107,6 +109,7 @@ export function ModelsPage() {
                 model={m}
                 highlight={m.id === justAdded}
                 accounts={accounts.filter((a) => a.provider === m.provider && a.status === "connected")}
+                others={models.filter((x) => x.id !== m.id)}
                 onDelete={() => handleDelete(m.id)}
                 onUpdated={(next) => setModels((prev) => prev.map((x) => (x.id === next.id ? next : x)))}
               />
@@ -136,6 +139,7 @@ function ModelRow({
   model,
   highlight,
   accounts,
+  others,
   onDelete,
   onUpdated,
 }: {
@@ -143,6 +147,8 @@ function ModelRow({
   highlight: boolean;
   /** Connected accounts this agent could sign in with (same provider). */
   accounts: AuthAccount[];
+  /** The other agents — any of them can be this one's fallback. */
+  others: LlmModel[];
   onDelete: () => void;
   onUpdated: (m: LlmModel) => void;
 }) {
@@ -209,6 +215,24 @@ function ModelRow({
                 }
               }}
             />
+          )}
+          {others.length > 0 && (
+            <label className="mt-1.5 flex items-center gap-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              <span className="shrink-0">{t("احتياطي:")}</span>
+              <select
+                value={model.fallback_model_id ?? ""}
+                onChange={async (e) => onUpdated(await setModelFallback(model.id, e.currentTarget.value || null))}
+                className="input h-7 min-w-0 max-w-56 py-0 text-xs"
+                title={t("إذا المزوّد ضل يرفض أو وقع، الطلب بيروح للنموذج الاحتياطي تلقائياً.")}
+              >
+                <option value="">{t("بلا")}</option>
+                {others.map((other) => (
+                  <option key={other.id} value={other.id}>
+                    {other.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
         </div>
 
@@ -387,14 +411,32 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
   const [connecting, setConnecting] = useState(false);
   // Providers that take a key *or* an account (OpenRouter): which one this agent uses.
   const [useAccount, setUseAccount] = useState(false);
+  // AWS signs with a key pair, so it gets two fields that become one saved secret.
+  const [awsId, setAwsId] = useState("");
+  const [awsSecret, setAwsSecret] = useState("");
+  // Non-secret provider settings (region, api_version, project…).
+  const [options, setOptions] = useState<Record<string, string>>({});
 
   const meta = providerMeta(provider);
   const isAccount = Boolean(meta.account || (meta.accountOptional && useAccount));
   const effectiveBaseUrl = baseUrl || meta.defaultBaseUrl || "";
+  const showBaseUrl = Boolean(meta.needsBaseUrl || meta.baseUrlOptional);
   const providerAccounts = accounts.filter((a) => a.provider === provider && a.status === "connected");
+  // One secret goes to the backend whatever shape the provider's credentials come in.
+  const secret =
+    meta.credential === "aws"
+      ? awsId.trim() && awsSecret.trim()
+        ? JSON.stringify({ access_key_id: awsId.trim(), secret_access_key: awsSecret.trim() })
+        : ""
+      : apiKey.trim();
+  const sentOptions = useMemo(() => {
+    const filled = Object.entries(options).filter(([, v]) => v.trim().length > 0);
+    return filled.length ? Object.fromEntries(filled.map(([k, v]) => [k, v.trim()])) : undefined;
+  }, [options]);
+  const optionsReady = (meta.options ?? []).every((o) => !o.required || (options[o.key] ?? "").trim().length > 0);
   const canFetch = isAccount
     ? Boolean(accountId)
-    : (!meta.needsKey || apiKey.trim().length > 0) && (!meta.needsBaseUrl || effectiveBaseUrl.length > 0);
+    : (!meta.needsKey || secret.length > 0) && (!meta.needsBaseUrl || effectiveBaseUrl.length > 0) && optionsReady;
   const modelId = picked?.id ?? manualId.trim();
 
   useEffect(() => {
@@ -412,6 +454,9 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
     setError(null);
     setConnecting(false);
     setUseAccount(false);
+    setAwsId("");
+    setAwsSecret("");
+    setOptions({});
     const next = providerMeta(p);
     if (next.account) {
       const first = accounts.find((a) => a.provider === p && a.status === "connected");
@@ -431,9 +476,10 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
     try {
       const found = await discoverModels({
         provider: p,
-        apiKey: signIn ? undefined : apiKey || undefined,
+        apiKey: signIn ? undefined : secret || undefined,
         baseUrl: signIn ? undefined : (p === provider ? baseUrl : "") || m.defaultBaseUrl || undefined,
         accountId: signIn ? account : undefined,
+        options: p === provider ? sentOptions : undefined,
       });
       setFetchState({ status: "done", models: found });
     } catch (err) {
@@ -459,9 +505,10 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
         name: name.trim() || picked?.display_name || modelId,
         provider,
         modelId,
-        baseUrl: meta.needsBaseUrl ? effectiveBaseUrl : undefined,
-        apiKey: isAccount ? undefined : apiKey || undefined,
+        baseUrl: showBaseUrl ? effectiveBaseUrl : undefined,
+        apiKey: isAccount ? undefined : secret || undefined,
         accountId: isAccount ? accountId : undefined,
+        options: sentOptions,
       });
       onCreated(created);
     } catch (err) {
@@ -481,37 +528,52 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
         <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
           {t("المزوّد")}
         </span>
-        <div className="flex flex-wrap gap-1.5">
-          {PROVIDERS.filter(
-            // Experimental integrations appear only once an account for them is connected.
-            (p) => !p.experimental || accounts.some((a) => a.provider === p.value && a.status === "connected"),
-          ).map((p) => {
-            const active = p.value === provider;
+        <div className="flex flex-col gap-3">
+          {(Object.keys(GROUP_LABEL) as ProviderGroup[]).map((group) => {
+            const inGroup = PROVIDERS.filter(
+              (p) =>
+                p.group === group &&
+                // Experimental integrations appear only once an account for them is connected.
+                (!p.experimental || accounts.some((a) => a.provider === p.value && a.status === "connected")),
+            );
+            if (!inGroup.length) return null;
             return (
-              <motion.button
-                type="button"
-                key={p.value}
-                onClick={() => selectProvider(p.value)}
-                whileTap={{ scale: 0.95 }}
-                className="relative rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
-                style={{
-                  borderColor: active ? "transparent" : "var(--color-border)",
-                  color: active ? "var(--color-accent-ink)" : "var(--color-ink)",
-                }}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="provider-pill"
-                    className="absolute inset-0 rounded-full"
-                    style={{ background: "var(--color-accent)" }}
-                    transition={snappy}
-                  />
-                )}
-                <span className="relative flex items-center gap-1.5">
-                  <BrandMark provider={p.value} className="h-3.5 w-3.5" />
-                  {p.label}
+              <div key={group} className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-medium opacity-70" style={{ color: "var(--color-ink-muted)" }}>
+                  {GROUP_LABEL[group]}
                 </span>
-              </motion.button>
+                <div className="flex flex-wrap gap-1.5">
+                  {inGroup.map((p) => {
+                    const active = p.value === provider;
+                    return (
+                      <motion.button
+                        type="button"
+                        key={p.value}
+                        onClick={() => selectProvider(p.value)}
+                        whileTap={{ scale: 0.95 }}
+                        className="relative rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+                        style={{
+                          borderColor: active ? "transparent" : "var(--color-border)",
+                          color: active ? "var(--color-accent-ink)" : "var(--color-ink)",
+                        }}
+                      >
+                        {active && (
+                          <motion.span
+                            layoutId="provider-pill"
+                            className="absolute inset-0 rounded-full"
+                            style={{ background: "var(--color-accent)" }}
+                            transition={snappy}
+                          />
+                        )}
+                        <span className="relative flex items-center gap-1.5">
+                          <BrandMark provider={p.value} className="h-3.5 w-3.5" />
+                          {p.label}
+                        </span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -612,9 +674,12 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
         </div>
       )}
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: meta.needsKey && meta.needsBaseUrl ? "1fr 1fr" : "1fr" }}>
-        {meta.needsBaseUrl && (
-          <Field label="Base URL">
+      <div
+        className="grid gap-4"
+        style={{ gridTemplateColumns: meta.needsKey && showBaseUrl && meta.credential !== "json" ? "1fr 1fr" : "1fr" }}
+      >
+        {showBaseUrl && (
+          <Field label={meta.baseUrlLabel ?? "Base URL"}>
             <input
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
@@ -625,7 +690,55 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
             />
           </Field>
         )}
-        {meta.needsKey && !isAccount && (
+        {meta.needsKey && !isAccount && meta.credential === "aws" && (
+          <>
+            <Field label={t("معرّف مفتاح الوصول")}>
+              <input
+                value={awsId}
+                onChange={(e) => {
+                  setAwsId(e.target.value);
+                  if (fetchState.status !== "idle") setFetchState({ status: "idle" });
+                }}
+                placeholder="AKIA…"
+                className="input font-mono"
+                dir="ltr"
+                autoComplete="off"
+              />
+            </Field>
+            <Field label={t("المفتاح السرّي")} hint={t("بيتخزّن مشفّر بخزنة ويندوز، وما رح يظهر مرة ثانية.")}>
+              <input
+                value={awsSecret}
+                onChange={(e) => {
+                  setAwsSecret(e.target.value);
+                  if (fetchState.status !== "idle") setFetchState({ status: "idle" });
+                }}
+                onBlur={() => canFetch && fetchState.status === "idle" && fetchModels()}
+                type="password"
+                className="input font-mono"
+                dir="ltr"
+                autoComplete="off"
+              />
+            </Field>
+          </>
+        )}
+        {meta.needsKey && !isAccount && meta.credential === "json" && (
+          <Field label={t("ملف حساب الخدمة (JSON)")} hint={t("بيتخزّن مشفّر بخزنة ويندوز، وما رح يظهر مرة ثانية.")}>
+            <textarea
+              value={apiKey}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+                if (fetchState.status !== "idle") setFetchState({ status: "idle" });
+              }}
+              onBlur={() => canFetch && fetchState.status === "idle" && fetchModels()}
+              rows={4}
+              placeholder={'{ "type": "service_account", … }'}
+              className="input resize-y font-mono text-xs"
+              dir="ltr"
+              spellCheck={false}
+            />
+          </Field>
+        )}
+        {meta.needsKey && !isAccount && !meta.credential && (
           <Field label={t("مفتاح API")} hint={t("بيتخزّن مشفّر بخزنة ويندوز، وما رح يظهر مرة ثانية.")}>
             <input
               value={apiKey}
@@ -643,6 +756,24 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
           </Field>
         )}
       </div>
+
+      {meta.options && !isAccount && (
+        <div className="grid gap-4" style={{ gridTemplateColumns: meta.options.length > 1 ? "1fr 1fr" : "1fr" }}>
+          {meta.options.map((option) => (
+            <Field key={option.key} label={option.label}>
+              <input
+                value={options[option.key] ?? ""}
+                onChange={(e) => setOptions((prev) => ({ ...prev, [option.key]: e.target.value }))}
+                onBlur={() => canFetch && fetchState.status === "idle" && fetchModels()}
+                placeholder={option.placeholder}
+                className="input font-mono"
+                dir="ltr"
+                autoComplete="off"
+              />
+            </Field>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">

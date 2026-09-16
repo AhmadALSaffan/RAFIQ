@@ -756,7 +756,7 @@ function HandoffDialog({ design, onClose, onDone }: { design: Design; onClose: (
     try {
       if (target === "task") {
         const result = await handoffDesign(design.id, { target: "task", model_id: modelId });
-        onDone(t("انبعت التصميم كمهمة — رفيق بيشتغل عليها بالدور."));
+        onDone(t("انبعت التصميم كمهمة — رفيق بيشتغل عليها بالخلفية."));
         onClose();
         if (result.task_id) navigate(`/tasks/${result.task_id}`);
         return;
@@ -782,7 +782,7 @@ function HandoffDialog({ design, onClose, onDone }: { design: Design; onClose: (
   const options = [
     { id: "new", label: t("محادثة جديدة"), hint: t("بتفتح جلسة برمجة نضيفة ومعها التصميم") },
     { id: "existing", label: t("محادثة موجودة"), hint: t("ابعتها لجلسة شغّالة على المشروع") },
-    { id: "task", label: t("مهمة بالخلفية"), hint: t("رفيق بينفّذها لحاله بالدور") },
+    { id: "task", label: t("مهمة بالخلفية"), hint: t("رفيق بينفّذها لحاله بالخلفية") },
   ] as const;
 
   return (

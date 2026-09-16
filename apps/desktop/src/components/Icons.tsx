@@ -157,6 +157,26 @@ export function PaperclipIcon({ className, style }: IconProps) {
   );
 }
 
+export function MicIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <rect x="9" y="2" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v4" />
+    </svg>
+  );
+}
+
+export function ForkIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <circle cx="6" cy="4" r="2" />
+      <circle cx="6" cy="20" r="2" />
+      <circle cx="18" cy="9" r="2" />
+      <path d="M6 6v12M6 13h6a4 4 0 0 0 4-4v-.5" />
+    </svg>
+  );
+}
+
 export function FileIcon({ className, style }: IconProps) {
   return (
     <svg {...base} className={className} style={style}>

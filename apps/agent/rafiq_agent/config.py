@@ -6,7 +6,9 @@ from pathlib import Path
 def _data_dir() -> Path:
     base = os.environ.get("RAFIQ_DATA_DIR")
     if base:
-        path = Path(base)
+        # Absolute, always: paths under it are handed to other processes (git, the browser)
+        # that run in other folders, where a relative path would mean somewhere else.
+        path = Path(base).resolve()
     else:
         appdata = os.environ.get("APPDATA")
         path = Path(appdata) / "Rafiq" if appdata else Path.home() / ".rafiq"

@@ -65,15 +65,30 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 
 - 💬 **Chat** — Stream replies from any connected model with Markdown, image and file attachments, `@` to reference files in the chat's folder, `#` to mention your tracker issues, and `/` commands to adjust reply length, language, temperature, and reasoning
 - 🗜️ **Token control** — `/لخّص` folds older messages into a summary so long chats stop resending everything
-- 🗂️ **Task queue** — Hand off a job and Rafiq works through it in a folder you pick: one task at a time, with live progress, re-run, and a full step-by-step transcript
-- 🧩 **Plans → tasks** — Send a plan in chat and Rafiq splits it into queued tasks
+- 🗂️ **Parallel tasks** — Hand off jobs and Rafiq works through them in the folders you pick, up to 100 at once (you set the limit). Tasks that would edit the same files take turns, and a task can wait for the ones it depends on. Each has live progress, re-run, and a full step-by-step transcript
+- 🧩 **Plans → tasks** — Send a plan in chat and the model splits it into tasks, shows their live status in the chat, waits for them to finish, and replies with the results
+- 🔁 **Replies that keep going** — Leave a chat mid-reply and the reply keeps being written; come back and it picks up live where it is
+- 🌿 **A git worktree per task** — On a git repository, each task works in its own isolated copy (taken from the folder as it is, uncommitted files included), so tasks on one project run side by side; their changes are then applied back to your folder — never committed to your branch
+- 🔍 **Review and revert** — Every task on a git folder gets a changes panel: the files, the diff, and one click to revert (or apply changes that didn't apply cleanly)
+- 📌 **Project instructions** — Put a `RAFIQ.md` (or `AGENTS.md`) in a project and every chat and task there reads it first: build commands, conventions, what not to touch
+- 🔌 **MCP servers** — Connect any Model Context Protocol server (local command or Streamable HTTP); its tools join every chat and task behind their own permission, with its secrets kept in Windows Credential Manager
+- 🌍 **Web and browser** — `web_fetch` reads pages and PDFs as text; `web_search` uses Brave, Tavily, or your own SearXNG; and a real browser (Microsoft Edge, with its own profile) lets the agent click, type, and test `localhost` apps
+- 🖱️ **Desktop control** — Off by default: screenshots, mouse and keyboard on any app, one run at a time, every action behind its permission
+- ⏰ **Scheduled tasks and templates** — Run a task every N minutes, daily, or on chosen weekdays; save tasks you repeat as templates (four ready-made ones included)
+- 🚦 **Provider limits** — Requests per provider key are capped (the rest wait instead of failing with 429), rate limits and outages are retried with backoff, and each agent can have a fallback agent
+- 🪟 **Runs in the background** — Closing the window keeps Rafiq in the tray with Windows notifications for finished tasks and approvals; it can start with Windows, and it never leaves its agent process running after you quit
 - 🎨 **Designs** — A brief (`/impeccable init`), bundled design skills that work with every model, a live HTML preview at phone/tablet/desktop widths, and a one-click hand-off to the session that will build it
 - 📥 **My Work** — Issues assigned to you across Jira Cloud, Linear, GitHub Issues, and GitLab Issues in one inbox: change status, comment, or turn an issue into a task
-- 🧠 **Any model** — Anthropic, OpenAI, Google Gemini, DeepSeek, Groq, Mistral, xAI, OpenRouter, Ollama (local), or any OpenAI-compatible endpoint
+- 🧠 **Any model** — Anthropic, OpenAI, Google Gemini, DeepSeek, Groq, Mistral, xAI, OpenRouter, Azure OpenAI, AWS Bedrock, Google Vertex AI, Cerebras, Fireworks, Together, Qwen (DashScope), Kimi (Moonshot), GLM (Z.ai), Ollama and LM Studio (local), or any OpenAI-compatible endpoint
+- 💵 **Cost and budgets** — Every call's tokens and price are recorded per agent and per day; set a daily or monthly limit and Rafiq stops calling the provider once it's reached
+- 🎙️ **Dictation** — Speak your message instead of typing it, using the speech model of a provider you already configured
+- ✏️ **Edit and fork** — Reword a question you already asked and send it again, or fork a chat from any point to try another direction without losing this one
+- ⬆️ **Updates in the app** — Rafiq checks its releases page for a newer signed version, downloads it, and restarts into it
+- 🩺 **Diagnostics report** — One click saves a JSON report (version, settings, model providers, MCP server names) with no keys and nothing from your conversations
 - 🐙 **GitHub Copilot sign-in** — Connect a GitHub account with an active Copilot plan through GitHub's device flow and the official Copilot SDK — no key, no password in Rafiq; each agent uses the account you pick for it
 - 🔗 **OpenRouter sign-in** — Approve Rafiq on openrouter.ai (OAuth PKCE) instead of pasting a key; the issued key goes straight to Windows Credential Manager
 - 🧪 **AuthAI (experimental, off by default)** — An optional adapter for the third-party [AuthAI](https://github.com/authai-io/authai) relay. Unofficial and not affiliated with any provider; see the warning in Settings before enabling it
-- 🛡️ **Permission policy** — Every tool that writes files, runs commands, manages processes, or edits issues is set to *ask*, *allow*, or *deny* — per category, from Settings
+- 🛡️ **Permission policy** — Every tool that writes files, runs commands, manages processes, browses, controls the desktop, calls MCP tools, or edits issues is set to *ask*, *allow*, or *deny* — per category, from Settings
 - 🔐 **Local-first** — Chats, tasks, and designs live in a local SQLite database; API keys go to Windows Credential Manager, never into the database
 - 🌐 **Arabic, English, Russian** — Arabic-first and right-to-left, with full English and Russian translations (left-to-right) switchable from Settings — including messages from the agent
 - 🌗 **Light & dark** — A warm `#e68835` accent and both themes
@@ -88,9 +103,10 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 | UI | React 19 · TypeScript · Tailwind CSS 4 · Motion |
 | Agent runtime | Python 3.11+ · FastAPI · Uvicorn |
 | Model layer | LiteLLM · GitHub Copilot SDK (optional) |
+| Tools | MCP Python SDK · Microsoft Edge over the DevTools protocol · Win32 input · git worktrees |
 | Database | SQLite via SQLAlchemy (async) + aiosqlite |
 | Secrets | `keyring` → Windows Credential Manager |
-| Packaging | PyInstaller (agent) · NSIS installer (Tauri bundler) |
+| Packaging | PyInstaller (agent) · NSIS installer (Tauri bundler) · signed updates (Tauri updater) |
 | Quality | Vitest · ESLint · pytest · Ruff |
 
 ---
@@ -120,7 +136,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.2.1_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.3.0_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)

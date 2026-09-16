@@ -1,13 +1,21 @@
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::{Child, Command};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 mod file_icon;
+mod job;
 
 use rand::RngCore;
 use serde::Serialize;
-use tauri::{Manager, State};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Manager, State, Wry};
+
+/// Closing the window hides it to the tray instead of quitting (the setting lives in the
+/// agent; the page tells us on start and whenever it changes).
+static RUN_IN_BACKGROUND: AtomicBool = AtomicBool::new(true);
 
 #[derive(Clone, Serialize)]
 struct ApiConfig {
@@ -18,6 +26,36 @@ struct ApiConfig {
 struct SidecarState {
     config: ApiConfig,
     child: Mutex<Option<Child>>,
+    // Held for the app's lifetime: when it's dropped (or the app dies) Windows ends the agent.
+    _job: Option<job::Job>,
+}
+
+/// The tray menu's items, kept so the page can relabel them in the UI's language.
+struct TrayItems {
+    open: MenuItem<Wry>,
+    quit: MenuItem<Wry>,
+}
+
+fn show_main(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn stop_backend(app: &AppHandle) {
+    if let Some(state) = app.try_state::<SidecarState>() {
+        let taken = state.child.lock().unwrap().take();
+        if let Some(mut child) = taken {
+            let _ = child.kill();
+        }
+    }
+}
+
+fn quit(app: &AppHandle) {
+    stop_backend(app);
+    app.exit(0);
 }
 
 fn generate_token() -> String {
@@ -100,6 +138,29 @@ fn get_api_config(state: State<SidecarState>) -> ApiConfig {
     state.config.clone()
 }
 
+/// Whether closing the window keeps Rafiq running in the tray.
+#[tauri::command]
+fn set_run_in_background(enabled: bool) {
+    RUN_IN_BACKGROUND.store(enabled, Ordering::Relaxed);
+}
+
+/// The tray menu in the UI's language (Rust doesn't know which one the user picked).
+#[tauri::command]
+fn set_tray_labels(app: AppHandle, open: String, quit: String, tooltip: String) {
+    if let Some(items) = app.try_state::<TrayItems>() {
+        let _ = items.open.set_text(open);
+        let _ = items.quit.set_text(quit);
+    }
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_tooltip(Some(tooltip));
+    }
+}
+
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    quit(&app);
+}
+
 /// Windows' own icon for a file type, as a data URL. `name` is just "file.ext".
 #[tauri::command]
 fn system_file_icon(name: String) -> Option<String> {
@@ -171,13 +232,28 @@ fn open_external(url: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Opening Rafiq again (Start menu, desktop icon) brings up the one already running
+        // — possibly hidden in the tray — instead of starting a second app and agent.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--hidden"]),
+        ))
+        // Checking for, downloading and installing a new version (About page), and the
+        // restart that follows it.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             get_api_config,
             system_file_icon,
             save_text_file,
             reveal_path,
-            open_external
+            open_external,
+            set_run_in_background,
+            set_tray_labels,
+            quit_app
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -193,20 +269,60 @@ pub fn run() {
             let port = free_port();
             let token = generate_token();
             let child = spawn_backend(app.handle(), port, &token);
+            let job = job::Job::kill_on_close();
+            if let Some(job) = &job {
+                job.adopt(&child);
+            }
             app.manage(SidecarState {
                 config: ApiConfig { base_url: format!("http://127.0.0.1:{port}"), token },
                 child: Mutex::new(Some(child)),
+                _job: job,
             });
+
+            // The tray: left click opens the window; the menu opens or quits for real.
+            let open = MenuItem::with_id(app, "open", "رفيق", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "إنهاء", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open, &quit_item])?;
+            let mut tray = TrayIconBuilder::with_id("main")
+                .tooltip("رفيق")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "open" => show_main(app),
+                    "quit" => quit(app),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        show_main(tray.app_handle());
+                    }
+                });
+            if let Some(icon) = app.default_window_icon() {
+                tray = tray.icon(icon.clone());
+            }
+            tray.build(app)?;
+            app.manage(TrayItems { open, quit: quit_item });
+
+            // Started with Windows (autostart passes --hidden): stay in the tray.
+            if !std::env::args().any(|arg| arg == "--hidden") {
+                show_main(app.handle());
+            }
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                let state: State<SidecarState> = window.state();
-                let taken = state.child.lock().unwrap().take();
-                if let Some(mut child) = taken {
-                    let _ = child.kill();
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                if RUN_IN_BACKGROUND.load(Ordering::Relaxed) {
+                    api.prevent_close();
+                    let _ = window.hide();
                 }
             }
+            tauri::WindowEvent::Destroyed => stop_backend(window.app_handle()),
+            _ => {}
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

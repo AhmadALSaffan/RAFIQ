@@ -15,6 +15,20 @@ Provider = Literal[
     "ollama",
     "custom",
     "github_copilot",
+    # Enterprise clouds
+    "azure",
+    "bedrock",
+    "vertex_ai",
+    # Fast inference
+    "cerebras",
+    "fireworks_ai",
+    "together_ai",
+    # Qwen, Kimi, GLM
+    "dashscope",
+    "moonshot",
+    "zai",
+    # Local
+    "lm_studio",
     # Experimental, optional (auth/experimental/authai.py).
     "authai",
 ]
@@ -31,12 +45,21 @@ class ModelCreate(BaseModel):
     # "oauth" agents sign in with a connected account instead of a key.
     auth_method: AuthMethod = "api_key"
     account_id: str | None = None
+    # Non-secret provider settings (Azure api_version, Bedrock region, Vertex project/location).
+    options: dict[str, str] = {}
 
 
 class ModelAuthUpdate(BaseModel):
     """Re-points one agent at a different account — touches that agent only."""
 
     account_id: str
+
+
+class ModelFallbackUpdate(BaseModel):
+    """The agent to use when this one's provider keeps failing (None = no fallback)."""
+
+    fallback_model_id: str | None = None
+    options: dict[str, str] = {}
 
 
 class ModelOut(BaseModel):
@@ -57,6 +80,7 @@ class ModelOut(BaseModel):
     # Who the agent signs in as, for display — never the token.
     account_label: str | None = None
     account_status: str | None = None
+    fallback_model_id: str | None = None
 
 
 class DiscoverRequest(BaseModel):
@@ -64,6 +88,7 @@ class DiscoverRequest(BaseModel):
     api_key: str | None = None
     base_url: str | None = None
     account_id: str | None = None
+    options: dict[str, str] = {}
 
 
 class DiscoveredModelOut(BaseModel):

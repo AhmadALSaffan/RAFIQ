@@ -13,9 +13,12 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  attachChatStream,
   createChat,
   deleteChat,
   deleteChatMessage,
+  forkChat,
+  truncateChatFrom,
   getChat,
   listChats,
   listIntegrations,
@@ -25,8 +28,10 @@ import {
   sendChatMessage,
   setChatFolder,
   setChatPinned,
+  stopChat,
   summarizeChat,
   updateChatSettings,
+  type ChatStreamEvent,
 } from "../../lib/api";
 import type { Attachment, ChatMessage, ChatSummary, LlmModel, ReplySettings, TrackerIssue } from "../../lib/types";
 import { canPickNatively, pickFolder } from "../../lib/folders";
@@ -68,6 +73,8 @@ export function ChatPage({
   const [models, setModels] = useState<LlmModel[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadingChat, setLoadingChat] = useState(false);
+  // Text pushed into the composer from outside it (editing a question you already asked).
+  const [prefill, setPrefill] = useState<{ text: string; at: number } | null>(null);
   const [modelId, setModelId] = useState<string>("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +95,10 @@ export function ChatPage({
 
   const abortRef = useRef<AbortController | null>(null);
   const skipLoadRef = useRef<string | null>(null);
+  const routeRef = useRef(routeId);
+  useEffect(() => {
+    routeRef.current = routeId;
+  }, [routeId]);
   // The open chat's own model and the model list arrive separately; whichever lands second
   // applies the chat's model, so it never gets replaced by the remembered/first one.
   const chatModelRef = useRef<string | null>(null);
@@ -120,18 +131,38 @@ export function ChatPage({
     });
   }, []);
 
+  // Leaving the page only stops watching: the reply goes on in the agent, and opening the
+  // chat again rejoins it.
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  // Replies still being written in other chats: refresh the list until they're done, so
+  // their "writing" dots go out on their own.
+  const othersWriting = chats.some((c) => c.streaming && c.id !== routeId);
+  useEffect(() => {
+    if (!othersWriting) return;
+    const timer = setInterval(() => {
+      listChats()
+        .then((fresh) => {
+          const writing = new Map(fresh.map((c) => [c.id, c.streaming ?? false]));
+          setChats((prev) => prev.map((c) => (c.id === routeRef.current ? c : { ...c, streaming: writing.get(c.id) ?? false })));
+        })
+        .catch(() => undefined);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [othersWriting]);
+
   useEffect(() => {
     setError(null);
     chatModelRef.current = null;
-    if (!routeId) {
-      setMessages([]);
-      return;
-    }
-    if (skipLoadRef.current === routeId) {
+    if (routeId && skipLoadRef.current === routeId) {
       skipLoadRef.current = null;
       return;
     }
     abortRef.current?.abort();
+    if (!routeId) {
+      setMessages([]);
+      return;
+    }
     setLoadingChat(true);
     getChat(routeId)
       .then((chat) => {
@@ -139,9 +170,12 @@ export function ChatPage({
         setChats((prev) => (prev.some((c) => c.id === chat.id) ? prev.map((c) => (c.id === chat.id ? { ...c, ...chat } : c)) : [chat, ...prev]));
         chatModelRef.current = chat.model_id ?? null;
         if (chat.model_id && modelsRef.current.some((m) => m.id === chat.model_id && m.verify_ok !== false)) setModelId(chat.model_id);
+        if (chat.streaming) void rejoin(chat.id);
       })
       .catch(() => !embedded && navigate("/chat", { replace: true }))
       .finally(() => setLoadingChat(false));
+    // rejoin only touches refs and setters, so the one from this render is fine
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeId, navigate, embedded]);
 
   const autoSent = useRef(false);
@@ -155,14 +189,47 @@ export function ChatPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSend, routeId, modelId, loadingChat, messages.length, streaming]);
 
+  // Following the reply as it grows. Only the *user* decides whether we follow: scrolling up
+  // (wheel, keys, dragging) stops it at once, reaching the very bottom again resumes it. Our
+  // own scrolls are recognised and ignored — otherwise, while text streams in, the smooth
+  // wheel scroll and the snap back to the bottom fight each other and the view shakes.
+  const ownScrollTop = useRef<number | null>(null);
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight });
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    ownScrollTop.current = el.scrollTop;
+  }, []);
+
+  const unstick = useCallback(() => {
+    stickRef.current = false;
+    setAtBottom(false);
+  }, []);
+
+  const onChatScroll = useCallback((el: HTMLDivElement) => {
+    if (ownScrollTop.current !== null && Math.abs(el.scrollTop - ownScrollTop.current) < 2) return;
+    ownScrollTop.current = null;
+    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+    stickRef.current = bottom;
+    setAtBottom(bottom);
   }, []);
 
   useLayoutEffect(() => {
     if (stickRef.current) scrollToBottom();
   }, [messages, draft, scrollToBottom]);
+
+  // Cards opening, code blocks growing, images loading: keep the bottom in view as it moves,
+  // rather than snapping to it on the next event.
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (stickRef.current) scrollToBottom();
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [scrollToBottom]);
 
   function pickModel(id: string) {
     setModelId(id);
@@ -205,49 +272,79 @@ export function ChatPage({
 
     const tempId = `temp-${Date.now()}`;
     setMessages((prev) => [...prev, { id: tempId, role: "user", content, attachments, created_at: new Date().toISOString() }]);
-    setDraft({ parts: [], reasoning: "" });
-    setStreaming(true);
+    const id = chatId;
+    const ids = attachments.map((a) => a.id);
+    await follow(id, (onEvent, signal) => sendChatMessage(id, content, modelId, ids, onEvent, signal), tempId);
+  }
 
+  /** Opens a chat whose reply is still being written: catch up, then follow it live. */
+  async function rejoin(id: string) {
+    let attached = false;
+    await follow(id, async (onEvent, signal) => {
+      attached = await attachChatStream(id, onEvent, signal);
+    });
+    // It finished between loading the chat and rejoining — the reply is saved; load it.
+    if (!attached && routeRef.current === id) {
+      const fresh = await getChat(id).catch(() => null);
+      if (fresh && routeRef.current === id) setMessages(fresh.messages);
+    }
+  }
+
+  /**
+   * Follows one reply as it's written — one just sent, or one already in progress. Aborting
+   * (leaving the chat) only stops the watching; the agent keeps writing and saves the reply.
+   */
+  async function follow(
+    chatId: string,
+    run: (onEvent: (event: ChatStreamEvent) => void, signal: AbortSignal) => Promise<unknown>,
+    tempId?: string,
+  ) {
+    abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    setDraft({ parts: [], reasoning: "" });
+    setStreaming(true);
     let partial: Draft = { parts: [], reasoning: "" };
     let finished = false;
 
     try {
-      await sendChatMessage(
-        chatId,
-        content,
-        modelId,
-        attachments.map((a) => a.id),
-        (event) => {
-          if (event.type === "start") {
-            setMessages((prev) => prev.map((m) => (m.id === tempId ? event.user_message : m)));
-            setChats((prev) => {
-              const existing = prev.find((c) => c.id === chatId);
-              const updated = { ...(existing as ChatSummary), id: chatId!, title: event.title, updated_at: event.user_message.created_at };
-              return [updated, ...prev.filter((c) => c.id !== chatId)];
-            });
-          } else if (event.type === "done") {
-            finished = true;
-            setMessages((prev) => [...prev, event.message]);
-            setDraft(null);
-            onReplyDone?.();
-          } else if (event.type === "error") {
-            setError(event.message);
-          } else {
-            partial = applyEvent(partial, event);
-            setDraft(partial);
-          }
-        },
-        controller.signal,
-      );
+      await run((event) => {
+        if (controller.signal.aborted) return;
+        if (event.type === "start") {
+          if (tempId) setMessages((prev) => prev.map((m) => (m.id === tempId ? event.user_message : m)));
+          setChats((prev) => {
+            const existing = prev.find((c) => c.id === chatId);
+            const updated = {
+              ...(existing as ChatSummary),
+              id: chatId,
+              title: event.title,
+              updated_at: event.user_message.created_at,
+              streaming: true,
+            };
+            return [updated, ...prev.filter((c) => c.id !== chatId)];
+          });
+        } else if (event.type === "done") {
+          finished = true;
+          setMessages((prev) => [...prev.filter((m) => m.id !== event.message.id), event.message]);
+          setDraft(null);
+          onReplyDone?.();
+        } else if (event.type === "stopped") {
+          finished = true;
+          setDraft(null);
+        } else if (event.type === "error") {
+          setError(event.message);
+        } else {
+          partial = applyEvent(partial, event);
+          setDraft(partial);
+        }
+      }, controller.signal);
     } catch (err) {
       if (!(err instanceof DOMException && err.name === "AbortError")) {
         setError(err instanceof Error ? err.message : t("صار خطأ"));
       }
     } finally {
-      // Stopped or failed mid-reply: keep what arrived (the backend saved it too).
-      if (!finished && partial.parts.length) {
+      // Failed mid-reply (not left): keep what arrived — the agent saved it too.
+      if (!controller.signal.aborted && !finished && partial.parts.length) {
         const kept = partial;
         setMessages((prev) => [
           ...prev,
@@ -261,10 +358,20 @@ export function ChatPage({
           },
         ]);
       }
-      setDraft(null);
-      setStreaming(false);
-      abortRef.current = null;
+      if (finished) setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, streaming: false } : c)));
+      // A newer follow (another chat opened) owns the state now; leave it alone.
+      if (abortRef.current === controller) {
+        setDraft(null);
+        setStreaming(false);
+        abortRef.current = null;
+      }
     }
+  }
+
+  /** Stops the reply in the agent; it then sends back what it saved, which ends the stream. */
+  async function stop() {
+    const stopped = routeId ? await stopChat(routeId).catch(() => false) : false;
+    if (!stopped) abortRef.current?.abort();
   }
 
   function lastAssistantText(): string {
@@ -323,6 +430,39 @@ export function ChatPage({
     const dropped = new Set([lastUser.id, lastAssistant?.id]);
     setMessages((prev) => prev.filter((m) => !dropped.has(m.id)));
     await send(lastUser.content, lastUser.attachments ?? []);
+  }
+
+  /** A message the backend knows about (not one this page is still showing optimistically). */
+  const isStored = (m: ChatMessage) => !m.id.startsWith("temp-") && !m.id.startsWith("partial-");
+
+  /** Puts a question back in the box and rewinds the chat to just before it. */
+  async function editMessage(message: ChatMessage) {
+    if (!routeId) return;
+    setError(null);
+    try {
+      if (isStored(message)) {
+        const fresh = await truncateChatFrom(routeId, message.id);
+        setMessages(fresh.messages);
+      } else {
+        setMessages((prev) => prev.slice(0, prev.findIndex((m) => m.id === message.id)));
+      }
+      setPrefill({ text: message.content, at: Date.now() });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("ما قدرت أعدّل الرسالة"));
+    }
+  }
+
+  /** Copies the chat up to this message into a new one and opens it. */
+  async function forkFrom(message: ChatMessage) {
+    if (!routeId) return;
+    setError(null);
+    try {
+      const fork = await forkChat(routeId, isStored(message) ? message.id : undefined);
+      setChats(await listChats());
+      navigate(`/chat/${fork.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("ما قدرت أفرّع المحادثة"));
+    }
   }
 
   async function exportChat() {
@@ -499,15 +639,13 @@ export function ChatPage({
         <div className="relative flex min-h-0 flex-1 flex-col">
         <div
           ref={scrollRef}
-          onScroll={(e) => {
-            const el = e.currentTarget;
-            const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-            stickRef.current = bottom;
-            setAtBottom(bottom);
-          }}
+          onScroll={(e) => onChatScroll(e.currentTarget)}
+          onWheel={(e) => e.deltaY < 0 && unstick()}
+          onKeyDown={(e) => ["ArrowUp", "PageUp", "Home"].includes(e.key) && unstick()}
           className="min-h-0 flex-1 overflow-y-auto"
+          style={{ overflowAnchor: "none" }}
         >
-          <div className="mx-auto flex w-full flex-col gap-6 px-6 py-8" style={{ maxWidth: reading }}>
+          <div ref={contentRef} className="mx-auto flex w-full flex-col gap-6 px-6 py-8" style={{ maxWidth: reading }}>
             {empty ? (
               <Welcome hasModels={usable.length > 0} onPick={(s) => send(s, [])} onModels={() => navigate("/models")} />
             ) : loadingChat ? (
@@ -524,6 +662,8 @@ export function ChatPage({
                       message={m}
                       model={models.find((x) => x.id === m.model_id) ?? undefined}
                       onOpenTask={(id) => navigate(`/tasks/${id}`)}
+                      onEdit={streaming ? undefined : editMessage}
+                      onFork={streaming ? undefined : forkFrom}
                     />
                     {current?.summary_until === m.id && current.summary && <SummaryDivider summary={current.summary} />}
                   </div>
@@ -650,7 +790,7 @@ export function ChatPage({
             uploads.clear();
             send(text, ready);
           }}
-          onStop={() => abortRef.current?.abort()}
+          onStop={() => void stop()}
           models={usable}
           modelId={modelId}
           onModel={pickModel}
@@ -660,6 +800,7 @@ export function ChatPage({
           openModelMenu={openModelMenu}
           onCommand={runCommand}
           onIssueMentioned={setLastIssue}
+          prefill={prefill}
         />
       </DropZone>
 

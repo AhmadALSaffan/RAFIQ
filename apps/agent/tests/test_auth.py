@@ -277,11 +277,70 @@ async def test_copilot_tool_calls_run_through_rafiqs_loop(monkeypatch):
 
     session = sessions[0]
     assert asked == ["filesystem_list"]  # Rafiq's permission gate ran
-    assert session.options["available_tools"] == ["filesystem_list"]  # no Copilot built-ins
+    # Copilot's shell, file and editing tools are never offered — only Rafiq's, plus the
+    # built-ins Rafiq deliberately leaves to Copilot (checked below).
+    assert "custom:filesystem_list" in session.options["available_tools"].to_list()
     assert session.options["system_message"] == {"mode": "replace", "content": "sys"}
     assert "النتيجة: a.txt" in result.text
     assert session.disconnected  # released when the loop ended
     assert json.loads(messages[2]["tool_calls"][0]["function"]["arguments"]) == {"path": "."}
+    # Copilot brings its own web_fetch, so Rafiq leaves that one to it (and stops the SDK
+    # refusing the session over the duplicate name) while keeping its own tools custom.
+    entries = session.options["available_tools"].to_list()
+    assert entries == ["custom:filesystem_list", "builtin:web_fetch"]
+
+
+async def test_copilots_own_web_fetch_still_asks_rafiqs_permission():
+    pytest.importorskip("copilot")
+    from copilot.generated.rpc import PermissionDecisionApproveOnce, PermissionDecisionReject
+
+    from rafiq_agent.llm.copilot import CopilotProvider
+
+    asked: list[tuple[str, dict]] = []
+
+    async def permit(name, category, args):
+        asked.append((name, args))
+        return args["url"].startswith("https://")
+
+    provider = CopilotProvider(account_id="acc", token="gho_x", model_id="gpt-5")
+
+    class UrlRequest:
+        kind = "url"
+        url = "https://example.com/docs"
+
+    # Without the loop's gate nothing Copilot runs on its own is approved.
+    assert isinstance(await provider._on_permission(UrlRequest(), {}), PermissionDecisionReject)
+
+    provider.set_permission_hook(permit)
+    assert isinstance(await provider._on_permission(UrlRequest(), {}), PermissionDecisionApproveOnce)
+    assert asked == [("web_fetch", {"url": "https://example.com/docs"})]
+
+    class Blocked(UrlRequest):
+        url = "http://insecure.example"
+
+    assert isinstance(await provider._on_permission(Blocked(), {}), PermissionDecisionReject)
+
+    # Copilot's other built-ins were never offered, and stay refused whatever it asks.
+    class ShellRequest:
+        kind = "shell"
+
+    assert isinstance(await provider._on_permission(ShellRequest(), {}), PermissionDecisionReject)
+
+
+async def test_a_model_with_its_own_tool_is_not_given_rafiqs():
+    from rafiq_agent.core.agent_runtime import build_registry
+    from rafiq_agent.llm.presets import native_tools
+    from rafiq_agent.schemas.settings import AppSettings
+
+    settings = AppSettings()
+    plain = await build_registry(None, settings, native_tools("openai", "gpt-5"))
+    copilot_side = await build_registry(None, settings, native_tools("github_copilot", "gpt-5"))
+    try:
+        assert "web_fetch" in [s["function"]["name"] for s in plain.schemas()]
+        assert "web_fetch" not in [s["function"]["name"] for s in copilot_side.schemas()]
+    finally:
+        await plain.aclose()
+        await copilot_side.aclose()
 
 
 # ── OpenRouter PKCE ──────────────────────────────────────────────────────────────────
