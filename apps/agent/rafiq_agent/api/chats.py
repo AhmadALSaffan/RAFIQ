@@ -5,8 +5,9 @@ Routes only: validate input, call `core.chat_service`, shape the response. The t
 """
 
 from datetime import UTC, datetime
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,7 @@ from rafiq_agent.core.chat_service import (
     stop_turn,
     summarize,
 )
+from rafiq_agent.core.export_html import render as render_html
 from rafiq_agent.core.prompts import DEFAULT_TITLE
 from rafiq_agent.core.tasks_service import TaskCreateError, resolve_working_dir
 from rafiq_agent.i18n import tr
@@ -62,7 +64,9 @@ def _http(error: ChatError) -> HTTPException:
 
 
 @router.get("", response_model=list[ChatSummaryOut])
-async def list_chats(session: AsyncSession = Depends(get_session)) -> list[ChatSummaryOut]:
+async def list_chats(
+    workspace_id: str | None = Query(None), session: AsyncSession = Depends(get_session)
+) -> list[ChatSummaryOut]:
     counts = (
         select(ChatMessage.chat_id, func.count(ChatMessage.id).label("n"))
         .group_by(ChatMessage.chat_id)
@@ -73,6 +77,7 @@ async def list_chats(session: AsyncSession = Depends(get_session)) -> list[ChatS
         .outerjoin(counts, counts.c.chat_id == Chat.id)
         # Design sessions live on the designs page; they'd only be noise here.
         .where(func.coalesce(Chat.mode, "chat") != "design")
+        .where(Chat.workspace_id == workspace_id if workspace_id else True)
         .order_by(Chat.pinned.desc(), Chat.updated_at.desc())
     )
     out = []
@@ -86,7 +91,12 @@ async def list_chats(session: AsyncSession = Depends(get_session)) -> list[ChatS
 
 @router.post("", response_model=ChatDetailOut, status_code=201)
 async def create_chat(body: ChatCreate, session: AsyncSession = Depends(get_session)) -> ChatDetailOut:
-    chat = Chat(title=tr(DEFAULT_TITLE), model_id=body.model_id, working_dir=_checked_dir(body.working_dir))
+    chat = Chat(
+        title=tr(DEFAULT_TITLE),
+        model_id=body.model_id,
+        working_dir=_checked_dir(body.working_dir),
+        workspace_id=body.workspace_id or None,
+    )
     session.add(chat)
     await session.commit()
     await session.refresh(chat)
@@ -104,6 +114,51 @@ async def get_chat(chat_id: str, session: AsyncSession = Depends(get_session)) -
     out = ChatDetailOut.model_validate(chat)
     out.streaming = active_turn(chat_id) is not None
     return out
+
+
+@router.get("/{chat_id}/export")
+async def export_chat(
+    chat_id: str, format: str = Query("html"), session: AsyncSession = Depends(get_session)
+) -> Response:
+    """The whole chat as one file to share: HTML (self-contained, both themes) or Markdown."""
+    result = await session.execute(
+        select(Chat).where(Chat.id == chat_id).options(selectinload(Chat.messages))
+    )
+    chat = result.scalar_one_or_none()
+    if not chat:
+        raise HTTPException(status_code=404, detail="chat not found")
+    models = {m.id: m.name for m in (await session.execute(select(LlmModel))).scalars().all()}
+    messages = [
+        {
+            "role": m.role,
+            "content": m.content,
+            "parts": m.parts,
+            "created_at": m.created_at,
+            "model_id": m.model_id,
+        }
+        for m in chat.messages
+    ]
+    # Headers are latin-1: an Arabic title goes in the RFC 5987 form, with an ASCII fallback.
+    safe = "".join(ch if ch.isalnum() or ch in " -_" else "_" for ch in chat.title)[:60].strip() or "chat"
+    ascii_name = safe.encode("ascii", "ignore").decode().strip() or "chat"
+    encoded = quote(safe)
+    if format == "md":
+        lines = [f"# {chat.title}", ""]
+        for m in messages:
+            who = f"**{tr('أنا')}**" if m["role"] == "user" else f"**{models.get(m['model_id'] or '', tr('رفيق'))}**"
+            lines += [who, "", m["content"] or "", ""]
+        body = "\n".join(lines)
+        return Response(
+            body,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename=\"{ascii_name}.md\"; filename*=UTF-8''{encoded}.md"},
+        )
+    html = render_html(chat.title, messages, models)
+    return Response(
+        html,
+        media_type="text/html; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=\"{ascii_name}.html\"; filename*=UTF-8''{encoded}.html"},
+    )
 
 
 @router.patch("/{chat_id}", response_model=ChatSummaryOut)

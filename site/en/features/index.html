@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Features · Rafiq</title>
+  <meta name="description" content="Chats with tools, parallel tasks, a git worktree per task, design with a live preview, twenty-one providers, scheduling, and cost out in the open." />
+  <link rel="alternate" hreflang="ar" href="/features/" />
+  <link rel="alternate" hreflang="en" href="/en/features/" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <meta property="og:title" content="Features · Rafiq" />
+  <meta property="og:description" content="Chats with tools, parallel tasks, a git worktree per task, design with a live preview, twenty-one providers, scheduling, and cost out in the open." />
+  <meta property="og:image" content="/assets/screens/chat-plan.webp" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#100f0d" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)" />
+  <link rel="preload" href="/assets/fonts/plex-arabic-latin-700.woff2" as="font" type="font/woff2" crossorigin /><link rel="preload" href="/assets/fonts/plex-arabic-latin-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/en/" aria-label="Rafiq">
+      <img src="/assets/icon-64.png" alt="" width="30" height="30" />
+      Rafiq
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="/en/">Home</a><a href="/en/features/" aria-current="page">Features</a><a href="/en/security/">Security</a><a href="/en/download/">Download</a><a href="/en/faq/">FAQ</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="lang" href="/features/" hreflang="ar" lang="ar">العربية</a>
+      <a class="btn btn-primary" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download>Download for Windows</a>
+      <button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="mobile-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" hidden aria-label="Sections">
+    <a href="/en/">Home</a><a href="/en/features/" aria-current="page">Features</a><a href="/en/security/">Security</a><a href="/en/download/">Download</a><a href="/en/faq/">FAQ</a>
+    <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="page-head">
+    <div class="wrap reveal">
+      <h1>Features</h1>
+      <p class="lead">Everything here ships in the app today. No "coming soon".</p>
+    </div>
+  </section>
+
+  <section class="chapter" id="chat">
+    <div class="wrap split">
+      <div class="reveal">
+        <h2>A chat that can do things</h2>
+        <p>Talk to it like a colleague. It reads the files you point at with <code>@</code>, takes images and attachments, and answers in Markdown with highlighted code.</p>
+        <ul class="checks">
+          <li><code>/</code> commands set reply length, language, temperature and reasoning</li>
+          <li><code>/summarize</code> folds a long chat into a summary and saves tokens</li>
+          <li>Edit a question you already sent, or fork the chat from any point</li>
+          <li>Dictate straight into the message box from the microphone</li>
+          <li>The reply keeps going if you leave the page; come back and it's where it got to</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/chat-fx.webp" width="2400" height="1500" alt="A currency-rate chat: the web search tool card, then the answer with sources" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="chapter alt" id="tasks">
+    <div class="wrap">
+      <div class="reveal stack">
+        <h2>Tasks that run together, not one after another</h2>
+        <p>Give it a job and let it finish on its own in your folder. Or send a plan in chat: it splits the plan into tasks, shows each one's status inside the conversation, and waits for the results to carry on.</p>
+        <ul class="checks two">
+          <li>Up to 100 tasks at once; the limit is yours</li>
+          <li>Tasks touching the same files take turns automatically</li>
+          <li>A task can wait for another to finish first</li>
+          <li>A separate model for tasks: plan with the strong one, execute with the cheap one</li>
+          <li>A full transcript of every step, and one-click re-run</li>
+          <li>A Windows notification when a task finishes or needs your approval</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/tasks.webp" width="2400" height="1500" alt="The task list: seven tasks in completed, running and queued states, each with its model and folder" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="chapter" id="git">
+    <div class="wrap split flip">
+      <div class="reveal">
+        <h2>An isolated git worktree per task</h2>
+        <p>When the folder is a git project, each task works in its own worktree, taken from your folder exactly as it is, uncommitted files included. So tasks on the same project run side by side without stepping on each other.</p>
+        <ul class="checks">
+          <li>A changes panel on every task: files, diff, line counts</li>
+          <li>Revert everything the task did with one click</li>
+          <li>Changes that didn't apply cleanly can be merged with conflict markers</li>
+          <li>Rafiq never commits to your branch</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/crop-changes.webp" width="1440" height="630" alt="The changes panel on a task page" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="chapter alt" id="designs">
+    <div class="wrap">
+      <div class="reveal stack">
+        <h2>Design before you build</h2>
+        <p><code>/impeccable init</code> asks nine questions about the project, then opens a design session: chat on one side, a live preview on the other at phone, tablet and desktop widths. The design skills are bundled and work with every model.</p>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/design.webp" width="2400" height="1500" alt="A design session: the model's decisions on the right, the page preview on the left" loading="lazy" /></div>
+      <ul class="checks two reveal" style="margin-top: 28px">
+        <li>Multi-page designs, with links opening inside the preview</li>
+        <li>Every version saved as an HTML file in your folder</li>
+        <li>One button hands the design to the chat or task that will build it</li>
+        <li>Your own skills: add a folder with a SKILL.md and you're done</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="chapter" id="tools">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>The tools it gets</h2>
+        <p class="lead">Every tool is classified: read-only, write, or execute. Writes and executes go through your permission policy.</p>
+      </div>
+      <div class="toolgrid reveal">
+        <div><h3>Files and commands</h3><p>Read, write and delete inside the chat's or task's folder, shell commands with a timeout, and process management.</p></div>
+        <div><h3>The web</h3><p><code>web_fetch</code> reads any page or PDF as clean text with its links. <code>web_search</code> searches through Brave, Tavily, or your own SearXNG server.</p></div>
+        <div><h3>A real browser</h3><p>Microsoft Edge with its own profile: opens pages, clicks, types, reads and screenshots. Made for testing your site on localhost.</p></div>
+        <div><h3>The desktop</h3><p>Off by default. When you turn it on: screenshots, mouse and keyboard on any app, one task at a time.</p></div>
+        <div><h3>MCP servers</h3><p>Connect any Model Context Protocol server (a local command or HTTP) and its tools reach the model behind their own permission.</p></div>
+        <div><h3>Issue trackers</h3><p>Jira, Linear, GitHub Issues and GitLab: the issues assigned to you in one place, to discuss in chat or turn into a task.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter alt" id="providers">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Your model, wherever it lives</h2>
+        <p class="lead">An API key, a GitHub Copilot account, or a local model on your machine. Rafiq lists the models and checks that they answer before saving them.</p>
+      </div>
+      <div class="split reveal">
+        <div>
+          <div class="logo-grid"><img src="/assets/logos/anthropic.svg" alt="Anthropic" title="Anthropic" loading="lazy" /><img src="/assets/logos/openai.svg" alt="OpenAI" title="OpenAI" loading="lazy" /><img src="/assets/logos/googlegemini.svg" alt="Google Gemini" title="Google Gemini" loading="lazy" /><img src="/assets/logos/deepseek.svg" alt="DeepSeek" title="DeepSeek" loading="lazy" /><img src="/assets/logos/mistralai.svg" alt="Mistral" title="Mistral" loading="lazy" /><img src="/assets/logos/x.svg" alt="xAI (Grok)" title="xAI (Grok)" loading="lazy" /><img src="/assets/logos/githubcopilot.svg" alt="GitHub Copilot" title="GitHub Copilot" loading="lazy" /><img src="/assets/logos/openrouter.svg" alt="OpenRouter" title="OpenRouter" loading="lazy" /><img src="/assets/logos/azure.svg" alt="Azure OpenAI" title="Azure OpenAI" loading="lazy" /><img src="/assets/logos/bedrock.svg" alt="AWS Bedrock" title="AWS Bedrock" loading="lazy" /><img src="/assets/logos/googlecloud.svg" alt="Google Vertex AI" title="Google Vertex AI" loading="lazy" /><img src="/assets/logos/groq.svg" alt="Groq" title="Groq" loading="lazy" /><img src="/assets/logos/cerebras.svg" alt="Cerebras" title="Cerebras" loading="lazy" /><img src="/assets/logos/fireworks.svg" alt="Fireworks" title="Fireworks" loading="lazy" /><img src="/assets/logos/together.svg" alt="Together" title="Together" loading="lazy" /><img src="/assets/logos/alibabacloud.svg" alt="Qwen (DashScope)" title="Qwen (DashScope)" loading="lazy" /><img src="/assets/logos/kimi.svg" alt="Kimi (Moonshot)" title="Kimi (Moonshot)" loading="lazy" /><img src="/assets/logos/zai.svg" alt="GLM (Z.ai)" title="GLM (Z.ai)" loading="lazy" /><img src="/assets/logos/ollama.svg" alt="Ollama" title="Ollama" loading="lazy" /><img src="/assets/logos/lmstudio.svg" alt="LM Studio" title="LM Studio" loading="lazy" /><img src="/assets/logos/vllm.svg" alt="vLLM / OpenAI-compatible" title="vLLM / OpenAI-compatible" loading="lazy" /></div>
+        </div>
+        <div>
+          <ul class="checks">
+            <li>A fallback model per agent: if the provider goes down, the request goes to the backup on its own</li>
+            <li>A cap on concurrent requests per key, and retries when the provider pushes back</li>
+            <li>Azure, Bedrock and Vertex with their own fields: region, deployment, service account</li>
+            <li>Claude models use prompt caching automatically, so long chats cost less</li>
+            <li>Ollama and LM Studio with no key at all, and any server that speaks the OpenAI format</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" id="background">
+    <div class="wrap split flip">
+      <div class="reveal">
+        <h2>Works while it's closed</h2>
+        <p>Close the window and Rafiq stays next to the clock: tasks carry on, scheduled ones start on time, and you get a notification when one finishes or needs you.</p>
+        <ul class="checks">
+          <li>Scheduled tasks: every few minutes, daily at a time, or on chosen days</li>
+          <li>Templates for the tasks you repeat, four included</li>
+          <li>Starts with Windows if you enable it</li>
+          <li>When you really quit, it leaves no process running behind</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/tasks-schedules.webp" width="2400" height="1500" alt="The scheduled tasks tab: a morning Jira summary every day at 9" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="chapter alt" id="cost">
+    <div class="wrap split">
+      <div class="reveal">
+        <h2>Cost, out in the open</h2>
+        <p>Every call is recorded: prompt, completion and cached tokens, priced from the provider's own rate table. You see today, this month, the last thirty days, and a breakdown per model.</p>
+        <ul class="checks">
+          <li>A daily and a monthly limit in dollars; Rafiq stops when you reach one</li>
+          <li>Models with no known price are counted in tokens only, no invented numbers</li>
+          <li>A diagnostics report as JSON: app version, settings and provider names, with no keys</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/settings-usage.webp" width="2400" height="1500" alt="The Usage section in Settings" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="section" id="download-band" style="padding-top: 24px">
+    <div class="wrap">
+      <div class="download reveal">
+        <div>
+          <h2>Ready? Half a minute and it's yours.</h2>
+          <p class="lead" style="margin-top: 12px">One installer, no account. Then add a model key and start.</p>
+          <div class="cta">
+            <a class="btn btn-primary btn-lg" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Download for Windows</a>
+            <a class="btn btn-ghost btn-lg" href="/en/download/">Install details</a>
+          </div>
+        </div>
+        <ul class="meta">
+          <li><b>System</b><span>Windows 10 or 11, x64</span></li>
+          <li><b>Version</b><span data-version>0.3.0</span></li>
+          <li><b>Size</b><span data-size>87 MB</span></li>
+          <li><b>Install</b><span>Per user, no administrator rights needed</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Rafiq · made by <a href="https://github.com/AhmadALSaffan" target="_blank" rel="noopener">Ahmed Eliwi AL Saffan</a></span>
+    <nav aria-label="Links">
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/issues" target="_blank" rel="noopener">Report a problem</a>
+      <a href="/features/" hreflang="ar" lang="ar">العربية</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+</body>
+</html>

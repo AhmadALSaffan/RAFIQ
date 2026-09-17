@@ -267,7 +267,7 @@ async def test_copilot_tool_calls_run_through_rafiqs_loop(monkeypatch):
     registry.register(ListTool())
     asked: list[str] = []
 
-    async def permit(name, category, args):
+    async def permit(name, category, args, preview=None):
         asked.append(name)
         return True
 
@@ -301,7 +301,7 @@ async def test_copilots_own_web_fetch_still_asks_rafiqs_permission():
 
     asked: list[tuple[str, dict]] = []
 
-    async def permit(name, category, args):
+    async def permit(name, category, args, preview=None):
         asked.append((name, args))
         return args["url"].startswith("https://")
 

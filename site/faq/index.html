@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>أسئلة بتتكرر · رفيق</title>
+  <meta name="description" content="هل هو مجاني؟ أي نماذج بيدعم؟ هل ملفاتي بتنبعت لحدا؟ أجوبة مختصرة." />
+  <link rel="alternate" hreflang="en" href="/en/faq/" />
+  <link rel="alternate" hreflang="ar" href="/faq/" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <meta property="og:title" content="أسئلة بتتكرر · رفيق" />
+  <meta property="og:description" content="هل هو مجاني؟ أي نماذج بيدعم؟ هل ملفاتي بتنبعت لحدا؟ أجوبة مختصرة." />
+  <meta property="og:image" content="/assets/screens/chat-plan.webp" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#100f0d" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)" />
+  <link rel="preload" href="/assets/fonts/plex-arabic-arabic-700.woff2" as="font" type="font/woff2" crossorigin /><link rel="preload" href="/assets/fonts/plex-arabic-arabic-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="رفيق">
+      <img src="/assets/icon-64.png" alt="" width="30" height="30" />
+      رفيق
+    </a>
+    <nav class="nav-links" aria-label="الأقسام">
+      <a href="/">الرئيسية</a><a href="/features/">الميزات</a><a href="/security/">الأمان</a><a href="/download/">التحميل</a><a href="/faq/" aria-current="page">الأسئلة</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="lang" href="/en/faq/" hreflang="en" lang="en">English</a>
+      <a class="btn btn-primary" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download>حمّل لويندوز</a>
+      <button class="menu-btn" type="button" aria-label="القائمة" aria-expanded="false" aria-controls="mobile-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" hidden aria-label="الأقسام">
+    <a href="/">الرئيسية</a><a href="/features/">الميزات</a><a href="/security/">الأمان</a><a href="/download/">التحميل</a><a href="/faq/" aria-current="page">الأسئلة</a>
+    <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="page-head">
+    <div class="wrap reveal">
+      <h1>أسئلة بتتكرر</h1>
+      <p class="lead">إذا ما لقيت جوابك، افتح سؤال على GitHub.</p>
+    </div>
+  </section>
+  <section class="chapter" style="padding-top: 8px">
+    <div class="wrap narrow reveal">
+      <details class="faq" open><summary>هل رفيق مجاني؟</summary><p>التطبيق مجاني والكود على GitHub. اللي بتدفعه هو استهلاك النموذج عند المزوّد اللي اخترته، أو ولا شي إذا شغّلت نموذج محلي عبر Ollama أو LM Studio.</p></details><details class="faq"><summary>شو الفرق بينه وبين موقع ChatGPT أو Claude؟</summary><p>المواقع بتجاوبك. رفيق بيشتغل: بيقرأ ويكتب ملفاتك، بيشغّل أوامر، بيتصفّح، وبينفّذ مهام كاملة على مجلدك، وكل خطوة حسّاسة بتمرق من إذنك.</p></details><details class="faq"><summary>أي نماذج بيدعم؟</summary><p>واحد وعشرين مزوّد: Anthropic و OpenAI و Google Gemini و DeepSeek و Mistral و xAI و OpenRouter و GitHub Copilot و Azure OpenAI و AWS Bedrock و Google Vertex AI و Groq و Cerebras و Fireworks و Together و Qwen و Kimi و GLM، ومحلياً Ollama و LM Studio، وأي خادم متوافق مع OpenAI.</p></details><details class="faq"><summary>هل بيشتغل بدون إنترنت؟</summary><p>مع نموذج محلي (Ollama أو LM Studio) أيوا: الملفات والأوامر والتصاميم كلها محلية. أدوات الويب طبعاً بدها إنترنت.</p></details><details class="faq"><summary>هل ملفاتي بتنبعت لحدا؟</summary><p>بس اللي النموذج بيطلبه لتنفيذ شغلتك، وبيروح مباشرة للمزوّد اللي حطيت مفتاحه. ما في خادم وسيط خاص برفيق، ولا تحليلات، ولا تتبّع.</p></details><details class="faq"><summary>هل بدي اشتراك Copilot؟</summary><p>بس إذا بدك تستخدم نماذج GitHub Copilot. بتسجّل دخول بحساب GitHub عليه اشتراك Copilot فعّال، بدون ما تلصق أي مفتاح.</p></details><details class="faq"><summary>ليش ويندوز بيحذّرني وقت التثبيت؟</summary><p>لأن المثبّت مش موقّع بشهادة رقمية بعد. اضغط More info ثم Run anyway، وقارن بصمة الملف مع SHA256SUMS.txt المرفق بالإصدار إذا بدك تتأكد.</p></details><details class="faq"><summary>هل بيشتغل على ماك أو لينكس؟</summary><p>حالياً ويندوز 10 و11 فقط. البنية جاهزة لأنظمة تانية، بس ما في نسخة منشورة لها بعد.</p></details><details class="faq"><summary>كيف بيعرف رفيق أسعار النماذج؟</summary><p>من جدول أسعار المزوّدين نفسه. النموذج اللي ما إله سعر معروف بينعدّ بالتوكنات بس، وما بيخترع رقم.</p></details><details class="faq"><summary>لقيت مشكلة، وين بلّغ؟</summary><p>افتح issue على GitHub، وأرفق معه تقرير المشاكل من الإعدادات ← الاستهلاك: ملف JSON فيه نسخة التطبيق وإعداداتك وأسماء المزوّدين، بلا أي مفتاح أو محتوى محادثة.</p></details>
+    </div>
+  </section>
+
+  <section class="section" id="download-band" style="padding-top: 24px">
+    <div class="wrap">
+      <div class="download reveal">
+        <div>
+          <h2>جاهز؟ نصف دقيقة وبيكون عندك.</h2>
+          <p class="lead" style="margin-top: 12px">مثبّت واحد، بدون حساب. بعدها ضيف مفتاح نموذجك وابدأ.</p>
+          <div class="cta">
+            <a class="btn btn-primary btn-lg" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>حمّل لويندوز</a>
+            <a class="btn btn-ghost btn-lg" href="/download/">تفاصيل التثبيت</a>
+          </div>
+        </div>
+        <ul class="meta">
+          <li><b>النظام</b><span>Windows 10 أو 11، x64</span></li>
+          <li><b>الإصدار</b><span data-version>0.3.0</span></li>
+          <li><b>الحجم</b><span data-size>87 MB</span></li>
+          <li><b>الصلاحيات</b><span>بيتثبّت للمستخدم الحالي، بدون صلاحيات مدير</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>رفيق · صنعه <a href="https://github.com/AhmadALSaffan" target="_blank" rel="noopener">أحمد عليوي السفان</a></span>
+    <nav aria-label="روابط">
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/releases" target="_blank" rel="noopener">الإصدارات</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/issues" target="_blank" rel="noopener">بلّغ عن مشكلة</a>
+      <a href="/en/faq/" hreflang="en" lang="en">English</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+</body>
+</html>

@@ -51,15 +51,33 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 
 ---
 
-<!-- Screenshots — fill in once the images are uploaded, then remove this comment wrapper.
 ## Screenshots
 
-| Chat | Tasks | Designs | My Work |
-|:---:|:---:|:---:|:---:|
-| <img src="CHAT-URL" width="100%"> | <img src="TASKS-URL" width="100%"> | <img src="DESIGNS-URL" width="100%"> | <img src="WORK-URL" width="100%"> |
+<div align="center">
+
+| Chat | Tasks |
+|:---:|:---:|
+| <img src="docs/screenshots/chat.webp" width="100%"> | <img src="docs/screenshots/tasks.webp" width="100%"> |
+| Stream a reply from any model you connected, with `/` commands, `@` for files and `#` for issues. | Hand work off and watch it run: live status, a plan to approve, and every step on the record. |
+
+| One task, start to finish | Designs |
+|:---:|:---:|
+| <img src="docs/screenshots/task.webp" width="100%"> | <img src="docs/screenshots/design.webp" width="100%"> |
+| Each tool call, each approval, the changed files and their diff — with one click to apply, revert or commit. | Design the interface before you build it: a live preview beside the conversation that shaped it. |
+
+| Pick what the preview shows | MCP servers |
+|:---:|:---:|
+| <img src="docs/screenshots/design-files.webp" width="100%"> | <img src="docs/screenshots/settings-mcp.webp" width="100%"> |
+| The row above the preview lists every document of the design *and* every HTML file in its folder — one click swaps what you're looking at. | A catalogue of official servers: sign in through the browser, paste one token, or just connect. |
+
+| Settings | Models |
+|:---:|:---:|
+| <img src="docs/screenshots/settings.webp" width="100%"> | <img src="docs/screenshots/models.webp" width="100%"> |
+| Eight sections down the side, each saying what's inside it. | Every provider in one place, each agent with its key, its fallback and its last check. |
+
+</div>
 
 ---
--->
 
 ## Features
 
@@ -69,15 +87,22 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 - 🧩 **Plans → tasks** — Send a plan in chat and the model splits it into tasks, shows their live status in the chat, waits for them to finish, and replies with the results
 - 🔁 **Replies that keep going** — Leave a chat mid-reply and the reply keeps being written; come back and it picks up live where it is
 - 🌿 **A git worktree per task** — On a git repository, each task works in its own isolated copy (taken from the folder as it is, uncommitted files included), so tasks on one project run side by side; their changes are then applied back to your folder — never committed to your branch
-- 🔍 **Review and revert** — Every task on a git folder gets a changes panel: the files, the diff, and one click to revert (or apply changes that didn't apply cleanly)
+- 🔍 **Review, revert, commit** — Every task on a git folder gets a changes panel: the files, the diff, one click to revert (or apply changes that didn't apply cleanly), and a commit of just that task's files — with a commit message and PR description the model writes from the diff
+- 🗺️ **Plan first, or step by step** — A task can write its plan and wait for your approval (edit it first if you like) before touching anything, or ask before every single write and command
+- 👀 **See the diff before you allow it** — When a task or chat wants to write a file, the permission card shows exactly what will change, not just the file name
+- 🧠 **Memory across chats** — “Remember that I…” and Rafiq keeps it (behind its own permission, so you see what's saved); every later chat and task knows it, and Settings lets you edit or delete anything
+- 🗂️ **Workspaces** — A project's folder, default model and standing instructions in one place; switch workspace and chats, tasks and designs filter to it
+- 📤 **Share a chat** — Export any chat as a single self-contained HTML page (light and dark, tool cards included) or as Markdown
+- 🧩 **Skills you install** — Paste a GitHub repository, a folder in one, a raw `SKILL.md` or a zip and it becomes a skill; skills can bring their own `/` commands, announced when they land. Two bundled design skills (`design-taste`, Vercel's `web-interface-guidelines`) keep generated UI from looking generated
+- ⌨️ **`rafiq` on the command line** — `rafiq task "…" --wait`, `rafiq chat "…"`, `rafiq tasks`, `rafiq approve` — from any terminal while the app runs (see `API.md`)
 - 📌 **Project instructions** — Put a `RAFIQ.md` (or `AGENTS.md`) in a project and every chat and task there reads it first: build commands, conventions, what not to touch
-- 🔌 **MCP servers** — Connect any Model Context Protocol server (local command or Streamable HTTP); its tools join every chat and task behind their own permission, with its secrets kept in Windows Credential Manager
+- 🔌 **MCP servers, one click** — A catalogue of official servers with their logos: sign in through the browser (Notion, Linear, Atlassian, Sentry, Stripe, Figma — OAuth with PKCE, tokens in Windows Credential Manager, refreshed automatically), paste one token (GitHub, Supabase, Brave, Slack), or just connect (Playwright, Fetch, Context7, Docker…). No command lines unless you pick “custom”. Rafiq says when Node, uv or Docker is missing and turns a failed connection into a reason you can act on (a 401 is “token wrong or expired”, not “TaskGroup error”)
 - 🌍 **Web and browser** — `web_fetch` reads pages and PDFs as text; `web_search` uses Brave, Tavily, or your own SearXNG; and a real browser (Microsoft Edge, with its own profile) lets the agent click, type, and test `localhost` apps
 - 🖱️ **Desktop control** — Off by default: screenshots, mouse and keyboard on any app, one run at a time, every action behind its permission
-- ⏰ **Scheduled tasks and templates** — Run a task every N minutes, daily, or on chosen weekdays; save tasks you repeat as templates (four ready-made ones included)
+- ⏰ **Scheduled tasks and templates** — Run a task every N minutes, daily, or on chosen weekdays; save tasks you repeat as templates, import and export them as JSON, or pull from the community catalogue
 - 🚦 **Provider limits** — Requests per provider key are capped (the rest wait instead of failing with 429), rate limits and outages are retried with backoff, and each agent can have a fallback agent
 - 🪟 **Runs in the background** — Closing the window keeps Rafiq in the tray with Windows notifications for finished tasks and approvals; it can start with Windows, and it never leaves its agent process running after you quit
-- 🎨 **Designs** — A brief (`/impeccable init`), bundled design skills that work with every model, a live HTML preview at phone/tablet/desktop widths, and a one-click hand-off to the session that will build it
+- 🎨 **Designs** — A brief (`/impeccable init`), bundled design skills that work with every model, a live HTML preview at phone/tablet/desktop widths, and a one-click hand-off to the session that will build it. You choose what the preview shows: every document of the design (a second screen adds one instead of replacing the first) and every HTML file in the design's folder, including ones the model wrote with its own tools
 - 📥 **My Work** — Issues assigned to you across Jira Cloud, Linear, GitHub Issues, and GitLab Issues in one inbox: change status, comment, or turn an issue into a task
 - 🧠 **Any model** — Anthropic, OpenAI, Google Gemini, DeepSeek, Groq, Mistral, xAI, OpenRouter, Azure OpenAI, AWS Bedrock, Google Vertex AI, Cerebras, Fireworks, Together, Qwen (DashScope), Kimi (Moonshot), GLM (Z.ai), Ollama and LM Studio (local), or any OpenAI-compatible endpoint
 - 💵 **Cost and budgets** — Every call's tokens and price are recorded per agent and per day; set a daily or monthly limit and Rafiq stops calling the provider once it's reached
@@ -136,7 +161,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.3.0_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.4.0_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)
@@ -204,6 +229,7 @@ RAFIQ_GITHUB_CLIENT_ID= # GitHub OAuth App (device flow) used for Copilot sign-i
 | Files from tasks and designs with no folder | `Documents\Rafiq\tasks\…` and `Documents\Rafiq\designs\…` |
 | API keys, account tokens, tracker tokens | Windows Credential Manager |
 | Agent log (installed app) | `%APPDATA%\Rafiq\agent.log` |
+| Discovery file for the `rafiq` command (while running) | `%APPDATA%\Rafiq\agent.json` |
 
 All of these sit outside the install folder, so updating or reinstalling Rafiq never touches your data.
 
@@ -228,28 +254,73 @@ All of these sit outside the install folder, so updating or reinstalling Rafiq n
 ```text
 Rafiq/
 ├── apps/
-│   ├── desktop/                 # Tauri 2 + React + TypeScript + Tailwind
+│   ├── desktop/                      # Tauri 2 · React 19 · TypeScript · Tailwind 4 (Arabic-first, RTL)
 │   │   ├── src/
-│   │   │   ├── features/        # chat · tasks · work — one folder per feature
-│   │   │   ├── routes/          # models · designs · integrations · settings · about
-│   │   │   ├── components/      # shared UI: shell, menus, feedback, page frame
-│   │   │   └── lib/             # API client, types, bidi, layout, time helpers
-│   │   ├── src-tauri/           # Rust shell: spawns the agent, Windows file icons, installer config
-│   │   └── scripts/release.mjs  # release copy + SHA-256 checksum
-│   └── agent/                   # Python agent runtime
+│   │   │   ├── App.tsx               # routes
+│   │   │   ├── components/           # shared UI
+│   │   │   │   ├── Shell.tsx         #   nav, workspace switcher, task toasts
+│   │   │   │   ├── ChatCommands.tsx  #   /help, reply settings, export dialogs
+│   │   │   │   ├── ComposerMenus.tsx #   the `/ @ #` menus and the command list
+│   │   │   │   ├── steps.tsx         #   tool cards and the permission card (with its diff)
+│   │   │   │   ├── DiffView.tsx      #   one coloured unified diff, used by both
+│   │   │   │   ├── McpLogo.tsx       #   logos of the catalogue's MCP servers
+│   │   │   │   └── WorkspaceSwitcher.tsx
+│   │   │   ├── features/
+│   │   │   │   ├── chat/             #   the chat screen, composer, transcript, dictation
+│   │   │   │   ├── tasks/            #   list, detail, plan approval, changes panel, templates, schedules
+│   │   │   │   ├── design/           #   the skills section of the designs page
+│   │   │   │   ├── work/             #   the tracker inbox
+│   │   │   │   ├── settings/         #   agent · web · memory · MCP · usage sections
+│   │   │   │   ├── accounts/         #   sign-in with a provider account
+│   │   │   │   └── updates/          #   the in-app updater card
+│   │   │   ├── routes/               # models · designs · design workspace · integrations · settings · about
+│   │   │   ├── lib/                  # api/ (one module per domain), types, workspace, mcpCatalog, layout, bidi, time
+│   │   │   └── i18n/                 # Arabic source strings + en.ts · ru.ts (+ a test that enforces coverage)
+│   │   ├── src-tauri/                # Rust shell: spawns the agent, Windows file icons, tray, NSIS installer
+│   │   │   └── resources/rafiq.cmd   #   the `rafiq` command installed beside the app
+│   │   └── scripts/                  # build-app.mjs (PyInstaller + Tauri) · release.mjs (checksums + latest.json)
+│   └── agent/                        # Python 3.11+ · FastAPI · SQLite · the whole agent runtime
 │       ├── rafiq_agent/
-│       │   ├── api/             # FastAPI routes
-│       │   ├── core/            # agent loop, chat service, prompts, designs, workspace
-│       │   ├── llm/             # LiteLLM wrapper + model discovery
-│       │   ├── tools/           # filesystem, shell, process, issues, skills
-│       │   ├── integrations/    # Jira, Linear, GitHub, GitLab clients
-│       │   ├── skills/bundled/  # design skills shipped with the app
-│       │   └── storage/         # SQLAlchemy models + keyring secrets
-│       ├── tests/
-│       └── rafiq-agent.spec     # PyInstaller build
-├── brand/                       # logo sources
-├── ARCHITECTURE.md              # layer-by-layer guide (Arabic)
-└── GUIDE.md                     # full user & developer guide (Arabic)
+│       │   ├── main.py               # the app: routers, lifespan, the CLI discovery file
+│       │   ├── cli.py                # the `rafiq` command (standard library only)
+│       │   ├── api/                  # routes: chats · tasks · designs · models · accounts · settings ·
+│       │   │                         #   automation (templates, schedules, MCP) · memory · workspaces ·
+│       │   │                         #   integrations · attachments · files · insights · voice
+│       │   ├── core/
+│       │   │   ├── loop.py           #   the tool-use loop every provider goes through
+│       │   │   ├── chat_service.py   #   one chat turn: context, streaming, permissions, design sync
+│       │   │   ├── agent_runtime.py  #   one task: tools, plan-first and step-by-step modes
+│       │   │   ├── manager.py        #   parallel tasks: claims, dependencies, the queue
+│       │   │   ├── gitops.py         #   git plumbing  ·  task_git.py — a worktree per task
+│       │   │   ├── git_describe.py   #   commit message and PR text from a diff
+│       │   │   ├── memory.py         #   what Rafiq remembers between chats
+│       │   │   ├── designs.py        #   the brief, the documents, the design prompt
+│       │   │   ├── export_html.py    #   a chat as one self-contained page
+│       │   │   ├── prompts.py        #   every instruction Rafiq sends a model
+│       │   │   └── schedules.py · tasks_service.py · attachments.py · project_notes.py · workspace.py
+│       │   ├── llm/                  # LiteLLM wrapper · Copilot SDK · discovery · presets (native tools) ·
+│       │   │                         #   resilience (limits, retries, fallback) · usage (cost and budgets)
+│       │   ├── auth/                 # API keys and account sign-in (GitHub Copilot, OpenRouter) + resolve.py
+│       │   ├── tools/                # filesystem · shell · process · web · browser · desktop · skills ·
+│       │   │                         #   tasks · memory  (+ os_adapters/windows.py)
+│       │   ├── mcp_bridge.py         # MCP servers as tools  ·  mcp_oauth.py — their browser sign-in
+│       │   ├── integrations/         # Jira · Linear · GitHub · GitLab
+│       │   ├── skills/               # registry.py (+ commands) · install.py (from a URL) · bundled/
+│       │   ├── schemas/              # the API's request and response models
+│       │   ├── storage/              # SQLAlchemy models · migrations · keyring secrets
+│       │   ├── data/                 # the community task templates that ship with the app
+│       │   └── i18n.py · locales.py  # the agent speaks the UI's language too
+│       ├── tests/                    # pytest — the loop, parallelism, git, skills, MCP, i18n, features
+│       └── rafiq-agent.spec          # PyInstaller build
+├── docs/screenshots/                 # the images in this file
+├── site/ · site-src/                 # the marketing site (static, generated by site-src/build.py)
+├── brand/                            # logo sources
+├── release/                          # the built installer, its checksum and latest.json
+├── API.md                            # the local API and the `rafiq` command
+├── ARCHITECTURE.md                   # layer-by-layer guide (Arabic)
+├── GUIDE.md                          # full user & developer guide (Arabic)
+├── DESIGN.md · PRODUCT.md            # the design system and the product decisions
+└── README.md
 ```
 
 For a deeper tour — every layer, and "where do I change…" — see [ARCHITECTURE.md](ARCHITECTURE.md). The complete Arabic guide, including every chat command, is in [GUIDE.md](GUIDE.md).

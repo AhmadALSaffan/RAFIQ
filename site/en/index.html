@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rafiq · An AI agent for Windows that works on your own machine</title>
+  <meta name="description" content="Rafiq is a Windows desktop app that connects the model you already use and gives it real tools: files, commands, the web, a browser, and design with a live preview. Arabic-first, local, and nothing sensitive without your approval." />
+  <link rel="alternate" hreflang="ar" href="/" />
+  <link rel="alternate" hreflang="en" href="/en/" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <meta property="og:title" content="Rafiq · An AI agent for Windows that works on your own machine" />
+  <meta property="og:description" content="Rafiq is a Windows desktop app that connects the model you already use and gives it real tools: files, commands, the web, a browser, and design with a live preview. Arabic-first, local, and nothing sensitive without your approval." />
+  <meta property="og:image" content="/assets/screens/chat-plan.webp" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#100f0d" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)" />
+  <link rel="preload" href="/assets/fonts/plex-arabic-latin-700.woff2" as="font" type="font/woff2" crossorigin /><link rel="preload" href="/assets/fonts/plex-arabic-latin-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/en/" aria-label="Rafiq">
+      <img src="/assets/icon-64.png" alt="" width="30" height="30" />
+      Rafiq
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="/en/" aria-current="page">Home</a><a href="/en/features/">Features</a><a href="/en/security/">Security</a><a href="/en/download/">Download</a><a href="/en/faq/">FAQ</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="lang" href="/" hreflang="ar" lang="ar">العربية</a>
+      <a class="btn btn-primary" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download>Download for Windows</a>
+      <button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="mobile-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" hidden aria-label="Sections">
+    <a href="/en/" aria-current="page">Home</a><a href="/en/features/">Features</a><a href="/en/security/">Security</a><a href="/en/download/">Download</a><a href="/en/faq/">FAQ</a>
+    <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap">
+      <div class="reveal">
+        <h1>Gets the work done, <em>on your machine.</em></h1>
+        <p class="lead">Connect the model you already use and give it real tools: files, shell, web, browser. Arabic-first, and every sensitive step waits for you.</p>
+        <div class="cta">
+          <a class="btn btn-primary btn-lg" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Download for Windows</a>
+          <a class="btn btn-ghost btn-lg" href="#how">See how it works</a>
+        </div>
+      </div>
+      <div class="hero-shot reveal">
+        <div class="frame">
+          <img src="/assets/screens/chat-plan.webp" width="2400" height="1500" alt="A chat in Rafiq: the user sent a three-point plan and the model split it into three tasks running in parallel, each with its live status" fetchpriority="high" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="providers">
+    <div class="wrap reveal">
+      <p>Works with the model you already have, from twenty-one providers</p>
+      <div class="logos"><img src="/assets/logos/anthropic.svg" alt="Anthropic" title="Anthropic" loading="lazy" /><img src="/assets/logos/openai.svg" alt="OpenAI" title="OpenAI" loading="lazy" /><img src="/assets/logos/googlegemini.svg" alt="Google Gemini" title="Google Gemini" loading="lazy" /><img src="/assets/logos/deepseek.svg" alt="DeepSeek" title="DeepSeek" loading="lazy" /><img src="/assets/logos/mistralai.svg" alt="Mistral" title="Mistral" loading="lazy" /><img src="/assets/logos/x.svg" alt="xAI (Grok)" title="xAI (Grok)" loading="lazy" /><img src="/assets/logos/githubcopilot.svg" alt="GitHub Copilot" title="GitHub Copilot" loading="lazy" /><img src="/assets/logos/openrouter.svg" alt="OpenRouter" title="OpenRouter" loading="lazy" /><img src="/assets/logos/azure.svg" alt="Azure OpenAI" title="Azure OpenAI" loading="lazy" /><img src="/assets/logos/bedrock.svg" alt="AWS Bedrock" title="AWS Bedrock" loading="lazy" /><img src="/assets/logos/googlecloud.svg" alt="Google Vertex AI" title="Google Vertex AI" loading="lazy" /><img src="/assets/logos/groq.svg" alt="Groq" title="Groq" loading="lazy" /><img src="/assets/logos/cerebras.svg" alt="Cerebras" title="Cerebras" loading="lazy" /><img src="/assets/logos/fireworks.svg" alt="Fireworks" title="Fireworks" loading="lazy" /><img src="/assets/logos/together.svg" alt="Together" title="Together" loading="lazy" /><img src="/assets/logos/alibabacloud.svg" alt="Qwen (DashScope)" title="Qwen (DashScope)" loading="lazy" /><img src="/assets/logos/kimi.svg" alt="Kimi (Moonshot)" title="Kimi (Moonshot)" loading="lazy" /><img src="/assets/logos/zai.svg" alt="GLM (Z.ai)" title="GLM (Z.ai)" loading="lazy" /><img src="/assets/logos/ollama.svg" alt="Ollama" title="Ollama" loading="lazy" /><img src="/assets/logos/lmstudio.svg" alt="LM Studio" title="LM Studio" loading="lazy" /><img src="/assets/logos/vllm.svg" alt="vLLM / OpenAI-compatible" title="vLLM / OpenAI-compatible" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="section" id="how">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Three steps, then it works on its own</h2>
+        <p class="lead">No account, no subscription. Your key, your machine, your folder.</p>
+      </div>
+      <div class="tabs reveal">
+        <div class="tablist" role="tablist" aria-label="How to use it">
+          <button class="tab" role="tab" aria-selected="true" aria-controls="p1" id="t1">
+            <strong>Connect a model</strong>
+            <span>Paste an API key, or sign in with a GitHub Copilot account. Rafiq lists the models and checks that they answer.</span>
+          </button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="p2" id="t2">
+            <strong>Talk to it, or hand it a plan</strong>
+            <span>A plain question, or a plan in a few lines. It splits the plan into tasks and you watch each one's status inside the chat.</span>
+          </button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="p3" id="t3">
+            <strong>Watch, review, approve</strong>
+            <span>Every tool shows up as a card. Writes and commands wait for your approval, and git changes are shown before they touch your folder.</span>
+          </button>
+        </div>
+        <div class="tabpanels">
+          <div class="tabpanel frame" id="p1" role="tabpanel" aria-labelledby="t1">
+            <img src="/assets/screens/models.webp" width="2400" height="1500" alt="The Models page: five models from different providers, each verified with its latency and a fallback model" loading="lazy" />
+          </div>
+          <div class="tabpanel frame" id="p2" role="tabpanel" aria-labelledby="t2">
+            <img src="/assets/screens/chat-plan.webp" width="2400" height="1500" alt="A three-point plan turned into three tasks with different statuses" loading="lazy" />
+          </div>
+          <div class="tabpanel frame" id="p3" role="tabpanel" aria-labelledby="t3">
+            <img src="/assets/screens/task-detail.webp" width="2400" height="1500" alt="A task page: steps as tool cards, a permission request to run a command, and the git changes panel" loading="lazy" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="features" style="padding-top: 0">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Built to do the work, not just answer</h2>
+      </div>
+      <div class="bento reveal">
+        <a class="tile wide" href="/en/features/#tasks">
+          <h3>Tasks in parallel</h3>
+          <p>Up to 100 at once. Tasks that touch the same files take turns, tasks that depend on others wait. The reply keeps going even if you leave the page.</p>
+          <div class="art"><img src="/assets/screens/crop-taskgroup.webp" width="1410" height="410" alt="A task group inside the chat: two completed and one running" loading="lazy" /></div>
+        </a>
+        <a class="tile third" href="/en/features/#git">
+          <h3>A git worktree per task</h3>
+          <p>On any git project, each task works in an isolated copy. Changes are listed as files and a diff, and one click reverts them.</p>
+          <div class="art"><img src="/assets/screens/crop-changes.webp" width="1440" height="630" alt="The changes panel: 26 lines added and 3 removed, applied to the folder, with a revert button" loading="lazy" /></div>
+        </a>
+        <a class="tile half" href="/en/features/#designs">
+          <h3>Design with a live preview</h3>
+          <p>Answer a few questions and let the model design with bundled design skills. The preview sits beside the chat at phone, tablet and desktop widths, and one click hands it off to be built.</p>
+          <div class="art"><img src="/assets/screens/crop-preview.webp" width="1550" height="1180" alt="A cafe landing page previewed inside Rafiq" loading="lazy" /></div>
+        </a>
+        <a class="tile half" href="/en/features/#cost">
+          <h3>Cost in view, limits in your hands</h3>
+          <p>Every call is counted in tokens and dollars per model. Set a daily or monthly limit and Rafiq stops before the invoice surprises you.</p>
+          <div class="art"><img src="/assets/screens/crop-usage.webp" width="1240" height="380" alt="Spending today and this month, with daily and monthly limits and a thirty-day chart" loading="lazy" /></div>
+        </a>
+        <a class="tile third tinted" href="/en/features/#providers">
+          <h3>Twenty-one providers, local models too</h3>
+          <p>From Anthropic and OpenAI to Bedrock, Vertex and Ollama. A fallback model for each, and request limits so you never hit a rate-limit wall.</p>
+          <div class="mini-logos"><img src="/assets/logos/anthropic.svg" alt="Anthropic" title="Anthropic" loading="lazy" /><img src="/assets/logos/openai.svg" alt="OpenAI" title="OpenAI" loading="lazy" /><img src="/assets/logos/googlegemini.svg" alt="Google Gemini" title="Google Gemini" loading="lazy" /><img src="/assets/logos/deepseek.svg" alt="DeepSeek" title="DeepSeek" loading="lazy" /><img src="/assets/logos/mistralai.svg" alt="Mistral" title="Mistral" loading="lazy" /><img src="/assets/logos/x.svg" alt="xAI (Grok)" title="xAI (Grok)" loading="lazy" /><img src="/assets/logos/githubcopilot.svg" alt="GitHub Copilot" title="GitHub Copilot" loading="lazy" /><img src="/assets/logos/openrouter.svg" alt="OpenRouter" title="OpenRouter" loading="lazy" /><img src="/assets/logos/azure.svg" alt="Azure OpenAI" title="Azure OpenAI" loading="lazy" /><img src="/assets/logos/bedrock.svg" alt="AWS Bedrock" title="AWS Bedrock" loading="lazy" /><img src="/assets/logos/googlecloud.svg" alt="Google Vertex AI" title="Google Vertex AI" loading="lazy" /><img src="/assets/logos/groq.svg" alt="Groq" title="Groq" loading="lazy" /><img src="/assets/logos/cerebras.svg" alt="Cerebras" title="Cerebras" loading="lazy" /><img src="/assets/logos/fireworks.svg" alt="Fireworks" title="Fireworks" loading="lazy" /><img src="/assets/logos/together.svg" alt="Together" title="Together" loading="lazy" /><img src="/assets/logos/alibabacloud.svg" alt="Qwen (DashScope)" title="Qwen (DashScope)" loading="lazy" /><img src="/assets/logos/kimi.svg" alt="Kimi (Moonshot)" title="Kimi (Moonshot)" loading="lazy" /><img src="/assets/logos/zai.svg" alt="GLM (Z.ai)" title="GLM (Z.ai)" loading="lazy" /><img src="/assets/logos/ollama.svg" alt="Ollama" title="Ollama" loading="lazy" /><img src="/assets/logos/lmstudio.svg" alt="LM Studio" title="LM Studio" loading="lazy" /><img src="/assets/logos/vllm.svg" alt="vLLM / OpenAI-compatible" title="vLLM / OpenAI-compatible" loading="lazy" /></div>
+        </a>
+        <a class="tile third" href="/en/features/#background">
+          <h3>Keeps working in the background</h3>
+          <p>Close the window and it carries on next to the clock. A notification when a task finishes or needs you, and scheduled tasks daily or every few hours.</p>
+          <ul>
+            <li>Starts with Windows if you like</li>
+            <li>Templates for the tasks you repeat</li>
+            <li>Updates itself from inside the app</li>
+          </ul>
+        </a>
+      </div>
+      <p class="reveal" style="margin-top: 28px"><a class="textlink" href="/en/features/">All features in detail</a></p>
+    </div>
+  </section>
+
+  <section class="section" id="privacy" style="padding-top: 24px">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>On your machine, with your approval</h2>
+      </div>
+      <div class="principles reveal">
+        <div class="principle">
+          <h3>Keys in the Windows vault</h3>
+          <p>API keys and tokens live in Windows Credential Manager only. They never enter the database, the logs, or the app's interface.</p>
+        </div>
+        <div class="principle">
+          <h3>Every sensitive step asks</h3>
+          <p>Writing a file, running a command, browsing, controlling the desktop, calling an MCP tool: each has its own policy. Ask, allow, or deny.</p>
+        </div>
+        <div class="principle">
+          <h3>No Rafiq cloud</h3>
+          <p>Your chats, tasks and designs are in a local database. Requests go straight to the provider you chose, and to nobody else.</p>
+        </div>
+      </div>
+      <p class="reveal" style="margin-top: 28px"><a class="textlink" href="/en/security/">How Rafiq protects your data</a></p>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top: 32px">
+    <div class="wrap">
+      <div class="twoup reveal">
+        <figure>
+          <div class="frame"><img src="/assets/screens/tasks-light.webp" width="2400" height="1500" alt="The tasks page in light mode" loading="lazy" /></div>
+          <figcaption>Light and dark, Arabic right-to-left from the ground up. Fully translated to English and Russian as well.</figcaption>
+        </figure>
+        <figure>
+          <div class="frame"><img src="/assets/screens/tasks.webp" width="2400" height="1500" alt="The tasks page in dark mode" loading="lazy" /></div>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="download-band" style="padding-top: 24px">
+    <div class="wrap">
+      <div class="download reveal">
+        <div>
+          <h2>Ready? Half a minute and it's yours.</h2>
+          <p class="lead" style="margin-top: 12px">One installer, no account. Then add a model key and start.</p>
+          <div class="cta">
+            <a class="btn btn-primary btn-lg" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Download for Windows</a>
+            <a class="btn btn-ghost btn-lg" href="/en/download/">Install details</a>
+          </div>
+        </div>
+        <ul class="meta">
+          <li><b>System</b><span>Windows 10 or 11, x64</span></li>
+          <li><b>Version</b><span data-version>0.3.0</span></li>
+          <li><b>Size</b><span data-size>87 MB</span></li>
+          <li><b>Install</b><span>Per user, no administrator rights needed</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Rafiq · made by <a href="https://github.com/AhmadALSaffan" target="_blank" rel="noopener">Ahmed Eliwi AL Saffan</a></span>
+    <nav aria-label="Links">
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/issues" target="_blank" rel="noopener">Report a problem</a>
+      <a href="/" hreflang="ar" lang="ar">العربية</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+</body>
+</html>

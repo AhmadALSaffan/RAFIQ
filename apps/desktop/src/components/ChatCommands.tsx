@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import type { ChatMessage, ReplyLanguage, ReplyLength, ReplySettings } from "../lib/types";
+import { fieldDir } from "../lib/bidi";
 import { easeOutExpo } from "../lib/motion";
-import { COMMANDS } from "./ComposerMenus";
+import { COMMANDS, type CommandDef } from "./ComposerMenus";
+import { DownloadIcon, GlobeIcon } from "./Icons";
 import { Button } from "./ui";
 import { XIcon } from "./Icons";
 
@@ -275,16 +277,21 @@ const SHORTCUTS = [
 ];
 
 /** `/مساعدة` — every command and shortcut in one place. */
-export function HelpDialog({ onClose }: { onClose: () => void }) {
+export function HelpDialog({ onClose, extra = [] }: { onClose: () => void; extra?: CommandDef[] }) {
   return (
     <Dialog title={t("الأوامر والاختصارات")} subtitle={t("اكتب / بصندوق الكتابة عشان تطلعلك نفس القائمة.")} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <ul className="flex flex-col gap-1.5">
-          {COMMANDS.map((cmd) => (
+          {[...COMMANDS, ...extra].map((cmd) => (
             <li key={cmd.id} className="flex items-start gap-2.5">
               <cmd.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--color-accent)" }} />
               <span className="min-w-0">
                 <span className="text-sm">{cmd.label}</span>
+                {cmd.from && (
+                  <span className="ms-1.5 rounded px-1 font-mono text-[10px]" style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }} dir="ltr">
+                    {cmd.from}
+                  </span>
+                )}
                 <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
                   {cmd.hint}
                 </span>
@@ -316,6 +323,57 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** `/صدّر`: Markdown for notes, or a self-contained HTML page for sharing. */
+export function ExportDialog({ onClose, onPick }: { onClose: () => void; onPick: (format: "md" | "html") => void }) {
+  const options: { id: "md" | "html"; title: string; hint: string; Icon: typeof DownloadIcon }[] = [
+    { id: "html", title: t("صفحة HTML"), hint: t("ملف واحد فيه كل شي — الردود والأدوات والصور — بيتفتح بأي متصفح وبالوضعين الفاتح والداكن. للمشاركة."), Icon: GlobeIcon },
+    { id: "md", title: "Markdown", hint: t("نص خام تحطه بملاحظاتك أو بمستودع."), Icon: DownloadIcon },
+  ];
+  return (
+    <Dialog title={t("صدّر المحادثة")} onClose={onClose}>
+      <div className="grid gap-2">
+        {options.map((o) => (
+          <button
+            key={o.id}
+            onClick={() => onPick(o.id)}
+            className="flex items-start gap-3 rounded-xl border px-4 py-3 text-start transition-colors hover:border-[var(--color-accent)]"
+            style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}
+          >
+            <o.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--color-accent)" }} />
+            <span>
+              <span className="block text-sm font-medium">{o.title}</span>
+              <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                {o.hint}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </Dialog>
+  );
+}
+
+/** `/عنوان`: a new title for the chat. */
+export function RenameDialog({ value, onClose, onSave }: { value: string; onClose: () => void; onSave: (title: string) => void }) {
+  const [title, setTitle] = useState(value);
+  return (
+    <Dialog title={t("عنوان المحادثة")} onClose={onClose}>
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (title.trim()) onSave(title.trim());
+        }}
+      >
+        <input value={title} onChange={(e) => setTitle(e.target.value)} className="input flex-1" autoFocus dir={fieldDir(title)} />
+        <Button type="submit" disabled={!title.trim()}>
+          {t("احفظ")}
+        </Button>
+      </form>
+    </Dialog>
+  );
+}
+
 /** The transcript as Markdown, for `/صدّر`. */
 export function chatToMarkdown(title: string, messages: ChatMessage[]): string {
   const lines = [`# ${title}`, ""];
@@ -337,10 +395,11 @@ export function chatToMarkdown(title: string, messages: ChatMessage[]): string {
 export async function saveTextFile(
   suggestedName: string,
   contents: string,
-  kind: "md" | "json" = "md",
+  kind: "md" | "json" | "html" = "md",
 ): Promise<string | null> {
   const { isTauri, invoke } = await import("@tauri-apps/api/core");
-  const filter = kind === "json" ? { name: "JSON", extensions: ["json"] } : { name: "Markdown", extensions: ["md"] };
+  const filter =
+    kind === "json" ? { name: "JSON", extensions: ["json"] } : kind === "html" ? { name: "HTML", extensions: ["html"] } : { name: "Markdown", extensions: ["md"] };
   if (isTauri()) {
     const { save } = await import("@tauri-apps/plugin-dialog");
     const path = await save({ defaultPath: suggestedName, filters: [filter] });
@@ -349,7 +408,7 @@ export async function saveTextFile(
     return path;
   }
 
-  const type = kind === "json" ? "application/json;charset=utf-8" : "text/markdown;charset=utf-8";
+  const type = kind === "json" ? "application/json;charset=utf-8" : kind === "html" ? "text/html;charset=utf-8" : "text/markdown;charset=utf-8";
   const url = URL.createObjectURL(new Blob([contents], { type }));
   const link = document.createElement("a");
   link.href = url;

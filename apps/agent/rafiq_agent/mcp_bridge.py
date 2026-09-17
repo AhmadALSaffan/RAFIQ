@@ -63,6 +63,39 @@ class _Config:
     command: str | None
     args: list[str]
     url: str | None
+    auth: str = "none"
+
+
+async def _probe_status(url: str, headers: dict[str, str]) -> int | None:
+    """One plain initialize request, to learn the HTTP status the SDK swallowed."""
+    import httpx
+
+    body = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "rafiq", "version": "probe"}},
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            response = await client.post(
+                url,
+                json=body,
+                headers={**headers, "Accept": "application/json, text/event-stream", "Content-Type": "application/json"},
+            )
+            return response.status_code
+    except Exception:  # noqa: BLE001 - the probe is best effort
+        return None
+
+
+def _normalized_headers(headers: dict[str, str]) -> dict[str, str]:
+    """A bare token pasted into Authorization becomes a Bearer token — the form most
+    remote servers (GitHub included) expect."""
+    out = dict(headers)
+    for key, value in headers.items():
+        if key.lower() == "authorization" and value and " " not in value.strip():
+            out[key] = f"Bearer {value.strip()}"
+    return out
 
 
 @dataclass
@@ -90,7 +123,9 @@ class Connection:
             try:
                 await asyncio.wait_for(self._ready.wait(), CONNECT_TIMEOUT)
             except TimeoutError:
-                self.error = "الخادم ما رد خلال وقت كافي."
+                from rafiq_agent.i18n import tr
+
+                self.error = tr("الخادم ما رد خلال وقت كافي.")
                 await self.stop()
             if self.error:
                 self.failed_at = asyncio.get_running_loop().time()
@@ -107,7 +142,12 @@ class Connection:
                     from mcp.client.streamable_http import streamable_http_client
                     from mcp.shared._httpx_utils import create_mcp_http_client
 
-                    client = create_mcp_http_client(headers=secrets["headers"] or None)
+                    auth = None
+                    if self.config.auth == "oauth":
+                        from rafiq_agent import mcp_oauth
+
+                        auth = mcp_oauth.provider(self.config.id, self.config.url or "")
+                    client = create_mcp_http_client(headers=_normalized_headers(secrets["headers"]) or None, auth=auth)
                     await stack.enter_async_context(client)
                     streams = await stack.enter_async_context(
                         streamable_http_client(self.config.url or "", http_client=client)
@@ -139,13 +179,25 @@ class Connection:
                 self.tools, self.session = tools, session
                 self._ready.set()
                 await self._stop.wait()
-        except Exception as exc:  # noqa: BLE001 - reported to the user as the server's status
-            self.error = str(exc) or type(exc).__name__
+        except BaseException as exc:  # noqa: BLE001 - reported to the user as the server's status
+            from rafiq_agent.mcp_oauth import GENERIC_HTTP_ERRORS, describe_error, describe_status
+
+            self.error = describe_error(exc)
+            if isinstance(exc, asyncio.CancelledError):
+                raise
+            if self.config.transport == "http" and self.config.auth != "oauth" and any(g in self.error for g in GENERIC_HTTP_ERRORS):
+                status = await _probe_status(self.config.url or "", _normalized_headers(load_secrets(self.config.id)["headers"]))
+                if status is not None and (explained := describe_status(status)):
+                    self.error = explained
         finally:
             self.session = None
             self._ready.set()
             if errlog is not None:
                 errlog.close()
+            if self.config.auth == "oauth":
+                from rafiq_agent import mcp_oauth
+
+                mcp_oauth.end(self.config.id)
 
     async def call(self, name: str, arguments: dict[str, Any]) -> Any:
         if not self.connected:
@@ -168,7 +220,7 @@ class McpManager:
     async def _enabled(self) -> list[_Config]:
         async with SessionLocal() as session:
             rows = (await session.execute(select(McpServer).where(McpServer.enabled.is_(True)))).scalars().all()
-        return [_Config(r.id, r.name, r.transport, r.command, list(r.args or []), r.url) for r in rows]
+        return [_Config(r.id, r.name, r.transport, r.command, list(r.args or []), r.url, r.auth or "none") for r in rows]
 
     def status(self, server_id: str) -> dict[str, Any]:
         conn = self.connections.get(server_id)
@@ -177,11 +229,25 @@ class McpManager:
         return {"connected": conn.connected, "tools": [t.name for t in conn.tools], "error": conn.error}
 
     async def connect(self, server: McpServer) -> Connection:
-        config = _Config(server.id, server.name, server.transport, server.command, list(server.args or []), server.url)
+        config = _Config(
+            server.id, server.name, server.transport, server.command, list(server.args or []), server.url, server.auth or "none"
+        )
         await self.disconnect(server.id)
         conn = Connection(config)
         self.connections[server.id] = conn
         await conn.start()
+        return conn
+
+    def begin(self, server: McpServer) -> Connection:
+        """Like connect(), but returns at once: the connection keeps going in the background
+        (an OAuth server is waiting for the user's browser)."""
+        config = _Config(
+            server.id, server.name, server.transport, server.command, list(server.args or []), server.url, server.auth or "none"
+        )
+        conn = Connection(config)
+        self.connections[server.id] = conn
+        conn._ready, conn._stop, conn.error = asyncio.Event(), asyncio.Event(), None
+        conn._task = asyncio.create_task(conn._run())
         return conn
 
     async def disconnect(self, server_id: str) -> None:

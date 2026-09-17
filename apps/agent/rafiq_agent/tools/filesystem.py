@@ -3,6 +3,9 @@ from typing import Any
 
 from rafiq_agent.tools.base import Tool, ToolResult
 
+# How much of a write's diff the permission card gets to show.
+PREVIEW_CHARS = 6_000
+
 
 class PathEscapeError(Exception):
     pass
@@ -80,6 +83,33 @@ class FilesystemWriteTool(Tool):
 
     def __init__(self, working_dir: Path) -> None:
         self.working_dir = working_dir
+
+    async def preview(self, args: dict[str, Any]) -> str | None:
+        """A unified diff against what's on disk, so the user approves a change they can
+        read rather than a filename."""
+        import difflib
+
+        try:
+            target = _resolve(self.working_dir, str(args.get("path", "")))
+        except PathEscapeError:
+            return None
+        new_text = str(args.get("content", ""))
+        new_lines = new_text.splitlines(keepends=True)
+        if target.is_file():
+            try:
+                old_lines = target.read_text(encoding="utf-8").splitlines(keepends=True)
+            except (OSError, UnicodeDecodeError):
+                return None
+            label = args.get("path", target.name)
+            diff = list(difflib.unified_diff(old_lines, new_lines, fromfile=f"a/{label}", tofile=f"b/{label}", n=2))
+            if not diff:
+                return "(no changes)"
+        else:
+            diff = [f"+++ {args.get('path', target.name)} (new file, {len(new_lines)} lines)\n", *(f"+{line}" for line in new_lines)]
+        text = "".join(diff)
+        if len(text) > PREVIEW_CHARS:
+            text = text[:PREVIEW_CHARS] + "\n… (truncated)"
+        return text
 
     async def run(self, args: dict[str, Any]) -> ToolResult:
         try:

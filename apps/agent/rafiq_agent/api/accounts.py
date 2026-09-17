@@ -161,6 +161,12 @@ display:grid;place-items:center;min-height:100vh;margin:0">
 </div></body></html>"""
 
 
+def callback_page(title: str, body: str) -> str:
+    """The small "you can close this tab" page, in the UI's language."""
+    loc = current_locale()
+    return _CALLBACK_PAGE.format(lang=loc, dir="rtl" if loc == "ar" else "ltr", app=tr("رفيق"), title=title, body=body)
+
+
 @callback_router.get("/{provider}/{flow_id}", response_class=HTMLResponse)
 async def browser_callback(provider: str, flow_id: str, code: str = "") -> HTMLResponse:
     adapter = adapter_for(provider)

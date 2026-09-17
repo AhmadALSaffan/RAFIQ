@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { getSettings, getWorkspace, updateSettings } from "../lib/api";
 import { revealPath } from "../lib/folders";
 import { Button, DrawnCheck } from "../components/ui";
 import { PageHeader, StatusStripe } from "../components/Page";
+import { GlobeIcon, LinkIcon, PinIcon, PlugIcon, SettingsIcon, ShieldIcon, TasksIcon, WalletIcon } from "../components/Icons";
 import { ActionProgress } from "../components/Feedback";
 import { ConnectedAccountsSection } from "../features/accounts/ConnectedAccountsSection";
 import { ToggleRow } from "../features/settings/controls";
-import { BackgroundSettings, McpSettings, TasksSettings, WebSettings } from "../features/settings/sections";
+import { BackgroundSettings, TasksSettings, WebSettings } from "../features/settings/sections";
+import { McpSettings } from "../features/settings/mcp";
+import { MemorySettings } from "../features/settings/memory";
 import { UsageSettings } from "../features/settings/usage";
 import { listContainer, listItem, snappy } from "../lib/motion";
 import type { AppSettings, PermissionKey, PermissionMode } from "../lib/types";
@@ -34,6 +38,7 @@ const permissionRows: { key: PermissionKey; label: string; hint: string }[] = [
   { key: "desktop_control", label: t("التحكم بسطح المكتب"), hint: t("تحريك الفأرة والكتابة على أي تطبيق") },
   { key: "issue_write", label: t("التعديل على مهام Jira وغيرها"), hint: t("كتابة تعليق أو تعليم مهمة كمكتملة") },
   { key: "mcp", label: t("أدوات MCP"), hint: t("استدعاء أدوات خوادم MCP اللي ربطتها") },
+  { key: "memory", label: t("الذاكرة"), hint: t("حفظ شي يتذكّره رفيق بالمحادثات الجاية") },
 ];
 
 const modeLabel: Record<PermissionMode, string> = {
@@ -230,6 +235,20 @@ const MODE_COLOR: Record<PermissionMode, string> = {
   deny: "var(--color-danger)",
 };
 
+type TabId = "general" | "accounts" | "agent" | "permissions" | "memory" | "web" | "mcp" | "usage";
+
+/** The side list. Each line says what's inside, so nobody has to open a tab to find out. */
+const TABS: { id: TabId; label: string; hint: string; Icon: typeof SettingsIcon }[] = [
+  { id: "general", label: t("عام"), hint: t("اللغة، الشكل، مكان الملفات، التشغيل بالخلفية"), Icon: SettingsIcon },
+  { id: "accounts", label: t("الحسابات"), hint: t("تسجيل الدخول لمزوّدي النماذج"), Icon: LinkIcon },
+  { id: "agent", label: t("المهام والنماذج"), hint: t("موديل المهام، التوازي، نسخة git، حدود المزوّد"), Icon: TasksIcon },
+  { id: "permissions", label: t("الصلاحيات"), hint: t("شو بيعمله لحاله وشو بيستأذن عليه"), Icon: ShieldIcon },
+  { id: "memory", label: t("الذاكرة"), hint: t("اللي بيتذكّره رفيق بين المحادثات"), Icon: PinIcon },
+  { id: "web", label: t("الويب والمتصفح"), hint: t("مزوّد البحث ومفتاحه، ونافذة المتصفح"), Icon: GlobeIcon },
+  { id: "mcp", label: "MCP", hint: t("اربط GitHub وNotion وقواعد بياناتك"), Icon: PlugIcon },
+  { id: "usage", label: t("التكلفة"), hint: t("الصرف اليومي والشهري وحدوده"), Icon: WalletIcon },
+];
+
 export function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
@@ -240,6 +259,14 @@ export function SettingsPage() {
   useEffect(() => {
     getSettings().then(setSettings);
   }, []);
+
+  // Which section is open lives in the URL (?tab=…), so «/ذاكرة» from a chat — and the
+  // back button — land where the user expects.
+  const { hash } = useLocation();
+  const [params, setParams] = useSearchParams();
+  const wanted = params.get("tab") ?? (hash === "#memory" ? "memory" : null);
+  const tab: TabId = TABS.some((x) => x.id === wanted) ? (wanted as TabId) : "general";
+  const setTab = (id: TabId) => setParams(id === "general" ? {} : { tab: id }, { replace: true });
 
   if (!settings) {
     // Skeletons shaped like the real sections, so the page doesn't jump when they load.
@@ -271,7 +298,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="relative mx-auto max-w-2xl px-8 py-10">
+    <div className="relative mx-auto max-w-5xl px-8 py-10">
       <ActionProgress active={saving} className="fixed inset-x-0 top-0" />
       <PageHeader
         title={t("الإعدادات")}
@@ -279,83 +306,142 @@ export function SettingsPage() {
         actions={<SavedNote at={savedAt} />}
       />
 
-      <LanguageSection />
-
-      <StorageSection />
-
-      <ConnectedAccountsSection />
-
-      <LayoutSection />
-
-      <TasksSettings settings={settings} persist={persist} />
-
-      <UsageSettings settings={settings} persist={persist} />
-
-      <WebSettings settings={settings} persist={persist} />
-
-      <McpSettings />
-
-      <BackgroundSettings settings={settings} persist={persist} />
-
-      <section className="mb-8">
-        <h2 className="mb-3 text-sm font-medium">{t("سياسة الصلاحيات")}</h2>
-        <motion.div variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
-          {permissionRows.map((row) => (
-            <motion.div
-              variants={listItem}
-              key={row.key}
-              className="relative flex items-center justify-between overflow-hidden rounded-lg border px-4 py-3"
-              style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
-            >
-              <StatusStripe color={MODE_COLOR[settings.permissions[row.key]]} />
-              <div>
-                <p className="text-sm font-medium">{row.label}</p>
-                <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                  {row.hint}
-                </p>
-              </div>
-              <select
-                value={settings.permissions[row.key]}
-                onChange={(e) => setPermission(row.key, e.target.value as PermissionMode)}
-                className="input w-36"
-                disabled={row.key === "desktop_control" && !settings.desktop_control_enabled}
+      {/* The list sits on the start side (right in Arabic) and follows the page, so moving
+          between sections never means scrolling back to the top. Narrow windows get a row. */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
+        <nav
+          className="-mx-2 flex gap-1 overflow-x-auto px-2 pb-1 lg:sticky lg:top-6 lg:mx-0 lg:h-fit lg:w-56 lg:shrink-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0"
+          role="tablist"
+          aria-label={t("أقسام الإعدادات")}
+        >
+          {TABS.map((item) => {
+            const active = item.id === tab;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                role="tab"
+                aria-selected={active}
+                title={item.hint}
+                className="relative flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-start transition-colors md:w-full"
+                style={{ color: active ? "var(--color-ink)" : "var(--color-ink-muted)" }}
               >
-                {(["ask", "auto", "deny"] as PermissionMode[]).map((m) => (
-                  <option key={m} value={m}>
-                    {modeLabel[m]}
-                  </option>
-                ))}
-              </select>
-            </motion.div>
-          ))}
-        </motion.div>
-      </section>
+                {active && (
+                  <motion.span
+                    layoutId="settings-tab"
+                    className="absolute inset-0 rounded-lg"
+                    style={{
+                      background: "color-mix(in oklch, var(--color-accent) 14%, transparent)",
+                      boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--color-accent) 45%, transparent)",
+                    }}
+                    transition={snappy}
+                  />
+                )}
+                <item.Icon className="relative h-4 w-4 shrink-0" style={{ color: active ? "var(--color-accent)" : undefined }} />
+                <span className="relative min-w-0">
+                  <span className="block text-sm font-medium">{item.label}</span>
+                  <span className="mt-0.5 hidden text-[11px] leading-snug lg:block" style={{ color: "var(--color-ink-muted)" }}>
+                    {item.hint}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
 
-      <section
-        className="rounded-lg border px-4 py-4"
-        style={{ borderColor: settings.desktop_control_enabled ? "var(--color-danger)" : "var(--color-border)", background: "var(--color-surface)" }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">{t("تفعيل التحكم الكامل بسطح المكتب")}</p>
-            <p className="mt-1 max-w-md text-xs" style={{ color: "var(--color-ink-muted)" }}>
-              {t("يسمح لرفيق يحرّك الفأرة ويكتب على أي تطبيق مفتوح، مو بس داخل التطبيق. خليه مطفي إلا إذا كنت متأكد إنك بتحتاجه.")}
-            </p>
-          </div>
-          <button
-            role="switch"
-            aria-checked={settings.desktop_control_enabled}
-            onClick={() => persist({ ...settings, desktop_control_enabled: !settings.desktop_control_enabled })}
-            className="flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
-            style={{
-              background: settings.desktop_control_enabled ? "var(--color-danger)" : "var(--color-surface-2)",
-              justifyContent: settings.desktop_control_enabled ? "flex-end" : "flex-start",
-            }}
-          >
-            <motion.span layout transition={snappy} className="h-5 w-5 rounded-full bg-white shadow-sm" />
-          </button>
+        <div className="min-w-0 flex-1">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }}
+              transition={{ duration: 0.22 }}
+            >
+              {tab === "general" && (
+                <>
+                  <LanguageSection />
+                  <LayoutSection />
+                  <StorageSection />
+                  <BackgroundSettings settings={settings} persist={persist} />
+                </>
+              )}
+              {tab === "accounts" && <ConnectedAccountsSection />}
+              {tab === "agent" && <TasksSettings settings={settings} persist={persist} />}
+              {tab === "memory" && <MemorySettings settings={settings} persist={persist} />}
+              {tab === "web" && <WebSettings settings={settings} persist={persist} />}
+              {tab === "mcp" && <McpSettings />}
+              {tab === "usage" && <UsageSettings settings={settings} persist={persist} />}
+              {tab === "permissions" && (
+                <>
+                  <section className="mb-8">
+                    <h2 className="mb-3 text-sm font-medium">{t("سياسة الصلاحيات")}</h2>
+                    <motion.div variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
+                      {permissionRows.map((row) => (
+                        <motion.div
+                          variants={listItem}
+                          key={row.key}
+                          className="relative flex items-center justify-between overflow-hidden rounded-lg border px-4 py-3"
+                          style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+                        >
+                          <StatusStripe color={MODE_COLOR[settings.permissions[row.key]]} />
+                          <div>
+                            <p className="text-sm font-medium">{row.label}</p>
+                            <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                              {row.hint}
+                            </p>
+                          </div>
+                          <select
+                            value={settings.permissions[row.key]}
+                            onChange={(e) => setPermission(row.key, e.target.value as PermissionMode)}
+                            className="input w-36"
+                            disabled={row.key === "desktop_control" && !settings.desktop_control_enabled}
+                          >
+                            {(["ask", "auto", "deny"] as PermissionMode[]).map((m) => (
+                              <option key={m} value={m}>
+                                {modeLabel[m]}
+                              </option>
+                            ))}
+                          </select>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  </section>
+
+                  <section
+                    className="rounded-lg border px-4 py-4"
+                    style={{
+                      borderColor: settings.desktop_control_enabled ? "var(--color-danger)" : "var(--color-border)",
+                      background: "var(--color-surface)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{t("تفعيل التحكم الكامل بسطح المكتب")}</p>
+                        <p className="mt-1 max-w-md text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                          {t("يسمح لرفيق يحرّك الفأرة ويكتب على أي تطبيق مفتوح، مو بس داخل التطبيق. خليه مطفي إلا إذا كنت متأكد إنك بتحتاجه.")}
+                        </p>
+                      </div>
+                      <button
+                        role="switch"
+                        aria-checked={settings.desktop_control_enabled}
+                        onClick={() => persist({ ...settings, desktop_control_enabled: !settings.desktop_control_enabled })}
+                        className="flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
+                        style={{
+                          background: settings.desktop_control_enabled ? "var(--color-danger)" : "var(--color-surface-2)",
+                          justifyContent: settings.desktop_control_enabled ? "flex-end" : "flex-start",
+                        }}
+                      >
+                        <motion.span layout transition={snappy} className="h-5 w-5 rounded-full bg-white shadow-sm" />
+                      </button>
+                    </div>
+                  </section>
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
-      </section>
+      </div>
     </div>
   );
 }

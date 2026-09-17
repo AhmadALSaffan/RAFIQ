@@ -1,23 +1,35 @@
 """Templates, schedules and MCP servers."""
 
+import asyncio
 import contextlib
+import json
+import shutil
 from datetime import UTC, datetime
+from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from rafiq_agent import mcp_oauth
 from rafiq_agent.api.deps import require_token
 from rafiq_agent.core.schedules import next_run, parse_time, start_now
 from rafiq_agent.core.tasks_service import TaskCreateError, resolve_working_dir
 from rafiq_agent.i18n import tr
 from rafiq_agent.mcp_bridge import MANAGER, load_secrets, save_secrets, secret_name
 from rafiq_agent.schemas.automation import (
+    CatalogOut,
+    CatalogTemplate,
+    McpConnectOut,
+    McpRequirementsOut,
     McpServerIn,
     McpServerOut,
     McpStatus,
     ScheduleIn,
     ScheduleOut,
+    TemplateImportIn,
     TemplateIn,
     TemplateOut,
 )
@@ -56,6 +68,85 @@ async def create_template(body: TemplateIn, session: AsyncSession = Depends(get_
     await session.commit()
     await session.refresh(template)
     return template
+
+
+CATALOG_FILE = Path(__file__).resolve().parent.parent / "data" / "templates_catalog.json"
+CATALOG_URL = "https://raw.githubusercontent.com/AhmadALSaffan/RAFIQ/main/apps/agent/rafiq_agent/data/templates_catalog.json"
+
+
+def _catalog_items(raw: object) -> list[CatalogTemplate]:
+    items = raw.get("templates", []) if isinstance(raw, dict) else raw
+    out = []
+    for item in items if isinstance(items, list) else []:
+        if isinstance(item, dict) and str(item.get("name", "")).strip() and str(item.get("prompt", "")).strip():
+            out.append(
+                CatalogTemplate(
+                    name=str(item["name"]).strip()[:120],
+                    prompt=str(item["prompt"]),
+                    tags=[str(t) for t in item.get("tags", []) if str(t)][:6],
+                )
+            )
+    return out[:200]
+
+
+@router.get("/templates/catalog", response_model=CatalogOut)
+async def template_catalog() -> CatalogOut:
+    """Community templates: the latest list from the repository, else the copy that ships
+    with the app."""
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            response = await client.get(CATALOG_URL, follow_redirects=True)
+            response.raise_for_status()
+            items = _catalog_items(response.json())
+            if items:
+                return CatalogOut(source="remote", templates=items)
+    except Exception:  # noqa: BLE001 - offline is normal
+        pass
+    try:
+        items = _catalog_items(json.loads(CATALOG_FILE.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        items = []
+    return CatalogOut(source="bundled", templates=items)
+
+
+@router.get("/templates/export", response_model=list[TemplateIn])
+async def export_templates(session: AsyncSession = Depends(get_session)) -> list[TemplateIn]:
+    """The user's templates as a list they can share or import elsewhere (no model ids or
+    folders — those are machine-specific)."""
+    rows = await session.execute(select(TaskTemplate).order_by(TaskTemplate.created_at))
+    return [TemplateIn(name=t.name, prompt=t.prompt) for t in rows.scalars().all()]
+
+
+@router.post("/templates/import", response_model=list[TemplateOut], status_code=201)
+async def import_templates(body: TemplateImportIn, session: AsyncSession = Depends(get_session)) -> list[TaskTemplate]:
+    """Adds templates from a JSON URL or a pasted list. Names already present are skipped."""
+    items = list(body.templates)
+    if body.url:
+        if not body.url.startswith("https://"):
+            raise HTTPException(status_code=400, detail=tr("الرابط لازم يبلّش بـ https://"))
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.get(body.url, follow_redirects=True)
+                response.raise_for_status()
+                items += [TemplateIn(name=c.name, prompt=c.prompt) for c in _catalog_items(response.json())]
+        except Exception as exc:  # noqa: BLE001 - the reason is the message
+            raise HTTPException(status_code=400, detail=tr("ما قدرت أقرأ القوالب من الرابط: {0}", exc)) from exc
+    if not items:
+        raise HTTPException(status_code=400, detail=tr("ما في قوالب لأستوردها."))
+    existing = {t.name for t in (await session.execute(select(TaskTemplate))).scalars().all()}
+    added = []
+    for item in items:
+        name = item.name.strip()
+        if not name or name in existing:
+            continue
+        existing.add(name)
+        template = TaskTemplate(name=name, prompt=item.prompt, model_id=None, working_dir=None)
+        session.add(template)
+        added.append(template)
+    await session.commit()
+    for template in added:
+        await session.refresh(template)
+    return added
 
 
 @router.put("/templates/{template_id}", response_model=TemplateOut)
@@ -167,6 +258,9 @@ def _mcp_out(server: McpServer) -> McpServerOut:
         url=server.url,
         enabled=server.enabled,
         secret_keys=list(server.secret_keys or []),
+        auth=server.auth or "none",
+        preset=server.preset,
+        authorized=(server.auth == "oauth") and mcp_oauth.is_authorized(server.id),
         status=McpStatus(**MANAGER.status(server.id)),
     )
 
@@ -199,6 +293,8 @@ async def create_mcp(body: McpServerIn, session: AsyncSession = Depends(get_sess
         args=[a for a in body.args if a],
         url=(body.url or "").strip() or None,
         enabled=body.enabled,
+        auth=body.auth if body.transport == "http" else "none",
+        preset=(body.preset or "").strip() or None,
     )
     session.add(server)
     await session.flush()
@@ -220,6 +316,8 @@ async def update_mcp(server_id: str, body: McpServerIn, session: AsyncSession = 
     server.args = [a for a in body.args if a]
     server.url = (body.url or "").strip() or None
     server.enabled = body.enabled
+    server.auth = body.auth if body.transport == "http" else "none"
+    server.preset = (body.preset or "").strip() or None
     server.secret_keys = save_secrets(
         server_id, _merged(saved["env"], body.env), _merged(saved["headers"], body.headers)
     )
@@ -235,9 +333,82 @@ async def delete_mcp(server_id: str, session: AsyncSession = Depends(get_session
     await MANAGER.disconnect(server_id)
     with contextlib.suppress(Exception):
         delete_named_secret(secret_name(server_id))
+    mcp_oauth.forget(server_id)
     if server is not None:
         await session.delete(server)
         await session.commit()
+
+
+@router.post("/mcp/{server_id}/connect", response_model=McpConnectOut)
+async def connect_mcp(server_id: str, session: AsyncSession = Depends(get_session)) -> McpConnectOut:
+    """Starts connecting. For an OAuth server that hasn't been authorized, answers with the
+    page to open; the connection then completes on its own once the browser comes back
+    (poll GET /mcp to watch it). Otherwise behaves like /test."""
+    server = await session.get(McpServer, server_id)
+    if server is None:
+        raise HTTPException(status_code=404, detail="server not found")
+    if server.auth != "oauth":
+        try:
+            await MANAGER.connect(server)
+        except Exception as exc:  # noqa: BLE001 - the reason is the answer
+            return McpConnectOut(connected=False, error=str(exc))
+        return McpConnectOut(connected=True)
+
+    await MANAGER.disconnect(server_id)
+    mcp_oauth.end(server_id)
+    flow = mcp_oauth.begin(server_id)
+    conn = MANAGER.begin(server)
+    ready = asyncio.ensure_future(conn._ready.wait())
+    url = asyncio.ensure_future(asyncio.shield(flow.url))
+    done, _ = await asyncio.wait({ready, url}, timeout=25, return_when=asyncio.FIRST_COMPLETED)
+    for task in (ready, url):
+        if task not in done:
+            task.cancel()
+    if url in done and not url.cancelled() and url.exception() is None:
+        return McpConnectOut(authorize_url=url.result(), connected=False)
+    if conn.connected:
+        return McpConnectOut(connected=True)
+    return McpConnectOut(connected=False, error=conn.error or tr("الخادم ما رد خلال وقت كافي."))
+
+
+@router.post("/mcp/{server_id}/logout", response_model=McpServerOut)
+async def logout_mcp(server_id: str, session: AsyncSession = Depends(get_session)) -> McpServerOut:
+    """Forgets the OAuth tokens; the next connect asks the user again."""
+    server = await session.get(McpServer, server_id)
+    if server is None:
+        raise HTTPException(status_code=404, detail="server not found")
+    await MANAGER.disconnect(server_id)
+    mcp_oauth.forget(server_id)
+    return _mcp_out(server)
+
+
+oauth_callback_router = APIRouter(prefix="/mcp/oauth", tags=["automation"])
+
+
+@oauth_callback_router.get("/callback", response_class=HTMLResponse)
+async def mcp_oauth_callback(code: str = "", state: str = "", error: str = "") -> HTMLResponse:
+    """Where the provider sends the browser after the user approves. No token here: the
+    code goes to the waiting connection, which exchanges it itself."""
+    from rafiq_agent.api.accounts import callback_page
+
+    if error or not code:
+        return HTMLResponse(callback_page(tr("ما تمّ الربط"), tr("رجّع وحاول من رفيق مرة تانية. ({0})", error or "no code")), status_code=400)
+    accepted = mcp_oauth.deliver(code, state)
+    if accepted:
+        return HTMLResponse(callback_page(tr("تمام، رجعنا لرفيق"), tr("فيك تسكّر هالصفحة وترجع للتطبيق.")))
+    return HTMLResponse(callback_page(tr("هالرابط انتهى"), tr("ابدأ الربط من جديد من رفيق ← الإعدادات ← خوادم MCP.")), status_code=400)
+
+
+@router.get("/mcp/requirements", response_model=McpRequirementsOut)
+async def mcp_requirements() -> McpRequirementsOut:
+    """Which runtimes the preset MCP servers need are installed on this machine."""
+    return McpRequirementsOut(
+        node=shutil.which("node") is not None,
+        npx=shutil.which("npx") is not None or shutil.which("npx.cmd") is not None,
+        uvx=shutil.which("uvx") is not None,
+        python=shutil.which("python") is not None or shutil.which("python3") is not None,
+        docker=shutil.which("docker") is not None,
+    )
 
 
 @router.post("/mcp/{server_id}/test", response_model=McpServerOut)

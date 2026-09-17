@@ -13,6 +13,31 @@ class TemplateIn(BaseModel):
     working_dir: str | None = None
 
 
+class TemplateImportIn(BaseModel):
+    # Either a URL to a JSON file ({"templates": [...]}, or a bare list) or the items.
+    url: str | None = None
+    templates: list[TemplateIn] = []
+
+
+class CatalogTemplate(BaseModel):
+    name: str
+    prompt: str
+    tags: list[str] = []
+
+
+class CatalogOut(BaseModel):
+    source: str  # "remote" | "bundled"
+    templates: list[CatalogTemplate]
+
+
+class McpRequirementsOut(BaseModel):
+    node: bool
+    npx: bool
+    uvx: bool
+    python: bool
+    docker: bool
+
+
 class TemplateOut(TemplateIn):
     id: str
     created_at: datetime
@@ -56,6 +81,15 @@ class McpServerIn(BaseModel):
     env: dict[str, str] = {}
     headers: dict[str, str] = {}
     enabled: bool = True
+    auth: Literal["none", "oauth"] = "none"
+    preset: str | None = None
+
+
+class McpConnectOut(BaseModel):
+    # The page the user must open to authorize (OAuth), or nothing when already connected.
+    authorize_url: str | None = None
+    connected: bool = False
+    error: str | None = None
 
 
 class McpStatus(BaseModel):
@@ -73,6 +107,10 @@ class McpServerOut(BaseModel):
     url: str | None
     enabled: bool
     secret_keys: list[str] = []
+    auth: str = "none"
+    preset: str | None = None
+    # OAuth servers: the browser step is done (tokens on file).
+    authorized: bool = False
     status: McpStatus = McpStatus()
 
 

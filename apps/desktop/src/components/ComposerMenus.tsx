@@ -6,19 +6,30 @@ import { easeOutExpo } from "../lib/motion";
 import { BrandMark } from "./BrandMark";
 import {
   AlertIcon,
+  ClockIcon,
   CompressIcon,
   CopyIcon,
   DownloadIcon,
   FileIcon,
   FolderIcon,
+  ForkIcon,
+  GlobeIcon,
   HelpIcon,
+  InfoIcon,
   ModelsIcon,
   PaperclipIcon,
+  PencilIcon,
+  PinIcon,
   PlusIcon,
   RefreshIcon,
+  SearchIcon,
   SettingsIcon,
+  ShieldIcon,
+  SparkIcon,
   SpinnerIcon,
+  StopIcon,
   TasksIcon,
+  TerminalIcon,
 } from "./Icons";
 import { systemFileIcon } from "../lib/fileIcons";
 import { fieldDir } from "../lib/bidi";
@@ -36,9 +47,26 @@ export type CommandId =
   | "retry"
   | "copy"
   | "export"
+  | "share"
   | "done"
   | "new"
-  | "help";
+  | "help"
+  | "search"
+  | "review"
+  | "test"
+  | "explain"
+  | "translate"
+  | "remember"
+  | "memory"
+  | "fork"
+  | "pin"
+  | "title"
+  | "template"
+  | "tasks"
+  | "schedule"
+  | "design"
+  | "stop"
+  | `skill:${string}`;
 
 export interface CommandDef {
   id: CommandId;
@@ -47,6 +75,11 @@ export interface CommandDef {
   aliases: string[];
   Icon: typeof TasksIcon;
   needs?: "folder" | "integration" | "chat";
+  /** "prefill" drops `text` in the box for the user to finish; "send" sends `text` as is. */
+  kind?: "prefill" | "send";
+  text?: string;
+  /** The skill this command came from (installed skills add their own commands). */
+  from?: string;
 }
 
 export const COMMANDS: CommandDef[] = [
@@ -59,7 +92,75 @@ export const COMMANDS: CommandDef[] = [
   { id: "summarize", label: t("/لخّص"), hint: t("اطوِ المحادثة بملخص عشان توفّر توكنز"), aliases: ["summarize", "compact", t("لخص"), t("لخّص"), t("تلخيص")], Icon: CompressIcon, needs: "chat" },
   { id: "retry", label: t("/أعد"), hint: t("احذف آخر رد وجرّب من جديد"), aliases: ["retry", "again", t("اعد"), t("أعد"), t("كرر")], Icon: RefreshIcon, needs: "chat" },
   { id: "copy", label: t("/انسخ"), hint: t("انسخ آخر رد للحافظة"), aliases: ["copy", t("انسخ"), t("نسخ")], Icon: CopyIcon, needs: "chat" },
-  { id: "export", label: t("/صدّر"), hint: t("احفظ المحادثة كملف Markdown"), aliases: ["export", "save", t("صدر"), t("صدّر"), t("تصدير"), t("حفظ")], Icon: DownloadIcon, needs: "chat" },
+  { id: "export", label: t("/صدّر"), hint: t("احفظ المحادثة كملف Markdown أو HTML"), aliases: ["export", "save", t("صدر"), t("صدّر"), t("تصدير"), t("حفظ")], Icon: DownloadIcon, needs: "chat" },
+  { id: "share", label: t("/شارك"), hint: t("صفحة HTML كاملة تبعتها لأي حدا — بدون رفيق"), aliases: ["share", "html", t("شارك"), t("مشاركة")], Icon: GlobeIcon, needs: "chat" },
+  {
+    id: "search",
+    label: t("/بحث"),
+    hint: t("دوّر على الويب واذكر المصادر"),
+    aliases: ["search", "web", t("بحث"), t("دور"), t("دوّر"), t("ابحث")],
+    Icon: SearchIcon,
+    kind: "prefill",
+    text: t("ابحث على الويب واذكر المصادر: "),
+  },
+  {
+    id: "review",
+    label: t("/راجع"),
+    hint: t("مراجعة كود مجلد المحادثة: أخطاء، أمان، أداء"),
+    aliases: ["review", t("راجع"), t("مراجعة")],
+    Icon: ShieldIcon,
+    needs: "folder",
+    kind: "send",
+    text: t("راجع الكود بهالمجلد: ركّز على الأخطاء المنطقية، الحالات الحدّية، مشاكل الأمان، والأداء. لكل ملاحظة اذكر الملف والسطر واقتراح الإصلاح. لا تعدّل شي، بس اكتب التقرير."),
+  },
+  {
+    id: "test",
+    label: t("/اختبر"),
+    hint: t("شغّل اختبارات المشروع وصلّح اللي فشل"),
+    aliases: ["test", "tests", t("اختبر"), t("اختبار"), t("تست")],
+    Icon: TerminalIcon,
+    needs: "folder",
+    kind: "send",
+    text: t("شغّل اختبارات هالمشروع بأداة الـ shell. إذا فشل شي، اقرأ السبب وصلّحه وأعد التشغيل، ولخّصلي بالنهاية شو صار."),
+  },
+  {
+    id: "explain",
+    label: t("/اشرح"),
+    hint: t("اشرح آخر رد بشكل أبسط"),
+    aliases: ["explain", "eli5", t("اشرح"), t("شرح"), t("بسط")],
+    Icon: HelpIcon,
+    needs: "chat",
+    kind: "send",
+    text: t("اشرح آخر رد بشكل أبسط وأوضح، خطوة خطوة، كأنك تشرحه لشخص مبتدئ."),
+  },
+  {
+    id: "translate",
+    label: t("/ترجم"),
+    hint: t("ترجم آخر رد للغة تختارها"),
+    aliases: ["translate", t("ترجم"), t("ترجمة")],
+    Icon: GlobeIcon,
+    needs: "chat",
+    kind: "prefill",
+    text: t("ترجم آخر رد إلى "),
+  },
+  {
+    id: "remember",
+    label: t("/تذكّر"),
+    hint: t("خلّي رفيق يحفظ شي للمحادثات الجاية"),
+    aliases: ["remember", t("تذكر"), t("تذكّر"), t("احفظ")],
+    Icon: PinIcon,
+    kind: "prefill",
+    text: t("تذكّر إني "),
+  },
+  { id: "memory", label: t("/ذاكرة"), hint: t("شوف وعدّل اللي بيتذكّره رفيق"), aliases: ["memory", "memories", t("ذاكرة"), t("الذاكرة")], Icon: InfoIcon },
+  { id: "fork", label: t("/فرّع"), hint: t("افتح نسخة من المحادثة لتجرّب اتجاه تاني"), aliases: ["fork", "branch", t("فرع"), t("فرّع"), t("تفريع")], Icon: ForkIcon, needs: "chat" },
+  { id: "pin", label: t("/ثبّت"), hint: t("ثبّت المحادثة (أو فكّ تثبيتها) بأول القائمة"), aliases: ["pin", t("ثبت"), t("ثبّت"), t("تثبيت")], Icon: PinIcon, needs: "chat" },
+  { id: "title", label: t("/عنوان"), hint: t("غيّر عنوان المحادثة"), aliases: ["title", "rename", t("عنوان"), t("اسم"), t("سمي")], Icon: PencilIcon, needs: "chat" },
+  { id: "template", label: t("/قالب"), hint: t("احفظ آخر طلب كقالب مهمة تعيده بضغطة"), aliases: ["template", t("قالب"), t("قوالب")], Icon: TasksIcon, needs: "chat" },
+  { id: "tasks", label: t("/مهام"), hint: t("روح لصفحة المهام"), aliases: ["tasks", t("مهام"), t("المهام")], Icon: TasksIcon },
+  { id: "schedule", label: t("/جدولة"), hint: t("جدول مهمة تتكرر كل يوم أو أسبوع"), aliases: ["schedule", "cron", t("جدولة"), t("جدول"), t("مجدولة")], Icon: ClockIcon },
+  { id: "design", label: t("/تصميم"), hint: t("ابدأ تصميم واجهة قبل ما تبرمجها"), aliases: ["design", t("تصميم"), t("صمم"), t("صمّم")], Icon: SparkIcon },
+  { id: "stop", label: t("/وقف"), hint: t("أوقف الرد اللي عم ينكتب"), aliases: ["stop", t("وقف"), t("أوقف"), t("اوقف"), t("توقف")], Icon: StopIcon, needs: "chat" },
   { id: "done", label: t("/خلصت"), hint: t("اكتب تعليق على المهمة وعلّمها مكتملة"), aliases: ["done", "complete", t("خلصت"), t("انجزت"), t("أنجزت")], Icon: DrawnCheckIconShim, needs: "integration" },
   { id: "new", label: t("/جديد"), hint: t("ابدأ محادثة جديدة"), aliases: ["new", t("جديد")], Icon: PlusIcon },
   { id: "help", label: t("/مساعدة"), hint: t("كل الأوامر والاختصارات"), aliases: ["help", t("مساعدة"), t("اوامر"), t("أوامر")], Icon: HelpIcon },
@@ -182,15 +283,18 @@ export function CommandMenu({
   onPick,
   onClose,
   registerKeyHandler,
+  extra = [],
 }: {
   query: string;
   available: (cmd: CommandDef) => boolean;
   onPick: (cmd: CommandDef) => void;
   onClose: () => void;
   registerKeyHandler: (handler: (e: React.KeyboardEvent) => boolean) => void;
+  /** Commands installed skills bring, listed after the built-in ones. */
+  extra?: CommandDef[];
 }) {
   const q = query.toLowerCase();
-  const items = COMMANDS.filter((c) => !q || c.aliases.some((a) => a.toLowerCase().startsWith(q)) || c.label.includes(q));
+  const items = [...COMMANDS, ...extra].filter((c) => !q || c.aliases.some((a) => a.toLowerCase().startsWith(q)) || c.label.includes(q));
   const [active, setActive] = useState(0);
 
   useEffect(() => setActive(0), [query]);
@@ -210,6 +314,11 @@ export function CommandMenu({
             <span className="min-w-0">
               <span className="block text-sm">{cmd.label}</span>
               <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                {cmd.from && (
+                  <span className="me-1.5 rounded px-1 font-mono text-[10px]" style={{ background: "var(--color-surface-2)" }} dir="ltr">
+                    {cmd.from}
+                  </span>
+                )}
                 {cmd.hint}
                 {!available(cmd) && cmd.needs === "folder" && t(" — لازم تحدد مجلد أول")}
                 {!available(cmd) && cmd.needs === "integration" && t(" — لازم تربط حساب أول")}

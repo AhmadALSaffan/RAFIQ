@@ -17,7 +17,9 @@ async def _noop(*_: Any) -> None:
 class LoopCallbacks:
     """Hooks the loop reports through. Tasks persist events; chats stream them to the UI."""
 
-    permit: Callable[[str, str, dict[str, Any]], Awaitable[bool]]
+    # (tool, category, args, preview) -> allowed. `preview` is what the call would do (a
+    # diff for a file write), for the permission card; None when the args say it all.
+    permit: Callable[..., Awaitable[bool]]
     on_text_delta: Callable[[str], Awaitable[None]] = _noop
     on_reasoning_delta: Callable[[str], Awaitable[None]] = _noop
     on_turn_text: Callable[[str], Awaitable[None]] = _noop
@@ -26,6 +28,15 @@ class LoopCallbacks:
 
 
 NUDGE = "أكمل من وين وقفت، واكتب الرد كامل."
+
+
+async def _preview(tool: Any, args: dict[str, Any]) -> str | None:
+    """A tool's own account of what the call would change. Never lets a preview failure
+    block the call itself."""
+    try:
+        return await tool.preview(args)
+    except Exception:  # noqa: BLE001 - a broken preview is not a broken tool
+        return None
 
 
 def _last_was_tool(messages: list[dict[str, Any]]) -> bool:
@@ -129,7 +140,7 @@ async def _run(
             tool = registry.get(tc.name)
             if tool is None:
                 ok, output = False, f"unknown tool: {tc.name}"
-            elif not await cb.permit(tool.name, tool.category, args):
+            elif not await cb.permit(tool.name, tool.category, args, await _preview(tool, args)):
                 ok, output = False, DENIED_OUTPUT
             else:
                 await cb.on_tool_call(tc.id, tool.name, tool.category, args)

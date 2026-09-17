@@ -85,6 +85,11 @@ class Task(Base):
     depends_on: Mapped[list | None] = mapped_column(JSON, nullable=True)
     # Its git record: worktree / checkpoints and whether its changes were applied (core.task_git).
     git: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # How it runs: "auto" (as before), "plan" (write a plan first and wait for approval),
+    # or "step" (every write or command asks, whatever the permission policy says).
+    mode: Mapped[str] = mapped_column(String, default="auto")
+    plan: Mapped[str | None] = mapped_column(Text, nullable=True)
+    workspace_id: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, default="queued")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
@@ -107,6 +112,12 @@ class McpServer(Base):
     args: Mapped[list | None] = mapped_column(JSON, nullable=True)
     url: Mapped[str | None] = mapped_column(String, nullable=True)
     secret_keys: Mapped[list | None] = mapped_column(JSON, nullable=True)  # names only
+    # "none" (headers/env carry any token) or "oauth" (the user authorizes in the browser;
+    # tokens live in the keychain under mcp-oauth:<id>, see mcp_oauth.py).
+    auth: Mapped[str] = mapped_column(String, default="none")
+    # The catalogue entry it was made from (lib/mcpCatalog.ts), so the UI shows its logo
+    # and hides the command line; None for a custom server.
+    preset: Mapped[str | None] = mapped_column(String, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
@@ -142,6 +153,34 @@ class Schedule(Base):
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_task_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Memory(Base):
+    """One thing the user asked Rafiq to keep in mind across chats (see core/memory.py)."""
+
+    __tablename__ = "memories"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    text: Mapped[str] = mapped_column(String)
+    kind: Mapped[str] = mapped_column(String, default="fact")  # preference | project | fact
+    source_chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Workspace(Base):
+    """A project: its folder, the model it prefers, and standing instructions. Chats,
+    tasks and designs can belong to one so the app can be filtered down to it."""
+
+    __tablename__ = "workspaces"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    name: Mapped[str] = mapped_column(String)
+    working_dir: Mapped[str | None] = mapped_column(String, nullable=True)
+    model_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    color: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -194,6 +233,7 @@ class Chat(Base):
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
     # "chat" or "design" — a design chat runs with the design skills and system prompt.
     mode: Mapped[str] = mapped_column(String, default="chat")
+    workspace_id: Mapped[str | None] = mapped_column(String, nullable=True)
     # A condensed stand-in for every message up to `summary_until`, so long chats stop
     # resending their whole history to the model.
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -234,13 +274,18 @@ class Design(Base):
     brief: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # The model's written decisions (its reply with the HTML block stripped out).
     spec: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # The latest self-contained HTML document, rendered in the preview pane.
+    # The document the preview opens on (the last one the model touched).
     preview_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Every document of this design: [{"name": …, "html": …, "path": …}]. A design usually
+    # has one; a model that answers with a second screen adds to the list instead of
+    # replacing it, and the preview lets the user switch (core/designs.py::merge_files).
+    files: Mapped[list | None] = mapped_column(JSON, nullable=True)
     chat_id: Mapped[str] = mapped_column(String)
     model_id: Mapped[str | None] = mapped_column(String, nullable=True)
     # Where the user wants the design saved; every new preview is written here as .html.
     working_dir: Mapped[str | None] = mapped_column(String, nullable=True)
     saved_path: Mapped[str | None] = mapped_column(String, nullable=True)
+    workspace_id: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, default="draft")  # draft | ready | handed_off
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

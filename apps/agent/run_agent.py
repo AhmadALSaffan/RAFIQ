@@ -44,10 +44,19 @@ def _attach_streams() -> None:
 
 
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "cli":
+        # `rafiq-agent.exe cli …` is the `rafiq` command-line client (see rafiq.cmd).
+        from rafiq_agent.cli import main as cli_main
+
+        cli_main(sys.argv[2:])
+        return
+
     parser = argparse.ArgumentParser(prog="rafiq-agent")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--host", default="127.0.0.1")
     args = parser.parse_args()
+    # The API writes a discovery file for the CLI and needs to know its own port.
+    os.environ["RAFIQ_PORT"] = str(args.port)
 
     import uvicorn
 

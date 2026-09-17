@@ -358,3 +358,82 @@ export function ExternalIcon({ className, style }: IconProps) {
     </svg>
   );
 }
+
+export function ChevronDownIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+export function BriefcaseIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M3 12h18" />
+    </svg>
+  );
+}
+
+export function GitIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <circle cx="6" cy="5" r="2" />
+      <circle cx="6" cy="19" r="2" />
+      <circle cx="18" cy="8" r="2" />
+      <path d="M6 7v10" />
+      <path d="M18 10a4 4 0 0 1-4 4h-4a4 4 0 0 0-4 3" />
+    </svg>
+  );
+}
+
+export function ListIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <path d="M8 6h13M8 12h13M8 18h13" />
+      <path d="M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  );
+}
+
+export function GlobeIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18Z" />
+    </svg>
+  );
+}
+
+export function WandIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <path d="m15 4 5 5" />
+      <path d="M3 21 14 10" />
+      <path d="m14 3 1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Z" />
+    </svg>
+  );
+}
+
+export function PlugIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <path d="M9 3v5M15 3v5" />
+      <path d="M6 8h12l-1 5a5 5 0 0 1-10 0L6 8Z" />
+      <path d="M12 18v3" />
+    </svg>
+  );
+}
+
+export function WalletIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2" />
+      <rect x="3" y="8" width="18" height="12" rx="2" />
+      <path d="M16 14h.01" />
+    </svg>
+  );
+}

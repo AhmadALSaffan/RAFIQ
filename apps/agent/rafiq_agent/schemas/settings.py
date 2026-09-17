@@ -12,6 +12,7 @@ PermissionKey = Literal[
     "desktop_control",
     "issue_write",
     "mcp",
+    "memory",
 ]
 
 DEFAULT_PERMISSIONS: dict[PermissionKey, PermissionMode] = {
@@ -22,6 +23,7 @@ DEFAULT_PERMISSIONS: dict[PermissionKey, PermissionMode] = {
     "desktop_control": "ask",
     "issue_write": "ask",
     "mcp": "ask",
+    "memory": "ask",
 }
 
 WebSearchProvider = Literal["none", "brave", "tavily", "searxng"]
@@ -52,6 +54,9 @@ class AppSettings(BaseModel):
     monthly_budget_usd: float = Field(default=0.0, ge=0)
     # Turns speech into text for the microphone in the composer (a Whisper-compatible model).
     transcribe_model: str = "whisper-1"
+    # Rafiq keeps short facts the user asked it to remember (core/memory.py) and offers them
+    # to every chat. Off = nothing remembered and nothing offered.
+    memory_enabled: bool = True
 
     def model_post_init(self, __context: object) -> None:
         # Settings saved before a permission existed get its default, not a validation error.

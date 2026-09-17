@@ -5,13 +5,15 @@
  * finish, or no longer applied cleanly, wait here for the user.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { applyTaskChanges, getTaskChanges, revertTaskChanges } from "../../lib/api";
-import type { ChangesState, TaskChanges, TaskStatus } from "../../lib/types";
+import { applyTaskChanges, commitTaskChanges, describeTaskChanges, getTaskChanges, revertTaskChanges } from "../../lib/api";
+import type { ChangesState, CommitDescription, TaskChanges, TaskStatus } from "../../lib/types";
 import { easeOutExpo } from "../../lib/motion";
 import { Button } from "../../components/ui";
-import { AlertIcon } from "../../components/Icons";
+import { AlertIcon, CopyIcon, GitIcon, SpinnerIcon } from "../../components/Icons";
+import { DiffView } from "../../components/DiffView";
+import { fieldDir } from "../../lib/bidi";
 import { t } from "../../i18n";
 
 const STATE: Record<ChangesState, { label: string; color: string }> = {
@@ -26,42 +28,19 @@ const STATE: Record<ChangesState, { label: string; color: string }> = {
 
 const FILE_STATUS: Record<string, string> = { added: "A", deleted: "D", renamed: "R", modified: "M" };
 
-function DiffView({ diff }: { diff: string }) {
-  const lines = useMemo(() => diff.split("\n").slice(0, 4000), [diff]);
-  return (
-    <pre className="max-h-[28rem] overflow-auto rounded-lg border p-3 font-mono text-[11px] leading-5" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }} dir="ltr">
-      {lines.map((line, i) => {
-        const color = line.startsWith("+++") || line.startsWith("---")
-          ? "var(--color-ink-muted)"
-          : line.startsWith("+")
-            ? "var(--color-success)"
-            : line.startsWith("-")
-              ? "var(--color-danger)"
-              : line.startsWith("@@")
-                ? "var(--color-accent)"
-                : line.startsWith("diff ")
-                  ? "var(--color-ink)"
-                  : "var(--color-ink-muted)";
-        const bg = line.startsWith("+") && !line.startsWith("+++")
-          ? "color-mix(in oklch, var(--color-success) 8%, transparent)"
-          : line.startsWith("-") && !line.startsWith("---")
-            ? "color-mix(in oklch, var(--color-danger) 8%, transparent)"
-            : undefined;
-        return (
-          <div key={i} style={{ color, background: bg, fontWeight: line.startsWith("diff ") ? 600 : undefined }}>
-            {line || " "}
-          </div>
-        );
-      })}
-    </pre>
-  );
-}
-
 export function ChangesPanel({ taskId, status }: { taskId: string; status: TaskStatus }) {
   const [changes, setChanges] = useState<TaskChanges | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [commit, setCommit] = useState<{ open: boolean; message: string; pr: CommitDescription | null; busy: "describe" | "commit" | null; done: string | null; copied: boolean }>({
+    open: false,
+    message: "",
+    pr: null,
+    busy: null,
+    done: null,
+    copied: false,
+  });
 
   const load = useCallback(() => {
     getTaskChanges(taskId)
@@ -82,6 +61,38 @@ export function ChangesPanel({ taskId, status }: { taskId: string; status: TaskS
     } finally {
       setBusy(false);
     }
+  }
+
+  async function suggest() {
+    setCommit((c) => ({ ...c, busy: "describe" }));
+    setError(null);
+    try {
+      const pr = await describeTaskChanges(taskId);
+      setCommit((c) => ({ ...c, pr, message: pr.commit_message || c.message, busy: null }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setCommit((c) => ({ ...c, busy: null }));
+    }
+  }
+
+  async function doCommit() {
+    if (!commit.message.trim()) return;
+    setCommit((c) => ({ ...c, busy: "commit" }));
+    setError(null);
+    try {
+      const out = await commitTaskChanges(taskId, commit.message.trim());
+      setCommit((c) => ({ ...c, busy: null, done: out.sha, open: false }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setCommit((c) => ({ ...c, busy: null }));
+    }
+  }
+
+  function copyPr() {
+    if (!commit.pr) return;
+    void navigator.clipboard.writeText(`${commit.pr.pr_title}\n\n${commit.pr.pr_body}`);
+    setCommit((c) => ({ ...c, copied: true }));
+    setTimeout(() => setCommit((c) => ({ ...c, copied: false })), 1400);
   }
 
   if (!changes || (!changes.available && !changes.error)) return null;
@@ -121,10 +132,22 @@ export function ChangesPanel({ taskId, status }: { taskId: string; status: TaskS
           )}
         </button>
         <div className="flex items-center gap-1.5">
-          {changes.state === "applied" && (
+          {changes.state === "applied" && !commit.done && (
             <Button variant="ghost" disabled={busy} onClick={() => void act(() => revertTaskChanges(taskId))}>
               {t("رجّع التغييرات")}
             </Button>
+          )}
+          {changes.state === "applied" && changes.files.length > 0 && !commit.done && (
+            <Button disabled={busy} onClick={() => setCommit((c) => ({ ...c, open: !c.open }))} title={t("commit على فرعك الحالي بملفات هالمهمة بس")}>
+              <GitIcon className="h-3.5 w-3.5" />
+              {t("اعمل commit")}
+            </Button>
+          )}
+          {commit.done && (
+            <span className="flex items-center gap-1.5 font-mono text-xs" style={{ color: "var(--color-success)" }} dir="ltr">
+              <GitIcon className="h-3.5 w-3.5" />
+              {commit.done.slice(0, 7)}
+            </span>
           )}
           {(changes.state === "pending" || changes.state === "reverted") && (
             <Button disabled={busy} onClick={() => void act(() => applyTaskChanges(taskId))}>
@@ -143,6 +166,62 @@ export function ChangesPanel({ taskId, status }: { taskId: string; status: TaskS
           )}
         </div>
       </div>
+
+      <AnimatePresence initial={false}>
+        {commit.open && !commit.done && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: easeOutExpo }}
+            className="overflow-hidden border-t"
+            style={{ borderColor: "var(--color-border)" }}
+          >
+            <div className="flex flex-col gap-2 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium">{t("رسالة الـ commit")}</p>
+                <Button variant="ghost" className="px-2 py-1 text-xs" disabled={commit.busy !== null} onClick={() => void suggest()}>
+                  {commit.busy === "describe" ? <SpinnerIcon className="h-3.5 w-3.5" /> : null}
+                  {t("خلّي النموذج يقترح رسالة ووصف PR")}
+                </Button>
+              </div>
+              <textarea
+                value={commit.message}
+                onChange={(e) => setCommit((c) => ({ ...c, message: e.target.value }))}
+                rows={3}
+                className="input resize-none font-mono text-xs"
+                placeholder="Add …"
+                dir={fieldDir(commit.message)}
+              />
+              {commit.pr && (
+                <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}>
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium" dir="auto">
+                      {commit.pr.pr_title}
+                    </p>
+                    <Button variant="ghost" className="px-2 py-1 text-xs" onClick={copyPr}>
+                      <CopyIcon className="h-3.5 w-3.5" />
+                      {commit.copied ? t("انتسخ") : t("انسخ وصف PR")}
+                    </Button>
+                  </div>
+                  <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-[11px] leading-5" style={{ color: "var(--color-ink-muted)" }} dir="auto">
+                    {commit.pr.pr_body}
+                  </pre>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button disabled={commit.busy !== null || !commit.message.trim()} onClick={() => void doCommit()}>
+                  {commit.busy === "commit" ? <SpinnerIcon className="h-3.5 w-3.5" /> : <GitIcon className="h-3.5 w-3.5" />}
+                  {t("Commit {0} ملف", { 0: changes.files.length })}
+                </Button>
+                <Button variant="ghost" onClick={() => setCommit((c) => ({ ...c, open: false }))}>
+                  {t("إلغاء")}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {(error || changes.error) && (
         <p className="flex items-center gap-1.5 px-4 pb-3 text-xs" style={{ color: "var(--color-danger)" }}>

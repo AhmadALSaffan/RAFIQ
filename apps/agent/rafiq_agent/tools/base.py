@@ -25,6 +25,11 @@ class Tool(ABC):
     @abstractmethod
     async def run(self, args: dict[str, Any]) -> ToolResult: ...
 
+    async def preview(self, args: dict[str, Any]) -> str | None:  # noqa: ARG002
+        """What approving this call would do, for the permission card (a diff, say).
+        None means the arguments already say it all."""
+        return None
+
     def schema(self) -> dict[str, Any]:
         return {
             "type": "function",

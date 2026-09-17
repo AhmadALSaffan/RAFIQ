@@ -8,7 +8,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useCurrentWorkspaceId } from "../../lib/workspace";
 import { AnimatePresence, motion } from "motion/react";
 import { createTask, deleteTask, getTask, listModels, listTasks } from "../../lib/api";
 import type { LlmModel, TaskStatus, TaskSummary } from "../../lib/types";
@@ -37,7 +38,7 @@ import { SchedulesPanel, TemplatesPanel, type TemplateSeed } from "./automation"
 import { STATUS_COLOR, statusFilterLabel } from "./pieces";
 
 import { t } from "../../i18n";
-type Filter = "all" | "active" | "queued" | "completed" | "failed";
+type Filter = "all" | "active" | "planned" | "queued" | "completed" | "failed";
 type View = "tasks" | "schedules" | "templates";
 
 /** Tasks, the ones that start on a schedule, and saved templates — one page, three views. */
@@ -73,11 +74,12 @@ function ViewTabs({ value, onChange }: { value: View; onChange: (v: View) => voi
   );
 }
 
-const FILTERS: Filter[] = ["all", "active", "queued", "completed", "failed"];
+const FILTERS: Filter[] = ["all", "active", "planned", "queued", "completed", "failed"];
 
 function matchesFilter(task: TaskSummary, filter: Filter): boolean {
   if (filter === "all") return true;
   if (filter === "active") return task.status === "running" || task.status === "pending";
+  if (filter === "planned") return task.status === "planned";
   if (filter === "queued") return task.status === "queued";
   if (filter === "completed") return task.status === "completed";
   return task.status === "failed" || task.status === "cancelled";
@@ -93,7 +95,12 @@ export function TasksPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
-  const [view, setView] = useState<View>("tasks");
+  const { search: query } = useLocation();
+  const [view, setView] = useState<View>(() => {
+    const wanted = new URLSearchParams(query).get("view");
+    return wanted === "schedules" || wanted === "templates" ? wanted : "tasks";
+  });
+  const workspaceId = useCurrentWorkspaceId();
   const [seed, setSeed] = useState<TemplateSeed | null>(null);
   const [cursor, setCursor] = useState(-1);
   const cursorRef = useRef(cursor);
@@ -104,14 +111,14 @@ export function TasksPage() {
   const refresh = useCallback(async (showSpinner = false) => {
     if (showSpinner) setRefreshing(true);
     try {
-      setTasks(await listTasks());
+      setTasks(await listTasks(workspaceId));
     } catch {
       // The poller tries again in a few seconds — no need to shout at the user.
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [workspaceId]);
 
   usePageMenu(() => [
     { id: "new-task", label: t("مهمة جديدة"), onSelect: () => setComposing(true), disabled: models.length === 0 },

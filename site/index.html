@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>رفيق · مساعد ذكي على ويندوز بيشتغل على جهازك</title>
+  <meta name="description" content="رفيق تطبيق سطح مكتب لويندوز يربطك بالنموذج اللي بتختاره ويعطيه أدوات حقيقية: يقرأ ويكتب ملفات، يشغّل أوامر، يبحث على الويب، ويصمّم واجهات بمعاينة حيّة. عربي من الأساس، وكل شي على جهازك." />
+  <link rel="alternate" hreflang="en" href="/en/" />
+  <link rel="alternate" hreflang="ar" href="/" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <meta property="og:title" content="رفيق · مساعد ذكي على ويندوز بيشتغل على جهازك" />
+  <meta property="og:description" content="رفيق تطبيق سطح مكتب لويندوز يربطك بالنموذج اللي بتختاره ويعطيه أدوات حقيقية: يقرأ ويكتب ملفات، يشغّل أوامر، يبحث على الويب، ويصمّم واجهات بمعاينة حيّة. عربي من الأساس، وكل شي على جهازك." />
+  <meta property="og:image" content="/assets/screens/chat-plan.webp" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#100f0d" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)" />
+  <link rel="preload" href="/assets/fonts/plex-arabic-arabic-700.woff2" as="font" type="font/woff2" crossorigin /><link rel="preload" href="/assets/fonts/plex-arabic-arabic-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="رفيق">
+      <img src="/assets/icon-64.png" alt="" width="30" height="30" />
+      رفيق
+    </a>
+    <nav class="nav-links" aria-label="الأقسام">
+      <a href="/" aria-current="page">الرئيسية</a><a href="/features/">الميزات</a><a href="/security/">الأمان</a><a href="/download/">التحميل</a><a href="/faq/">الأسئلة</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="lang" href="/en/" hreflang="en" lang="en">English</a>
+      <a class="btn btn-primary" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download>حمّل لويندوز</a>
+      <button class="menu-btn" type="button" aria-label="القائمة" aria-expanded="false" aria-controls="mobile-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" hidden aria-label="الأقسام">
+    <a href="/" aria-current="page">الرئيسية</a><a href="/features/">الميزات</a><a href="/security/">الأمان</a><a href="/download/">التحميل</a><a href="/faq/">الأسئلة</a>
+    <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap">
+      <div class="reveal">
+        <h1>مساعد ذكي بيحكي عربي، <em>وبيخلّص الشغل</em> على جهازك.</h1>
+        <p class="lead">اربط النموذج اللي بتستخدمه أصلاً، واعطيه أدوات حقيقية: ملفاتك، أوامرك، الويب، والمتصفح. كل خطوة حسّاسة بإذنك.</p>
+        <div class="cta">
+          <a class="btn btn-primary btn-lg" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>حمّل لويندوز</a>
+          <a class="btn btn-ghost btn-lg" href="#how">شوف كيف بيشتغل</a>
+        </div>
+      </div>
+      <div class="hero-shot reveal">
+        <div class="frame">
+          <img src="/assets/screens/chat-plan.webp" width="2400" height="1500" alt="محادثة في رفيق: المستخدم بعت خطة من ثلاث نقاط، والنموذج قسّمها لثلاث مهام بتشتغل بالتوازي مع حالة كل وحدة" fetchpriority="high" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="providers">
+    <div class="wrap reveal">
+      <p>بيشتغل مع النموذج اللي عندك، من واحد وعشرين مزوّد</p>
+      <div class="logos"><img src="/assets/logos/anthropic.svg" alt="Anthropic" title="Anthropic" loading="lazy" /><img src="/assets/logos/openai.svg" alt="OpenAI" title="OpenAI" loading="lazy" /><img src="/assets/logos/googlegemini.svg" alt="Google Gemini" title="Google Gemini" loading="lazy" /><img src="/assets/logos/deepseek.svg" alt="DeepSeek" title="DeepSeek" loading="lazy" /><img src="/assets/logos/mistralai.svg" alt="Mistral" title="Mistral" loading="lazy" /><img src="/assets/logos/x.svg" alt="xAI (Grok)" title="xAI (Grok)" loading="lazy" /><img src="/assets/logos/githubcopilot.svg" alt="GitHub Copilot" title="GitHub Copilot" loading="lazy" /><img src="/assets/logos/openrouter.svg" alt="OpenRouter" title="OpenRouter" loading="lazy" /><img src="/assets/logos/azure.svg" alt="Azure OpenAI" title="Azure OpenAI" loading="lazy" /><img src="/assets/logos/bedrock.svg" alt="AWS Bedrock" title="AWS Bedrock" loading="lazy" /><img src="/assets/logos/googlecloud.svg" alt="Google Vertex AI" title="Google Vertex AI" loading="lazy" /><img src="/assets/logos/groq.svg" alt="Groq" title="Groq" loading="lazy" /><img src="/assets/logos/cerebras.svg" alt="Cerebras" title="Cerebras" loading="lazy" /><img src="/assets/logos/fireworks.svg" alt="Fireworks" title="Fireworks" loading="lazy" /><img src="/assets/logos/together.svg" alt="Together" title="Together" loading="lazy" /><img src="/assets/logos/alibabacloud.svg" alt="Qwen (DashScope)" title="Qwen (DashScope)" loading="lazy" /><img src="/assets/logos/kimi.svg" alt="Kimi (Moonshot)" title="Kimi (Moonshot)" loading="lazy" /><img src="/assets/logos/zai.svg" alt="GLM (Z.ai)" title="GLM (Z.ai)" loading="lazy" /><img src="/assets/logos/ollama.svg" alt="Ollama" title="Ollama" loading="lazy" /><img src="/assets/logos/lmstudio.svg" alt="LM Studio" title="LM Studio" loading="lazy" /><img src="/assets/logos/vllm.svg" alt="vLLM / OpenAI-compatible" title="vLLM / OpenAI-compatible" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="section" id="how">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>ثلاث خطوات، وبعدها بيشتغل لحاله</h2>
+        <p class="lead">ما في حساب ولا اشتراك. مفتاحك، جهازك، ومجلدك.</p>
+      </div>
+      <div class="tabs reveal">
+        <div class="tablist" role="tablist" aria-label="خطوات الاستخدام">
+          <button class="tab" role="tab" aria-selected="true" aria-controls="p1" id="t1">
+            <strong>اربط نموذج</strong>
+            <span>حط مفتاح API أو سجّل دخول بحساب GitHub Copilot. رفيق بيجيب قائمة الموديلات وبيتأكد إنها شغّالة.</span>
+          </button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="p2" id="t2">
+            <strong>احكي معه، أو اعطيه خطة</strong>
+            <span>سؤال عادي، أو خطة من كم نقطة. بيقسمها لمهام وبتشوف حالة كل وحدة جوّا المحادثة.</span>
+          </button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="p3" id="t3">
+            <strong>راقب، وراجع، ووافق</strong>
+            <span>كل أداة بتظهر كبطاقة. الكتابة والأوامر بتستنى إذنك، والتغييرات على git بتنعرض قبل ما تنطبق.</span>
+          </button>
+        </div>
+        <div class="tabpanels">
+          <div class="tabpanel frame" id="p1" role="tabpanel" aria-labelledby="t1">
+            <img src="/assets/screens/models.webp" width="2400" height="1500" alt="صفحة النماذج: خمس نماذج من مزوّدين مختلفين، كل واحد متحقق منه مع زمن الاستجابة ونموذج احتياطي" loading="lazy" />
+          </div>
+          <div class="tabpanel frame" id="p2" role="tabpanel" aria-labelledby="t2">
+            <img src="/assets/screens/chat-plan.webp" width="2400" height="1500" alt="خطة من ثلاث نقاط تحوّلت لثلاث مهام بحالات مختلفة" loading="lazy" />
+          </div>
+          <div class="tabpanel frame" id="p3" role="tabpanel" aria-labelledby="t3">
+            <img src="/assets/screens/task-detail.webp" width="2400" height="1500" alt="صفحة مهمة: الخطوات كبطاقات أدوات، وطلب إذن لتشغيل أمر، ولوحة التغييرات على git" loading="lazy" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="features" style="padding-top: 0">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>مبني ليشتغل فعلاً، مو بس يجاوب</h2>
+      </div>
+      <div class="bento reveal">
+        <a class="tile wide" href="/features/#tasks">
+          <h3>مهام بالتوازي</h3>
+          <p>لحد 100 مهمة بنفس الوقت. اللي بتلمس نفس الملفات بتاخد دورها، واللي بتعتمد على غيرها بتستنى. والرد بيكمل حتى لو طلعت من الصفحة.</p>
+          <div class="art"><img src="/assets/screens/crop-taskgroup.webp" width="1410" height="410" alt="مجموعة مهام داخل المحادثة: اثنتان مكتملتان وواحدة شغّالة" loading="lazy" /></div>
+        </a>
+        <a class="tile third" href="/features/#git">
+          <h3>نسخة git لكل مهمة</h3>
+          <p>على أي مشروع git، كل مهمة بتشتغل بنسخة معزولة. التغييرات بتنعرض بالملفات والفرق، وبتقدر ترجّعها بضغطة.</p>
+          <div class="art"><img src="/assets/screens/crop-changes.webp" width="1440" height="630" alt="لوحة التغييرات: 26 سطر مضاف و3 محذوفة، مطبّقة على المجلد مع زر رجّع" loading="lazy" /></div>
+        </a>
+        <a class="tile half" href="/features/#designs">
+          <h3>تصميم بمعاينة حيّة</h3>
+          <p>جاوب على كم سؤال، وخلّي النموذج يصمّم بمهارات تصميم مدمجة. المعاينة بجنبك بعرض الموبايل والتابلت والشاشة، وبضغطة بتبعتها للبرمجة.</p>
+          <div class="art"><img src="/assets/screens/crop-preview.webp" width="1550" height="1180" alt="معاينة تصميم صفحة مقهى داخل رفيق" loading="lazy" /></div>
+        </a>
+        <a class="tile half" href="/features/#cost">
+          <h3>الكلفة قدّامك، والحد بإيدك</h3>
+          <p>كل نداء بينحسب بالتوكنات والدولار لكل نموذج. حط حد يومي أو شهري، ورفيق بيوقف قبل ما تفاجأ بالفاتورة.</p>
+          <div class="art"><img src="/assets/screens/crop-usage.webp" width="1240" height="380" alt="مصروف اليوم والشهر مع حد يومي وشهري ورسم بياني لثلاثين يوم" loading="lazy" /></div>
+        </a>
+        <a class="tile third tinted" href="/features/#providers">
+          <h3>واحد وعشرين مزوّد، ونماذج محلية</h3>
+          <p>من Anthropic و OpenAI لحد Bedrock و Vertex و Ollama. نموذج احتياطي لكل واحد، وحدود طلبات عشان ما توقع بـ rate limit.</p>
+          <div class="mini-logos"><img src="/assets/logos/anthropic.svg" alt="Anthropic" title="Anthropic" loading="lazy" /><img src="/assets/logos/openai.svg" alt="OpenAI" title="OpenAI" loading="lazy" /><img src="/assets/logos/googlegemini.svg" alt="Google Gemini" title="Google Gemini" loading="lazy" /><img src="/assets/logos/deepseek.svg" alt="DeepSeek" title="DeepSeek" loading="lazy" /><img src="/assets/logos/mistralai.svg" alt="Mistral" title="Mistral" loading="lazy" /><img src="/assets/logos/x.svg" alt="xAI (Grok)" title="xAI (Grok)" loading="lazy" /><img src="/assets/logos/githubcopilot.svg" alt="GitHub Copilot" title="GitHub Copilot" loading="lazy" /><img src="/assets/logos/openrouter.svg" alt="OpenRouter" title="OpenRouter" loading="lazy" /><img src="/assets/logos/azure.svg" alt="Azure OpenAI" title="Azure OpenAI" loading="lazy" /><img src="/assets/logos/bedrock.svg" alt="AWS Bedrock" title="AWS Bedrock" loading="lazy" /><img src="/assets/logos/googlecloud.svg" alt="Google Vertex AI" title="Google Vertex AI" loading="lazy" /><img src="/assets/logos/groq.svg" alt="Groq" title="Groq" loading="lazy" /><img src="/assets/logos/cerebras.svg" alt="Cerebras" title="Cerebras" loading="lazy" /><img src="/assets/logos/fireworks.svg" alt="Fireworks" title="Fireworks" loading="lazy" /><img src="/assets/logos/together.svg" alt="Together" title="Together" loading="lazy" /><img src="/assets/logos/alibabacloud.svg" alt="Qwen (DashScope)" title="Qwen (DashScope)" loading="lazy" /><img src="/assets/logos/kimi.svg" alt="Kimi (Moonshot)" title="Kimi (Moonshot)" loading="lazy" /><img src="/assets/logos/zai.svg" alt="GLM (Z.ai)" title="GLM (Z.ai)" loading="lazy" /><img src="/assets/logos/ollama.svg" alt="Ollama" title="Ollama" loading="lazy" /><img src="/assets/logos/lmstudio.svg" alt="LM Studio" title="LM Studio" loading="lazy" /><img src="/assets/logos/vllm.svg" alt="vLLM / OpenAI-compatible" title="vLLM / OpenAI-compatible" loading="lazy" /></div>
+        </a>
+        <a class="tile third" href="/features/#background">
+          <h3>بيضل شغّال بالخلفية</h3>
+          <p>سكّر النافذة وهو بيكمل بجنب الساعة. إشعار لما مهمة تخلص أو بدها إذنك، ومهام مجدولة كل يوم أو كل كم ساعة.</p>
+          <ul>
+            <li>بيبلش مع ويندوز إذا بدك</li>
+            <li>قوالب للمهام اللي بتتكرر</li>
+            <li>يحدّث نفسه من داخل التطبيق</li>
+          </ul>
+        </a>
+      </div>
+      <p class="reveal" style="margin-top: 28px"><a class="textlink" href="/features/">كل الميزات بالتفصيل</a></p>
+    </div>
+  </section>
+
+  <section class="section" id="privacy" style="padding-top: 24px">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>على جهازك، وبإذنك</h2>
+      </div>
+      <div class="principles reveal">
+        <div class="principle">
+          <h3>المفاتيح بخزنة ويندوز</h3>
+          <p>مفاتيح API والتوكنات بتنحفظ في Windows Credential Manager بس. ما بتدخل قاعدة البيانات، ولا السجلات، ولا بتنبعت للواجهة.</p>
+        </div>
+        <div class="principle">
+          <h3>كل خطوة حسّاسة بتسألك</h3>
+          <p>كتابة ملف، أمر، تصفّح، تحكّم بسطح المكتب، أداة MCP: كل وحدة إلها سياسة. اسأل، أو اسمح، أو امنع.</p>
+        </div>
+        <div class="principle">
+          <h3>ما في سحابة خاصة برفيق</h3>
+          <p>محادثاتك ومهامك وتصاميمك في قاعدة بيانات محلية. الطلبات بتروح مباشرة للمزوّد اللي اخترته، ولا لحدا غيره.</p>
+        </div>
+      </div>
+      <p class="reveal" style="margin-top: 28px"><a class="textlink" href="/security/">كيف بيحمي رفيق بياناتك</a></p>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top: 32px">
+    <div class="wrap">
+      <div class="twoup reveal">
+        <figure>
+          <div class="frame"><img src="/assets/screens/tasks-light.webp" width="2400" height="1500" alt="صفحة المهام بالوضع الفاتح" loading="lazy" /></div>
+          <figcaption>فاتح وغامق، والعربية من اليمين لليسار من الأساس. بالإنجليزية والروسية كمان.</figcaption>
+        </figure>
+        <figure>
+          <div class="frame"><img src="/assets/screens/tasks.webp" width="2400" height="1500" alt="صفحة المهام بالوضع الغامق" loading="lazy" /></div>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="download-band" style="padding-top: 24px">
+    <div class="wrap">
+      <div class="download reveal">
+        <div>
+          <h2>جاهز؟ نصف دقيقة وبيكون عندك.</h2>
+          <p class="lead" style="margin-top: 12px">مثبّت واحد، بدون حساب. بعدها ضيف مفتاح نموذجك وابدأ.</p>
+          <div class="cta">
+            <a class="btn btn-primary btn-lg" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>حمّل لويندوز</a>
+            <a class="btn btn-ghost btn-lg" href="/download/">تفاصيل التثبيت</a>
+          </div>
+        </div>
+        <ul class="meta">
+          <li><b>النظام</b><span>Windows 10 أو 11، x64</span></li>
+          <li><b>الإصدار</b><span data-version>0.3.0</span></li>
+          <li><b>الحجم</b><span data-size>87 MB</span></li>
+          <li><b>الصلاحيات</b><span>بيتثبّت للمستخدم الحالي، بدون صلاحيات مدير</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>رفيق · صنعه <a href="https://github.com/AhmadALSaffan" target="_blank" rel="noopener">أحمد عليوي السفان</a></span>
+    <nav aria-label="روابط">
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/releases" target="_blank" rel="noopener">الإصدارات</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/issues" target="_blank" rel="noopener">بلّغ عن مشكلة</a>
+      <a href="/en/" hreflang="en" lang="en">English</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+</body>
+</html>

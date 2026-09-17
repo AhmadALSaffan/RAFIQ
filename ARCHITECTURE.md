@@ -138,6 +138,21 @@ cd apps/desktop && pnpm release        # فحص + بناء + نسخة للنشر
 | خوادم MCP | `mcp_bridge.py` (الاتصال والأدوات) + `api/automation.py` (الإعدادات) |
 | المهام المجدولة والقوالب | `core/schedules.py` + `api/automation.py` · الواجهة `features/tasks/automation.tsx` |
 | رد المحادثة اللي بيكمل بالخلفية | `core/chat_service.py` (`ChatTurn.start/subscribe/stop`) |
+| الذاكرة بين المحادثات | `core/memory.py` (الحفظ والملاحظة) + `tools/memory.py` (الأداة) + `api/memory.py` · الواجهة `features/settings/memory.tsx` |
+| مساحات العمل | `api/workspaces.py` (+ `workspace_note` للسياق) · الواجهة `lib/workspace.ts` (المختارة) + `components/WorkspaceSwitcher.tsx` |
+| وضع المهمة (خطة أول / خطوة خطوة) | `core/agent_runtime.py::_plan_task` + `permit` · مسارات `api/tasks.py` `/plan/approve|reject` · الواجهة `features/tasks/TaskDetailPage.tsx::PlanApproval` |
+| معاينة الفرق ببطاقة الإذن | `tools/base.py::Tool.preview` (كل أداة بتقدر تعرّفها) → `core/loop.py` بيمرّرها لـ `permit(…, preview)` → `components/steps.tsx::PreviewPanel` |
+| commit ووصف PR لتغييرات مهمة | `core/gitops.py::commit_paths` + `core/git_describe.py` · `api/tasks.py` `/changes/commit|describe` · `features/tasks/ChangesPanel.tsx` |
+| تصدير محادثة HTML | `core/export_html.py` + `api/chats.py::export_chat` |
+| أوامر `/` بالمحادثة | `components/ComposerMenus.tsx::COMMANDS` (النوع `prefill` بيحط نص، `send` بيبعته) + `features/chat/ChatPage.tsx::runCommand`؛ أوامر المهارات بتتولّد من `skill.commands` |
+| أوامر مهارة | `skills/registry.py` (`commands:` بالـ front matter أو مجلد `commands/`) |
+| تنزيل مهارة من رابط | `skills/install.py` (GitHub/raw/zip، ملفات نصية بس) + `api/designs.py::install_skill_from_url` · الواجهة `features/design/SkillsSection.tsx` |
+| قائمة خوادم MCP الجاهزة وشعاراتها | `lib/mcpCatalog.ts` (الإعداد، نوع الربط، الحقول) + `components/McpLogo.tsx` · الواجهة `features/settings/mcp.tsx` |
+| OAuth لخوادم MCP | `mcp_oauth.py` (تخزين التوكن بالـ keychain، الـ redirect إلى `/mcp/oauth/callback`، تفسير الأخطاء) + `mcp_bridge.py` (بيمرّر `auth=` للـ SDK وبيفحص حالة HTTP لما الخطأ عام) + `api/automation.py` `/mcp/{id}/connect|logout` |
+| أقسام الإعدادات (القائمة الجانبية) | `routes/SettingsPage.tsx::TABS` — كل قسم باسمه وسطر شرح، والمفتوح منها بـ `?tab=` |
+| مستندات التصميم والتبديل بينها | `core/designs.py::extract_previews/merge_files` (الاسم من الـ fence أو `<!-- file: … -->` أو `<title>`) → `Design.files`، وملفات المجلد من `api/designs.py` `/designs/{id}/documents` و`/documents/read` → `routes/DesignWorkspace.tsx::PreviewPane` |
+| القوالب: استيراد/تصدير/المجتمع | `api/automation.py` (`/templates/catalog|import|export`) + `rafiq_agent/data/templates_catalog.json` |
+| الأمر `rafiq` | `rafiq_agent/cli.py` (stdlib بس) — `run_agent.py cli …` + `src-tauri/resources/rafiq.cmd`؛ بيقرأ `agent.json` اللي بيكتبه `main.py` |
 | الأيقونة بجنب الساعة، الإغلاق للخلفية، التشغيل مع ويندوز | `src-tauri/src/lib.rs` + `lib/background.ts` |
 | ربط المحرّك بعمر التطبيق (ما يضل شغّال بعده) | `src-tauri/src/job.rs` (Windows Job Object) + `src-tauri/installer/hooks.nsh` |
 | حساب كلفة النداءات وحدود المصروف | `llm/usage.py` (العدّ والحدود) + `api/insights.py` (العرض) · الواجهة `features/settings/usage.tsx` |

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Security and privacy · Rafiq</title>
+  <meta name="description" content="Where your keys and data are kept, how the permission policy works, and who Rafiq talks to." />
+  <link rel="alternate" hreflang="ar" href="/security/" />
+  <link rel="alternate" hreflang="en" href="/en/security/" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <meta property="og:title" content="Security and privacy · Rafiq" />
+  <meta property="og:description" content="Where your keys and data are kept, how the permission policy works, and who Rafiq talks to." />
+  <meta property="og:image" content="/assets/screens/chat-plan.webp" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#100f0d" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)" />
+  <link rel="preload" href="/assets/fonts/plex-arabic-latin-700.woff2" as="font" type="font/woff2" crossorigin /><link rel="preload" href="/assets/fonts/plex-arabic-latin-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/en/" aria-label="Rafiq">
+      <img src="/assets/icon-64.png" alt="" width="30" height="30" />
+      Rafiq
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="/en/">Home</a><a href="/en/features/">Features</a><a href="/en/security/" aria-current="page">Security</a><a href="/en/download/">Download</a><a href="/en/faq/">FAQ</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="lang" href="/security/" hreflang="ar" lang="ar">العربية</a>
+      <a class="btn btn-primary" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download>Download for Windows</a>
+      <button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="mobile-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" hidden aria-label="Sections">
+    <a href="/en/">Home</a><a href="/en/features/">Features</a><a href="/en/security/" aria-current="page">Security</a><a href="/en/download/">Download</a><a href="/en/faq/">FAQ</a>
+    <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="page-head">
+    <div class="wrap reveal">
+      <h1>Security and privacy</h1>
+      <p class="lead">Rafiq gives a model real power over your machine. So every permission is yours, and every secret is where it belongs.</p>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="wrap">
+      <div class="section-head reveal"><h2>Where everything is kept</h2></div>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>What</th><th>Where</th><th>Who can read it</th></tr></thead>
+          <tbody>
+            <tr><td>API keys and account tokens</td><td>Windows Credential Manager</td><td>Rafiq's engine only, at call time</td></tr>
+            <tr><td>Search keys and MCP server secrets</td><td>Windows Credential Manager</td><td>Rafiq's engine only</td></tr>
+            <tr><td>Chats, tasks and designs</td><td>A local SQLite database in AppData</td><td>You, and the app</td></tr>
+            <tr><td>Settings and the permission policy</td><td>The same local database</td><td>You, and the app</td></tr>
+            <tr><td>The files the model works on</td><td>Your folder, or an isolated git copy of it</td><td>Sent to the provider you chose, only when the model asks for them</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted reveal" style="margin-top: 14px; font-size: 15px">Keys never enter the database or the log files, and are never sent to the app's interface. The diagnostics report you can export from Settings carries provider names only, with no key and no conversation content.</p>
+    </div>
+  </section>
+
+  <section class="chapter alt">
+    <div class="wrap split">
+      <div class="reveal">
+        <h2>A permission policy per tool type</h2>
+        <p>Every tool is classified: read, write, or execute. Reads pass on their own. The rest go through your policy: <b>ask</b> every time, <b>allow</b> always, or <b>deny</b>.</p>
+        <ul class="checks">
+          <li>File writes, shell commands, process management</li>
+          <li>Web and browser, and desktop control</li>
+          <li>Edits to Jira and other issues, and MCP tools</li>
+          <li>The request appears inside the chat or the task page, with the exact command or path</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/crop-permissions.webp" width="1250" height="1100" alt="The permission policy in Settings: seven categories, each set to ask every time" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="wrap">
+      <div class="section-head reveal"><h2>Limits built into the tools themselves</h2></div>
+      <div class="principles reveal">
+        <div class="principle">
+          <h3>Desktop control is off</h3>
+          <p>You have to switch it on in Settings before the model even sees it. Even then, every action goes through the permission.</p>
+        </div>
+        <div class="principle">
+          <h3>The web can't reach your network</h3>
+          <p>The page-reading tool refuses private and local addresses, so it can't be used to reach devices on your network.</p>
+        </div>
+        <div class="principle">
+          <h3>git without commits</h3>
+          <p>Task worktrees are created and removed only inside Rafiq's data folder. The model can't commit to your branch or change it.</p>
+        </div>
+        <div class="principle">
+          <h3>A browser with its own profile</h3>
+          <p>The browser tools run Edge with a separate profile. Your accounts and cookies in your everyday browser are never touched.</p>
+        </div>
+        <div class="principle">
+          <h3>A local engine with a session token</h3>
+          <p>Rafiq's engine runs on your machine on a local port, with a random token per launch. No other process on the machine can call it.</p>
+        </div>
+        <div class="principle">
+          <h3>Signed updates</h3>
+          <p>The app verifies the signature of every update before installing it. A tampered update doesn't get through.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter alt">
+    <div class="wrap">
+      <div class="section-head reveal"><h2>Who Rafiq talks to</h2></div>
+      <div class="reveal stack">
+        <p>Four parties, all chosen by you: the provider whose key you added, the search service if you enabled one, the MCP servers you connected, and GitHub's releases page to check for updates. No analytics, no tracking, no Rafiq server.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="download-band" style="padding-top: 24px">
+    <div class="wrap">
+      <div class="download reveal">
+        <div>
+          <h2>Ready? Half a minute and it's yours.</h2>
+          <p class="lead" style="margin-top: 12px">One installer, no account. Then add a model key and start.</p>
+          <div class="cta">
+            <a class="btn btn-primary btn-lg" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Download for Windows</a>
+            <a class="btn btn-ghost btn-lg" href="/en/download/">Install details</a>
+          </div>
+        </div>
+        <ul class="meta">
+          <li><b>System</b><span>Windows 10 or 11, x64</span></li>
+          <li><b>Version</b><span data-version>0.3.0</span></li>
+          <li><b>Size</b><span data-size>87 MB</span></li>
+          <li><b>Install</b><span>Per user, no administrator rights needed</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Rafiq · made by <a href="https://github.com/AhmadALSaffan" target="_blank" rel="noopener">Ahmed Eliwi AL Saffan</a></span>
+    <nav aria-label="Links">
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/issues" target="_blank" rel="noopener">Report a problem</a>
+      <a href="/security/" hreflang="ar" lang="ar">العربية</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+</body>
+</html>

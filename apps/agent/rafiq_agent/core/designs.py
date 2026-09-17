@@ -87,10 +87,13 @@ DESIGN_SYSTEM_PROMPT = (
     "بعدين الشاشة نفسها، وبعدين قائمة مكافحة الـ slop.\n"
     "3. كل رد تصميمي لازم ينتهي بمستند HTML واحد مكتفي بذاته داخل بلوك ```html — ستايل داخلي، "
     "بدون ملفات خارجية، بمحتوى حقيقي بلغة المنتج، ويشتغل على عرض 380px.\n"
-    "   إذا التصميم فيه أكتر من صفحة، حط كل الصفحات بنفس المستند: كل صفحة بـ "
+    "   إذا التصميم فيه أكتر من صفحة بنفس التدفّق، حط كل الصفحات بنفس المستند: كل صفحة بـ "
     '<section id="..."> بمعرّف إنجليزي قصير، والتنقل بينها بروابط href="#id"، مع سكربت صغير '
     "بيعرض الصفحة اللي معرّفها بـ location.hash ويخفي الباقي (الرئيسية بتظهر لما ما يكون في hash). "
-    "لا تربط لملفات .html منفصلة ولا تقسم الصفحات على كذا بلوك — المعاينة بتعرض بلوك واحد بس.\n"
+    "لا تربط لملفات .html منفصلة.\n"
+    "   وإذا فعلاً بدك مستند تاني مستقل (مثلاً لوحة تحكم غير الموقع التسويقي)، اكتبه ببلوك ```html "
+    "تاني وسمّيه بسطر أول جوّا البلوك: <!-- file: dashboard --> — رفيق بيعرض كل المستندات "
+    "بقائمة فوق المعاينة والمستخدم بيبدّل بينها. لا تعيد إرسال مستند ما تغيّر.\n"
     "4. فوق البلوك اكتب بالعربي: وظيفة الشاشة بجملة، القرارات اللي أخذتها وليش، وشو تركته عمداً.\n"
     "5. بكل تعديل: ارجع للمهارات، وقول أي قاعدة بيخدمها التعديل، وغيّر أصغر شي بيحل ملاحظة المستخدم.\n\n"
     "لا تسأل المستخدم أسئلة الـ brief من جديد — وصلتك جاهزة. إذا في شي ناقص، افترض افتراض معقول "
@@ -137,13 +140,56 @@ def brief_message(brief: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-_HTML_BLOCK = re.compile(r"```html\s*\n(.*?)```", re.DOTALL | re.IGNORECASE)
+# ```html  ·  ```html dashboard.html  — the word after the fence names the document.
+_HTML_BLOCK = re.compile(r"```html[ \t]*([^\n]*)\n(.*?)```", re.DOTALL | re.IGNORECASE)
+# A name the model may put at the top of the document instead: <!-- file: dashboard.html -->
+_FILE_COMMENT = re.compile(r"<!--\s*(?:rafiq:)?file\s*[:=]?\s*([^\s>-][^\n>]*?)\s*-->", re.IGNORECASE)
+_TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.DOTALL | re.IGNORECASE)
+_NAME_BAD = re.compile(r"[^\w\u0600-\u06FF -]+", re.UNICODE)
+
+
+def clean_name(raw: str) -> str:
+    """A document name fit for a tab and a file on disk."""
+    name = (raw or "").strip().strip("\"'`")
+    if name.lower().endswith((".html", ".htm")):
+        name = name.rsplit(".", 1)[0]
+    return _NAME_BAD.sub("", name).strip(" -")[:40]
 
 
 def extract_preview(text: str) -> str | None:
-    """The last ```html block in a reply — that's the document the preview renders."""
+    """The last ```html block in a reply — the document the preview opens on."""
     blocks = _HTML_BLOCK.findall(text or "")
-    return blocks[-1].strip() if blocks else None
+    return blocks[-1][1].strip() if blocks else None
+
+
+def extract_previews(text: str, fallback: str) -> list[dict[str, str]]:
+    """Every HTML document in one reply, in order, each with a name.
+
+    A model that keeps a design in one document just gets one entry (named after the
+    design). One that answers with a second screen gets a second entry, and the preview
+    offers both — which is the whole point: nothing the model wrote disappears because a
+    later block replaced it.
+    """
+    out: list[dict[str, str]] = []
+    blocks = _HTML_BLOCK.findall(text or "")
+    for index, (info, body) in enumerate(blocks):
+        html = body.strip()
+        if not html:
+            continue
+        comment = _FILE_COMMENT.search(html[:400])
+        title = _TITLE.search(html[:2000])
+        name = (
+            clean_name(info)
+            or clean_name(comment.group(1) if comment else "")
+            or (clean_name(title.group(1)) if len(blocks) > 1 and title else "")
+            or (clean_name(fallback) if index == 0 else "")
+            or f"{clean_name(fallback) or 'design'}-{index + 1}"
+        )
+        # Two blocks that ended up with the same name are two versions of one document:
+        # the later one wins, as it always did.
+        out = [f for f in out if f["name"] != name]
+        out.append({"name": name, "html": html})
+    return out
 
 
 def strip_preview(text: str) -> str:
@@ -180,7 +226,7 @@ _SLUG_BAD = re.compile(r"[^\w؀-ۿ-]+", re.UNICODE)
 
 
 def save_preview(working_dir: str | None, title: str, html: str) -> str | None:
-    """Writes the latest preview into the folder the user picked. Returns the path."""
+    """Writes one document into the folder the user picked. Returns the path."""
     if not working_dir or not html:
         return None
     folder = Path(working_dir)
@@ -193,3 +239,17 @@ def save_preview(working_dir: str | None, title: str, html: str) -> str | None:
     except OSError:
         return None
     return str(target)
+
+
+def merge_files(saved: list[dict[str, Any]] | None, fresh: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """The design's documents after this reply: a document with a name we already have is
+    replaced in place (so its tab keeps its position), a new one goes at the end."""
+    files = [dict(f) for f in saved or []]
+    for item in fresh:
+        for existing in files:
+            if existing.get("name") == item["name"]:
+                existing["html"] = item["html"]
+                break
+        else:
+            files.append({"name": item["name"], "html": item["html"]})
+    return files[:20]

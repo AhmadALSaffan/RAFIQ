@@ -44,6 +44,14 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     "integrations/providers.py": {"spec"},
     "auth/github_copilot.py": {"_ERRORS"},
     "auth/resolve.py": {"DISCONNECTED"},
+    # Standing notes the model reads (memory, workspace instructions, commit prompts).
+    "core/memory.py": {"memory_note"},
+    "api/workspaces.py": {"workspace_note"},
+    "core/git_describe.py": "*",
+    "tools/memory.py": "*",
+    # Character-class regexes, not text.
+    "core/export_html.py": {"_is_arabic"},
+    "skills/install.py": {"_SAFE_NAME"},
 }
 
 

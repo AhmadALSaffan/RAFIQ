@@ -23,6 +23,7 @@ import type { TaskSummary } from "../lib/types";
 import { easeOutExpo, snappy } from "../lib/motion";
 import { ToastStack, type Toast } from "./Toasts";
 import { Logo } from "./Logo";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 import { t } from "../i18n";
 const navItems = [
@@ -194,6 +195,8 @@ export function Shell() {
               </button>
             )}
           </div>
+
+          <WorkspaceSwitcher collapsed={collapsed} />
 
           <div className="flex flex-1 flex-col gap-1">
             {navItems.map(({ to, label, Icon }) => {

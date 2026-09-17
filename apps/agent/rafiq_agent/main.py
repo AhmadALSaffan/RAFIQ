@@ -9,18 +9,21 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from rafiq_agent.api.accounts import callback_router as accounts_callback_router
 from rafiq_agent.api.accounts import router as accounts_router
 from rafiq_agent.api.attachments import router as attachments_router
+from rafiq_agent.api.automation import oauth_callback_router as mcp_oauth_callback_router
 from rafiq_agent.api.automation import router as automation_router
 from rafiq_agent.api.chats import router as chats_router
 from rafiq_agent.api.designs import router as designs_router
 from rafiq_agent.api.files import router as files_router
 from rafiq_agent.api.insights import router as insights_router
 from rafiq_agent.api.integrations import router as integrations_router
+from rafiq_agent.api.memory import router as memory_router
 from rafiq_agent.api.models import router as models_router
 from rafiq_agent.api.settings import router as settings_router
 from rafiq_agent.api.tasks import router as tasks_router
 from rafiq_agent.api.tasks import ws_router as tasks_ws_router
 from rafiq_agent.api.voice import router as voice_router
-from rafiq_agent.config import CORS_ORIGINS
+from rafiq_agent.api.workspaces import router as workspaces_router
+from rafiq_agent.config import AUTH_TOKEN, CORS_ORIGINS, DATA_DIR
 from rafiq_agent.core.agent_runtime import load_settings, parallel_limit, run_task
 from rafiq_agent.core.chat_service import stop_all_turns
 from rafiq_agent.core.manager import manager
@@ -31,6 +34,26 @@ from rafiq_agent.llm.resilience import set_concurrency
 from rafiq_agent.mcp_bridge import MANAGER as MCP
 from rafiq_agent.storage.db import init_db
 from rafiq_agent.tools.browser import BROWSER
+
+DISCOVERY_FILE = DATA_DIR / "agent.json"
+
+
+def write_discovery() -> None:
+    """Where the `rafiq` CLI finds the running agent: port and token, in the user's own
+    data folder (readable only by them), removed on shutdown."""
+    import json
+    import os
+
+    port = int(os.environ.get("RAFIQ_PORT", "8765"))
+    with contextlib.suppress(OSError):
+        DISCOVERY_FILE.write_text(
+            json.dumps({"port": port, "token": AUTH_TOKEN, "pid": os.getpid()}), encoding="utf-8"
+        )
+
+
+def remove_discovery() -> None:
+    with contextlib.suppress(OSError):
+        DISCOVERY_FILE.unlink()
 
 
 @asynccontextmanager
@@ -43,12 +66,14 @@ async def lifespan(app: FastAPI):
     await manager.recover()
     manager.start(run_task, limit=parallel_limit)
     schedules = asyncio.create_task(run_schedules())
+    write_discovery()
     # Optional experimental adapter: load its saved config, or skip it silently.
     with contextlib.suppress(Exception):
         from rafiq_agent.auth.experimental.authai import load_config
 
         await load_config()
     yield
+    remove_discovery()
     schedules.cancel()
     # Replies still being written are saved as far as they got.
     await stop_all_turns()
@@ -126,8 +151,11 @@ app.include_router(integrations_router)
 app.include_router(files_router)
 app.include_router(designs_router)
 app.include_router(automation_router)
+app.include_router(mcp_oauth_callback_router)
 app.include_router(insights_router)
 app.include_router(voice_router)
+app.include_router(memory_router)
+app.include_router(workspaces_router)
 
 
 # AuthAI's own settings routes — mounted only if the experimental module loads.

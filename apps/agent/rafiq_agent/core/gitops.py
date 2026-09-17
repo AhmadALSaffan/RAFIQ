@@ -218,6 +218,18 @@ async def remove_worktree(repo: str | Path, path: str | Path, links: list[str]) 
         await asyncio.to_thread(shutil.rmtree, root, True)
 
 
+async def commit_paths(repo: Path, paths: list[str], message: str) -> str:
+    """A real commit on the user's branch of just these files (added, changed or deleted).
+    Returns the new HEAD."""
+    if paths:
+        await git(repo, "add", "-A", "--", *paths)
+        await git(repo, "commit", "-m", message, "--", *paths)
+    else:
+        await git(repo, "add", "-A")
+        await git(repo, "commit", "-m", message)
+    return (await git(repo, "rev-parse", "HEAD")).strip()
+
+
 async def commit_worktree(path: Path, base: str, message: str) -> str:
     """The task's work as one commit on top of its base (the worktree is detached)."""
     if not await _is_worktree(path):

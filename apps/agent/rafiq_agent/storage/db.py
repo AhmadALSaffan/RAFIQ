@@ -30,6 +30,9 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "paths": "JSON",
         "depends_on": "JSON",
         "git": "JSON",
+        "mode": "VARCHAR DEFAULT 'auto'",
+        "plan": "TEXT",
+        "workspace_id": "VARCHAR",
     },
     "chats": {
         "working_dir": "VARCHAR",
@@ -38,9 +41,11 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "summary_until": "VARCHAR",
         "pinned": "BOOLEAN DEFAULT 0",
         "mode": "VARCHAR DEFAULT 'chat'",
+        "workspace_id": "VARCHAR",
     },
     "chat_messages": {"parts": "JSON", "attachments": "JSON"},
-    "designs": {"working_dir": "VARCHAR", "saved_path": "VARCHAR"},
+    "designs": {"working_dir": "VARCHAR", "saved_path": "VARCHAR", "workspace_id": "VARCHAR", "files": "JSON"},
+    "mcp_servers": {"auth": "VARCHAR DEFAULT 'none'", "preset": "VARCHAR"},
 }
 
 

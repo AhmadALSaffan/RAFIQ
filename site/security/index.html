@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>الأمان والخصوصية · رفيق</title>
+  <meta name="description" content="وين بتنحفظ مفاتيحك وبياناتك، كيف بتشتغل سياسة الصلاحيات، ولمين بيتواصل رفيق." />
+  <link rel="alternate" hreflang="en" href="/en/security/" />
+  <link rel="alternate" hreflang="ar" href="/security/" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <meta property="og:title" content="الأمان والخصوصية · رفيق" />
+  <meta property="og:description" content="وين بتنحفظ مفاتيحك وبياناتك، كيف بتشتغل سياسة الصلاحيات، ولمين بيتواصل رفيق." />
+  <meta property="og:image" content="/assets/screens/chat-plan.webp" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#100f0d" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)" />
+  <link rel="preload" href="/assets/fonts/plex-arabic-arabic-700.woff2" as="font" type="font/woff2" crossorigin /><link rel="preload" href="/assets/fonts/plex-arabic-arabic-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="رفيق">
+      <img src="/assets/icon-64.png" alt="" width="30" height="30" />
+      رفيق
+    </a>
+    <nav class="nav-links" aria-label="الأقسام">
+      <a href="/">الرئيسية</a><a href="/features/">الميزات</a><a href="/security/" aria-current="page">الأمان</a><a href="/download/">التحميل</a><a href="/faq/">الأسئلة</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="lang" href="/en/security/" hreflang="en" lang="en">English</a>
+      <a class="btn btn-primary" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download>حمّل لويندوز</a>
+      <button class="menu-btn" type="button" aria-label="القائمة" aria-expanded="false" aria-controls="mobile-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" hidden aria-label="الأقسام">
+    <a href="/">الرئيسية</a><a href="/features/">الميزات</a><a href="/security/" aria-current="page">الأمان</a><a href="/download/">التحميل</a><a href="/faq/">الأسئلة</a>
+    <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="page-head">
+    <div class="wrap reveal">
+      <h1>الأمان والخصوصية</h1>
+      <p class="lead">رفيق بيعطي النموذج صلاحيات حقيقية على جهازك. لهيك كل صلاحية بإيدك، وكل سر بمكانه الصحيح.</p>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="wrap">
+      <div class="section-head reveal"><h2>وين بتنحفظ كل شغلة</h2></div>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>الشي</th><th>وين</th><th>مين بيقدر يقرأه</th></tr></thead>
+          <tbody>
+            <tr><td>مفاتيح API وتوكنات الحسابات</td><td>Windows Credential Manager</td><td>محرّك رفيق بس، وقت النداء</td></tr>
+            <tr><td>مفاتيح البحث وأسرار خوادم MCP</td><td>Windows Credential Manager</td><td>محرّك رفيق بس</td></tr>
+            <tr><td>المحادثات والمهام والتصاميم</td><td>قاعدة SQLite محلية في مجلد AppData</td><td>إنت، والتطبيق</td></tr>
+            <tr><td>الإعدادات وسياسة الصلاحيات</td><td>نفس القاعدة المحلية</td><td>إنت، والتطبيق</td></tr>
+            <tr><td>الملفات اللي بيشتغل عليها النموذج</td><td>مجلدك، أو نسخة git معزولة منه</td><td>بتنبعت للمزوّد اللي اخترته بس لما النموذج يطلبها</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted reveal" style="margin-top: 14px; font-size: 15px">المفاتيح ما بتدخل قاعدة البيانات ولا ملفات السجل، وما بتنبعت لواجهة التطبيق. تقرير المشاكل اللي بتصدّره من الإعدادات بيحمل أسماء المزوّدين بس، بلا أي مفتاح ولا محتوى محادثة.</p>
+    </div>
+  </section>
+
+  <section class="chapter alt">
+    <div class="wrap split">
+      <div class="reveal">
+        <h2>سياسة صلاحيات لكل نوع أداة</h2>
+        <p>كل أداة مصنّفة: قراءة، أو كتابة، أو تنفيذ. القراءة بتمشي لحالها. الباقي بيمرق من سياستك: <b>اسأل</b> كل مرة، أو <b>اسمح</b> دايماً، أو <b>امنع</b>.</p>
+        <ul class="checks">
+          <li>الكتابة على الملفات، أوامر shell، إدارة العمليات</li>
+          <li>الويب والمتصفح، والتحكم بسطح المكتب</li>
+          <li>التعديل على مهام Jira وغيرها، وأدوات MCP</li>
+          <li>طلب الإذن بيظهر جوّا المحادثة أو صفحة المهمة، مع الأمر أو المسار بالضبط</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/crop-permissions.webp" width="1250" height="1100" alt="سياسة الصلاحيات في الإعدادات: سبع فئات، كل وحدة على «اسأل دايماً»" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="wrap">
+      <div class="section-head reveal"><h2>حدود مبنية جوّا الأدوات نفسها</h2></div>
+      <div class="principles reveal">
+        <div class="principle">
+          <h3>التحكم بسطح المكتب مطفي</h3>
+          <p>لازم تفعّله بنفسك من الإعدادات قبل ما يظهر للنموذج أصلاً. وحتى بعدها، كل حركة بتمرق من الصلاحية.</p>
+        </div>
+        <div class="principle">
+          <h3>الويب ما بيوصل لشبكتك</h3>
+          <p>أداة قراءة الصفحات بترفض العناوين الداخلية والمحلية، فما بتقدر تستخدمها للوصول لأجهزة شبكتك.</p>
+        </div>
+        <div class="principle">
+          <h3>git بلا commit</h3>
+          <p>نسخ المهام المعزولة بتنعمل وبتنحذف بس جوّا مجلد بيانات رفيق. النموذج ما بيقدر يعمل commit على فرعك ولا يغيّره.</p>
+        </div>
+        <div class="principle">
+          <h3>المتصفح بملف تعريف خاص</h3>
+          <p>أدوات المتصفح بتشغّل Edge بملف تعريف منفصل. حساباتك وكوكيزك بمتصفحك العادي ما بتنلمس.</p>
+        </div>
+        <div class="principle">
+          <h3>محرّك محلي بمفتاح جلسة</h3>
+          <p>محرّك رفيق بيشتغل على جهازك على منفذ محلي، بتوكن عشوائي لكل تشغيل. ما في عملية تانية على الجهاز بتقدر تناديه.</p>
+        </div>
+        <div class="principle">
+          <h3>التحديثات موقّعة</h3>
+          <p>التطبيق بيتحقق من توقيع أي تحديث قبل ما يثبّته. تحديث معدّل ما بيمرق.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter alt">
+    <div class="wrap">
+      <div class="section-head reveal"><h2>لمين بيتواصل رفيق</h2></div>
+      <div class="reveal stack">
+        <p>لأربع جهات بس، وكلها بتختارها إنت: المزوّد اللي حطيت مفتاحه، خدمة البحث إذا فعّلتها، خوادم MCP اللي ربطتها، وصفحة إصدارات GitHub لفحص التحديثات. ما في تحليلات ولا تتبّع ولا خادم خاص برفيق.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="download-band" style="padding-top: 24px">
+    <div class="wrap">
+      <div class="download reveal">
+        <div>
+          <h2>جاهز؟ نصف دقيقة وبيكون عندك.</h2>
+          <p class="lead" style="margin-top: 12px">مثبّت واحد، بدون حساب. بعدها ضيف مفتاح نموذجك وابدأ.</p>
+          <div class="cta">
+            <a class="btn btn-primary btn-lg" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>حمّل لويندوز</a>
+            <a class="btn btn-ghost btn-lg" href="/download/">تفاصيل التثبيت</a>
+          </div>
+        </div>
+        <ul class="meta">
+          <li><b>النظام</b><span>Windows 10 أو 11، x64</span></li>
+          <li><b>الإصدار</b><span data-version>0.3.0</span></li>
+          <li><b>الحجم</b><span data-size>87 MB</span></li>
+          <li><b>الصلاحيات</b><span>بيتثبّت للمستخدم الحالي، بدون صلاحيات مدير</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>رفيق · صنعه <a href="https://github.com/AhmadALSaffan" target="_blank" rel="noopener">أحمد عليوي السفان</a></span>
+    <nav aria-label="روابط">
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/releases" target="_blank" rel="noopener">الإصدارات</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/issues" target="_blank" rel="noopener">بلّغ عن مشكلة</a>
+      <a href="/en/security/" hreflang="en" lang="en">English</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+</body>
+</html>

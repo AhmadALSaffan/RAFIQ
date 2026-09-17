@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>الميزات · رفيق</title>
+  <meta name="description" content="محادثات بأدوات، مهام بالتوازي، نسخة git لكل مهمة، تصميم بمعاينة حيّة، واحد وعشرين مزوّد، جدولة، وكلفة على المكشوف." />
+  <link rel="alternate" hreflang="en" href="/en/features/" />
+  <link rel="alternate" hreflang="ar" href="/features/" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <meta property="og:title" content="الميزات · رفيق" />
+  <meta property="og:description" content="محادثات بأدوات، مهام بالتوازي، نسخة git لكل مهمة، تصميم بمعاينة حيّة، واحد وعشرين مزوّد، جدولة، وكلفة على المكشوف." />
+  <meta property="og:image" content="/assets/screens/chat-plan.webp" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#100f0d" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)" />
+  <link rel="preload" href="/assets/fonts/plex-arabic-arabic-700.woff2" as="font" type="font/woff2" crossorigin /><link rel="preload" href="/assets/fonts/plex-arabic-arabic-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="رفيق">
+      <img src="/assets/icon-64.png" alt="" width="30" height="30" />
+      رفيق
+    </a>
+    <nav class="nav-links" aria-label="الأقسام">
+      <a href="/">الرئيسية</a><a href="/features/" aria-current="page">الميزات</a><a href="/security/">الأمان</a><a href="/download/">التحميل</a><a href="/faq/">الأسئلة</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="lang" href="/en/features/" hreflang="en" lang="en">English</a>
+      <a class="btn btn-primary" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download>حمّل لويندوز</a>
+      <button class="menu-btn" type="button" aria-label="القائمة" aria-expanded="false" aria-controls="mobile-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" hidden aria-label="الأقسام">
+    <a href="/">الرئيسية</a><a href="/features/" aria-current="page">الميزات</a><a href="/security/">الأمان</a><a href="/download/">التحميل</a><a href="/faq/">الأسئلة</a>
+    <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="page-head">
+    <div class="wrap reveal">
+      <h1>الميزات</h1>
+      <p class="lead">كل شي هون موجود بالتطبيق اليوم. ما في «قريباً».</p>
+    </div>
+  </section>
+
+  <section class="chapter" id="chat">
+    <div class="wrap split">
+      <div class="reveal">
+        <h2>محادثة بتقدر تعمل شي</h2>
+        <p>احكي معه متل ما بتحكي مع زميل. بيقرأ الملفات اللي بتشير عليها بـ <code>@</code>، بياخد صور ومرفقات، وبيرد بـ Markdown مع الكود ملوّن.</p>
+        <ul class="checks">
+          <li>أوامر <code>/</code> لضبط طول الرد ولغته وحرارته والتفكير</li>
+          <li><code>/لخّص</code> بيطوي المحادثة الطويلة بملخص فتوفّر توكنات</li>
+          <li>عدّل سؤال بعتّه وابعته من جديد، أو فرّع المحادثة من أي نقطة</li>
+          <li>إملاء صوتي من المايك مباشرة لصندوق الكتابة</li>
+          <li>الرد بيكمل لو طلعت من الصفحة، وبترجع تلاقيه وين وصل</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/chat-fx.webp" width="2400" height="1500" alt="محادثة بحث عن سعر صرف: بطاقة أداة البحث ثم الجواب مع المصادر" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="chapter alt" id="tasks">
+    <div class="wrap">
+      <div class="reveal stack">
+        <h2>مهام بتشتغل مع بعض، مو ورا بعض</h2>
+        <p>اعطيه شغلة وخلّيه يخلصها لحاله بمجلدك. أو ابعت خطة بالمحادثة وهو بيقسمها لمهام، بيعرض حالة كل وحدة جوّا الشات، وبيستنى النتايج ليكمل عليها.</p>
+        <ul class="checks two">
+          <li>لحد 100 مهمة بنفس الوقت، والحد بإيدك</li>
+          <li>المهام اللي بتلمس نفس الملفات بتاخد دورها تلقائياً</li>
+          <li>مهمة بتقدر تستنى مهمة تانية تخلص قبلها</li>
+          <li>نموذج مختلف للمهام: خطّط بالقوي ونفّذ بالأرخص</li>
+          <li>سجل كامل لكل خطوة، وإعادة تشغيل بضغطة</li>
+          <li>إشعار ويندوز لما مهمة تخلص أو بدها إذنك</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/tasks.webp" width="2400" height="1500" alt="قائمة المهام: سبع مهام بحالات مكتمل وشغّال وبالدور، مع النموذج والمجلد لكل وحدة" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="chapter" id="git">
+    <div class="wrap split flip">
+      <div class="reveal">
+        <h2>نسخة git معزولة لكل مهمة</h2>
+        <p>لما المجلد مشروع git، كل مهمة بتشتغل بـ worktree خاص فيها، مأخوذ من مجلدك متل ما هو حتى مع الملفات اللي ما عملتلها commit. فمهام نفس المشروع بتشتغل مع بعض بدون ما تخرّب على بعض.</p>
+        <ul class="checks">
+          <li>لوحة تغييرات بكل مهمة: الملفات، الفرق، وعدد الأسطر</li>
+          <li>رجّع كل اللي عملته المهمة بضغطة</li>
+          <li>التغييرات اللي ما انطبقت لحالها بتقدر تدمجها مع علامات تعارض</li>
+          <li>رفيق ما بيعمل commit على فرعك أبداً</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/crop-changes.webp" width="1440" height="630" alt="لوحة التغييرات في صفحة المهمة" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="chapter alt" id="designs">
+    <div class="wrap">
+      <div class="reveal stack">
+        <h2>صمّم قبل ما تبرمج</h2>
+        <p><code>/impeccable init</code> بيسألك تسع أسئلة عن المشروع، وبعدها بتفتح جلسة تصميم: شات على جنب، ومعاينة حيّة على الجنب التاني بعرض الموبايل والتابلت والشاشة. مهارات التصميم مدمجة وبتشتغل مع أي نموذج.</p>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/design.webp" width="2400" height="1500" alt="جلسة تصميم: قرارات النموذج على اليمين ومعاينة الصفحة على اليسار" loading="lazy" /></div>
+      <ul class="checks two reveal" style="margin-top: 28px">
+        <li>تصاميم من أكتر من صفحة، والروابط بتفتح جوّا المعاينة</li>
+        <li>كل نسخة بتنحفظ كملف HTML بمجلدك</li>
+        <li>زر واحد بيبعت التصميم للمحادثة أو المهمة اللي رح تبرمجه</li>
+        <li>مهاراتك الخاصة: أضف مجلد فيه SKILL.md وخلص</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="chapter" id="tools">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>الأدوات اللي بتوصله</h2>
+        <p class="lead">كل أداة مصنّفة: قراءة بس، أو كتابة، أو تنفيذ. والكتابة والتنفيذ بيمرقوا من سياسة الصلاحيات تبعتك.</p>
+      </div>
+      <div class="toolgrid reveal">
+        <div><h3>الملفات والأوامر</h3><p>قراءة وكتابة وحذف جوّا مجلد المحادثة أو المهمة، وأوامر shell بمهلة زمنية، وإدارة العمليات.</p></div>
+        <div><h3>الويب</h3><p><code>web_fetch</code> بيقرأ أي صفحة أو PDF كنص مرتب مع روابطه. <code>web_search</code> بيدوّر عبر Brave أو Tavily أو خادم SearXNG خاص فيك.</p></div>
+        <div><h3>متصفح حقيقي</h3><p>Microsoft Edge بملف تعريف خاص: بيفتح صفحات، بيضغط، بيكتب، بيقرأ، وبيصوّر. مناسب لتجربة موقعك على localhost.</p></div>
+        <div><h3>سطح المكتب</h3><p>مطفي افتراضياً. لما تشغّله: صورة شاشة، فأرة، وكيبورد على أي تطبيق، مهمة وحدة بالمرة.</p></div>
+        <div><h3>خوادم MCP</h3><p>اربط أي خادم Model Context Protocol (أمر محلي أو HTTP) وأدواته بتصير عند النموذج بصلاحيتها الخاصة.</p></div>
+        <div><h3>أنظمة التتبّع</h3><p>Jira و Linear و GitHub Issues و GitLab: مهامك المسندة إلك بمكان واحد، وبتقدر تشاور عليها أو تحوّلها لمهمة.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter alt" id="providers">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>نموذجك، من وين ما كان</h2>
+        <p class="lead">مفتاح API، أو حساب GitHub Copilot، أو نموذج محلي على جهازك. رفيق بيجيب قائمة الموديلات وبيتأكد إنها بترد قبل ما يحفظها.</p>
+      </div>
+      <div class="split reveal">
+        <div>
+          <div class="logo-grid"><img src="/assets/logos/anthropic.svg" alt="Anthropic" title="Anthropic" loading="lazy" /><img src="/assets/logos/openai.svg" alt="OpenAI" title="OpenAI" loading="lazy" /><img src="/assets/logos/googlegemini.svg" alt="Google Gemini" title="Google Gemini" loading="lazy" /><img src="/assets/logos/deepseek.svg" alt="DeepSeek" title="DeepSeek" loading="lazy" /><img src="/assets/logos/mistralai.svg" alt="Mistral" title="Mistral" loading="lazy" /><img src="/assets/logos/x.svg" alt="xAI (Grok)" title="xAI (Grok)" loading="lazy" /><img src="/assets/logos/githubcopilot.svg" alt="GitHub Copilot" title="GitHub Copilot" loading="lazy" /><img src="/assets/logos/openrouter.svg" alt="OpenRouter" title="OpenRouter" loading="lazy" /><img src="/assets/logos/azure.svg" alt="Azure OpenAI" title="Azure OpenAI" loading="lazy" /><img src="/assets/logos/bedrock.svg" alt="AWS Bedrock" title="AWS Bedrock" loading="lazy" /><img src="/assets/logos/googlecloud.svg" alt="Google Vertex AI" title="Google Vertex AI" loading="lazy" /><img src="/assets/logos/groq.svg" alt="Groq" title="Groq" loading="lazy" /><img src="/assets/logos/cerebras.svg" alt="Cerebras" title="Cerebras" loading="lazy" /><img src="/assets/logos/fireworks.svg" alt="Fireworks" title="Fireworks" loading="lazy" /><img src="/assets/logos/together.svg" alt="Together" title="Together" loading="lazy" /><img src="/assets/logos/alibabacloud.svg" alt="Qwen (DashScope)" title="Qwen (DashScope)" loading="lazy" /><img src="/assets/logos/kimi.svg" alt="Kimi (Moonshot)" title="Kimi (Moonshot)" loading="lazy" /><img src="/assets/logos/zai.svg" alt="GLM (Z.ai)" title="GLM (Z.ai)" loading="lazy" /><img src="/assets/logos/ollama.svg" alt="Ollama" title="Ollama" loading="lazy" /><img src="/assets/logos/lmstudio.svg" alt="LM Studio" title="LM Studio" loading="lazy" /><img src="/assets/logos/vllm.svg" alt="vLLM / OpenAI-compatible" title="vLLM / OpenAI-compatible" loading="lazy" /></div>
+        </div>
+        <div>
+          <ul class="checks">
+            <li>نموذج احتياطي لكل وكيل: إذا المزوّد وقع، الطلب بيروح للبديل تلقائياً</li>
+            <li>حد للطلبات المتزامنة على نفس المفتاح، وإعادة محاولة لما المزوّد يضغط</li>
+            <li>Azure و Bedrock و Vertex بحقولها الخاصة: المنطقة، الـ deployment، حساب الخدمة</li>
+            <li>نماذج Claude بتستفيد من الكاش تلقائياً فالمحادثات الطويلة بتكلّف أقل</li>
+            <li>Ollama و LM Studio بدون مفتاح، وأي خادم بيحكي بصيغة OpenAI</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" id="background">
+    <div class="wrap split flip">
+      <div class="reveal">
+        <h2>بيشتغل وإنت مش فاتحه</h2>
+        <p>سكّر النافذة ورفيق بيضل بجنب الساعة: المهام بتكمل، والمجدولة بتبلش بوقتها، وبيطلعلك إشعار لما وحدة تخلص أو بدها إذنك.</p>
+        <ul class="checks">
+          <li>مهام مجدولة: كل كم دقيقة، يومياً بساعة محددة، أو بأيام معيّنة</li>
+          <li>قوالب للمهام اللي بتتكرر، مع أربعة جاهزين</li>
+          <li>بيبلش مع ويندوز إذا فعّلتها</li>
+          <li>لما تنهيه فعلاً، ما بيترك أي عملية شغّالة وراه</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/tasks-schedules.webp" width="2400" height="1500" alt="تبويب المهام المجدولة: ملخص Jira الصباحي كل يوم الساعة 9" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="chapter alt" id="cost">
+    <div class="wrap split">
+      <div class="reveal">
+        <h2>الكلفة على المكشوف</h2>
+        <p>كل نداء بينسجّل: توكنات الطلب والرد والكاش، وسعره من جدول أسعار المزوّد نفسه. بتشوف اليوم والشهر وآخر ثلاثين يوم، وتفصيل لكل نموذج.</p>
+        <ul class="checks">
+          <li>حد يومي وحد شهري بالدولار، ورفيق بيوقف لما توصله</li>
+          <li>النماذج اللي ما إلها سعر معروف بتنعدّ بالتوكنات بس، بلا أرقام مخترعة</li>
+          <li>تقرير للمشاكل بملف JSON: نسخة التطبيق وإعداداتك وأسماء المزوّدين، بلا مفاتيح</li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="/assets/screens/settings-usage.webp" width="2400" height="1500" alt="قسم الاستهلاك في الإعدادات" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="section" id="download-band" style="padding-top: 24px">
+    <div class="wrap">
+      <div class="download reveal">
+        <div>
+          <h2>جاهز؟ نصف دقيقة وبيكون عندك.</h2>
+          <p class="lead" style="margin-top: 12px">مثبّت واحد، بدون حساب. بعدها ضيف مفتاح نموذجك وابدأ.</p>
+          <div class="cta">
+            <a class="btn btn-primary btn-lg" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>حمّل لويندوز</a>
+            <a class="btn btn-ghost btn-lg" href="/download/">تفاصيل التثبيت</a>
+          </div>
+        </div>
+        <ul class="meta">
+          <li><b>النظام</b><span>Windows 10 أو 11، x64</span></li>
+          <li><b>الإصدار</b><span data-version>0.3.0</span></li>
+          <li><b>الحجم</b><span data-size>87 MB</span></li>
+          <li><b>الصلاحيات</b><span>بيتثبّت للمستخدم الحالي، بدون صلاحيات مدير</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>رفيق · صنعه <a href="https://github.com/AhmadALSaffan" target="_blank" rel="noopener">أحمد عليوي السفان</a></span>
+    <nav aria-label="روابط">
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/releases" target="_blank" rel="noopener">الإصدارات</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/issues" target="_blank" rel="noopener">بلّغ عن مشكلة</a>
+      <a href="/en/features/" hreflang="en" lang="en">English</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+</body>
+</html>

@@ -26,12 +26,14 @@ from rafiq_agent.core.agent_runtime import (
 from rafiq_agent.core.attachments import AttachmentError, build_user_content, load_attachments, meta
 from rafiq_agent.core.designs import (
     DESIGN_SYSTEM_PROMPT,
-    extract_preview,
+    extract_previews,
+    merge_files,
     save_preview,
     skills_note,
     strip_preview,
 )
 from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
+from rafiq_agent.core.memory import memory_note
 from rafiq_agent.core.project_notes import project_instructions
 from rafiq_agent.core.prompts import (
     CHAT_SYSTEM_PROMPT,
@@ -42,6 +44,7 @@ from rafiq_agent.core.prompts import (
     LENGTH_MAX_TOKENS,
     LENGTH_NOTES,
     MAX_STORED_OUTPUT,
+    MEMORY_NOTE,
     RAFIQ_WEB_TOOLS_NOTE,
     SUMMARY_PROMPT,
     TASKS_NOTE,
@@ -61,6 +64,7 @@ from rafiq_agent.schemas.chats import (
 from rafiq_agent.storage.db import SessionLocal
 from rafiq_agent.storage.models import Chat, ChatMessage, Design, LlmModel, Task
 from rafiq_agent.tools.base import ToolRegistry
+from rafiq_agent.tools.memory import MemorySaveTool
 from rafiq_agent.tools.tasks import CreateTasksTool, WaitForTasksTool
 
 # Steps per reply. Waiting on tasks is one step however long it takes, and a whole batch of
@@ -227,13 +231,21 @@ async def _sync_design(session: Any, chat_id: str, content: str) -> None:
     design = row.scalar_one_or_none()
     if not design:
         return
-    html = extract_preview(content)
-    if html:
-        design.preview_html = html
+    fresh = extract_previews(content, design.title)
+    if fresh:
+        files = merge_files(design.files, fresh)
+        # Each document keeps its own file on disk, named after it.
+        for item in files:
+            if any(item["name"] == f["name"] for f in fresh):
+                path = save_preview(design.working_dir, item["name"], item["html"])
+                if path:
+                    item["path"] = path
+        design.files = files
+        design.preview_html = fresh[-1]["html"]
         design.status = "ready"
-        saved = save_preview(design.working_dir, design.title, html)
-        if saved:
-            design.saved_path = saved
+        last = next((f for f in files if f["name"] == fresh[-1]["name"]), None)
+        if last and last.get("path"):
+            design.saved_path = last["path"]
     spec = strip_preview(content)
     if spec:
         design.spec = spec
@@ -336,6 +348,7 @@ class ChatTurn:
             self.user_out = ChatMessageOut.model_validate(user_message)
             self.title = chat.title
             self.working_dir = chat.working_dir
+            self.workspace_id = chat.workspace_id
             self.supports_tools = model.supports_tools
             # Tools this model already has of its own — Rafiq won't offer a second one.
             self.native_tools = native_tools(model.provider, model.model_id)
@@ -396,6 +409,9 @@ class ChatTurn:
         )
         registry.register(WaitForTasksTool(lambda: list(self.created_task_ids)))
         system += f"\n\n{TASKS_NOTE}\n\n{ISSUES_NOTE}\n\n{WEB_NOTE}"
+        if self.settings.memory_enabled:
+            registry.register(MemorySaveTool(self.chat_id))
+            system += f"\n\n{MEMORY_NOTE}"
         # Only mention Rafiq's web tools to a model that was actually given them.
         if "web_fetch" not in self.native_tools:
             system += f" {RAFIQ_WEB_TOOLS_NOTE}"
@@ -412,9 +428,21 @@ class ChatTurn:
                 return model.id
         return self.model_id
 
+    async def _standing_notes(self) -> str:
+        """What the user asked Rafiq to remember, and the workspace's own instructions."""
+        notes = []
+        if self.settings.memory_enabled and (memories := await memory_note()):
+            notes.append(memories)
+        if getattr(self, "workspace_id", None):
+            from rafiq_agent.api.workspaces import workspace_note
+
+            if note := await workspace_note(self.workspace_id):
+                notes.append(note)
+        return "".join(f"\n\n{n}" for n in notes)
+
     async def _build_context(self) -> tuple[list[dict[str, Any]], ToolRegistry]:
         history = await self._history()
-        system = self._system_prompt()
+        system = self._system_prompt() + await self._standing_notes()
         registry, system = await self._tools(system)
         vision = supports_vision(self.llm.model)
         messages = [
@@ -467,13 +495,17 @@ class ChatTurn:
         part.update(ok=ok, output=clip(output))
         self._emit({"type": "tool_result", "id": call_id, "ok": ok, "output": clip(output)})
 
-    async def _permit(self, name: str, category: str, args: dict[str, Any]) -> bool:
+    async def _permit(
+        self, name: str, category: str, args: dict[str, Any], preview: str | None = None
+    ) -> bool:
         decision = policy_decision(name, category, self.settings.permissions)
         if decision != "ask":
             return decision == "allow"
 
         request_id = uuid.uuid4().hex[:12]
-        call = {"tool": name, "category": category, "args": args}
+        call: dict[str, Any] = {"tool": name, "category": category, "args": args}
+        if preview:
+            call["preview"] = preview
         self.parts.append({"kind": "permission", "id": request_id, "call": call, "resolution": "pending"})
         future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
         _pending[request_id] = future

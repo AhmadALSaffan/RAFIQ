@@ -7,13 +7,15 @@ import {
   getDesign,
   handoffDesign,
   listChats,
+  listDesignDocuments,
   listModels,
   listSkills,
+  readDesignDocument,
   readSkill,
   renameDesign,
   setDesignFolder,
 } from "../lib/api";
-import type { AgentSkill, ChatSummary, Design, LlmModel } from "../lib/types";
+import type { AgentSkill, ChatSummary, Design, DesignDocument, LlmModel } from "../lib/types";
 import { easeOutExpo, snappy } from "../lib/motion";
 import { queueChatMessage } from "../lib/handoff";
 import { fieldDir } from "../lib/bidi";
@@ -25,18 +27,7 @@ import { Button, DrawnCheck } from "../components/ui";
 import { Resizer } from "../components/Resizer";
 import { usePageMenu } from "../components/ContextMenu";
 import { ChatPage } from "../features/chat";
-import {
-  AlertIcon,
-  ArrowDownIcon,
-  ChatIcon,
-  FolderIcon,
-  PlusIcon,
-  RefreshIcon,
-  SparkIcon,
-  TasksIcon,
-  TrashIcon,
-  XIcon,
-} from "../components/Icons";
+import { AlertIcon, ArrowDownIcon, ChatIcon, FileIcon, FolderIcon, PlusIcon, RefreshIcon, SparkIcon, TasksIcon, TrashIcon, XIcon } from "../components/Icons";
 
 import { t } from "../i18n";
 const DEVICES = [
@@ -108,11 +99,19 @@ export function DesignWorkspace() {
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  // What the preview can open, and which one the user picked. Null follows the model:
+  // the newest document wins, which is what someone watching a design expects.
+  const [documents, setDocuments] = useState<DesignDocument[]>([]);
+  const [picked, setPicked] = useState<string | null>(null);
+  // Folder files are read when they're first opened, then kept.
+  const [folderHtml, setFolderHtml] = useState<Record<string, string>>({});
 
   const refresh = useCallback(async () => {
     try {
       const next = await getDesign(id);
       setDesign(next);
+      // The folder may have gained an .html file the model wrote with its own tools.
+      setDocuments(await listDesignDocuments(id).catch(() => []));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("ما لقيت التصميم"));
     }
@@ -121,6 +120,27 @@ export function DesignWorkspace() {
   useEffect(() => {
     void refresh();
   }, [id, refresh]);
+
+  // The newest document of the conversation is the default — the one the model just wrote.
+  const newest = [...documents].reverse().find((d) => d.source === "chat") ?? documents[documents.length - 1] ?? null;
+  const active = documents.find((d) => documentKey(d) === picked) ?? newest;
+  const activeHtml = active
+    ? active.source === "folder"
+      ? (folderHtml[active.path ?? ""] ?? null)
+      : (design?.files?.find((f) => f.name === active.name)?.html ?? design?.preview_html ?? null)
+    : null;
+
+  // Read a folder file the first time it's opened.
+  useEffect(() => {
+    if (!active || active.source !== "folder" || !active.path || folderHtml[active.path] !== undefined) return;
+    let alive = true;
+    readDesignDocument(id, active.path)
+      .then((doc) => alive && setFolderHtml((all) => ({ ...all, [active.path as string]: doc.html })))
+      .catch(() => alive && setFolderHtml((all) => ({ ...all, [active.path as string]: "" })));
+    return () => {
+      alive = false;
+    };
+  }, [active, folderHtml, id]);
 
   function flash(text: string) {
     setNote(text);
@@ -272,12 +292,17 @@ export function DesignWorkspace() {
         <div className="flex min-h-0 flex-1 flex-col" style={{ background: "var(--color-surface-2)" }}>
           {tab === "preview" && (
             <PreviewPane
-              savedPath={design.saved_path}
-              html={design.preview_html}
+              documents={documents}
+              active={active}
+              html={activeHtml}
+              onPick={(doc) => setPicked(documentKey(doc))}
               width={width}
               device={device}
               onDevice={setDevice}
-              onRefresh={refresh}
+              onRefresh={() => {
+                setFolderHtml({});
+                void refresh();
+              }}
               onCopied={() => flash(t("انتسخ كود الواجهة"))}
             />
           )}
@@ -316,23 +341,34 @@ function Empty({ text }: { text: string }) {
   );
 }
 
+/** A document is identified by where it came from and its name — a folder file and a chat
+ *  document can share a name. */
+function documentKey(doc: DesignDocument): string {
+  return `${doc.source}:${doc.path ?? doc.name}`;
+}
+
 function PreviewPane({
+  documents,
+  active,
   html,
-  savedPath,
+  onPick,
   width,
   device,
   onDevice,
   onRefresh,
   onCopied,
 }: {
+  documents: DesignDocument[];
+  active: DesignDocument | null;
   html: string | null;
-  savedPath: string | null;
+  onPick: (doc: DesignDocument) => void;
   width: number;
   device: string;
   onDevice: (id: (typeof DEVICES)[number]["id"]) => void;
   onRefresh: () => void;
   onCopied: () => void;
 }) {
+  const savedPath = active?.path ?? null;
   const [nonce, setNonce] = useState(0);
   const [missing, setMissing] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -361,6 +397,41 @@ function PreviewPane({
 
   return (
     <>
+      {/* One row per concern: which document, then how it's shown. The document row only
+          appears once there's more than one to choose between. */}
+      {documents.length > 1 && (
+        <div className="flex items-center gap-1 overflow-x-auto border-b px-4 py-1.5" style={{ borderColor: "var(--color-border)" }}>
+          <FileIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
+          {documents.map((doc) => {
+            const on = active ? documentKey(doc) === documentKey(active) : false;
+            return (
+              <button
+                key={documentKey(doc)}
+                onClick={() => onPick(doc)}
+                title={doc.path ?? doc.name}
+                className="relative shrink-0 rounded-md px-2.5 py-1 text-xs transition-colors"
+                style={{ color: on ? "var(--color-ink)" : "var(--color-ink-muted)" }}
+              >
+                {on && (
+                  <motion.span
+                    layoutId="design-file"
+                    className="absolute inset-0 rounded-md"
+                    style={{ background: "var(--color-surface)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+                    transition={snappy}
+                  />
+                )}
+                <span className="relative flex items-center gap-1.5" dir="auto">
+                  {doc.name}
+                  {doc.source === "folder" && (
+                    <FolderIcon className="h-3 w-3 shrink-0" style={{ color: "var(--color-ink-muted)" }} aria-label={t("من المجلد")} />
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2" style={{ borderColor: "var(--color-border)" }}>
         <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: "var(--color-surface)" }}>
           {DEVICES.map((d) => (

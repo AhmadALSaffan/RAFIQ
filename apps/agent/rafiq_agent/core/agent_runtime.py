@@ -6,7 +6,9 @@ from rafiq_agent.auth.resolve import llm_for
 from rafiq_agent.core.attachments import AttachmentError, build_user_content, load_attachments
 from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
 from rafiq_agent.core.manager import manager
+from rafiq_agent.core.memory import memory_note
 from rafiq_agent.core.project_notes import project_instructions
+from rafiq_agent.core.prompts import PLAN_APPROVED, PLAN_PROMPT, STEP_NOTE
 from rafiq_agent.core.task_git import prepare as prepare_git
 from rafiq_agent.core.task_git import settle as settle_git
 from rafiq_agent.core.workspace import session_dir
@@ -39,6 +41,7 @@ PERMISSION_KEY_BY_TOOL = {
     "issue_complete": "issue_write",
     "web_fetch": "browser_navigate",
     "web_search": "browser_navigate",
+    "memory_save": "memory",
 }
 PERMISSION_KEY_BY_PREFIX = {"browser_": "browser_navigate", "desktop_": "desktop_control", "mcp__": "mcp"}
 
@@ -134,6 +137,53 @@ def parallel_note(paths: list[str]) -> str:
     )
 
 
+async def _plan_task(
+    task_id: str,
+    model: LlmModel,
+    fallback: LlmModel | None,
+    prompt: str,
+    working_dir: Path,
+    attachment_ids: list[str],
+) -> None:
+    """Plan-first mode: the model writes a plan with no tools, the task parks as "planned"."""
+    try:
+        llm = llm_for(model, fallback=fallback)
+        attachments = await load_attachments(attachment_ids)
+        user_content = build_user_content(prompt, attachments, supports_vision(llm.model))
+        system = "\n\n".join([SYSTEM_PROMPT, working_dir_system_note(working_dir), PLAN_PROMPT])
+        if project := project_instructions(working_dir):
+            system += f"\n\n{project}"
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_content},
+        ]
+
+        async def deny(*_: Any) -> bool:
+            return False
+
+        result = await run_agent_loop(
+            llm, messages, ToolRegistry(), LoopCallbacks(permit=deny), max_iterations=2
+        )
+        plan = result.text.strip()
+        if not plan:
+            await manager.emit_event(task_id, "error", {"message": tr("النموذج ما رجّع خطة.")})
+            await manager.set_status(task_id, "failed")
+            return
+        async with SessionLocal() as session:
+            task = await session.get(Task, task_id)
+            if task:
+                task.plan = plan
+                await session.commit()
+        await manager.emit_event(task_id, "plan", {"text": plan})
+        await manager.set_status(task_id, "planned")
+    except asyncio.CancelledError:
+        await manager.set_status(task_id, "cancelled")
+        raise
+    except Exception as exc:  # noqa: BLE001 - surface any failure to the transcript
+        await manager.emit_event(task_id, "error", {"message": friendly_error(exc)})
+        await manager.set_status(task_id, "failed")
+
+
 async def parallel_limit() -> int:
     """The scheduler reads the user's limit before every pass, so a change applies at once."""
     return (await load_settings()).max_parallel_tasks
@@ -151,6 +201,7 @@ async def run_task(task_id: str) -> None:
             await session.get(LlmModel, model.fallback_model_id) if model and model.fallback_model_id else None
         )
         prompt, title, planned = task.prompt, task.title, task.git
+        mode, plan_text, workspace_id = task.mode or "auto", task.plan, task.workspace_id
         # Tasks created before the workspace existed may have no folder recorded.
         working_dir = (
             Path(task.working_dir) if task.working_dir else session_dir("tasks", task.id, task.title)
@@ -165,6 +216,10 @@ async def run_task(task_id: str) -> None:
 
     usage.scope("task", task_id, model.id).apply()
     await manager.set_status(task_id, "running")
+    if mode == "plan" and not plan_text:
+        # First pass: only a plan. The task waits ("planned") until the user approves it.
+        await _plan_task(task_id, model, fallback, prompt, working_dir, attachment_ids)
+        return
     registry: ToolRegistry | None = None
     git_info: dict[str, Any] | None = None
     outcome, cancelled = "failed", False
@@ -183,17 +238,36 @@ async def run_task(task_id: str) -> None:
             notes.append(parallel_note(paths))
         if project := project_instructions(effective):
             notes.append(project)
+        if mode == "step":
+            notes.append(STEP_NOTE)
+        if settings.memory_enabled and (memories := await memory_note()):
+            notes.append(memories)
+        if workspace_id:
+            from rafiq_agent.api.workspaces import workspace_note
+
+            if note := await workspace_note(workspace_id):
+                notes.append(note)
         system = "\n\n".join(notes)
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": system},
             {"role": "user", "content": user_content},
         ]
+        if mode == "plan" and plan_text:
+            # The approved plan is part of the conversation, so the run follows it.
+            messages.append({"role": "assistant", "content": plan_text})
+            messages.append({"role": "user", "content": PLAN_APPROVED})
 
-        async def permit(tool_name: str, category: str, args: dict[str, Any]) -> bool:
+        async def permit(
+            tool_name: str, category: str, args: dict[str, Any], preview: str | None = None
+        ) -> bool:
             decision = policy_decision(tool_name, category, settings.permissions)
+            if mode == "step" and category != "read_only" and decision == "allow":
+                decision = "ask"  # step-by-step: the user sees every change before it happens
             if decision != "ask":
                 return decision == "allow"
-            call = {"tool": tool_name, "category": category, "args": args}
+            call: dict[str, Any] = {"tool": tool_name, "category": category, "args": args}
+            if preview:
+                call["preview"] = preview
             event = await manager.emit_event(
                 task_id, "permission_request", {"call": call, "resolution": "pending"}
             )

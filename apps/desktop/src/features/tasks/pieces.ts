@@ -8,6 +8,7 @@ export const STATUS_COLOR: Record<TaskStatus, string> = {
   queued: "var(--color-ink-muted)",
   pending: "var(--color-ink-muted)",
   running: "var(--color-accent)",
+  planned: "var(--color-pending)",
   completed: "var(--color-success)",
   failed: "var(--color-danger)",
   cancelled: "var(--color-ink-muted)",
@@ -17,6 +18,7 @@ const FILTER_LABEL: Record<string, string> = {
   all: t("الكل"),
   active: t("شغّالة"),
   queued: t("بالدور"),
+  planned: t("خطط بانتظارك"),
   completed: t("خلصت"),
   failed: t("وقفت"),
 };

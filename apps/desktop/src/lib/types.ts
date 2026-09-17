@@ -101,7 +101,11 @@ export interface DiscoveredModel {
   display_name: string;
 }
 
-export type TaskStatus = "queued" | "pending" | "running" | "completed" | "failed" | "cancelled";
+export type TaskStatus = "queued" | "pending" | "running" | "planned" | "completed" | "failed" | "cancelled";
+
+/** "auto" runs straight through; "plan" writes a plan and waits for approval; "step" asks
+ *  before every write or command. */
+export type TaskMode = "auto" | "plan" | "step";
 
 export interface Attachment {
   id: string;
@@ -118,6 +122,10 @@ export interface TaskSummary {
   working_dir: string | null;
   attachments: Attachment[] | null;
   origin: { chat_id?: string } | null;
+  mode?: TaskMode;
+  /** The plan the model wrote (plan mode), as approved. */
+  plan?: string | null;
+  workspace_id?: string | null;
   status: TaskStatus;
   needs_approval: boolean;
   /** Its changes in git (null when the folder isn't a repository). */
@@ -135,6 +143,8 @@ export interface ToolCall {
   tool: string;
   category: ToolCategory;
   args: Record<string, unknown>;
+  /** What the call would change — a diff for a file write — shown on the permission card. */
+  preview?: string;
 }
 
 export type TaskEvent =
@@ -149,6 +159,8 @@ export type TaskEvent =
       created_at: string;
     }
   | { id: string; type: "status"; status: TaskStatus; note?: string; created_at: string }
+  | { id: string; type: "plan"; text: string; created_at: string }
+  | { id: string; type: "plan_approved"; text: string; created_at: string }
   | { id: string; type: "error"; message: string; created_at: string };
 
 export interface TaskDetail extends TaskSummary {
@@ -178,6 +190,7 @@ export interface ChatSummary {
   title: string;
   model_id: string | null;
   working_dir: string | null;
+  workspace_id?: string | null;
   settings: ReplySettings;
   summary: string | null;
   summary_until: string | null;
@@ -311,7 +324,8 @@ export type PermissionKey =
   | "browser_navigate"
   | "desktop_control"
   | "issue_write"
-  | "mcp";
+  | "mcp"
+  | "memory";
 
 export type WebSearchProvider = "none" | "brave" | "tavily" | "searxng";
 
@@ -337,6 +351,54 @@ export interface AppSettings {
   monthly_budget_usd: number;
   /** The speech-to-text model the composer's microphone uses. */
   transcribe_model: string;
+  /** Rafiq may remember things across chats (each save still goes through the "memory" permission). */
+  memory_enabled: boolean;
+}
+
+/** Something the user asked Rafiq to remember — shown to every chat and task. */
+export interface Memory {
+  id: string;
+  text: string;
+  kind: string;
+  source_chat_id: string | null;
+  enabled: boolean;
+  created_at: string;
+}
+
+/** A project: its folder, preferred model and standing instructions. */
+export interface Workspace {
+  id: string;
+  name: string;
+  working_dir: string | null;
+  model_id: string | null;
+  instructions: string | null;
+  color: string | null;
+  created_at: string;
+  chats: number;
+  tasks: number;
+  designs: number;
+}
+
+export type WorkspaceInput = Pick<Workspace, "name" | "working_dir" | "model_id" | "instructions" | "color">;
+
+export interface CatalogTemplate {
+  name: string;
+  prompt: string;
+  tags: string[];
+}
+
+export interface McpRequirements {
+  node: boolean;
+  npx: boolean;
+  uvx: boolean;
+  python: boolean;
+  docker: boolean;
+}
+
+export interface CommitDescription {
+  commit_message: string;
+  pr_title: string;
+  pr_body: string;
 }
 
 export interface UsageByModel {
@@ -444,6 +506,17 @@ export interface McpServerInput {
   env: Record<string, string>;
   headers: Record<string, string>;
   enabled: boolean;
+  /** "oauth": the user signs in through the browser; tokens stay in the credential store. */
+  auth: "none" | "oauth";
+  /** Catalogue entry it was made from (lib/mcpCatalog.ts); null for a custom server. */
+  preset: string | null;
+}
+
+export interface McpConnectResult {
+  /** The page to open for an OAuth sign-in; absent when already connected. */
+  authorize_url: string | null;
+  connected: boolean;
+  error: string | null;
 }
 
 export interface McpServer {
@@ -456,6 +529,10 @@ export interface McpServer {
   enabled: boolean;
   /** Names of the saved secrets — never their values. */
   secret_keys: string[];
+  auth: "none" | "oauth";
+  preset: string | null;
+  /** OAuth servers: the browser step is done. */
+  authorized: boolean;
   status: { connected: boolean; tools: string[]; error: string | null };
 }
 
@@ -482,6 +559,24 @@ export interface DesignSummary {
   updated_at: string;
 }
 
+/** One document of a design. A design usually has one; a model that answers with a second
+ *  screen adds another, and the preview lets you switch between them. */
+export interface DesignFile {
+  name: string;
+  html: string;
+  /** Where it was written on disk, when the design has a folder. */
+  path: string | null;
+}
+
+/** Something the design preview can open: a document from the conversation, or an HTML
+ *  file sitting in the design's folder. */
+export interface DesignDocument {
+  name: string;
+  source: "chat" | "folder";
+  path: string | null;
+  size: number | null;
+}
+
 export interface Design {
   /** First message of the design chat; sent automatically while that chat is empty. */
   kickoff: string;
@@ -490,6 +585,8 @@ export interface Design {
   brief: Record<string, string | string[]> | null;
   spec: string | null;
   preview_html: string | null;
+  /** Every document, oldest first; the preview opens on the one the model touched last. */
+  files: DesignFile[];
   chat_id: string;
   model_id: string | null;
   working_dir: string | null;
@@ -506,9 +603,23 @@ export interface HandoffResult {
   task_id: string | null;
 }
 
+/** A slash command a skill adds to the composer. */
+export interface SkillCommand {
+  name: string;
+  description: string;
+  prompt: string;
+}
+
 export interface AgentSkill {
   name: string;
   description: string;
   source: "bundled" | "user";
   files: string[];
+  commands: SkillCommand[];
+}
+
+export interface SkillInstallResult {
+  skills: AgentSkill[];
+  /** Every "/command" the install brought. */
+  commands: string[];
 }

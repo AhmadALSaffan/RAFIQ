@@ -5,14 +5,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { deleteSchedule, deleteTemplate, listSchedules, listTemplates, runScheduleNow, saveSchedule, saveTemplate } from "../../lib/api";
-import type { LlmModel, Schedule, ScheduleInput, ScheduleKind, TaskTemplate } from "../../lib/types";
+import { deleteSchedule, deleteTemplate, exportTemplates, importTemplates, listSchedules, listTemplates, runScheduleNow, saveSchedule, saveTemplate, templateCatalog } from "../../lib/api";
+import { saveTextFile } from "../../components/ChatCommands";
+import type { CatalogTemplate, LlmModel, Schedule, ScheduleInput, ScheduleKind, TaskTemplate } from "../../lib/types";
 import { listContainer, listItem, snappy } from "../../lib/motion";
 import { upcomingLabel } from "../../lib/time";
 import { fieldDir } from "../../lib/bidi";
 import { Button, EmptyState, ErrorText, Field, Reveal } from "../../components/ui";
 import { FolderPicker } from "../../components/FolderPicker";
-import { ClockIcon, PlusIcon, TasksIcon, TrashIcon } from "../../components/Icons";
+import { ClockIcon, DownloadIcon, GlobeIcon, PlusIcon, SpinnerIcon, TasksIcon, TrashIcon } from "../../components/Icons";
 import { Switch } from "../settings/controls";
 import { intlLocale, t } from "../../i18n";
 
@@ -331,19 +332,167 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
 
   const all: (TaskTemplate | (typeof BUILTIN_TEMPLATES)[number])[] = [...(templates ?? []), ...BUILTIN_TEMPLATES];
 
+  const [panel, setPanel] = useState<"import" | "community" | null>(null);
+  const [importUrl, setImportUrl] = useState("");
+  const [catalog, setCatalog] = useState<{ source: string; templates: CatalogTemplate[] } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (panel !== "community" || catalog) return;
+    templateCatalog()
+      .then(setCatalog)
+      .catch(() => setCatalog({ source: "bundled", templates: [] }));
+  }, [panel, catalog]);
+
+  async function doImport(body: { url?: string; templates?: { name: string; prompt: string }[] }, key: string) {
+    setBusy(key);
+    setError(null);
+    try {
+      const added = await importTemplates(body);
+      setNote(added.length ? t("انضاف {0} قالب", { 0: added.length }) : t("كلها موجودة عندك من قبل."));
+      setImportUrl("");
+      void load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+      setTimeout(() => setNote(null), 2500);
+    }
+  }
+
+  async function importFile(file: File) {
+    try {
+      const parsed = JSON.parse(await file.text()) as { templates?: unknown } | unknown[];
+      const items = (Array.isArray(parsed) ? parsed : (parsed.templates ?? [])) as { name: string; prompt: string }[];
+      await doImport({ templates: items.filter((x) => x && typeof x.name === "string" && typeof x.prompt === "string") }, "file");
+    } catch {
+      setError(t("الملف مش JSON صالح."));
+    }
+  }
+
+  async function doExport() {
+    const items = await exportTemplates();
+    if (!items.length) return setError(t("ما عندك قوالب لتصدّرها."));
+    const path = await saveTextFile("rafiq-templates.json", JSON.stringify({ version: 1, templates: items }, null, 2), "json");
+    if (path) setNote(t("انحفظت: {0}", { 0: path }));
+    setTimeout(() => setNote(null), 2500);
+  }
+
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
           {t("مهام بتتكرر معك، محفوظة لتبلّشها بضغطة — مع النموذج والمجلد إذا بدك.")}
         </p>
         {!editing && (
-          <Button onClick={() => setEditing({ name: "", prompt: "", model_id: "", working_dir: "" })}>
-            <PlusIcon className="h-4 w-4" />
-            {t("قالب جديد")}
-          </Button>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button variant="ghost" className="px-2.5 py-1.5 text-xs" onClick={() => setPanel(panel === "community" ? null : "community")}>
+              <GlobeIcon className="h-3.5 w-3.5" />
+              {t("من المجتمع")}
+            </Button>
+            <Button variant="ghost" className="px-2.5 py-1.5 text-xs" onClick={() => setPanel(panel === "import" ? null : "import")}>
+              <DownloadIcon className="h-3.5 w-3.5" />
+              {t("استورد")}
+            </Button>
+            <Button variant="ghost" className="px-2.5 py-1.5 text-xs" onClick={() => void doExport()}>
+              {t("صدّر")}
+            </Button>
+            <Button onClick={() => setEditing({ name: "", prompt: "", model_id: "", working_dir: "" })}>
+              <PlusIcon className="h-4 w-4" />
+              {t("قالب جديد")}
+            </Button>
+          </div>
         )}
       </div>
+
+      {note && (
+        <p className="mb-3 text-xs" style={{ color: "var(--color-success)" }}>
+          {note}
+        </p>
+      )}
+
+      <Reveal open={panel === "import"}>
+        {panel === "import" && (
+          <div className="mb-4 flex flex-col gap-3 rounded-xl border p-4" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+            <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              {t("رابط ملف JSON (متل اللي بيطلع من «صدّر»)، أو ملف من جهازك. القوالب اللي أسماؤها موجودة عندك بتنتخطى.")}
+            </p>
+            <div className="flex gap-2">
+              <input value={importUrl} onChange={(e) => setImportUrl(e.target.value)} className="input flex-1 font-mono text-xs" placeholder="https://…/templates.json" dir="ltr" />
+              <Button onClick={() => void doImport({ url: importUrl.trim() }, "url")} disabled={!importUrl.trim() || busy !== null}>
+                {busy === "url" ? <SpinnerIcon className="h-4 w-4" /> : <DownloadIcon className="h-4 w-4" />}
+                {t("استورد من الرابط")}
+              </Button>
+              <label className="btn-ghost cursor-pointer rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--color-border)" }}>
+                {t("من ملف…")}
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void importFile(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+        )}
+      </Reveal>
+
+      <Reveal open={panel === "community"}>
+        {panel === "community" && (
+          <div className="mb-4 flex flex-col gap-3 rounded-xl border p-4" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                {catalog?.source === "remote" ? t("أحدث قائمة من مستودع رفيق.") : t("القائمة اللي جاية مع التطبيق (ما قدرت أجيب الأحدث).")}
+              </p>
+              {catalog && catalog.templates.length > 0 && (
+                <Button variant="ghost" className="px-2 py-1 text-xs" disabled={busy !== null} onClick={() => void doImport({ templates: catalog.templates }, "all")}>
+                  {t("أضف الكل")}
+                </Button>
+              )}
+            </div>
+            {!catalog ? (
+              <div className="shimmer h-16 rounded-lg" />
+            ) : catalog.templates.length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                {t("القائمة فاضية.")}
+              </p>
+            ) : (
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {catalog.templates.map((item) => {
+                  const have = templates?.some((x) => x.name === item.name);
+                  return (
+                    <li key={item.name} className="flex flex-col gap-1.5 rounded-lg border px-3 py-2" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium" dir="auto">
+                          {item.name}
+                        </p>
+                        <span className="flex gap-1">
+                          {item.tags.slice(0, 2).map((tag) => (
+                            <span key={tag} className="rounded-full px-1.5 py-0.5 text-[10px]" style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}>
+                              {tag}
+                            </span>
+                          ))}
+                        </span>
+                      </div>
+                      <p className="line-clamp-2 text-xs" style={{ color: "var(--color-ink-muted)" }} dir="auto">
+                        {item.prompt}
+                      </p>
+                      <Button className="mt-auto self-start px-2.5 py-1 text-xs" disabled={have || busy !== null} onClick={() => void doImport({ templates: [item] }, item.name)}>
+                        {have ? t("موجود") : busy === item.name ? <SpinnerIcon className="h-3.5 w-3.5" /> : t("أضف")}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+      </Reveal>
 
       <Reveal open={editing !== null}>
         {editing && (

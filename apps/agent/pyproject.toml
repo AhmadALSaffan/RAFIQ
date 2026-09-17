@@ -1,6 +1,6 @@
 [project]
 name = "rafiq-agent"
-version = "0.3.0"
+version = "0.4.0"
 description = "Rafiq local agent runtime (FastAPI sidecar)"
 requires-python = ">=3.11"
 dependencies = [
@@ -21,6 +21,10 @@ dependencies = [
   # Google Vertex AI signs with a service account, AWS Bedrock with an IAM key.
   "google-auth>=2.36",
   "boto3>=1.35",
+  # Renders a chat's Markdown for the HTML export.
+  "markdown-it-py>=3.0",
+  # Skill installs from URLs and the community template catalog.
+  "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
@@ -53,7 +57,7 @@ include = ["rafiq_agent*"]
 
 # The bundled skills are data files, not modules — ship them with the package.
 [tool.setuptools.package-data]
-rafiq_agent = ["skills/bundled/**/*.md", "skills/bundled/*"]
+rafiq_agent = ["skills/bundled/**/*.md", "skills/bundled/*", "data/*.json"]
 
 [tool.ruff]
 line-length = 110

@@ -13,6 +13,7 @@ from pydantic import BaseModel, field_validator
 class ChatCreate(BaseModel):
     model_id: str | None = None
     working_dir: str | None = None
+    workspace_id: str | None = None
 
 
 class ReplySettings(BaseModel):
@@ -76,6 +77,7 @@ class ChatSummaryOut(BaseModel):
     id: str
     title: str
     model_id: str | None
+    workspace_id: str | None = None
     working_dir: str | None = None
     settings: ReplySettings = DEFAULT_REPLY_SETTINGS
     summary: str | None = None

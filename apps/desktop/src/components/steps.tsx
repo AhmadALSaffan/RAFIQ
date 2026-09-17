@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DiffView } from "./DiffView";
 import { AnimatePresence, motion } from "motion/react";
 import type { Resolution, ToolCall } from "../lib/types";
 import { easeOutExpo } from "../lib/motion";
@@ -116,6 +117,27 @@ export function ArgsPanel({ call }: { call: ToolCall }) {
   );
 }
 
+/** A write shown as what it changes — the diff — rather than the whole new file. */
+function PreviewPanel({ call }: { call: ToolCall }) {
+  const path = typeof call.args.path === "string" ? call.args.path : "";
+  return (
+    <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <ToolTitle name={call.tool} />
+        {path && (
+          <code className="truncate font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
+            {path}
+          </code>
+        )}
+      </div>
+      <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+        {t("شو رح يتغيّر:")}
+      </p>
+      <DiffView diff={call.preview ?? ""} maxHeight="20rem" />
+    </div>
+  );
+}
+
 /** The approve/deny card — radiates until answered, then settles into its verdict. */
 export function PermissionCard({
   call,
@@ -142,7 +164,7 @@ export function PermissionCard({
         </motion.span>
         {t("رفيق بدّه إذنك قبل ما يكمّل")}
       </div>
-      <ArgsPanel call={call} />
+      {call.preview ? <PreviewPanel call={call} /> : <ArgsPanel call={call} />}
       <AnimatePresence mode="wait" initial={false}>
         {pending ? (
           <motion.div key="actions" exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }} className="mt-3 flex gap-2">

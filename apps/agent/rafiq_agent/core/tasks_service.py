@@ -33,6 +33,8 @@ async def create_task(
     origin: dict[str, Any] | None = None,
     paths: list[str] | None = None,
     depends_on: list[str] | None = None,
+    mode: str = "auto",
+    workspace_id: str | None = None,
 ) -> Task:
     """Validates, stores, and queues a task. Tasks run in parallel unless they'd edit the
     same files (`paths`, or the whole folder when none are given) or wait on `depends_on`."""
@@ -68,6 +70,8 @@ async def create_task(
             paths=paths,
             depends_on=depends_on,
             git=planned,
+            mode=mode if mode in ("auto", "plan", "step") else "auto",
+            workspace_id=workspace_id or None,
             status="queued",
         )
         session.add(task)

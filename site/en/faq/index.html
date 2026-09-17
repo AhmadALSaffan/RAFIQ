@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Frequently asked · Rafiq</title>
+  <meta name="description" content="Is it free? Which models? Are my files sent anywhere? Short answers." />
+  <link rel="alternate" hreflang="ar" href="/faq/" />
+  <link rel="alternate" hreflang="en" href="/en/faq/" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <meta property="og:title" content="Frequently asked · Rafiq" />
+  <meta property="og:description" content="Is it free? Which models? Are my files sent anywhere? Short answers." />
+  <meta property="og:image" content="/assets/screens/chat-plan.webp" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#100f0d" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)" />
+  <link rel="preload" href="/assets/fonts/plex-arabic-latin-700.woff2" as="font" type="font/woff2" crossorigin /><link rel="preload" href="/assets/fonts/plex-arabic-latin-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/en/" aria-label="Rafiq">
+      <img src="/assets/icon-64.png" alt="" width="30" height="30" />
+      Rafiq
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="/en/">Home</a><a href="/en/features/">Features</a><a href="/en/security/">Security</a><a href="/en/download/">Download</a><a href="/en/faq/" aria-current="page">FAQ</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="lang" href="/faq/" hreflang="ar" lang="ar">العربية</a>
+      <a class="btn btn-primary" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download>Download for Windows</a>
+      <button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="mobile-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" hidden aria-label="Sections">
+    <a href="/en/">Home</a><a href="/en/features/">Features</a><a href="/en/security/">Security</a><a href="/en/download/">Download</a><a href="/en/faq/" aria-current="page">FAQ</a>
+    <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="page-head">
+    <div class="wrap reveal">
+      <h1>Frequently asked</h1>
+      <p class="lead">If your answer isn't here, open a question on GitHub.</p>
+    </div>
+  </section>
+  <section class="chapter" style="padding-top: 8px">
+    <div class="wrap narrow reveal">
+      <details class="faq" open><summary>Is Rafiq free?</summary><p>The app is free and the code is on GitHub. What you pay for is the model usage at the provider you chose, or nothing at all with a local model through Ollama or LM Studio.</p></details><details class="faq"><summary>How is it different from the ChatGPT or Claude website?</summary><p>Websites answer you. Rafiq works: it reads and writes your files, runs commands, browses, and carries out whole tasks on your folder, with every sensitive step going through your approval.</p></details><details class="faq"><summary>Which models does it support?</summary><p>Twenty-one providers: Anthropic, OpenAI, Google Gemini, DeepSeek, Mistral, xAI, OpenRouter, GitHub Copilot, Azure OpenAI, AWS Bedrock, Google Vertex AI, Groq, Cerebras, Fireworks, Together, Qwen, Kimi and GLM, plus Ollama and LM Studio locally, and any OpenAI-compatible server.</p></details><details class="faq"><summary>Does it work offline?</summary><p>With a local model (Ollama or LM Studio), yes: files, commands and designs are all local. The web tools naturally need a connection.</p></details><details class="faq"><summary>Are my files sent anywhere?</summary><p>Only what the model asks for to do your job, and straight to the provider whose key you added. There is no Rafiq server in between, no analytics, no tracking.</p></details><details class="faq"><summary>Do I need a Copilot subscription?</summary><p>Only if you want to use GitHub Copilot models. You sign in with a GitHub account that has an active Copilot plan, without pasting any key.</p></details><details class="faq"><summary>Why does Windows warn me during installation?</summary><p>Because the installer isn't signed with a code-signing certificate yet. Click More info, then Run anyway, and compare the file's hash with the SHA256SUMS.txt attached to the release if you want to be sure.</p></details><details class="faq"><summary>Does it run on macOS or Linux?</summary><p>Windows 10 and 11 only for now. The architecture is ready for other systems, but there is no published build for them yet.</p></details><details class="faq"><summary>How does Rafiq know model prices?</summary><p>From the providers' own rate tables. A model with no known price is counted in tokens only; it never invents a number.</p></details><details class="faq"><summary>I found a problem. Where do I report it?</summary><p>Open an issue on GitHub and attach the diagnostics report from Settings → Usage: a JSON file with the app version, your settings and provider names, with no key and no conversation content.</p></details>
+    </div>
+  </section>
+
+  <section class="section" id="download-band" style="padding-top: 24px">
+    <div class="wrap">
+      <div class="download reveal">
+        <div>
+          <h2>Ready? Half a minute and it's yours.</h2>
+          <p class="lead" style="margin-top: 12px">One installer, no account. Then add a model key and start.</p>
+          <div class="cta">
+            <a class="btn btn-primary btn-lg" href="https://github.com/AhmadALSaffan/RAFIQ/releases/latest" data-download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Download for Windows</a>
+            <a class="btn btn-ghost btn-lg" href="/en/download/">Install details</a>
+          </div>
+        </div>
+        <ul class="meta">
+          <li><b>System</b><span>Windows 10 or 11, x64</span></li>
+          <li><b>Version</b><span data-version>0.3.0</span></li>
+          <li><b>Size</b><span data-size>87 MB</span></li>
+          <li><b>Install</b><span>Per user, no administrator rights needed</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Rafiq · made by <a href="https://github.com/AhmadALSaffan" target="_blank" rel="noopener">Ahmed Eliwi AL Saffan</a></span>
+    <nav aria-label="Links">
+      <a href="https://github.com/AhmadALSaffan/RAFIQ" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/AhmadALSaffan/RAFIQ/issues" target="_blank" rel="noopener">Report a problem</a>
+      <a href="/faq/" hreflang="ar" lang="ar">العربية</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+</body>
+</html>

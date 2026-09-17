@@ -64,7 +64,7 @@ except ImportError:
     pass
 
 # The skills ship with the app: they're markdown next to the package, not importable code.
-datas += collect_data_files("rafiq_agent", includes=["skills/bundled/**/*"])
+datas += collect_data_files("rafiq_agent", includes=["skills/bundled/**/*", "data/*.json"])
 
 analysis = Analysis(
     ["run_agent.py"],

@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { cancelTask, createTask, deleteTask, getTask, listModels, resolvePermission, subscribeTask } from "../../lib/api";
+import { approveTaskPlan, cancelTask, createTask, deleteTask, getTask, listModels, rejectTaskPlan, resolvePermission, subscribeTask } from "../../lib/api";
 import type { LlmModel, TaskDetail, TaskEvent, ToolCall } from "../../lib/types";
 import { folderName, revealPath } from "../../lib/folders";
 import { easeOutExpo } from "../../lib/motion";
@@ -23,6 +23,7 @@ import {
   ChatIcon,
   ClockIcon,
   CopyIcon,
+  ListIcon,
   FolderIcon,
   RefreshIcon,
   SpinnerIcon,
@@ -35,6 +36,7 @@ import { Markdown } from "../../components/Markdown";
 import { PermissionCard, ThinkingDots, ToolCard } from "../../components/steps";
 import { AttachmentGallery } from "../../components/Attachments";
 import { formatDuration } from "./pieces";
+import { fieldDir } from "../../lib/bidi";
 import { ChangesPanel } from "./ChangesPanel";
 
 import { t } from "../../i18n";
@@ -42,6 +44,8 @@ type Block =
   | { kind: "message"; key: string; text: string }
   | { kind: "tool"; key: string; call?: ToolCall; tool: string; result?: { ok: boolean; output: string } }
   | { kind: "permission"; key: string; event: Extract<TaskEvent, { type: "permission_request" }> }
+  | { kind: "plan"; key: string; text: string }
+  | { kind: "note"; key: string; text: string }
   | { kind: "error"; key: string; message: string };
 
 /** Pairs each tool_call with the tool_result that follows it so they read as one step. */
@@ -61,6 +65,8 @@ function toBlocks(events: TaskEvent[]): Block[] {
     } else if (e.type === "tool_result") {
       blocks.push({ kind: "tool", key: e.id, tool: e.tool, result: { ok: e.ok, output: e.output } });
     } else if (e.type === "permission_request") blocks.push({ kind: "permission", key: e.id, event: e });
+    else if (e.type === "plan") blocks.push({ kind: "plan", key: e.id, text: e.text });
+    else if (e.type === "plan_approved") blocks.push({ kind: "note", key: e.id, text: t("وافقت على الخطة — بلّش التنفيذ.") });
     else if (e.type === "error") blocks.push({ kind: "error", key: e.id, message: e.message });
   }
   return blocks;
@@ -162,6 +168,8 @@ export function TaskDetailPage() {
         modelId: task.model_id,
         workingDir: task.working_dir ?? undefined,
         attachmentIds: (task.attachments ?? []).map((a) => a.id),
+        mode: task.mode ?? "auto",
+        workspaceId: task.workspace_id ?? null,
       });
       navigate(`/tasks/${fresh.id}`);
     } finally {
@@ -345,6 +353,23 @@ export function TaskDetailPage() {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {task.status === "planned" && (
+          <PlanApproval
+            key="plan"
+            plan={task.plan ?? ""}
+            onApprove={async (plan) => {
+              const updated = await approveTaskPlan(task.id, plan);
+              setTask((prev) => (prev ? { ...prev, ...updated, events: prev.events } : prev));
+            }}
+            onReject={async () => {
+              const updated = await rejectTaskPlan(task.id);
+              setTask((prev) => (prev ? { ...prev, ...updated, events: prev.events } : prev));
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       <ChangesPanel taskId={task.id} status={task.status} />
 
       <ol className="flex flex-col gap-3">
@@ -471,6 +496,61 @@ function DeleteTaskButton({ running, onConfirm }: { running: boolean; onConfirm:
   );
 }
 
+/** Plan mode: the model's plan, editable, waiting for a yes before anything runs. */
+function PlanApproval({ plan, onApprove, onReject }: { plan: string; onApprove: (plan: string) => Promise<void>; onReject: () => Promise<void> }) {
+  const [text, setText] = useState(plan);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
+
+  async function run(kind: "approve" | "reject") {
+    setBusy(kind);
+    try {
+      if (kind === "approve") await onApprove(text.trim() || plan);
+      else await onReject();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6, transition: { duration: 0.2 } }}
+      transition={{ duration: 0.35, ease: easeOutExpo }}
+      className="pending-ring mb-6 rounded-xl border-2 px-4 py-4"
+      style={{ borderColor: "var(--color-pending)", background: "var(--color-surface)" }}
+    >
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+        <ListIcon className="h-4 w-4" style={{ color: "var(--color-pending)" }} />
+        {t("الخطة جاهزة — راجعها قبل ما ينفّذ")}
+        <button onClick={() => setEditing((v) => !v)} className="ms-auto text-xs underline underline-offset-2" style={{ color: "var(--color-ink-muted)" }}>
+          {editing ? t("عرض") : t("عدّل الخطة")}
+        </button>
+      </div>
+      {editing ? (
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={12} className="input resize-y font-mono text-xs leading-5" dir={fieldDir(text)} />
+      ) : (
+        <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}>
+          <Markdown text={text} />
+        </div>
+      )}
+      <div className="mt-3 flex gap-2">
+        <Button onClick={() => void run("approve")} disabled={busy !== null}>
+          {busy === "approve" ? <SpinnerIcon className="h-4 w-4" /> : <DrawnCheck className="h-4 w-4" />}
+          {t("وافق ونفّذ")}
+        </Button>
+        <Button variant="danger" onClick={() => void run("reject")} disabled={busy !== null}>
+          {t("ارفض")}
+        </Button>
+        <p className="ms-auto self-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
+          {t("لسا ما تغيّر شي بمجلدك.")}
+        </p>
+      </div>
+    </motion.section>
+  );
+}
+
 function BackLink({ onClick }: { onClick: () => void }) {
   return (
     <motion.button whileHover={{ x: 3 }} onClick={onClick} className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
@@ -487,6 +567,25 @@ function BlockView({
   onResolve: (eventId: string, resolution: "approved" | "denied") => void;
 }) {
   if (block.kind === "message") return <Markdown text={block.text} />;
+  if (block.kind === "plan") {
+    return (
+      <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+        <p className="mb-2 flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--color-ink-muted)" }}>
+          <ListIcon className="h-3.5 w-3.5" />
+          {t("الخطة")}
+        </p>
+        <Markdown text={block.text} />
+      </div>
+    );
+  }
+  if (block.kind === "note") {
+    return (
+      <p className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--color-success)" }}>
+        <DrawnCheck className="h-3.5 w-3.5" />
+        {block.text}
+      </p>
+    );
+  }
   if (block.kind === "tool") return <ToolCard tool={block.tool} args={block.call?.args} result={block.result} />;
   if (block.kind === "permission") {
     return (

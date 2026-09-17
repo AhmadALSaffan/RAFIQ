@@ -17,7 +17,10 @@ import {
   createChat,
   deleteChat,
   deleteChatMessage,
+  exportChat as exportChatFile,
   forkChat,
+  listSkills,
+  saveTemplate,
   truncateChatFrom,
   getChat,
   listChats,
@@ -40,8 +43,10 @@ import { easeOutExpo, snappy } from "../../lib/motion";
 import { ChatList } from "../../components/ChatList";
 import { usePageMenu } from "../../components/ContextMenu";
 import { Resizer } from "../../components/Resizer";
-import { DoneDialog, type CommandId } from "../../components/ComposerMenus";
-import { chatToMarkdown, HelpDialog, ReplyConfigDialog, saveTextFile } from "../../components/ChatCommands";
+import { DoneDialog, type CommandDef } from "../../components/ComposerMenus";
+import { chatToMarkdown, ExportDialog, HelpDialog, RenameDialog, ReplyConfigDialog, saveTextFile } from "../../components/ChatCommands";
+import { useWorkspaces } from "../../lib/workspace";
+import { SparkIcon } from "../../components/Icons";
 import { DropZone, useUploads } from "../../components/Attachments";
 import { DrawnCheck } from "../../components/ui";
 import { FolderChip } from "../../components/FolderPicker";
@@ -87,6 +92,11 @@ export function ChatPage({
   const [notes, setNotes] = useState<string[]>([]);
   const [configOpen, setConfigOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  // Slash commands that installed skills bring along.
+  const [skillCommands, setSkillCommands] = useState<CommandDef[]>([]);
+  const { current: workspace, currentId: workspaceId } = useWorkspaces();
   // Bumping this asks the composer's model dropdown to open (that's what /نموذج does).
   const [openModelMenu, setOpenModelMenu] = useState(0);
   const [summarizing, setSummarizing] = useState(false);
@@ -117,9 +127,24 @@ export function ChatPage({
     listIntegrations()
       .then((list) => setHasIntegrations(list.some((i) => i.verify_ok !== false)))
       .catch(() => setHasIntegrations(false));
-    listChats()
-      .then(setChats)
-      .finally(() => setLoadingChats(false));
+    listSkills()
+      .then((skills) =>
+        setSkillCommands(
+          skills.flatMap((s) =>
+            s.commands.map((c) => ({
+              id: `skill:${s.name}:${c.name}` as const,
+              label: `/${c.name}`,
+              hint: c.description || t("أمر من مهارة {0}", { 0: s.name }),
+              aliases: [c.name],
+              Icon: SparkIcon,
+              kind: "send" as const,
+              from: s.name,
+              text: `${c.prompt}\n\n${t("(هالأمر من مهارة «{0}» — اقرأها بأداة skill_read إذا احتجت تفاصيلها.)", { 0: s.name })}`,
+            })),
+          ),
+        ),
+      )
+      .catch(() => setSkillCommands([]));
     listModels().then((m) => {
       modelsRef.current = m;
       setModels(m);
@@ -130,6 +155,20 @@ export function ChatPage({
       setModelId((cur) => cur || (ok.find((x) => x.id === remembered) ?? ok[0])?.id || "");
     });
   }, []);
+
+  // The list follows the active workspace.
+  useEffect(() => {
+    listChats(workspaceId)
+      .then(setChats)
+      .catch(() => undefined)
+      .finally(() => setLoadingChats(false));
+  }, [workspaceId]);
+
+  // A workspace with a model of its own: new chats start on it.
+  useEffect(() => {
+    if (routeId || !workspace?.model_id) return;
+    if (modelsRef.current.some((m) => m.id === workspace.model_id && m.verify_ok !== false)) setModelId(workspace.model_id);
+  }, [workspace?.model_id, routeId]);
 
   // Leaving the page only stops watching: the reply goes on in the agent, and opening the
   // chat again rejoins it.
@@ -258,7 +297,7 @@ export function ChatPage({
     let chatId = routeId;
     if (!chatId) {
       try {
-        const chat = await createChat(modelId, newChatFolder);
+        const chat = await createChat(modelId, newChatFolder ?? workspace?.working_dir ?? null, workspaceId);
         chatId = chat.id;
         skipLoadRef.current = chat.id;
         setChats((prev) => [chat, ...prev]);
@@ -458,21 +497,34 @@ export function ChatPage({
     setError(null);
     try {
       const fork = await forkChat(routeId, isStored(message) ? message.id : undefined);
-      setChats(await listChats());
+      setChats(await listChats(workspaceId));
       navigate(`/chat/${fork.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("ما قدرت أفرّع المحادثة"));
     }
   }
 
-  async function exportChat() {
+  async function exportChat(format: "md" | "html" = "md") {
     const title = current?.title ?? t("محادثة");
-    const name = `${title.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "rafiq-chat"}.md`;
+    const base = title.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "rafiq-chat";
     try {
-      const path = await saveTextFile(name, chatToMarkdown(title, messages));
-      if (path) note(t("انحفظت المحادثة: {0}", { 0: path }));
+      const contents = format === "html" && routeId ? await exportChatFile(routeId, "html") : chatToMarkdown(title, messages);
+      const path = await saveTextFile(`${base}.${format}`, contents, format);
+      if (path) note(format === "html" ? t("جاهزة للمشاركة: {0}", { 0: path }) : t("انحفظت المحادثة: {0}", { 0: path }));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("ما قدرت أصدّر المحادثة"));
+    }
+  }
+
+  /** `/قالب`: the last thing the user asked, saved as a task template. */
+  async function keepAsTemplate() {
+    const last = [...messages].reverse().find((m) => m.role === "user" && m.content.trim());
+    if (!last) return setError(t("ما في طلب لأحفظه."));
+    try {
+      await saveTemplate({ name: last.content.trim().split("\n")[0].slice(0, 48), prompt: last.content, working_dir: folder });
+      note(t("انحفظ كقالب — بتلاقيه بصفحة المهام › القوالب"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("ما قدرت أحفظ القالب"));
     }
   }
 
@@ -487,7 +539,14 @@ export function ChatPage({
     }
   }
 
-  async function runCommand(id: CommandId) {
+  async function runCommand(cmd: CommandDef) {
+    const id = cmd.id;
+    // Commands that are really a message (built-in ones and every skill command).
+    if (cmd.kind === "send" && cmd.text) {
+      if (cmd.needs === "chat" && !routeId) return setError(t("ابدأ المحادثة أول."));
+      if (cmd.needs === "folder" && !folder) return setError(t("حدد مجلد للمحادثة أول."));
+      return send(cmd.text, []);
+    }
     if (id === "new") return navigate("/chat");
     if (id === "done") return setDoneOpen(true);
     if (id === "config") return setConfigOpen(true);
@@ -496,7 +555,27 @@ export function ChatPage({
     if (id === "summarize") return summarizeNow();
     if (id === "retry") return retryLast();
     if (id === "copy") return copyLastReply();
-    if (id === "export") return exportChat();
+    if (id === "export") return routeId ? setExportOpen(true) : setError(t("ابدأ المحادثة أول."));
+    if (id === "share") return routeId ? exportChat("html") : setError(t("ابدأ المحادثة أول."));
+    if (id === "memory") return navigate("/settings?tab=memory");
+    if (id === "tasks") return navigate("/tasks");
+    if (id === "schedule") return navigate("/tasks?view=schedules");
+    if (id === "design") return navigate("/designs");
+    if (id === "stop") return streaming ? stop() : undefined;
+    if (id === "fork") {
+      if (!routeId) return;
+      try {
+        const fork = await forkChat(routeId);
+        setChats(await listChats(workspaceId));
+        navigate(`/chat/${fork.id}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t("ما قدرت أفرّع المحادثة"));
+      }
+      return;
+    }
+    if (id === "pin") return routeId && current ? pin(routeId, !current.pinned) : undefined;
+    if (id === "title") return routeId ? setRenameOpen(true) : undefined;
+    if (id === "template") return keepAsTemplate();
     if (id === "folder") {
       const picked = await pickFolder(folder ?? undefined);
       if (picked) await changeFolder(picked);
@@ -532,7 +611,8 @@ export function ChatPage({
     { id: "new-chat", label: t("محادثة جديدة"), onSelect: () => navigate("/chat") },
     { id: "config", label: t("إعدادات الرد"), onSelect: () => setConfigOpen(true), disabled: !routeId },
     { id: "summarize", label: t("لخّص المحادثة"), onSelect: () => void summarizeNow(), disabled: !routeId || summarizing },
-    { id: "export", label: t("صدّر المحادثة"), onSelect: () => void exportChat(), disabled: !routeId },
+    { id: "export", label: t("صدّر المحادثة"), onSelect: () => setExportOpen(true), disabled: !routeId },
+    { id: "share", label: t("شارك كصفحة HTML"), onSelect: () => void exportChat("html"), disabled: !routeId },
     { id: "help", label: t("الأوامر والاختصارات"), onSelect: () => setHelpOpen(true) },
   ]);
 
@@ -799,6 +879,7 @@ export function ChatPage({
           inChat={Boolean(routeId)}
           openModelMenu={openModelMenu}
           onCommand={runCommand}
+          extraCommands={skillCommands}
           onIssueMentioned={setLastIssue}
           prefill={prefill}
           webSearch={current?.settings?.web_search ?? undefined}
@@ -822,7 +903,26 @@ export function ChatPage({
         {configOpen && (
           <ReplyConfigDialog settings={current?.settings ?? DEFAULT_REPLY_SETTINGS} onClose={() => setConfigOpen(false)} onSave={saveSettings} />
         )}
-        {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
+        {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} extra={skillCommands} />}
+        {exportOpen && (
+          <ExportDialog
+            onClose={() => setExportOpen(false)}
+            onPick={(format) => {
+              setExportOpen(false);
+              void exportChat(format);
+            }}
+          />
+        )}
+        {renameOpen && routeId && (
+          <RenameDialog
+            value={current?.title ?? ""}
+            onClose={() => setRenameOpen(false)}
+            onSave={(title) => {
+              setRenameOpen(false);
+              void rename(routeId, title);
+            }}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

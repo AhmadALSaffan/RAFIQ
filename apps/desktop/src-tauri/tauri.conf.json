@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "رفيق",
   "mainBinaryName": "Rafiq",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "identifier": "com.rafiq.app",
   "build": {
     "frontendDist": "../dist",
@@ -41,7 +41,8 @@
     "shortDescription": "رفيق — مساعد ذكي على ويندوز بيحكي عربي وبيشتغل على جهازك",
     "longDescription": "رفيق تطبيق سطح مكتب بيربطك بنماذج الذكاء الاصطناعي اللي بتختارها ويعطيها أدوات حقيقية: محادثات، مهام بتنفّذ على ملفاتك بإذنك، تصميم واجهات بمعاينة حيّة، ومتابعة مهامك من Jira و Linear و GitHub و GitLab.",
     "resources": {
-      "../../agent/dist/rafiq-agent/": "agent/"
+      "../../agent/dist/rafiq-agent/": "agent/",
+      "resources/rafiq.cmd": "rafiq.cmd"
     },
     "icon": [
       "icons/32x32.png",

@@ -2,13 +2,14 @@ import { AnimatePresence, motion } from "motion/react";
 import type { TaskStatus } from "../lib/types";
 import { statusLabel } from "../lib/api";
 import { easeOutExpo } from "../lib/motion";
-import { ClockIcon, SpinnerIcon, XCircleIcon } from "./Icons";
+import { ClockIcon, ShieldIcon, SpinnerIcon, XCircleIcon } from "./Icons";
 import { DrawnCheck } from "./ui";
 
 const color: Record<TaskStatus, string> = {
   queued: "var(--color-ink-muted)",
   pending: "var(--color-ink-muted)",
   running: "var(--color-accent)",
+  planned: "var(--color-pending)",
   completed: "var(--color-success)",
   failed: "var(--color-danger)",
   cancelled: "var(--color-ink-muted)",
@@ -18,6 +19,7 @@ function StatusIcon({ status }: { status: TaskStatus }) {
   if (status === "running") return <SpinnerIcon className="h-3.5 w-3.5" />;
   if (status === "completed") return <DrawnCheck className="h-3.5 w-3.5" />;
   if (status === "pending" || status === "queued") return <ClockIcon className="h-3.5 w-3.5" />;
+  if (status === "planned") return <ShieldIcon className="h-3.5 w-3.5" />;
   return <XCircleIcon className="h-3.5 w-3.5" />;
 }
 

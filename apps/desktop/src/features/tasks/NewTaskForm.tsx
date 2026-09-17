@@ -3,11 +3,12 @@
 import { useRef, useState } from "react";
 import { motion } from "motion/react";
 import { createTask, providerLabel, saveTemplate } from "../../lib/api";
-import type { LlmModel } from "../../lib/types";
+import type { LlmModel, TaskMode } from "../../lib/types";
+import { useWorkspaces } from "../../lib/workspace";
 import { recentFolders, rememberFolder } from "../../lib/folders";
 import { snappy } from "../../lib/motion";
 import { fieldDir } from "../../lib/bidi";
-import { PaperclipIcon, SpinnerIcon } from "../../components/Icons";
+import { ListIcon, PaperclipIcon, ShieldIcon, SpinnerIcon, SparkIcon } from "../../components/Icons";
 import { BrandMark } from "../../components/BrandMark";
 import { Button, ErrorText, Field } from "../../components/ui";
 import { FolderPicker } from "../../components/FolderPicker";
@@ -15,6 +16,12 @@ import { DropZone, UploadChips, useUploads } from "../../components/Attachments"
 import type { TemplateSeed } from "./automation";
 
 import { t } from "../../i18n";
+const MODES: { id: TaskMode; label: string; hint: string; Icon: typeof SparkIcon }[] = [
+  { id: "auto", label: t("مباشرة"), hint: t("بيشتغل وبيسألك بس حسب سياسة الصلاحيات."), Icon: SparkIcon },
+  { id: "plan", label: t("خطة أول"), hint: t("بيكتب خطة وبيستنى موافقتك قبل ما يلمس شي."), Icon: ListIcon },
+  { id: "step", label: t("خطوة خطوة"), hint: t("كل كتابة أو أمر بيستنى موافقتك، مهما كانت الصلاحيات."), Icon: ShieldIcon },
+];
+
 export function NewTaskForm({
   models,
   initial,
@@ -28,10 +35,14 @@ export function NewTaskForm({
   onCreated: (task: { id: string }) => void;
 }) {
   const firstUsable = models.find((m) => m.verify_ok !== false);
+  // The active workspace seeds the folder and model; a template's own choices win.
+  const { current: workspace, currentId: workspaceId } = useWorkspaces();
+  const workspaceModel = models.find((m) => m.id === workspace?.model_id && m.verify_ok !== false);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [prompt, setPrompt] = useState(initial?.prompt ?? "");
-  const [modelId, setModelId] = useState(initial?.model_id || firstUsable?.id || "");
-  const [folder, setFolder] = useState(initial?.working_dir ?? recentFolders()[0] ?? "");
+  const [modelId, setModelId] = useState(initial?.model_id || workspaceModel?.id || firstUsable?.id || "");
+  const [folder, setFolder] = useState(initial?.working_dir ?? workspace?.working_dir ?? recentFolders()[0] ?? "");
+  const [mode, setMode] = useState<TaskMode>("auto");
   const [saving, setSaving] = useState(false);
   const [savedTemplate, setSavedTemplate] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +76,8 @@ export function NewTaskForm({
         modelId,
         workingDir: folder.trim() || undefined,
         attachmentIds: uploads.ready.map((a) => a.id),
+        mode,
+        workspaceId,
       });
       if (folder.trim()) rememberFolder(folder.trim());
       uploads.clear();
@@ -172,6 +185,43 @@ export function NewTaskForm({
                     style={{ color: broken ? "var(--color-danger)" : "var(--color-ink-muted)" }}
                   >
                     {broken ? t("ما اشتغل بآخر فحص") : providerLabel(m.provider)}
+                  </span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
+            {t("كيف تشتغل؟")}
+          </span>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {MODES.map((m) => {
+              const active = mode === m.id;
+              return (
+                <motion.button
+                  type="button"
+                  key={m.id}
+                  onClick={() => setMode(m.id)}
+                  whileTap={{ scale: 0.98 }}
+                  className="relative rounded-lg border px-3 py-2.5 text-start"
+                  style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="task-mode"
+                      className="absolute inset-0 rounded-lg"
+                      style={{ border: "1.5px solid var(--color-accent)", background: "color-mix(in oklch, var(--color-accent) 10%, transparent)" }}
+                      transition={snappy}
+                    />
+                  )}
+                  <span className="relative flex items-center gap-2 text-sm font-medium">
+                    <m.Icon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-accent)" }} />
+                    {m.label}
+                  </span>
+                  <span className="relative mt-0.5 block text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                    {m.hint}
                   </span>
                 </motion.button>
               );

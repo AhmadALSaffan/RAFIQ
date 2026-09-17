@@ -14,15 +14,26 @@ import type {
   ToolCall,
 } from "../types";
 
-export async function listChats(): Promise<ChatSummary[]> {
-  return request<ChatSummary[]>("/chats");
+export async function listChats(workspaceId?: string | null): Promise<ChatSummary[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : "";
+  return request<ChatSummary[]>(`/chats${query}`);
 }
 
-export async function createChat(modelId?: string, workingDir?: string | null): Promise<ChatDetail> {
+export async function createChat(modelId?: string, workingDir?: string | null, workspaceId?: string | null): Promise<ChatDetail> {
   return request<ChatDetail>("/chats", {
     method: "POST",
-    body: JSON.stringify({ model_id: modelId, working_dir: workingDir || undefined }),
+    body: JSON.stringify({ model_id: modelId, working_dir: workingDir || undefined, workspace_id: workspaceId ?? null }),
   });
+}
+
+/** The whole chat as one file to share: self-contained HTML (both themes) or Markdown. */
+export async function exportChat(id: string, format: "html" | "md"): Promise<string> {
+  const { baseUrl, token } = await getApiConfig();
+  const res = await fetch(`${baseUrl}/chats/${id}/export?format=${format}`, {
+    headers: { Authorization: `Bearer ${token}`, "Accept-Language": locale() },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.text();
 }
 
 export async function setChatFolder(id: string, workingDir: string | null): Promise<ChatSummary> {

@@ -3,6 +3,7 @@
 import { request } from "./client";
 import type {
   Design,
+  DesignDocument,
   DesignSummary,
   HandoffResult,
   InitQuestion,
@@ -12,8 +13,9 @@ export async function initQuestions(): Promise<InitQuestion[]> {
   return request<InitQuestion[]>("/designs/questions");
 }
 
-export async function listDesigns(): Promise<DesignSummary[]> {
-  return request<DesignSummary[]>("/designs");
+export async function listDesigns(workspaceId?: string | null): Promise<DesignSummary[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : "";
+  return request<DesignSummary[]>(`/designs${query}`);
 }
 
 export async function getDesign(id: string): Promise<Design> {
@@ -27,6 +29,7 @@ export async function createDesign(
   title?: string,
   /** Rafiq's search tool for the design chat (null = decide by the model). */
   webSearch?: boolean | null,
+  workspaceId?: string | null,
 ): Promise<Design> {
   return request<Design>("/designs", {
     method: "POST",
@@ -36,8 +39,19 @@ export async function createDesign(
       title,
       working_dir: workingDir ?? null,
       web_search: webSearch ?? null,
+      workspace_id: workspaceId ?? null,
     }),
   });
+}
+
+/** Everything the preview can open, in the order the switcher shows it. */
+export async function listDesignDocuments(id: string): Promise<DesignDocument[]> {
+  return request<DesignDocument[]>(`/designs/${id}/documents`);
+}
+
+/** One HTML file from the design's folder (documents from the chat come with the design). */
+export async function readDesignDocument(id: string, path: string): Promise<{ name: string; html: string }> {
+  return request<{ name: string; html: string }>(`/designs/${id}/documents/read?path=${encodeURIComponent(path)}`);
 }
 
 export async function setDesignFolder(id: string, workingDir: string | null): Promise<Design> {

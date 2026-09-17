@@ -14,6 +14,9 @@ import { PageHeader, RefreshButton } from "../components/Page";
 import { folderName } from "../lib/folders";
 import { fieldDir } from "../lib/bidi";
 
+import { SkillsSection } from "../features/design/SkillsSection";
+import { useWorkspaces } from "../lib/workspace";
+
 import { t } from "../i18n";
 /** Cheap live thumbnail: the real document, scaled down and inert. */
 function Thumb({ html }: { html: string | null }) {
@@ -66,11 +69,12 @@ export function DesignsPage() {
   const [wizard, setWizard] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const { currentId: workspaceId } = useWorkspaces();
 
   const loadDesigns = useCallback(async () => {
     setRefreshing(true);
     try {
-      const list = await listDesigns();
+      const list = await listDesigns(workspaceId);
       setDesigns(list);
       setError(null);
       const withPreview = await Promise.all(
@@ -83,13 +87,17 @@ export function DesignsPage() {
       setLoading(false);
       setRefreshing(false);
     }
+  }, [workspaceId]);
+
+  const loadSkills = useCallback(() => {
+    listSkills().then(setSkills).catch(() => setSkills([]));
   }, []);
 
   useEffect(() => {
     listModels().then(setModels).catch(() => setModels([]));
-    listSkills().then(setSkills).catch(() => setSkills([]));
+    loadSkills();
     void loadDesigns();
-  }, [loadDesigns]);
+  }, [loadDesigns, loadSkills]);
 
   const usable = models.filter((m) => m.verify_ok !== false);
   const menu = useElementMenu();
@@ -218,25 +226,7 @@ export function DesignsPage() {
         </motion.div>
       )}
 
-      <section className="mt-10">
-        <h2 className="mb-2 text-sm font-medium">{t("المهارات اللي بيشتغل فيها")}</h2>
-        <p className="mb-3 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-          {t("مدمجة بالتطبيق — ما بدها تنزيل ولا إعداد، وبتشتغل مع أي نموذج (رفيق بيمرّرها كأدوات عادية، مو كميزة خاصة بمزوّد).")}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {skills.map((skill) => (
-            <span
-              key={skill.name}
-              title={skill.description}
-              className="rounded-full border px-2.5 py-1 font-mono text-[11px]"
-              style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
-              dir="ltr"
-            >
-              {skill.name}
-            </span>
-          ))}
-        </div>
-      </section>
+      <SkillsSection skills={skills} onChange={loadSkills} />
 
       <AnimatePresence>
         {wizard && (
@@ -255,8 +245,9 @@ export function DesignsPage() {
 function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: () => void; onDone: (id: string) => void }) {
   const [questions, setQuestions] = useState<InitQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
-  const [modelId, setModelId] = useState(models[0]?.id ?? "");
-  const [folder, setFolder] = useState<string | null>(null);
+  const { current: workspace, currentId: workspaceId } = useWorkspaces();
+  const [modelId, setModelId] = useState(models.find((m) => m.id === workspace?.model_id)?.id ?? models[0]?.id ?? "");
+  const [folder, setFolder] = useState<string | null>(workspace?.working_dir ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // null = whatever suits the model; the switch below makes it an explicit yes or no.
@@ -287,7 +278,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
     setBusy(true);
     setError(null);
     try {
-      const design = await createDesign(modelId, answers, folder, undefined, webSearch);
+      const design = await createDesign(modelId, answers, folder, undefined, webSearch, workspaceId);
       onDone(design.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("ما قدرت أبدأ التصميم"));

@@ -23,7 +23,6 @@ import {
   readTrigger,
   replaceTrigger,
   type CommandDef,
-  type CommandId,
 } from "../../components/ComposerMenus";
 import { MicButton } from "./MicButton";
 
@@ -46,6 +45,7 @@ export function Composer({
   prefill,
   webSearch,
   onWebSearch,
+  extraCommands,
 }: {
   disabled: boolean;
   streaming: boolean;
@@ -59,7 +59,9 @@ export function Composer({
   hasIntegrations: boolean;
   inChat: boolean;
   openModelMenu: number;
-  onCommand: (id: CommandId) => void;
+  onCommand: (cmd: CommandDef) => void;
+  /** Slash commands from installed skills. */
+  extraCommands?: CommandDef[];
   onIssueMentioned: (issue: TrackerIssue) => void;
   /** Text to drop in the box (a question being edited); `at` makes repeats take effect. */
   prefill?: { text: string; at: number } | null;
@@ -126,9 +128,11 @@ export function Composer({
   function runCommand(cmd: CommandDef) {
     if (cmd.id === "file") return insert("@");
     if (cmd.id === "task") return insert("#");
+    // A "prefill" command leaves its opening words in the box for the user to finish.
+    if (cmd.kind === "prefill" && cmd.text) return insert(cmd.text);
     insert("");
     if (cmd.id === "attach") return fileInput.current?.click();
-    onCommand(cmd.id);
+    onCommand(cmd);
   }
 
   function submit() {
@@ -158,6 +162,7 @@ export function Composer({
               onPick={runCommand}
               onClose={() => setDismissed({ kind: trigger.kind, start: trigger.start })}
               registerKeyHandler={(h) => (menuKeys.current = h)}
+              extra={extraCommands}
             />
           )}
           {menuOpen && trigger?.kind === "@" && (
