@@ -66,6 +66,7 @@ async def lifespan(app: FastAPI):
     await manager.recover()
     manager.start(run_task, limit=parallel_limit)
     schedules = asyncio.create_task(run_schedules())
+    MCP.warm()  # connect the MCP servers while the user is still opening a chat
     write_discovery()
     # Optional experimental adapter: load its saved config, or skip it silently.
     with contextlib.suppress(Exception):

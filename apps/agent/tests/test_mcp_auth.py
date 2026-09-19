@@ -136,11 +136,14 @@ async def test_preset_and_auth_are_stored_and_reported(client):
     # A stdio server can't be OAuth, whatever the body says.
     r = await client.post("/mcp", json={**body, "name": "fs", "transport": "stdio", "command": "npx", "url": None, "preset": "filesystem"}, headers=AUTH)
     assert r.status_code == 201 and r.json()["auth"] == "none"
+    stdio = r.json()
 
     r = await client.post(f"/mcp/{server['id']}/logout", headers=AUTH)
     assert r.status_code == 200 and r.json()["authorized"] is False
-    for s in (server, r.json()):
-        await client.delete(f"/mcp/{s['id']}", headers=AUTH)
+
+    # Both of them: an enabled server left behind is one the next test's first reply waits on.
+    for s in (server, stdio):
+        assert (await client.delete(f"/mcp/{s['id']}", headers=AUTH)).status_code in (200, 204)
 
 
 async def test_callback_page_reports_stale_links(client):

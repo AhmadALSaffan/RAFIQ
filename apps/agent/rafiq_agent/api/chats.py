@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from rafiq_agent.api.deps import require_token
+from rafiq_agent.core.agent_runtime import load_settings
 from rafiq_agent.core.chat_service import (
     ChatError,
     ChatTurn,
@@ -25,7 +26,6 @@ from rafiq_agent.core.chat_service import (
     stop_turn,
     summarize,
 )
-from rafiq_agent.core.agent_runtime import load_settings
 from rafiq_agent.core.export_html import render as render_html
 from rafiq_agent.core.prompts import DEFAULT_TITLE
 from rafiq_agent.core.tasks_service import TaskCreateError, resolve_working_dir

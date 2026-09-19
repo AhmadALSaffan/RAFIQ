@@ -270,6 +270,17 @@ async def test_a_reply_keeps_going_after_its_stream_closes_and_can_be_rejoined(d
     assert active_turn(chat_id) is None
 
 
+async def _spoken(turn, timeout: float = 5.0) -> None:
+    """Wait until the model has actually said something. `start()` returns before the
+    context is even built, so a fixed sleep would be a race."""
+    deadline = asyncio.get_running_loop().time() + timeout
+    while asyncio.get_running_loop().time() < deadline:
+        if any(e.get("type") == "delta" for e in turn.events):
+            return
+        await asyncio.sleep(0.01)
+    raise AssertionError("the model never wrote anything")
+
+
 async def test_stopping_a_reply_keeps_what_it_wrote(db, slow_llm):
     from rafiq_agent.core.chat_service import ChatTurn, active_turn, stop_turn
 
@@ -278,10 +289,56 @@ async def test_stopping_a_reply_keeps_what_it_wrote(db, slow_llm):
     turn = ChatTurn(chat_id, "مرحبا", model, [])
     await turn.prepare()
     await turn.start()
-    await asyncio.sleep(0.08)  # "واحد" is out
+    await _spoken(turn)  # "واحد" is out
     assert stop_turn(chat_id)
     events = "".join([line async for line in turn.subscribe()])
     assert '"type": "done"' in events and "واحد" in events
+    assert active_turn(chat_id) is None
+
+
+async def test_a_reply_streams_before_its_tools_are_ready(db, slow_llm, monkeypatch):
+    """The page gets its stream at once. Describing the tools — which may mean connecting
+    an MCP server — used to happen first, leaving the user on a spinner with nothing to
+    cancel."""
+    from rafiq_agent.core import chat_service
+    from rafiq_agent.core.chat_service import ChatTurn, active_turn, stop_turn
+
+    slow = asyncio.Event()
+    original = ChatTurn._build_context
+
+    async def crawling(self):  # noqa: ANN001, ANN202
+        await slow.wait()
+        return await original(self)
+
+    monkeypatch.setattr(chat_service.ChatTurn, "_build_context", crawling)
+
+    model = await _model_id()
+    chat_id = await _chat(model)
+    turn = ChatTurn(chat_id, "مرحبا", model, [])
+    await turn.prepare()
+    await asyncio.wait_for(turn.start(), 1)  # doesn't wait for the tools
+    assert any(e["type"] == "start" for e in turn.events)
+
+    # And the stop button works right there, before the model has said a word.
+    assert stop_turn(chat_id)
+    events = "".join([line async for line in turn.subscribe()])
+    assert '"type": "stopped"' in events and '"type": "delta"' not in events
+    assert active_turn(chat_id) is None
+    slow.set()
+
+
+async def test_a_stop_between_claiming_the_chat_and_starting_still_lands(db, slow_llm):
+    """`stop()` before `start()` has a task to cancel: the flag is what catches it."""
+    from rafiq_agent.core.chat_service import ChatTurn, active_turn, stop_turn
+
+    model = await _model_id()
+    chat_id = await _chat(model)
+    turn = ChatTurn(chat_id, "مرحبا", model, [])
+    await turn.prepare()
+    assert stop_turn(chat_id)  # the worker doesn't exist yet
+    await turn.start()
+    events = "".join([line async for line in turn.subscribe()])
+    assert '"type": "stopped"' in events and '"type": "delta"' not in events
     assert active_turn(chat_id) is None
 
 
@@ -307,3 +364,35 @@ async def test_the_stream_and_stop_routes_answer_when_nothing_is_running(db):
         assert (await client.get(f"/chats/{chat_id}/stream", headers=AUTH)).status_code == 204
         assert (await client.post(f"/chats/{chat_id}/stop", headers=AUTH)).json() == {"stopped": False}
         assert (await client.get(f"/chats/{chat_id}", headers=AUTH)).json()["streaming"] is False
+
+
+async def test_a_long_chat_folds_while_the_reply_streams_not_before_it(db, slow_llm, monkeypatch):
+    """Summarising is a model call. It used to run inside `prepare()`, so a long chat sat
+    on a silent request with nothing to cancel; now the page is already streaming."""
+    from rafiq_agent.core.chat_service import AUTO_SUMMARIZE_AFTER, ChatTurn
+    from rafiq_agent.storage.db import SessionLocal
+    from rafiq_agent.storage.models import Chat, ChatMessage
+
+    async def fake_complete(self, messages, **kwargs):  # noqa: ANN001, ANN003
+        return "ملخص"
+
+    monkeypatch.setattr("rafiq_agent.llm.base.LlmProvider.complete", fake_complete)
+
+    model = await _model_id()
+    chat_id = await _chat(model)
+    async with SessionLocal() as session:
+        for i in range(AUTO_SUMMARIZE_AFTER + 2):
+            session.add(ChatMessage(chat_id=chat_id, role="user" if i % 2 == 0 else "assistant", content=f"م{i}"))
+        await session.commit()
+
+    turn = ChatTurn(chat_id, "مرحبا", model, [])
+    await turn.prepare()
+    assert turn.fold is True
+    async with SessionLocal() as session:  # nothing folded yet — that's the fix
+        assert (await session.get(Chat, chat_id)).summary is None
+
+    await turn.start()
+    _ = [line async for line in turn.subscribe()]
+    async with SessionLocal() as session:
+        chat = await session.get(Chat, chat_id)
+        assert chat.summary == "ملخص" and chat.summary_until

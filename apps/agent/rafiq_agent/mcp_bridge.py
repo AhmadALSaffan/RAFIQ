@@ -30,6 +30,10 @@ CONNECT_TIMEOUT = 30
 STDIO_CONNECT_TIMEOUT = 120
 # A server that just failed isn't retried for this long, so it can't slow every message down.
 RETRY_AFTER = 120
+# How long one reply waits for servers that aren't up yet. Connecting keeps going in the
+# background past this — the server joins the next message — because nobody should watch a
+# spinner while a child process downloads itself.
+TURN_BUDGET = 6
 CALL_TIMEOUT = 300
 MAX_OUTPUT = 20_000
 LOGS = DATA_DIR / "logs"
@@ -133,13 +137,25 @@ class Connection:
     def connected(self) -> bool:
         return self.session is not None
 
+    def _budget(self) -> int:
+        """A local server's first run downloads it; an HTTP endpoint is there or it isn't."""
+        return STDIO_CONNECT_TIMEOUT if self.config.transport == "stdio" else CONNECT_TIMEOUT
+
     async def start(self) -> None:
+        # A turn that ran out of patience leaves this attempt running; whoever asks next
+        # waits on that same attempt instead of launching a second copy of the server.
+        if self._task is not None and not self._task.done() and not self.connected:
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self._ready.wait(), self._budget())
+            if self.error:
+                raise RuntimeError(self.error)
+            return
         async with self._lock:
             if self.connected:
                 return
             self._ready, self._stop, self.error = asyncio.Event(), asyncio.Event(), None
             self._task = asyncio.create_task(self._run())
-            budget = STDIO_CONNECT_TIMEOUT if self.config.transport == "stdio" else CONNECT_TIMEOUT
+            budget = self._budget()
             try:
                 await asyncio.wait_for(self._ready.wait(), budget)
             except TimeoutError:
@@ -244,6 +260,8 @@ class Connection:
 class McpManager:
     def __init__(self) -> None:
         self.connections: dict[str, Connection] = {}
+        # Connects still in flight, held so the loop doesn't collect a task nobody awaits.
+        self._connecting: set[asyncio.Task] = set()
 
     async def _enabled(self) -> list[_Config]:
         async with SessionLocal() as session:
@@ -288,8 +306,24 @@ class McpManager:
         if conn is not None:
             await conn.stop()
 
-    async def tools(self) -> list["McpTool"]:
-        """Tools of every enabled server, connecting the ones not up yet (in parallel)."""
+    def warm(self) -> None:
+        """Start connecting every enabled server without waiting for any of it. Called at
+        startup, so the first message finds them already up."""
+        self._hold(asyncio.create_task(self._warm()))
+
+    async def _warm(self) -> None:
+        with contextlib.suppress(Exception):
+            await self.tools(budget=None)
+
+    def _hold(self, task: asyncio.Task) -> asyncio.Task:
+        self._connecting.add(task)
+        task.add_done_callback(self._connecting.discard)
+        return task
+
+    async def tools(self, budget: float | None = TURN_BUDGET) -> list["McpTool"]:
+        """Tools of every server that is up, giving the ones that aren't `budget` seconds
+        to get there (None = as long as they need). Past that they keep connecting on their
+        own and join the next call."""
         configs = await self._enabled()
         for config in configs:
             if config.id not in self.connections:
@@ -303,7 +337,8 @@ class McpManager:
             with contextlib.suppress(Exception):
                 await conn.start()
 
-        await asyncio.gather(*(ensure(self.connections[c.id]) for c in configs))
+        if tasks := [self._hold(asyncio.create_task(ensure(self.connections[c.id]))) for c in configs]:
+            await asyncio.wait(tasks, timeout=budget)
         out: list[McpTool] = []
         for config in configs:
             conn = self.connections[config.id]
@@ -312,6 +347,9 @@ class McpManager:
         return out
 
     async def shutdown(self) -> None:
+        for task in list(self._connecting):
+            task.cancel()
+        self._connecting.clear()
         for server_id in list(self.connections):
             await self.disconnect(server_id)
 

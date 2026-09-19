@@ -284,6 +284,9 @@ class ChatTurn:
         self.ended = False
         self.saved = False
         self.worker: asyncio.Task | None = None
+        # Asked to stop. Kept as a flag as well as a cancel, because the stop can land in
+        # the moment between claiming the chat and the worker existing.
+        self.stopped = False
         self.created_task_ids: list[str] = []
         self.native_tools: frozenset[str] = frozenset()
 
@@ -327,10 +330,10 @@ class ChatTurn:
 
             past = list(chat.messages)
             heavy = approx_tokens(transcript_of(past)) > AUTO_SUMMARIZE_TOKENS
-            if self.reply.auto_summarize and past and (len(past) > AUTO_SUMMARIZE_AFTER or heavy):
-                # A failed fold must never block the message.
-                with contextlib.suppress(Exception):
-                    await summarize(chat, past, self.llm, AUTO_SUMMARIZE_KEEP)
+            # Whether this turn owes the chat a fold. The fold itself is a model call, so
+            # it happens in the worker (`_fold`) — here it would hold up the reply before
+            # the page even has a stream to watch.
+            self.fold = bool(self.reply.auto_summarize and past and (len(past) > AUTO_SUMMARIZE_AFTER or heavy))
             if chat.summary_until:
                 cut = next((i for i, m in enumerate(past) if m.id == chat.summary_until), -1)
                 past = past[cut + 1 :]
@@ -361,6 +364,30 @@ class ChatTurn:
             # Tools this model already has of its own — Rafiq won't offer a second one.
             self.native_tools = native_tools(model.provider, model.model_id)
             self.design_mode = chat.mode == "design"
+
+    async def _fold(self) -> None:
+        """Fold the older turns into the chat's summary, if this turn owes one. A failed
+        fold must never cost the message: the turn just carries the history it already had."""
+        if not self.fold:
+            return
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+
+        async with SessionLocal() as session:
+            result = await session.execute(
+                select(Chat).where(Chat.id == self.chat_id).options(selectinload(Chat.messages))
+            )
+            chat = result.scalar_one_or_none()
+            if chat is None:
+                return
+            # Everything except the message this turn is answering.
+            older = [m for m in chat.messages if m.id != self.user_out.id]
+            with contextlib.suppress(Exception):
+                await summarize(chat, older, self.llm, AUTO_SUMMARIZE_KEEP)
+                await session.commit()
+                self.summary = chat.summary
+                cut = next((i for i, m in enumerate(older) if m.id == chat.summary_until), -1)
+                self.past = older[cut + 1 :]
 
     async def _history(self) -> list[dict[str, Any]]:
         vision = supports_vision(self.llm.model)
@@ -661,20 +688,38 @@ class ChatTurn:
 
     def stop(self) -> None:
         self._release_pending()
+        self.stopped = True
         if self.worker is not None and not self.worker.done():
             self.worker.cancel()
 
     async def start(self) -> None:
-        """Builds the context and starts the reply in the background."""
+        """Starts the reply and returns — it does not wait for it to be ready to talk.
+
+        Deciding what the model sees is not instant: the tool schemas are assembled, and an
+        MCP server that isn't up yet is connected. Doing that here meant the request didn't
+        answer, the page had no stream, and `stop()` had no task to cancel — press the
+        button and nothing happened until the model finally started thinking. So the worker
+        is created first and does that work as its own first step.
+        """
+        self._emit({"type": "start", "user_message": self.user_out.model_dump(), "title": self.title})
+        self.worker = asyncio.create_task(self._work())
+        self.worker.add_done_callback(self._on_worker_done)
+
+    async def _work(self) -> None:
+        """Get ready, then reply. Both halves are cancellable, which is the point."""
+        if self.stopped:  # stopped while the message was still being stored
+            return
         try:
             self.settings = await load_settings()
+            await self._fold()
             messages, registry = await self._build_context()
-        except BaseException:
-            self._end()
-            raise
-        self._emit({"type": "start", "user_message": self.user_out.model_dump(), "title": self.title})
-        self.worker = asyncio.create_task(self._run(messages, registry))
-        self.worker.add_done_callback(self._on_worker_done)
+        except asyncio.CancelledError:
+            raise  # `_on_worker_done` says «stopped» and closes the stream
+        except Exception as exc:  # noqa: BLE001 - reported in-stream, like any other failure
+            self._emit({"type": "error", "message": friendly_error(exc)})
+            self.saved = True  # the error is the reply; don't also say «stopped»
+            return
+        await self._run(messages, registry)
 
     def _on_worker_done(self, _: asyncio.Task) -> None:
         # Stopped before it even began: _run's own cleanup never ran, so close up here.
