@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from rafiq_agent.i18n import tr
-from rafiq_agent.skills.registry import skills_index
+from rafiq_agent.skills.registry import all_skills, skills_index
 
 # `impeccable init` — the questions Rafiq asks before the design chat opens. They mirror
 # skills/bundled/impeccable/INIT.md; keep the two in step.
@@ -101,8 +101,25 @@ DESIGN_SYSTEM_PROMPT = (
 )
 
 
-def skills_note() -> str:
-    return f"المهارات المتاحة عندك (اقرأها بـ skill_read قبل ما تبدأ، وارجعلها بكل مراجعة):\n{skills_index()}"
+def skills_note(full: bool = False) -> str:
+    """What the model is told about the skills it has.
+
+    `full` spells out every skill with its description — what a design session wants, and
+    what the user gets by turning the token saver off. Otherwise the names are listed and
+    the descriptions stay behind `skill_list`, which the model calls when it wants them:
+    the catalogue was 5.8k characters on every single message, used or not.
+    """
+    skills = all_skills()
+    if not skills:
+        return ""
+    if full:
+        return f"المهارات المتاحة عندك (اقرأها بـ skill_read قبل ما تبدأ، وارجعلها بكل مراجعة):\n{skills_index()}"
+    names = ", ".join(s.name for s in skills)
+    return (
+        f"المهارات المتاحة عندك: {names}.\n"
+        "قبل شغل التصميم أو الواجهات اقرأ المهارة المناسبة بـ skill_read. "
+        "و skill_list بيعطيك وصف كل مهارة وملفاتها — استدعيه وقت ما بدك، ما إله كلفة تُذكر."
+    )
 
 
 def localized_questions() -> list[dict[str, Any]]:

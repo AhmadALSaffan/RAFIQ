@@ -183,6 +183,22 @@ export interface ReplySettings {
   /** Rafiq's search tool for this chat. null = decide by the model: one that searches the
    *  web itself uses its own; anything else gets Rafiq's. */
   web_search: boolean | null;
+  /** The two heaviest tool groups. Off = their schemas are never sent. */
+  mcp: boolean;
+  browser: boolean;
+  /** No tools, no thinking, a short answer — the cheapest a turn can be. */
+  economy: boolean;
+  /** Token saving. On: skills are named and the model reads the ones it wants. Off: every
+   *  skill is described in the prompt, every message. */
+  saver: boolean;
+}
+
+/** What one reply cost, as the agent counted it. */
+export interface TurnUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  cached_tokens: number;
+  cost_usd: number;
 }
 
 export interface ChatSummary {
@@ -340,6 +356,8 @@ export interface AppSettings {
   task_isolation: boolean;
   /** Which agent runs the tasks a chat opens (null = the chat's own). */
   task_model_id: string | null;
+  /** Which agent does Rafiq's own chores — summaries, commit messages (null = the chat's). */
+  helper_model_id: string | null;
   web_search_provider: WebSearchProvider;
   searxng_url: string | null;
   /** The browser tool opens a visible window (off = headless). */
@@ -353,6 +371,8 @@ export interface AppSettings {
   transcribe_model: string;
   /** Rafiq may remember things across chats (each save still goes through the "memory" permission). */
   memory_enabled: boolean;
+  /** What a new chat's "save tokens" starts at; each chat can still flip its own copy. */
+  token_saver: boolean;
 }
 
 /** Something the user asked Rafiq to remember — shown to every chat and task. */

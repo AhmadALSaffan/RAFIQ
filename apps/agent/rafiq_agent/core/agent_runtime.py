@@ -70,11 +70,34 @@ def permission_key(tool_name: str) -> str:
     return "shell"
 
 
+# Every tool group a run can be given. Whatever isn't in the set is never described to the
+# model, and an unused schema is paid for on every single request.
+ALL_GROUPS = frozenset({"files", "web", "browser", "issues", "skills", "mcp", "desktop"})
+
+
+async def _has_integrations() -> bool:
+    """Whether any issue tracker is connected. No account, no issue tools."""
+    from sqlalchemy import select
+
+    from rafiq_agent.storage.models import IntegrationAccount
+
+    try:
+        async with SessionLocal() as session:
+            rows = await session.execute(select(IntegrationAccount).limit(1))
+            return rows.first() is not None
+    except Exception:  # noqa: BLE001 - a database hiccup must not cost the run its tools
+        return False
+
+
 async def build_registry(
-    working_dir: Path | None, settings: AppSettings, native: frozenset[str] = frozenset()
+    working_dir: Path | None,
+    settings: AppSettings,
+    native: frozenset[str] = frozenset(),
+    groups: frozenset[str] = ALL_GROUPS,
 ) -> ToolRegistry:
-    """Every tool a run gets. File and shell tools need a folder; the web, the browser, the
-    desktop (when turned on) and MCP servers don't. Call `aclose()` when the run ends.
+    """The tools a run gets. File and shell tools need a folder, issue tools need a
+    connected tracker, and the rest are asked for by `groups`. Call `aclose()` when the run
+    ends.
 
     `native` names tools this model already has (see llm/presets.py): Rafiq leaves those to
     the model rather than offering a second one of its own."""
@@ -84,8 +107,14 @@ async def build_registry(
     from rafiq_agent.tools.web import WebFetchTool, search_tool
 
     registry = ToolRegistry()
-    tools = [*issue_tools(), *skill_tools(), WebFetchTool()]
-    if working_dir is not None:
+    tools: list[Any] = []
+    if "issues" in groups and await _has_integrations():
+        tools += issue_tools()
+    if "skills" in groups:
+        tools += skill_tools()
+    if "web" in groups:
+        tools.append(WebFetchTool())
+    if working_dir is not None and "files" in groups:
         tools += [
             FilesystemListTool(working_dir),
             FilesystemReadTool(working_dir),
@@ -95,15 +124,17 @@ async def build_registry(
             ProcessListTool(),
             ProcessKillTool(),
         ]
-    if search := search_tool(settings):
+    if "web" in groups and (search := search_tool(settings)):
         tools.append(search)
     for tool in tools:
         if tool.name not in native:
             registry.register(tool)
-    register_browser_tools(registry, settings.browser_visible)
-    if settings.desktop_control_enabled:
+    if "browser" in groups:
+        register_browser_tools(registry, settings.browser_visible)
+    if "desktop" in groups and settings.desktop_control_enabled:
         register_desktop_tools(registry)
-    await register_mcp_tools(registry)
+    if "mcp" in groups:
+        await register_mcp_tools(registry)
     return registry
 
 

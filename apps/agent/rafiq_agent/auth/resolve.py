@@ -26,6 +26,24 @@ def credentials_for(model: LlmModel) -> Credentials:
     return Credentials(api_key=get_api_key(model.api_key_ref), base_url=model.base_url)
 
 
+async def helper_llm(fallback: "LlmProvider | None" = None) -> "LlmProvider | None":
+    """The model Rafiq uses for its own chores — summarising a long chat, writing a commit
+    message — when the user picked one. Falls back to whatever the caller was going to use,
+    so nothing breaks if the chosen model is gone."""
+    from rafiq_agent.core.agent_runtime import load_settings
+    from rafiq_agent.storage.db import SessionLocal
+    from rafiq_agent.storage.models import LlmModel
+
+    chosen = (await load_settings()).helper_model_id
+    if not chosen:
+        return fallback
+    async with SessionLocal() as session:
+        model = await session.get(LlmModel, chosen)
+    if model is None or model.verify_ok is False:
+        return fallback
+    return llm_for(model)
+
+
 def llm_for(
     model: LlmModel,
     *,

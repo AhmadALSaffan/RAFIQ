@@ -1178,4 +1178,19 @@ export const en: Dictionary = {
   "اربط GitHub وNotion وقواعد بياناتك": "Connect GitHub, Notion and your databases",
   "الصرف اليومي والشهري وحدوده": "Daily and monthly spending, and its limits",
   "من المجلد": "From the folder",
+
+  // ── Token savings: economy mode, tool groups, cost per reply ──
+  "وضع اقتصادي": "Economy mode",
+  "أرخص رد ممكن: بدون أدوات ولا تفكير، ورد قصير. للأسئلة اللي جوابها من معرفة النموذج.": "The cheapest a reply can be: no tools, no thinking, short answer. For questions the model can answer from what it knows.",
+  "أدوات المتصفح": "Browser tools",
+  "ست أدوات للتصفّح والضغط والكتابة. طفّيها إذا هالمحادثة ما بدها متصفح.": "Six tools for browsing, clicking and typing. Turn them off when this chat doesn't need a browser.",
+  "أدوات خوادم MCP": "MCP server tools",
+  "خادم واحد ممكن يضيف عشرات الأدوات لكل رسالة. طفّيها لما ما تلزم.": "One server can add dozens of tools to every message. Turn them off when they aren't needed.",
+  " · {0} منها مخزّنة": " · {0} of them cached",
+  "{0} توكن دخل · {1} خرج": "{0} tokens in · {1} out",
+  "موديل الشغل الداخلي": "Model for Rafiq's own work",
+  "رفيق بيستخدمه لشغله هو: تلخيص المحادثات الطويلة وكتابة رسائل الـ commit. خلّيه موديل رخيص — هالشغل ما بده ذكاء الموديل الغالي.": "Used for Rafiq's own chores: folding long chats into a summary and writing commit messages. Pick a cheap model — this work doesn't need the expensive one.",
+  "توفير التوكنز": "Save tokens",
+  "بيبعت أسماء المهارات بس، والنموذج بيقرأ اللي بدّه ياه بنفسه. طفّيه لما تشتغل على التصميم أو بدك النموذج يشوف وصف كل مهارة بكل رسالة.": "Sends the skill names only; the model reads the ones it wants itself. Turn it off for design work, or when you want every skill described in every message.",
+  "بيبعت أسماء المهارات بس بدل وصف كل وحدة — بيوفّر آلاف الأحرف بكل رسالة. هاد الافتراضي للمحادثات الجديدة، وكل محادثة بتقدر تغيّره من /إعدادات.": "Sends the skill names instead of describing each one — thousands of characters saved per message. This is the default for new chats; any chat can change its own from /settings.",
 };

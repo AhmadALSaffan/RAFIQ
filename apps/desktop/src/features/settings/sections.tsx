@@ -36,6 +36,13 @@ export function TasksSettings({ settings, persist }: { settings: AppSettings; pe
         ]}
         onChange={(id) => persist({ ...settings, task_model_id: id || null })}
       />
+      <SelectRow
+        label={t("موديل الشغل الداخلي")}
+        hint={t("رفيق بيستخدمه لشغله هو: تلخيص المحادثات الطويلة وكتابة رسائل الـ commit. خلّيه موديل رخيص — هالشغل ما بده ذكاء الموديل الغالي.")}
+        value={settings.helper_model_id ?? ""}
+        options={[{ value: "", label: t("نفس موديل المحادثة") }, ...models.map((m) => ({ value: m.id, label: m.name }))]}
+        onChange={(id) => persist({ ...settings, helper_model_id: id || null })}
+      />
       <SliderRow
         label={t("المهام بالتوازي")}
         hint={t("كم مهمة بتشتغل بنفس الوقت. المهام اللي بتعدّل نفس الملفات أو المجلد بتضل تستنى دورها، واللي بتعتمد على غيرها بتبلش لما تخلص.")}

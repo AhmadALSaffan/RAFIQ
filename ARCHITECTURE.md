@@ -138,6 +138,8 @@ cd apps/desktop && pnpm release        # فحص + بناء + نسخة للنشر
 | خوادم MCP | `mcp_bridge.py` (الاتصال والأدوات) + `api/automation.py` (الإعدادات) |
 | المهام المجدولة والقوالب | `core/schedules.py` + `api/automation.py` · الواجهة `features/tasks/automation.tsx` |
 | رد المحادثة اللي بيكمل بالخلفية | `core/chat_service.py` (`ChatTurn.start/subscribe/stop`) |
+| توفير التوكنز | `core/designs.py::skills_note` (أسماء بس) + `core/agent_runtime.py::build_registry(groups=…)` + `core/chat_service.py::_groups` + `core/prompts.py::LENGTH_MAX_TOKENS` · القياس والتفاصيل بـ`docs/TOKENS.md` |
+| كلفة كل رد بالواجهة | `llm/usage.py::collect` → حدث `usage` بالـSSE → `features/chat/Transcript.tsx::UsageLine` |
 | الذاكرة بين المحادثات | `core/memory.py` (الحفظ والملاحظة) + `tools/memory.py` (الأداة) + `api/memory.py` · الواجهة `features/settings/memory.tsx` |
 | مساحات العمل | `api/workspaces.py` (+ `workspace_note` للسياق) · الواجهة `lib/workspace.ts` (المختارة) + `components/WorkspaceSwitcher.tsx` |
 | وضع المهمة (خطة أول / خطوة خطوة) | `core/agent_runtime.py::_plan_task` + `permit` · مسارات `api/tasks.py` `/plan/approve|reject` · الواجهة `features/tasks/TaskDetailPage.tsx::PlanApproval` |

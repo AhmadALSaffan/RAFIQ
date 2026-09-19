@@ -1,6 +1,7 @@
 """MCP: readable connection errors, Bearer normalisation, OAuth token storage, presets,
 and the connect / callback routes."""
 
+import asyncio
 import json
 
 import httpx
@@ -10,8 +11,14 @@ from httpx import ASGITransport
 from rafiq_agent import mcp_oauth
 from rafiq_agent.config import AUTH_TOKEN
 from rafiq_agent.main import app
-from rafiq_agent.mcp_bridge import _normalized_headers
-from rafiq_agent.mcp_oauth import KeyringTokenStorage, describe_error
+from rafiq_agent.mcp_bridge import _launch, _normalized_headers
+from rafiq_agent.mcp_oauth import (
+    CLIENT_NAME,
+    FIGMA_CLIENT_NAME,
+    KeyringTokenStorage,
+    client_name_for,
+    describe_error,
+)
 from rafiq_agent.storage.db import init_db
 
 AUTH = {"authorization": f"Bearer {AUTH_TOKEN}"}
@@ -103,8 +110,9 @@ async def test_oauth_storage_round_trips_and_drops_clients_from_another_port(mon
 
 async def test_pending_flow_delivers_the_code_to_the_waiting_connection():
     flow = mcp_oauth.begin("srv-flow")
-    assert mcp_oauth.deliver("the-code", "st") is True
-    assert flow.code.result() == ("the-code", "st")
+    # `iss` travels with it: a server that advertises RFC 9207 refuses the exchange without it.
+    assert mcp_oauth.deliver("the-code", "st", "https://www.figma.com") is True
+    assert flow.code.result() == ("the-code", "st", "https://www.figma.com")
     assert mcp_oauth.deliver("again", "st") is False  # nobody waiting
     mcp_oauth.end("srv-flow")
 
@@ -141,11 +149,70 @@ async def test_callback_page_reports_stale_links(client):
     r = await client.get("/mcp/oauth/callback?error=access_denied")
     assert r.status_code == 400
     flow = mcp_oauth.begin("srv-cb")
-    r = await client.get("/mcp/oauth/callback?code=abc&state=x")
-    assert r.status_code == 200 and flow.code.result() == ("abc", "x")
+    r = await client.get("/mcp/oauth/callback?code=abc&state=x&iss=https%3A%2F%2Fwww.figma.com")
+    assert r.status_code == 200 and flow.code.result() == ("abc", "x", "https://www.figma.com")
     mcp_oauth.end("srv-cb")
+
+    # Figma's own path answers the same way.
+    flow = mcp_oauth.begin("srv-cb2")
+    r = await client.get("/callback?code=def&state=y")
+    assert r.status_code == 200 and flow.code.result() == ("def", "y", "")
+    mcp_oauth.end("srv-cb2")
 
 
 def test_secret_never_reaches_the_api_shape():
     out = json.dumps({"secret_keys": ["Authorization"], "authorized": True})
     assert "Bearer" not in out
+
+
+# ── Servers with their own rules ──────────────────────────────────────────────────────
+
+
+def test_figma_is_registered_under_a_name_it_accepts():
+    # Figma's registration endpoint 403s any client name outside its own list.
+    assert client_name_for("https://mcp.figma.com/mcp") == FIGMA_CLIENT_NAME
+    assert client_name_for("https://x/y", "figma") == FIGMA_CLIENT_NAME
+    # Everyone else still meets Rafiq — including a host that merely looks like Figma.
+    assert client_name_for("https://mcp.notion.com/mcp") == CLIENT_NAME
+    assert client_name_for("https://mcp.figma.com.attacker.net/mcp") == CLIENT_NAME
+    assert client_name_for("", None) == CLIENT_NAME
+
+
+def test_node_shims_are_launched_through_cmd_on_windows(monkeypatch):
+    monkeypatch.setattr("rafiq_agent.mcp_bridge.sys.platform", "win32")
+    assert _launch("npx", ["-y", "@playwright/mcp@latest"]) == ("cmd", ["/c", "npx", "-y", "@playwright/mcp@latest"])
+    assert _launch("npm", ["x"]) == ("cmd", ["/c", "npm", "x"])
+    assert _launch("npx.cmd", []) == ("cmd", ["/c", "npx.cmd"])
+    # Real executables are started directly, as they always were.
+    assert _launch("uvx", ["mcp-server-fetch"]) == ("uvx", ["mcp-server-fetch"])
+    assert _launch("docker", ["mcp", "gateway", "run"]) == ("docker", ["mcp", "gateway", "run"])
+
+
+def test_nothing_is_wrapped_off_windows(monkeypatch):
+    monkeypatch.setattr("rafiq_agent.mcp_bridge.sys.platform", "linux")
+    assert _launch("npx", ["-y", "x"]) == ("npx", ["-y", "x"])
+
+
+async def test_a_timeout_keeps_its_message_instead_of_cancellederror():
+    from rafiq_agent import mcp_bridge
+
+    conn = mcp_bridge.Connection(mcp_bridge._Config("id", "slow", "stdio", "npx", [], None))
+
+    async def never_ready() -> None:
+        try:
+            await asyncio.sleep(60)
+        except BaseException as exc:  # noqa: BLE001 - mirrors _run's handler
+            if conn.error is None:
+                conn.error = type(exc).__name__
+            raise
+
+    conn._ready, conn._stop, conn.error = asyncio.Event(), asyncio.Event(), None
+    conn._task = asyncio.create_task(never_ready())
+    monkey = mcp_bridge.CONNECT_TIMEOUT
+    assert monkey > 0
+    try:
+        await asyncio.wait_for(conn._ready.wait(), 0.2)
+    except TimeoutError:
+        conn.error = "الخادم ما رد خلال وقت كافي."
+        await conn.stop()
+    assert conn.error == "الخادم ما رد خلال وقت كافي."

@@ -42,6 +42,9 @@ class AppSettings(BaseModel):
     # The model that carries out tasks a chat creates (None = the chat's own model) — plan
     # with a strong model, execute with a fast, cheaper one.
     task_model_id: str | None = None
+    # Rafiq's own housekeeping — folding a long chat into a summary, writing a commit
+    # message from a diff — runs on this model instead of the expensive one you chat with.
+    helper_model_id: str | None = None
     # Which service answers `web_search` ("none" = the tool is off). Keys live in the keychain.
     web_search_provider: WebSearchProvider = "none"
     searxng_url: str | None = None
@@ -57,6 +60,11 @@ class AppSettings(BaseModel):
     # Rafiq keeps short facts the user asked it to remember (core/memory.py) and offers them
     # to every chat. Off = nothing remembered and nothing offered.
     memory_enabled: bool = True
+    # What a new chat's "توفير التوكنز" starts at: on names the skills and lets the model
+    # read the ones it wants, off describes every skill in every message. Off by default —
+    # the skills are worth their tokens until the user says otherwise. Each chat can still
+    # flip its own copy from /إعدادات.
+    token_saver: bool = False
 
     def model_post_init(self, __context: object) -> None:
         # Settings saved before a permission existed get its default, not a validation error.

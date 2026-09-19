@@ -3,7 +3,7 @@
 import json
 from typing import Any
 
-from rafiq_agent.auth.resolve import llm_for
+from rafiq_agent.auth.resolve import helper_llm, llm_for
 from rafiq_agent.storage.db import SessionLocal
 from rafiq_agent.storage.models import LlmModel
 
@@ -41,7 +41,8 @@ async def describe_changes(model_id: str, title: str, prompt: str, diff: str) ->
         )
     if model is None:
         raise RuntimeError("model not found")
-    llm = llm_for(model, fallback=fallback)
+    # A commit message from a diff is housekeeping — the helper model writes it when set.
+    llm = await helper_llm() or llm_for(model, fallback=fallback)
     clipped = diff if len(diff) <= MAX_DIFF else diff[:MAX_DIFF] + "\n… (truncated)"
     messages = [
         {"role": "system", "content": PROMPT},

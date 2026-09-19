@@ -5,6 +5,9 @@ from rafiq_agent.tools.base import Tool, ToolResult
 
 # How much of a write's diff the permission card gets to show.
 PREVIEW_CHARS = 6_000
+# How much of a file one read returns. The rest is still reachable — the model asks for the
+# next page with `offset` — but nobody pays for 20k characters to answer one question.
+READ_CHARS = 8_000
 
 
 class PathEscapeError(Exception):
@@ -48,10 +51,16 @@ class FilesystemListTool(Tool):
 class FilesystemReadTool(Tool):
     name = "filesystem_read"
     category = "read_only"
-    description = "Read a text file's contents, relative to the task's working directory."
+    description = (
+        f"Read a text file, relative to the task's working directory. Returns at most "
+        f"{READ_CHARS} characters; pass `offset` to continue where the last read stopped."
+    )
     parameters = {
         "type": "object",
-        "properties": {"path": {"type": "string"}},
+        "properties": {
+            "path": {"type": "string"},
+            "offset": {"type": "integer", "description": "Characters to skip (default 0)"},
+        },
         "required": ["path"],
     }
 
@@ -64,9 +73,15 @@ class FilesystemReadTool(Tool):
             if not target.is_file():
                 return ToolResult(ok=False, output=f"file not found: {target}")
             content = target.read_text(encoding="utf-8", errors="replace")
-            if len(content) > 20_000:
-                content = content[:20_000] + "\n… (truncated)"
-            return ToolResult(ok=True, output=content)
+            try:
+                offset = max(0, int(args.get("offset") or 0))
+            except (TypeError, ValueError):
+                offset = 0
+            page = content[offset : offset + READ_CHARS]
+            rest = len(content) - (offset + len(page))
+            if rest > 0:
+                page += f"\n… ({rest} characters left — read again with offset={offset + len(page)})"
+            return ToolResult(ok=True, output=page)
         except PathEscapeError as e:
             return ToolResult(ok=False, output=str(e))
 

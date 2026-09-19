@@ -98,6 +98,7 @@ export type ChatStreamEvent =
   | { type: "permission"; id: string; call: ToolCall }
   | { type: "permission_resolved"; id: string; resolution: Resolution }
   | { type: "task_created"; task: { id: string; title: string; status: TaskStatus } }
+  | { type: "usage"; prompt_tokens: number; completion_tokens: number; cached_tokens: number; cost_usd: number }
   | { type: "done"; message: ChatMessage }
   | { type: "stopped" }
   | { type: "error"; message: string };

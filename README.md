@@ -82,7 +82,7 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 ## Features
 
 - 💬 **Chat** — Stream replies from any connected model with Markdown, image and file attachments, `@` to reference files in the chat's folder, `#` to mention your tracker issues, and `/` commands to adjust reply length, language, temperature, and reasoning
-- 🗜️ **Token control** — `/لخّص` folds older messages into a summary so long chats stop resending everything
+- 🗜️ **Token control** — Rafiq describes only the tools a chat can actually use, names its skills instead of shipping the whole catalogue, caps every reply, reads files in pages, and folds long chats into a summary. A default chat's fixed overhead dropped from ~13,700 characters per message to ~5,600, and **economy mode** takes it to ~300. Every reply shows what it cost. See [docs/TOKENS.md](docs/TOKENS.md)
 - 🗂️ **Parallel tasks** — Hand off jobs and Rafiq works through them in the folders you pick, up to 100 at once (you set the limit). Tasks that would edit the same files take turns, and a task can wait for the ones it depends on. Each has live progress, re-run, and a full step-by-step transcript
 - 🧩 **Plans → tasks** — Send a plan in chat and the model splits it into tasks, shows their live status in the chat, waits for them to finish, and replies with the results
 - 🔁 **Replies that keep going** — Leave a chat mid-reply and the reply keeps being written; come back and it picks up live where it is
@@ -229,6 +229,7 @@ RAFIQ_GITHUB_CLIENT_ID= # GitHub OAuth App (device flow) used for Copilot sign-i
 | Files from tasks and designs with no folder | `Documents\Rafiq\tasks\…` and `Documents\Rafiq\designs\…` |
 | API keys, account tokens, tracker tokens | Windows Credential Manager |
 | Agent log (installed app) | `%APPDATA%\Rafiq\agent.log` |
+| MCP server logs | `%APPDATA%\Rafiq\logs` |
 | Discovery file for the `rafiq` command (while running) | `%APPDATA%\Rafiq\agent.json` |
 
 All of these sit outside the install folder, so updating or reinstalling Rafiq never touches your data.
@@ -317,6 +318,7 @@ Rafiq/
 ├── brand/                            # logo sources
 ├── release/                          # the built installer, its checksum and latest.json
 ├── API.md                            # the local API and the `rafiq` command
+├── docs/TOKENS.md                    # where the tokens go, and what Rafiq does about it
 ├── ARCHITECTURE.md                   # layer-by-layer guide (Arabic)
 ├── GUIDE.md                          # full user & developer guide (Arabic)
 ├── DESIGN.md · PRODUCT.md            # the design system and the product decisions

@@ -7,9 +7,9 @@
  */
 
 import type { ChatStreamEvent } from "../../lib/api";
-import type { ChatPart } from "../../lib/types";
+import type { ChatPart, TurnUsage } from "../../lib/types";
 
-export type Draft = { parts: ChatPart[]; reasoning: string };
+export type Draft = { parts: ChatPart[]; reasoning: string; usage?: TurnUsage };
 
 /** Tool steps the transcript never shows — internal reading, not work the user asked for. */
 export const SILENT_TOOLS = new Set(["skill_read", "skill_list"]);
@@ -33,6 +33,16 @@ export function applyEvent(draft: Draft, ev: ChatStreamEvent): Draft {
       return { ...draft, parts: [...parts, { kind: "permission", id: ev.id, call: ev.call, resolution: "pending" }] };
     case "permission_resolved":
       return { ...draft, parts: parts.map((p) => (p.kind === "permission" && p.id === ev.id ? { ...p, resolution: ev.resolution } : p)) };
+    case "usage":
+      return {
+        ...draft,
+        usage: {
+          prompt_tokens: ev.prompt_tokens,
+          completion_tokens: ev.completion_tokens,
+          cached_tokens: ev.cached_tokens,
+          cost_usd: ev.cost_usd,
+        },
+      };
     case "task_created":
       return { ...draft, parts: [...parts, { kind: "task", task_id: ev.task.id, title: ev.task.title }] };
     default:

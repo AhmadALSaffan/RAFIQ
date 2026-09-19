@@ -39,7 +39,9 @@ LANGUAGE_NOTES = {
 }
 
 # Caps that go with each reply length, so "مختصر" actually costs fewer tokens.
-LENGTH_MAX_TOKENS = {"short": 500, "balanced": None, "detailed": None}
+LENGTH_MAX_TOKENS = {"short": 500, "balanced": 1_500, "detailed": 4_000}
+# What one turn of a cheap question costs at most (economy mode).
+ECONOMY_MAX_TOKENS = 800
 
 SUMMARY_PROMPT = (
     "لخّص المحادثة التالية بين المستخدم والمساعد بشكل مكثّف وأمين، بالعربية. "
@@ -66,10 +68,20 @@ FOLDER_NOTE = (
     "واشرح بسطر شو رح تعمل قبل ما تستدعي أداة."
 )
 
-WEB_NOTE = (
-    "وعندك أدوات browser_* لمتصفح حقيقي (صفحات JavaScript، تعبئة نماذج، تجربة سيرفر localhost). "
-    "وإذا المستخدم ربط خوادم MCP، أدواتها بتبلش بـ mcp__. "
-    "إذا المعلومة ممكن تكون تغيّرت أو إنت مش متأكد منها، دوّر عليها بدل ما تخمّن، واذكر المصدر."
+WEB_NOTE = "إذا المعلومة ممكن تكون تغيّرت أو إنت مش متأكد منها، دوّر عليها بدل ما تخمّن، واذكر المصدر."
+
+# Only sent when the run actually has these tools — describing a tool the model wasn't
+# given just makes it apologise for not having it, and costs tokens to do so.
+BROWSER_NOTE = (
+    "وعندك أدوات browser_* لمتصفح حقيقي (صفحات JavaScript، تعبئة نماذج، تجربة سيرفر localhost)."
+)
+
+MCP_NOTE = "وأدوات خوادم MCP اللي ربطتها بتبلش بـ mcp__."
+
+# Economy mode: no tools, no long answers. The model is told once, briefly, why.
+ECONOMY_NOTE = (
+    "هالمحادثة بوضع اقتصادي: ما عندك أدوات، فجاوب من معرفتك مباشرة وباختصار. "
+    "إذا السؤال فعلاً بدّه ملفات أو إنترنت، قول للمستخدم يطفي الوضع الاقتصادي بدل ما تخمّن."
 )
 
 # Named separately because a model that brings its own web tools isn't given Rafiq's, and

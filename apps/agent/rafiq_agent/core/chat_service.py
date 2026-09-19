@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from rafiq_agent.auth.resolve import llm_for
+from rafiq_agent.auth.resolve import helper_llm, llm_for
 from rafiq_agent.core.agent_runtime import (
     build_registry,
     load_settings,
@@ -36,14 +36,17 @@ from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
 from rafiq_agent.core.memory import memory_note
 from rafiq_agent.core.project_notes import project_instructions
 from rafiq_agent.core.prompts import (
+    BROWSER_NOTE,
     CHAT_SYSTEM_PROMPT,
     DEFAULT_TITLE,
+    ECONOMY_NOTE,
     FOLDER_NOTE,
     ISSUES_NOTE,
     LANGUAGE_NOTES,
     LENGTH_MAX_TOKENS,
     LENGTH_NOTES,
     MAX_STORED_OUTPUT,
+    MCP_NOTE,
     MEMORY_NOTE,
     RAFIQ_WEB_TOOLS_NOTE,
     SUMMARY_PROMPT,
@@ -58,6 +61,7 @@ from rafiq_agent.llm.presets import native_tools
 from rafiq_agent.schemas.chats import (
     AUTO_SUMMARIZE_AFTER,
     AUTO_SUMMARIZE_KEEP,
+    AUTO_SUMMARIZE_TOKENS,
     ChatMessageOut,
     ReplySettings,
 )
@@ -166,6 +170,9 @@ async def summarize(chat: Chat, messages: list[ChatMessage], llm: LlmProvider, k
     body = transcript_of(older)
     if chat.summary:
         body = f"ملخص سابق للمحادثة:\n{chat.summary}\n\nوبعدها صار:\n{body}"
+    # Folding a chat is a chore, not a conversation: it runs on the helper model when the
+    # user picked one, so a long history isn't summarised at the expensive model's price.
+    llm = await helper_llm(llm) or llm
     summary = await llm.complete(
         [{"role": "system", "content": SUMMARY_PROMPT}, {"role": "user", "content": body}],
         max_tokens=700,
@@ -319,7 +326,8 @@ class ChatTurn:
             self.llm = provider_for(model, self.reply, await fallback_of(session, model))
 
             past = list(chat.messages)
-            if self.reply.auto_summarize and len(past) > AUTO_SUMMARIZE_AFTER:
+            heavy = approx_tokens(transcript_of(past)) > AUTO_SUMMARIZE_TOKENS
+            if self.reply.auto_summarize and past and (len(past) > AUTO_SUMMARIZE_AFTER or heavy):
                 # A failed fold must never block the message.
                 with contextlib.suppress(Exception):
                     await summarize(chat, past, self.llm, AUTO_SUMMARIZE_KEEP)
@@ -382,10 +390,24 @@ class ChatTurn:
             )
         return system
 
+    def _groups(self) -> frozenset[str]:
+        """Which tool families this turn is allowed to describe to the model. Every family
+        left out is a schema nobody pays for (see docs/TOKENS.md)."""
+        if self.reply.economy or not self.reply.tools:
+            return frozenset()
+        groups = {"files", "web", "issues", "skills", "desktop"}
+        if self.reply.browser:
+            groups.add("browser")
+        if self.reply.mcp:
+            groups.add("mcp")
+        return frozenset(groups)
+
     async def _tools(self, system: str) -> tuple[ToolRegistry, str]:
         """The tools this turn gets, plus the notes that explain them to the model."""
         if self.working_dir and (notes := project_instructions(self.working_dir)):
             system += f"\n\n{notes}"
+        if self.reply.economy:
+            return ToolRegistry(), f"{system}\n\n{ECONOMY_NOTE}"
         if self.supports_tools is False or not self.reply.tools:
             return ToolRegistry(), system
 
@@ -398,24 +420,40 @@ class ChatTurn:
             skip.discard("web_search")
         elif self.reply.web_search is False:
             skip.add("web_search")
-        registry = await build_registry(folder, self.settings, frozenset(skip))
-        system += f"\n\n{skills_note()}"
-        if folder is not None:
-            system += f"\n\n{FOLDER_NOTE}\n{working_dir_system_note(folder)}"
+        registry = await build_registry(folder, self.settings, frozenset(skip), self._groups())
+
+        # Each note is only worth sending when the tools it describes are actually there.
+        names = registry.names()
+        notes = []
+        # A design session lives on its skills, and a user who turned the saver off asked
+        # for the same thing: describe them all, not just their names.
+        full_skills = self.design_mode or not self.reply.saver
+        if any(n.startswith("skill_") for n in names) and (skills := skills_note(full_skills)):
+            notes.append(skills)
+        if folder is not None and "shell_run" in names:
+            notes.append(f"{FOLDER_NOTE}\n{working_dir_system_note(folder)}")
         registry.register(
             CreateTasksTool(
                 await self._task_model(), self.working_dir, {"chat_id": self.chat_id}, self._on_task_created
             )
         )
         registry.register(WaitForTasksTool(lambda: list(self.created_task_ids)))
-        system += f"\n\n{TASKS_NOTE}\n\n{ISSUES_NOTE}\n\n{WEB_NOTE}"
+        notes.append(TASKS_NOTE)
+        if any(n.startswith("issue_") for n in names):
+            notes.append(ISSUES_NOTE)
+        if any(n.startswith("browser_") for n in names):
+            notes.append(BROWSER_NOTE)
+        if any(n.startswith("mcp__") for n in names):
+            notes.append(MCP_NOTE)
+        if "web_fetch" in names or "web_search" in names or "web_fetch" in self.native_tools:
+            notes.append(WEB_NOTE)
+        # Only mention Rafiq's web tools to a model that was actually given them.
+        if "web_fetch" in names:
+            notes.append(RAFIQ_WEB_TOOLS_NOTE)
         if self.settings.memory_enabled:
             registry.register(MemorySaveTool(self.chat_id))
-            system += f"\n\n{MEMORY_NOTE}"
-        # Only mention Rafiq's web tools to a model that was actually given them.
-        if "web_fetch" not in self.native_tools:
-            system += f" {RAFIQ_WEB_TOOLS_NOTE}"
-        return registry, system
+            notes.append(MEMORY_NOTE)
+        return registry, system + "".join(f"\n\n{n}" for n in notes)
 
     async def _task_model(self) -> str:
         """Who carries out the tasks this chat creates: the model set for tasks in Settings
@@ -523,12 +561,29 @@ class ChatTurn:
 
     # ── Running ──────────────────────────────────────────────────────────────────────
 
+    def _emit_usage(self, spent: Any) -> None:
+        """What this reply cost, so the number is in front of the person who pays it."""
+        total = spent.total()
+        if not total:
+            return
+        self._emit(
+            {
+                "type": "usage",
+                "prompt_tokens": total.prompt_tokens,
+                "completion_tokens": total.completion_tokens,
+                "cached_tokens": total.cached_tokens,
+                "cost_usd": round(total.cost_usd, 6),
+            }
+        )
+
     def _text_so_far(self) -> str:
         return "".join(p.get("text", "") for p in self.parts if p["kind"] == "text")
 
     async def _run(self, messages: list[dict[str, Any]], registry: ToolRegistry) -> None:
         # Everything this turn spends is counted against the chat (see llm/usage.py).
         usage.scope("chat", self.chat_id, self.model_id).apply()
+        spent = usage.collect()
+        spent.__enter__()
         try:
             result = await run_agent_loop(
                 self.llm,
@@ -558,6 +613,7 @@ class ChatTurn:
                 self.chat_id, result.text, result.reasoning, self.parts, self.model_id
             )
             self.saved = True
+            self._emit_usage(spent)
             self._emit({"type": "done", "message": saved.model_dump()})
         except asyncio.CancelledError:
             # Stopped (by the user, or the app closing): keep whatever was produced, so the
@@ -570,6 +626,7 @@ class ChatTurn:
                 self.saved = True
             self._emit({"type": "error", "message": friendly_error(exc)})
         finally:
+            spent.__exit__(None, None, None)
             await registry.aclose()  # the turn's browser tab, its hold on the desktop
             self._end()
 

@@ -45,8 +45,8 @@ class ShellRunTool(Tool):
         output = stdout
         if stderr:
             output += f"\n[stderr]\n{stderr}"
-        if len(output) > 20_000:
-            output = output[:20_000] + "\n… (truncated)"
+        if len(output) > 8_000:
+            output = output[:8_000] + "\n… (truncated — narrow the command to see more)"
 
         return ToolResult(
             ok=process.returncode == 0, output=output.strip() or f"(exit code {process.returncode})"

@@ -25,6 +25,7 @@ from rafiq_agent.core.chat_service import (
     stop_turn,
     summarize,
 )
+from rafiq_agent.core.agent_runtime import load_settings
 from rafiq_agent.core.export_html import render as render_html
 from rafiq_agent.core.prompts import DEFAULT_TITLE
 from rafiq_agent.core.tasks_service import TaskCreateError, resolve_working_dir
@@ -96,6 +97,9 @@ async def create_chat(body: ChatCreate, session: AsyncSession = Depends(get_sess
         model_id=body.model_id,
         working_dir=_checked_dir(body.working_dir),
         workspace_id=body.workspace_id or None,
+        # Only the one field: everything else stays on its schema default, so a default we
+        # improve later still reaches chats created today.
+        settings={"saver": (await load_settings()).token_saver},
     )
     session.add(chat)
     await session.commit()

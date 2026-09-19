@@ -22,6 +22,8 @@ import litellm
 log = logging.getLogger(__name__)
 
 _scope: ContextVar[tuple[str, str | None, str | None]] = ContextVar("usage_scope", default=("other", None, None))
+# Set while a turn is running, so the UI can be told what that one reply cost.
+_collector: ContextVar[list["Usage"] | None] = ContextVar("usage_collector", default=None)
 
 # Running totals, so a budget check costs nothing. Loaded from the DB on startup.
 _today_key = ""
@@ -58,6 +60,34 @@ class Usage:
 def scope(kind: str, scope_id: str | None = None, model_ref: str | None = None):
     """Count everything under this block against one chat, task or design."""
     return _ScopeToken(kind, scope_id, model_ref)
+
+
+class collect:
+    """Adds up every call made inside the block — what this turn cost, for the UI.
+
+        with usage.collect() as turn:
+            ...
+        turn.total()  # Usage
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[Usage] = []
+        self._token: Any = None
+
+    def __enter__(self) -> "collect":
+        self._token = _collector.set(self.calls)
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        _collector.reset(self._token)
+
+    def total(self) -> Usage:
+        return Usage(
+            prompt_tokens=sum(u.prompt_tokens for u in self.calls),
+            completion_tokens=sum(u.completion_tokens for u in self.calls),
+            cached_tokens=sum(u.cached_tokens for u in self.calls),
+            cost_usd=sum(u.cost_usd for u in self.calls),
+        )
 
 
 class _ScopeToken:
@@ -159,6 +189,8 @@ def record(model: str, raw: Any) -> None:
             return
         kind, scope_id, model_ref = _scope.get()
         _add(usage.cost_usd)
+        if (turn := _collector.get()) is not None:
+            turn.append(usage)
         # Written in the background so a reply never waits on bookkeeping.
         task = asyncio.get_running_loop().create_task(_write(model, usage, kind, scope_id, model_ref))
         _pending.add(task)

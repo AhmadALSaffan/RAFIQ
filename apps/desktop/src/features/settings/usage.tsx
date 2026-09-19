@@ -14,7 +14,7 @@ import type { AppSettings, UsageSummary } from "../../lib/types";
 import { Button } from "../../components/ui";
 import { DownloadIcon, RefreshIcon } from "../../components/Icons";
 import { saveTextFile } from "../../components/ChatCommands";
-import { Card, Hint, Section } from "./controls";
+import { Card, Hint, Section, ToggleRow } from "./controls";
 import { t } from "../../i18n";
 
 type Persist = (next: AppSettings) => void;
@@ -152,6 +152,13 @@ export function UsageSettings({ settings, persist }: { settings: AppSettings; pe
           </div>
         )}
       </Card>
+
+      <ToggleRow
+        label={t("توفير التوكنز")}
+        hint={t("بيبعت أسماء المهارات بس بدل وصف كل وحدة — بيوفّر آلاف الأحرف بكل رسالة. هاد الافتراضي للمحادثات الجديدة، وكل محادثة بتقدر تغيّره من /إعدادات.")}
+        checked={settings.token_saver}
+        onChange={(token_saver) => persist({ ...settings, token_saver })}
+      />
 
       {summary && summary.by_model.length > 0 && (
         <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">

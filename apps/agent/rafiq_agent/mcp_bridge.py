@@ -11,7 +11,9 @@ import asyncio
 import contextlib
 import json
 import re
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
@@ -23,6 +25,9 @@ from rafiq_agent.storage.secrets import delete_named_secret, get_named_secret, s
 from rafiq_agent.tools.base import Tool, ToolRegistry, ToolResult
 
 CONNECT_TIMEOUT = 30
+# A local server's first run downloads it (`npx -y firebase-tools@latest` pulls ~100MB),
+# so stdio gets a much longer first breath than an HTTP endpoint that is either there or not.
+STDIO_CONNECT_TIMEOUT = 120
 # A server that just failed isn't retried for this long, so it can't slow every message down.
 RETRY_AFTER = 120
 CALL_TIMEOUT = 300
@@ -64,6 +69,20 @@ class _Config:
     args: list[str]
     url: str | None
     auth: str = "none"
+    preset: str | None = None
+
+
+# On Windows these are .cmd shims, not real executables. Handing one straight to
+# CreateProcess starts something whose stdio never reaches the node process behind it, so
+# the session hangs on initialize with no error at all (python-sdk #359, #395, #552, #1452).
+WINDOWS_SHIMS = {"npx", "npm", "pnpm", "yarn", "bun", "bunx", "deno"}
+
+
+def _launch(command: str, args: list[str]) -> tuple[str, list[str]]:
+    """The command as the OS can actually start it."""
+    if sys.platform == "win32" and Path(command).stem.lower() in WINDOWS_SHIMS:
+        return "cmd", ["/c", command, *args]
+    return command, args
 
 
 async def _probe_status(url: str, headers: dict[str, str]) -> int | None:
@@ -120,12 +139,17 @@ class Connection:
                 return
             self._ready, self._stop, self.error = asyncio.Event(), asyncio.Event(), None
             self._task = asyncio.create_task(self._run())
+            budget = STDIO_CONNECT_TIMEOUT if self.config.transport == "stdio" else CONNECT_TIMEOUT
             try:
-                await asyncio.wait_for(self._ready.wait(), CONNECT_TIMEOUT)
+                await asyncio.wait_for(self._ready.wait(), budget)
             except TimeoutError:
                 from rafiq_agent.i18n import tr
 
-                self.error = tr("الخادم ما رد خلال وقت كافي.")
+                self.error = (
+                    tr("الخادم ما رد خلال وقت كافي. أول تشغيل ممكن ياخد وقت لأنه بينزّل الخادم — جرّب مرة تانية.")
+                    if self.config.transport == "stdio"
+                    else tr("الخادم ما رد خلال وقت كافي.")
+                )
                 await self.stop()
             if self.error:
                 self.failed_at = asyncio.get_running_loop().time()
@@ -146,7 +170,7 @@ class Connection:
                     if self.config.auth == "oauth":
                         from rafiq_agent import mcp_oauth
 
-                        auth = mcp_oauth.provider(self.config.id, self.config.url or "")
+                        auth = mcp_oauth.provider(self.config.id, self.config.url or "", self.config.preset)
                     client = create_mcp_http_client(headers=_normalized_headers(secrets["headers"]) or None, auth=auth)
                     await stack.enter_async_context(client)
                     streams = await stack.enter_async_context(
@@ -158,9 +182,10 @@ class Connection:
 
                     LOGS.mkdir(parents=True, exist_ok=True)
                     errlog = open(LOGS / f"mcp-{slug(self.config.name)}.log", "a", encoding="utf-8")  # noqa: SIM115
+                    command, args = _launch(self.config.command or "", list(self.config.args))
                     params = StdioServerParameters(
-                        command=self.config.command or "",
-                        args=list(self.config.args),
+                        command=command,
+                        args=args,
                         env=secrets["env"] or None,
                         encoding_error_handler="replace",
                     )
@@ -182,7 +207,10 @@ class Connection:
         except BaseException as exc:  # noqa: BLE001 - reported to the user as the server's status
             from rafiq_agent.mcp_oauth import GENERIC_HTTP_ERRORS, describe_error, describe_status
 
-            self.error = describe_error(exc)
+            # start() may have already explained this (a timeout cancels the task, and
+            # "CancelledError" would say nothing) — the first explanation is the true one.
+            if self.error is None:
+                self.error = describe_error(exc)
             if isinstance(exc, asyncio.CancelledError):
                 raise
             if self.config.transport == "http" and self.config.auth != "oauth" and any(g in self.error for g in GENERIC_HTTP_ERRORS):
@@ -220,7 +248,10 @@ class McpManager:
     async def _enabled(self) -> list[_Config]:
         async with SessionLocal() as session:
             rows = (await session.execute(select(McpServer).where(McpServer.enabled.is_(True)))).scalars().all()
-        return [_Config(r.id, r.name, r.transport, r.command, list(r.args or []), r.url, r.auth or "none") for r in rows]
+        return [
+            _Config(r.id, r.name, r.transport, r.command, list(r.args or []), r.url, r.auth or "none", r.preset)
+            for r in rows
+        ]
 
     def status(self, server_id: str) -> dict[str, Any]:
         conn = self.connections.get(server_id)
@@ -230,7 +261,8 @@ class McpManager:
 
     async def connect(self, server: McpServer) -> Connection:
         config = _Config(
-            server.id, server.name, server.transport, server.command, list(server.args or []), server.url, server.auth or "none"
+            server.id, server.name, server.transport, server.command, list(server.args or []), server.url,
+            server.auth or "none", server.preset,
         )
         await self.disconnect(server.id)
         conn = Connection(config)
@@ -242,7 +274,8 @@ class McpManager:
         """Like connect(), but returns at once: the connection keeps going in the background
         (an OAuth server is waiting for the user's browser)."""
         config = _Config(
-            server.id, server.name, server.transport, server.command, list(server.args or []), server.url, server.auth or "none"
+            server.id, server.name, server.transport, server.command, list(server.args or []), server.url,
+            server.auth or "none", server.preset,
         )
         conn = Connection(config)
         self.connections[server.id] = conn

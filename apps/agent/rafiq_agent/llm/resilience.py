@@ -21,7 +21,9 @@ from typing import Any
 import litellm
 
 DEFAULT_CONCURRENCY = 6
-MAX_ATTEMPTS = 5
+# Each attempt resends the whole context, so a long chat pays the full input price again.
+# Three is enough to ride out a rate limit; more is just money.
+MAX_ATTEMPTS = 3
 RETRYABLE_STATUS = frozenset({408, 409, 425, 429, 500, 502, 503, 504, 529})
 _RETRYABLE_TYPES = tuple(
     t

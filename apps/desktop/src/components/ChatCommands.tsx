@@ -238,11 +238,43 @@ export function ReplyConfigDialog({
         </div>
 
         <Toggle
-          checked={draft.tools}
-          onChange={(tools) => set({ tools })}
-          label={t("الأدوات (ملفات، shell، مهام، Jira)")}
-          hint={t("طفّيها للأسئلة العادية: ما بتنبعت مواصفات الأدوات أصلاً، يعني توكنز أقل بكل رسالة.")}
+          checked={draft.economy}
+          onChange={(economy) => set({ economy })}
+          label={t("وضع اقتصادي")}
+          hint={t("أرخص رد ممكن: بدون أدوات ولا تفكير، ورد قصير. للأسئلة اللي جوابها من معرفة النموذج.")}
         />
+        {!draft.economy && (
+          <>
+            <Toggle
+              checked={draft.saver}
+              onChange={(saver) => set({ saver })}
+              label={t("توفير التوكنز")}
+              hint={t("بيبعت أسماء المهارات بس، والنموذج بيقرأ اللي بدّه ياه بنفسه. طفّيه لما تشتغل على التصميم أو بدك النموذج يشوف وصف كل مهارة بكل رسالة.")}
+            />
+            <Toggle
+              checked={draft.tools}
+              onChange={(tools) => set({ tools })}
+              label={t("الأدوات (ملفات، shell، مهام، Jira)")}
+              hint={t("طفّيها للأسئلة العادية: ما بتنبعت مواصفات الأدوات أصلاً، يعني توكنز أقل بكل رسالة.")}
+            />
+            {draft.tools && (
+              <div className="flex flex-col gap-2 rounded-lg border px-3 py-2.5" style={{ borderColor: "var(--color-border)" }}>
+                <Toggle
+                  checked={draft.browser}
+                  onChange={(browser) => set({ browser })}
+                  label={t("أدوات المتصفح")}
+                  hint={t("ست أدوات للتصفّح والضغط والكتابة. طفّيها إذا هالمحادثة ما بدها متصفح.")}
+                />
+                <Toggle
+                  checked={draft.mcp}
+                  onChange={(mcp) => set({ mcp })}
+                  label={t("أدوات خوادم MCP")}
+                  hint={t("خادم واحد ممكن يضيف عشرات الأدوات لكل رسالة. طفّيها لما ما تلزم.")}
+                />
+              </div>
+            )}
+          </>
+        )}
         <Toggle
           checked={draft.auto_summarize}
           onChange={(auto_summarize) => set({ auto_summarize })}

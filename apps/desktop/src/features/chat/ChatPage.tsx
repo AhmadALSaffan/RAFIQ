@@ -761,6 +761,7 @@ export function ChatPage({
                 )}
                 {draft && (
                   <AssistantBlock
+                    usage={draft.usage}
                     parts={draft.parts}
                     reasoning={draft.reasoning}
                     live

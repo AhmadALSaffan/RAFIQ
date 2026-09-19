@@ -382,18 +382,22 @@ async def logout_mcp(server_id: str, session: AsyncSession = Depends(get_session
     return _mcp_out(server)
 
 
-oauth_callback_router = APIRouter(prefix="/mcp/oauth", tags=["automation"])
+oauth_callback_router = APIRouter(tags=["automation"])
 
 
+# Two paths, one handler: Rafiq's own, and the bare /callback that Figma's registration
+# insists on (see mcp_oauth.FIGMA_CALLBACK_PATH). Neither needs the app's token — the code
+# in the URL is worthless without the flow waiting for it in this process.
+@oauth_callback_router.get("/mcp/oauth/callback", response_class=HTMLResponse)
 @oauth_callback_router.get("/callback", response_class=HTMLResponse)
-async def mcp_oauth_callback(code: str = "", state: str = "", error: str = "") -> HTMLResponse:
+async def mcp_oauth_callback(code: str = "", state: str = "", error: str = "", iss: str = "") -> HTMLResponse:
     """Where the provider sends the browser after the user approves. No token here: the
     code goes to the waiting connection, which exchanges it itself."""
     from rafiq_agent.api.accounts import callback_page
 
     if error or not code:
         return HTMLResponse(callback_page(tr("ما تمّ الربط"), tr("رجّع وحاول من رفيق مرة تانية. ({0})", error or "no code")), status_code=400)
-    accepted = mcp_oauth.deliver(code, state)
+    accepted = mcp_oauth.deliver(code, state, iss)
     if accepted:
         return HTMLResponse(callback_page(tr("تمام، رجعنا لرفيق"), tr("فيك تسكّر هالصفحة وترجع للتطبيق.")))
     return HTMLResponse(callback_page(tr("هالرابط انتهى"), tr("ابدأ الربط من جديد من رفيق ← الإعدادات ← خوادم MCP.")), status_code=400)

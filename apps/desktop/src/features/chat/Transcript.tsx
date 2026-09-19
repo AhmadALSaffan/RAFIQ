@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { ChatMessage, ChatPart, LlmModel, TaskStatus } from "../../lib/types";
+import type { ChatMessage, ChatPart, LlmModel, TaskStatus, TurnUsage } from "../../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../../lib/motion";
 import { clockTime, dayLabel, isNewDay } from "../../lib/time";
 import { BrandMark } from "../../components/BrandMark";
@@ -165,11 +165,28 @@ export function MessageView({
   return <AssistantBlock parts={parts} reasoning={message.reasoning ?? ""} model={model} onOpenTask={onOpenTask} />;
 }
 
+/** What the reply cost, in the quietest form that is still readable. Cached input is
+ *  called out because it's the cheap part — it's how you tell the saving is working. */
+function UsageLine({ usage }: { usage: TurnUsage }) {
+  const input = usage.prompt_tokens.toLocaleString("en");
+  const output = usage.completion_tokens.toLocaleString("en");
+  const cached = usage.cached_tokens ? t(" · {0} منها مخزّنة", { 0: usage.cached_tokens.toLocaleString("en") }) : "";
+  const cost = usage.cost_usd >= 0.000001 ? ` · $${usage.cost_usd < 0.01 ? usage.cost_usd.toFixed(4) : usage.cost_usd.toFixed(2)}` : "";
+  return (
+    <p className="-mt-1 text-[11px] tabular-nums opacity-0 transition-opacity group-hover:opacity-100" style={{ color: "var(--color-ink-muted)" }}>
+      {t("{0} توكن دخل · {1} خرج", { 0: input, 1: output })}
+      {cached}
+      {cost}
+    </p>
+  );
+}
+
 export function AssistantBlock({
   parts,
   reasoning,
   live = false,
   model,
+  usage,
   onResolve,
   onOpenTask,
 }: {
@@ -177,6 +194,8 @@ export function AssistantBlock({
   reasoning: string;
   live?: boolean;
   model?: LlmModel;
+  /** What this reply cost — only known for the reply that just streamed. */
+  usage?: TurnUsage;
   onResolve?: (id: string, resolution: "approved" | "denied") => void;
   onOpenTask: (id: string) => void;
 }) {
@@ -251,6 +270,7 @@ export function AssistantBlock({
           </motion.div>
         ))}
         {thinking && <ThinkingDots label={visible.length ? t("عم يكمّل…") : t("عم يفكّر…")} />}
+        {usage && <UsageLine usage={usage} />}
         {!live && text && (
           <button
             onClick={() =>

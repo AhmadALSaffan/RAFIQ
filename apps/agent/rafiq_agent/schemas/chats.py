@@ -30,13 +30,28 @@ class ReplySettings(BaseModel):
     reasoning: bool = True  # off = ask thinking models to skip it, and never show it
     reasoning_effort: str | None = None  # low | medium | high, when the model supports it
     auto_summarize: bool = True  # fold old turns into the summary once the chat gets long
+    # The two heaviest tool groups, switchable per chat: MCP servers can add dozens of
+    # schemas and the browser adds six, and most chats use neither.
+    mcp: bool = True
+    browser: bool = True
+    # One switch for a cheap turn: no tools, no thinking, a short answer. What the model is
+    # *told* shrinks to one system line and the conversation itself.
+    economy: bool = False
+    # Token saving. On: the skills are named and the model reads the ones it wants with
+    # skill_list / skill_read. Off: every skill is described in the prompt, every time —
+    # which is what you want when the skills themselves are the point of the chat, and so
+    # what a new chat starts with unless Settings → التكلفة says otherwise.
+    saver: bool = False
 
     model_config = {"extra": "ignore"}
 
 
 DEFAULT_REPLY_SETTINGS = ReplySettings()
-# Once the history passes this many messages, auto-summarising trims it on the next send.
+# Auto-summarising trims the history on the next send once it passes either line: enough
+# messages, or enough weight in them. Tokens decide first — ten long messages cost more
+# than thirty short ones.
 AUTO_SUMMARIZE_AFTER = 30
+AUTO_SUMMARIZE_TOKENS = 12_000
 AUTO_SUMMARIZE_KEEP = 8
 
 

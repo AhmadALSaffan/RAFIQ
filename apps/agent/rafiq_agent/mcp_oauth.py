@@ -18,6 +18,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlparse
 
 from rafiq_agent.storage.secrets import delete_named_secret, get_named_secret, set_named_secret
 
@@ -32,8 +33,15 @@ def agent_port() -> int:
     return int(os.environ.get("RAFIQ_PORT", "8765"))
 
 
-def redirect_uri() -> str:
-    return f"http://127.0.0.1:{agent_port()}/mcp/oauth/callback"
+CALLBACK_PATH = "/mcp/oauth/callback"
+# Figma's registration endpoint refuses any redirect path but /callback (400
+# invalid_redirect_uri), so the agent answers on both and that server gets the short one.
+FIGMA_CALLBACK_PATH = "/callback"
+
+
+def redirect_uri(preset: str | None = None, server_url: str = "") -> str:
+    path = FIGMA_CALLBACK_PATH if _is_figma(server_url, preset) else CALLBACK_PATH
+    return f"http://127.0.0.1:{agent_port()}{path}"
 
 
 def is_authorized(server_id: str) -> bool:
@@ -85,13 +93,32 @@ class KeyringTokenStorage:
         raw = data.get("client")
         if not raw or data.get("port") != agent_port():
             return None
-        return OAuthClientInformationFull.model_validate(raw)
+        return usable_client(OAuthClientInformationFull.model_validate(raw))
 
     async def set_client_info(self, client_info) -> None:  # noqa: ANN001
+        # In place on purpose: this is the same object the SDK is about to exchange the
+        # code with, so correcting it here fixes the live flow and not only the next one.
+        usable_client(client_info)
         data = self._load()
         data["client"] = client_info.model_dump(mode="json", exclude_none=True)
         data["port"] = agent_port()
         self._save(data)
+
+
+def usable_client(client_info):  # noqa: ANN001, ANN201 - the SDK's type
+    """Make a freshly minted registration one we can actually spend.
+
+    RFC 7591 §3.2.1 puts it on the client to "check the values in the response to determine
+    if the registration is sufficient for use". Figma echoes back the
+    `token_endpoint_auth_method: "none"` we ask for — the honest answer for a desktop app
+    with no secret to keep — and issues a `client_secret` anyway, while its metadata lists
+    only `client_secret_basic` and `client_secret_post`. The SDK believes the echo, sends no
+    secret, and the exchange dies with «Client secret is required». A server that handed us
+    a secret meant for us to use it.
+    """
+    if client_info.client_secret and client_info.token_endpoint_auth_method in (None, "none"):
+        client_info.token_endpoint_auth_method = "client_secret_post"
+    return client_info
 
 
 @dataclass
@@ -100,7 +127,11 @@ class Pending:
 
     server_id: str
     url: asyncio.Future[str] = field(default_factory=lambda: asyncio.get_running_loop().create_future())
-    code: asyncio.Future[tuple[str, str]] = field(default_factory=lambda: asyncio.get_running_loop().create_future())
+    # (code, state, iss) — everything the authorization server put in the redirect. `iss`
+    # is RFC 9207: a server that advertises it rejects the exchange if it doesn't come back.
+    code: asyncio.Future[tuple[str, str, str]] = field(
+        default_factory=lambda: asyncio.get_running_loop().create_future()
+    )
 
 
 _pending: dict[str, Pending] = {}
@@ -120,17 +151,34 @@ def end(server_id: str) -> None:
     _pending.pop(server_id, None)
 
 
-def deliver(code: str, state: str | None) -> bool:
+def deliver(code: str, state: str | None, iss: str | None = None) -> bool:
     """The browser came back with a code. Any flow still waiting gets it — the SDK checks
     the state itself, so a stale tab can't complete someone else's flow."""
     for flow in list(_pending.values()):
         if not flow.code.done():
-            flow.code.set_result((code, state or ""))
+            flow.code.set_result((code, state or "", iss or ""))
             return True
     return False
 
 
-def provider(server_id: str, server_url: str):  # noqa: ANN201 - httpx.Auth from the SDK
+# Figma's MCP server only registers clients whose name is on a list it keeps (Claude Code,
+# Cursor, VS Code, Codex…); anything else gets a bare 403 "Forbidden" at registration. So
+# that one server is told a name it accepts. Everywhere a person can see — the UI, the
+# `initialize` handshake — Rafiq is still Rafiq.
+FIGMA_CLIENT_NAME = "Codex"
+CLIENT_NAME = "Rafiq"
+
+
+def _is_figma(server_url: str, preset: str | None = None) -> bool:
+    host = (urlparse(server_url).hostname or "").lower()
+    return preset == "figma" or host == "figma.com" or host.endswith(".figma.com")
+
+
+def client_name_for(server_url: str, preset: str | None = None) -> str:
+    return FIGMA_CLIENT_NAME if _is_figma(server_url, preset) else CLIENT_NAME
+
+
+def provider(server_id: str, server_url: str, preset: str | None = None):  # noqa: ANN201 - httpx.Auth from the SDK
     from mcp.client.auth import OAuthClientProvider
     from mcp.shared.auth import OAuthClientMetadata
 
@@ -143,15 +191,15 @@ def provider(server_id: str, server_url: str):  # noqa: ANN201 - httpx.Auth from
     async def callback_handler():  # noqa: ANN202
         from mcp.shared.auth import AuthorizationCodeResult
 
-        code, state = await asyncio.wait_for(flow.code, AUTHORIZE_TIMEOUT)
-        return AuthorizationCodeResult(code=code, state=state or None)
+        code, state, iss = await asyncio.wait_for(flow.code, AUTHORIZE_TIMEOUT)
+        return AuthorizationCodeResult(code=code, state=state or None, iss=iss or None)
 
     return OAuthClientProvider(
         server_url=server_url,
         client_metadata=OAuthClientMetadata(
-            client_name="Rafiq",
+            client_name=client_name_for(server_url, preset),
             client_uri="https://github.com/AhmadALSaffan/RAFIQ",  # type: ignore[arg-type]
-            redirect_uris=[redirect_uri()],  # type: ignore[list-item]
+            redirect_uris=[redirect_uri(preset, server_url)],  # type: ignore[list-item]
             grant_types=["authorization_code", "refresh_token"],
             response_types=["code"],
             token_endpoint_auth_method="none",
