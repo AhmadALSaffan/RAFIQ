@@ -1,0 +1,72 @@
+# Every push and every pull request runs what a person would run before committing:
+# the agent's linter and tests, and the desktop app's types, linter and tests.
+#
+# The agent is checked on Windows because that is where Rafiq runs — its secrets live in
+# the Windows credential store and its browser tool drives Edge. The desktop app is pure
+# TypeScript, so it takes the faster Linux runner.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# A new push to the same branch makes the previous run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  agent:
+    name: agent · ruff + pytest
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: apps/agent/pyproject.toml
+
+      # `[dev]` is the linter, pytest and PyInstaller — not Playwright or pyautogui, which
+      # the tools import only when they're actually used.
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check rafiq_agent tests
+
+      - name: Test
+        run: pytest -q
+
+  desktop:
+    name: desktop · tsc + eslint + vitest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Three steps rather than `pnpm check`, so a red run says which one failed.
+      - name: Types
+        run: pnpm --filter rafiq-desktop exec tsc -b
+
+      - name: Lint
+        run: pnpm --filter rafiq-desktop exec eslint src
+
+      - name: Test
+        run: pnpm --filter rafiq-desktop exec vitest run

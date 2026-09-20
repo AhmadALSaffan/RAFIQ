@@ -5,6 +5,7 @@
 #  Rafiq · رفيق
 ### An Arabic-first AI agent for Windows that works on your own machine
 
+[![CI](https://img.shields.io/github/actions/workflow/status/AhmadALSaffan/RAFIQ/ci.yml?branch=main&style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/AhmadALSaffan/RAFIQ/actions/workflows/ci.yml)
 [![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
