@@ -24,9 +24,9 @@ jobs:
       run:
         working-directory: apps/agent
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip
@@ -37,23 +37,25 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev]" pytest-github-actions-annotate-failures
 
       - name: Lint
         run: ruff check rafiq_agent tests
 
+      # A failing test also becomes an annotation on the run, which anyone can read —
+      # the job log itself is only shown to people signed in to GitHub.
       - name: Test
-        run: pytest -q
+        run: pytest -q -ra
 
   desktop:
     name: desktop · tsc + eslint + vitest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
