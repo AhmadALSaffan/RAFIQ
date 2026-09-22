@@ -5,7 +5,7 @@ import { getSettings, getWorkspace, updateSettings } from "../lib/api";
 import { revealPath } from "../lib/folders";
 import { Button, DrawnCheck } from "../components/ui";
 import { PageHeader, StatusStripe } from "../components/Page";
-import { GlobeIcon, LinkIcon, PinIcon, PlugIcon, SettingsIcon, ShieldIcon, TasksIcon, WalletIcon } from "../components/Icons";
+import { GlobeIcon, LinkIcon, PinIcon, PlugIcon, SettingsIcon, ShieldIcon, TasksIcon, TerminalIcon, WalletIcon } from "../components/Icons";
 import { ActionProgress } from "../components/Feedback";
 import { ConnectedAccountsSection } from "../features/accounts/ConnectedAccountsSection";
 import { ToggleRow } from "../features/settings/controls";
@@ -14,6 +14,7 @@ import { McpSettings } from "../features/settings/mcp";
 import { MemorySettings } from "../features/settings/memory";
 import { UsageSettings } from "../features/settings/usage";
 import { BackupSection } from "../features/settings/backup";
+import { LogsSettings } from "../features/settings/logs";
 import { listContainer, listItem, snappy } from "../lib/motion";
 import type { AppSettings, PermissionKey, PermissionMode } from "../lib/types";
 import { usePageMenu } from "../components/ContextMenu";
@@ -236,7 +237,7 @@ const MODE_COLOR: Record<PermissionMode, string> = {
   deny: "var(--color-danger)",
 };
 
-type TabId = "general" | "accounts" | "agent" | "permissions" | "memory" | "web" | "mcp" | "usage";
+type TabId = "general" | "accounts" | "agent" | "permissions" | "memory" | "web" | "mcp" | "usage" | "logs";
 
 /** The side list. Each line says what's inside, so nobody has to open a tab to find out. */
 const TABS: { id: TabId; label: string; hint: string; Icon: typeof SettingsIcon }[] = [
@@ -248,6 +249,7 @@ const TABS: { id: TabId; label: string; hint: string; Icon: typeof SettingsIcon 
   { id: "web", label: t("الويب والمتصفح"), hint: t("مزوّد البحث ومفتاحه، ونافذة المتصفح"), Icon: GlobeIcon },
   { id: "mcp", label: "MCP", hint: t("اربط GitHub وNotion وقواعد بياناتك"), Icon: PlugIcon },
   { id: "usage", label: t("التكلفة"), hint: t("الصرف اليومي والشهري وحدوده"), Icon: WalletIcon },
+  { id: "logs", label: t("السجلات"), hint: t("شو كتب رفيق وخوادم MCP — لما شي ما يشتغل"), Icon: TerminalIcon },
 ];
 
 export function SettingsPage() {
@@ -374,6 +376,7 @@ export function SettingsPage() {
               {tab === "web" && <WebSettings settings={settings} persist={persist} />}
               {tab === "mcp" && <McpSettings />}
               {tab === "usage" && <UsageSettings settings={settings} persist={persist} />}
+              {tab === "logs" && <LogsSettings />}
               {tab === "permissions" && (
                 <>
                   <section className="mb-8">

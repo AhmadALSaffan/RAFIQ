@@ -32,6 +32,25 @@ class UsageSummary(BaseModel):
     by_day: list[UsageDay]
 
 
+class LogInfo(BaseModel):
+    """One log file: the agent's, or an MCP server's stderr."""
+
+    id: str
+    name: str
+    kind: str  # agent | mcp
+    size: int
+    modified: datetime
+
+
+class LogOut(LogInfo):
+    # The tail of the file, scrubbed of anything secret (core/logs.py).
+    text: str
+    lines: int
+    # Earlier lines exist that weren't sent.
+    truncated: bool
+    path: str
+
+
 class Diagnostics(BaseModel):
     """Everything useful for a bug report and nothing secret — see api/insights.py."""
 

@@ -1,9 +1,9 @@
-/** Spending and the diagnostics report. */
+/** Spending, the diagnostics report, and the logs. */
 
 import { request } from "./client";
 import { getApiConfig } from "../config";
 import { locale } from "../../i18n";
-import type { Diagnostics, UsageSummary } from "../types";
+import type { Diagnostics, LogInfo, LogOut, UsageSummary } from "../types";
 
 export async function getUsage(days = 30): Promise<UsageSummary> {
   return request<UsageSummary>(`/usage?days=${days}`);
@@ -11,6 +11,15 @@ export async function getUsage(days = 30): Promise<UsageSummary> {
 
 export async function getDiagnostics(): Promise<Diagnostics> {
   return request<Diagnostics>("/diagnostics");
+}
+
+export async function listLogs(): Promise<LogInfo[]> {
+  return request<LogInfo[]>("/logs");
+}
+
+/** The last `lines` lines of one log — secrets already masked by the agent. */
+export async function readLog(id: string, lines = 500): Promise<LogOut> {
+  return request<LogOut>(`/logs/${encodeURIComponent(id)}?lines=${lines}`);
 }
 
 /** Sends a recording and gets the text back (the key comes from an agent already set up). */

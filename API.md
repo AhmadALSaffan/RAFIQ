@@ -49,6 +49,7 @@ Full list at `/docs`; the ones scripts usually want:
 |---|---|
 | `GET /health` | Is the agent up (no token needed) |
 | `GET /diagnostics` | Version, settings, model providers — nothing secret |
+| `GET /logs` · `GET /logs/{id}?lines=` | The agent's log and each MCP server's, as a tail; keys, tokens and passwords are masked before they leave |
 | `GET/POST /models` · `POST /models/{id}/test` | Configured models |
 | `GET/POST /tasks` · `GET /tasks/{id}` · `POST /tasks/{id}/cancel` | Tasks. `POST` takes `title, prompt, model_id, working_dir?, mode? (auto·plan·step), workspace_id?` |
 | `POST /tasks/{id}/plan/approve` `{plan?}` · `POST /tasks/{id}/plan/reject` | Plan-first tasks |

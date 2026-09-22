@@ -474,6 +474,24 @@ export interface UsageSummary {
 }
 
 /** The bug report — see the agent's api/insights.py; carries nothing secret. */
+/** A log file the agent can show: its own, or one MCP server's. */
+export interface LogInfo {
+  id: string;
+  name: string;
+  kind: "agent" | "mcp";
+  size: number;
+  modified: string;
+}
+
+/** The tail of a log, already scrubbed of secrets by the agent. */
+export interface LogOut extends LogInfo {
+  text: string;
+  lines: number;
+  /** Older lines exist that weren't sent. */
+  truncated: boolean;
+  path: string;
+}
+
 export interface Diagnostics {
   generated_at: string;
   version: string;

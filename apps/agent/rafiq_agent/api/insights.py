@@ -1,25 +1,38 @@
-"""What the app spent, and a report to send when something goes wrong.
+"""What the app spent, a report to send when something goes wrong, and the logs.
 
-Both read-only. The diagnostics report is built here rather than in the UI so it can be
+All read-only. The diagnostics report is built here rather than in the UI so it can be
 checked in one place that nothing secret gets in: keys, tokens, account labels and file
-contents never appear — only counts, names and settings.
+contents never appear — only counts, names and settings. The logs go through the same
+door: every line is scrubbed of secrets before it leaves (core/logs.py).
 """
 
 import platform
 import sys
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
 from rafiq_agent.api.settings import SETTINGS_KEY
+from rafiq_agent.core import logs
+from rafiq_agent.i18n import tr
 from rafiq_agent.llm import usage
-from rafiq_agent.schemas.insights import Diagnostics, UsageByModel, UsageDay, UsageSummary
+from rafiq_agent.schemas.insights import Diagnostics, LogInfo, LogOut, UsageByModel, UsageDay, UsageSummary
 from rafiq_agent.schemas.settings import AppSettings
 from rafiq_agent.storage.db import get_session
-from rafiq_agent.storage.models import Chat, LlmModel, McpServer, Schedule, SettingsRow, Task, UsageRecord
+from rafiq_agent.storage.models import (
+    AuthAccount,
+    Chat,
+    IntegrationAccount,
+    LlmModel,
+    McpServer,
+    Schedule,
+    SettingsRow,
+    Task,
+    UsageRecord,
+)
 
 router = APIRouter(tags=["insights"], dependencies=[Depends(require_token)])
 
@@ -150,4 +163,79 @@ async def diagnostics(session: AsyncSession = Depends(get_session)) -> Diagnosti
             for f in failed
         ],
         usage=usage.totals(),
+    )
+
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+
+
+async def _server_names(session: AsyncSession) -> dict[str, str]:
+    from rafiq_agent.mcp_bridge import slug
+
+    servers = (await session.execute(select(McpServer))).scalars().all()
+    return {slug(s.name): s.name for s in servers}
+
+
+async def _known_secrets(session: AsyncSession) -> list[str]:
+    """Every secret Rafiq holds, so each can be masked exactly wherever a log repeats it.
+    Read from the credential store here and dropped when the request ends."""
+    import contextlib
+    import json
+
+    from rafiq_agent.config import AUTH_TOKEN
+    from rafiq_agent.mcp_bridge import load_secrets
+    from rafiq_agent.mcp_oauth import secret_name as oauth_secret_name
+    from rafiq_agent.storage.secrets import get_api_key, get_named_secret
+
+    found: list[str | None] = [AUTH_TOKEN]
+    refs = [m.api_key_ref for m in (await session.execute(select(LlmModel))).scalars()]
+    refs += [i.secret_ref for i in (await session.execute(select(IntegrationAccount))).scalars()]
+    refs += [a.secret_ref for a in (await session.execute(select(AuthAccount))).scalars()]
+    for ref in refs:
+        if ref:
+            with contextlib.suppress(Exception):
+                found.append(get_api_key(ref))
+    for server in (await session.execute(select(McpServer))).scalars():
+        with contextlib.suppress(Exception):
+            saved = load_secrets(server.id)
+            found += list(saved["env"].values()) + list(saved["headers"].values())
+        with contextlib.suppress(Exception):
+            oauth = json.loads(get_named_secret(oauth_secret_name(server.id)) or "{}")
+            found += [(oauth.get("tokens") or {}).get(k) for k in ("access_token", "refresh_token")]
+            found.append((oauth.get("client") or {}).get("client_secret"))
+    return [s for s in found if isinstance(s, str) and s]
+
+
+@router.get("/logs", response_model=list[LogInfo])
+async def list_logs(session: AsyncSession = Depends(get_session)) -> list[LogInfo]:
+    return [
+        LogInfo(id=log.id, name=log.name, kind=log.kind, size=log.size, modified=log.modified)
+        for log in logs.list_logs(await _server_names(session))
+    ]
+
+
+@router.get("/logs/{log_id}", response_model=LogOut)
+async def read_log(
+    log_id: str,
+    lines: int = Query(logs.DEFAULT_LINES, ge=1, le=logs.MAX_LINES),
+    session: AsyncSession = Depends(get_session),
+) -> LogOut:
+    log = logs.find(log_id, await _server_names(session))
+    if log is None:
+        raise HTTPException(status_code=404, detail=tr("ما لقيت هالسجل."))
+    try:
+        text, truncated = logs.tail(log.path, lines)
+    except OSError as exc:
+        raise HTTPException(status_code=409, detail=tr("ما قدرت أقرأ السجل: {0}", exc.strerror or str(exc))) from exc
+    text = logs.redact(text, await _known_secrets(session))
+    return LogOut(
+        id=log.id,
+        name=log.name,
+        kind=log.kind,
+        size=log.size,
+        modified=log.modified,
+        text=text,
+        lines=len(text.splitlines()),
+        truncated=truncated,
+        path=str(log.path),
     )
