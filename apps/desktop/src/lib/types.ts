@@ -375,6 +375,36 @@ export interface AppSettings {
   token_saver: boolean;
 }
 
+/** What a backup holds, read from its manifest (see agent core/backup.py). */
+export interface BackupCounts {
+  chats: number;
+  messages: number;
+  tasks: number;
+  models: number;
+  memories: number;
+  skills: number;
+  attachments: number;
+}
+
+export interface BackupManifest {
+  version: string;
+  created_at: string;
+  counts: BackupCounts;
+}
+
+export interface BackupSaved {
+  path: string;
+  manifest: BackupManifest;
+}
+
+export interface RestoreResult {
+  manifest: BackupManifest;
+  /** Where the data that was replaced went — restoring it undoes the restore. */
+  safety_copy: string;
+  /** Models and connections whose key this computer doesn't have (backups carry no secrets). */
+  missing_secrets: number;
+}
+
 /** Something the user asked Rafiq to remember — shown to every chat and task. */
 export interface Memory {
   id: string;

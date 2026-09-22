@@ -90,6 +90,11 @@ def active_turn(chat_id: str) -> "ChatTurn | None":
     return _turns.get(chat_id)
 
 
+def turns_running() -> bool:
+    """Is any chat writing a reply right now? (Restoring a backup waits for none.)"""
+    return bool(_turns)
+
+
 def stop_turn(chat_id: str) -> bool:
     """Stops the reply being written in this chat. Returns whether there was one."""
     turn = _turns.get(chat_id)

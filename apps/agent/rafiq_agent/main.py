@@ -11,6 +11,7 @@ from rafiq_agent.api.accounts import router as accounts_router
 from rafiq_agent.api.attachments import router as attachments_router
 from rafiq_agent.api.automation import oauth_callback_router as mcp_oauth_callback_router
 from rafiq_agent.api.automation import router as automation_router
+from rafiq_agent.api.backup import router as backup_router
 from rafiq_agent.api.chats import router as chats_router
 from rafiq_agent.api.designs import router as designs_router
 from rafiq_agent.api.files import router as files_router
@@ -157,6 +158,7 @@ app.include_router(insights_router)
 app.include_router(voice_router)
 app.include_router(memory_router)
 app.include_router(workspaces_router)
+app.include_router(backup_router)
 
 
 # AuthAI's own settings routes — mounted only if the experimental module loads.

@@ -188,6 +188,10 @@ class TaskManager:
     def is_running(self, task_id: str) -> bool:
         return task_id in self._running
 
+    def busy(self) -> bool:
+        """Any task running or waiting its turn."""
+        return bool(self._running or self._waiting)
+
     def reschedule(self) -> None:
         """Look at the waiting tasks again (e.g. the parallel limit changed)."""
         self._poke()

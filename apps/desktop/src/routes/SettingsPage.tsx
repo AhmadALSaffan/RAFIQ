@@ -13,6 +13,7 @@ import { BackgroundSettings, TasksSettings, WebSettings } from "../features/sett
 import { McpSettings } from "../features/settings/mcp";
 import { MemorySettings } from "../features/settings/memory";
 import { UsageSettings } from "../features/settings/usage";
+import { BackupSection } from "../features/settings/backup";
 import { listContainer, listItem, snappy } from "../lib/motion";
 import type { AppSettings, PermissionKey, PermissionMode } from "../lib/types";
 import { usePageMenu } from "../components/ContextMenu";
@@ -363,6 +364,7 @@ export function SettingsPage() {
                   <LanguageSection />
                   <LayoutSection />
                   <StorageSection />
+                  <BackupSection />
                   <BackgroundSettings settings={settings} persist={persist} />
                 </>
               )}

@@ -275,6 +275,16 @@ export function DownloadIcon({ className, style }: IconProps) {
   );
 }
 
+export function UploadIcon({ className, style }: IconProps) {
+  return (
+    <svg {...base} className={className} style={style}>
+      <path d="M12 16V4" />
+      <path d="m7 8 5-5 5 5" />
+      <path d="M4 20h16" />
+    </svg>
+  );
+}
+
 export function HelpIcon({ className, style }: IconProps) {
   return (
     <svg {...base} className={className} style={style}>

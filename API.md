@@ -64,10 +64,11 @@ Full list at `/docs`; the ones scripts usually want:
 | `GET /mcp` · `GET /mcp/requirements` · `POST /mcp/{id}/test` · `POST /mcp/{id}/connect` · `POST /mcp/{id}/logout` | MCP servers. `connect` on an OAuth server returns `authorize_url` to open; the browser lands on `GET /mcp/oauth/callback` (no token needed) |
 | `GET /skills` · `POST /skills` · `POST /skills/install {url}` · `DELETE /skills/{name}` | Skills |
 | `GET/PUT /settings` | App settings, including the permission policy |
+| `POST /backup/save {path}` · `POST /backup/inspect {path}` · `POST /backup/restore-file {path}` · `GET /backup` · `POST /backup/restore` (upload) | One zip with the database, skills and attachments — never a secret. Restoring refuses while anything is running and keeps a copy of what it replaced |
 
 The SSE stream from `POST /chats/{id}/messages` sends `data: {"type": …}` lines:
 `start`, `delta` (text), `reasoning`, `tool_call`, `tool_result`, `permission`,
-`permission_resolved`, `task_created`, `error`, `stopped`, `done`.
+`permission_resolved`, `task_created`, `usage` (what the reply cost), `error`, `stopped`, `done`.
 
 ## Rules
 
