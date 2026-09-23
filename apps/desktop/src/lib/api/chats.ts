@@ -3,16 +3,14 @@ import { locale } from "../../i18n";
 
 import { getApiConfig } from "../config";
 import { request } from "./client";
-import type {
-  ChatDetail,
-  ChatMessage,
-  ChatSummary,
-  ReplySettings,
-  Resolution,
-  SummarizeResult,
-  TaskStatus,
-  ToolCall,
-} from "../types";
+import type { ChatDetail, ChatMessage, ChatSearchResult, ChatSummary, ReplySettings, Resolution, SummarizeResult, TaskStatus, ToolCall } from "../types";
+
+/** Chats whose messages or titles hold every word of `q`; Arabic is folded on the agent. */
+export async function searchChats(q: string, workspaceId?: string | null, signal?: AbortSignal): Promise<ChatSearchResult[]> {
+  const params = new URLSearchParams({ q });
+  if (workspaceId) params.set("workspace_id", workspaceId);
+  return request<ChatSearchResult[]>(`/chats/search?${params}`, { signal });
+}
 
 export async function listChats(workspaceId?: string | null): Promise<ChatSummary[]> {
   const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : "";

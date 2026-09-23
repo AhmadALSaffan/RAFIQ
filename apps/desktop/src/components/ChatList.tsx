@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { ChatSummary, LlmModel } from "../lib/types";
+import type { ChatSearchResult, ChatSummary, LlmModel } from "../lib/types";
+import { searchChats } from "../lib/api";
 import { easeOutExpo, snappy } from "../lib/motion";
 import { timeAgo } from "../lib/time";
 import { folderName } from "../lib/folders";
@@ -26,6 +27,66 @@ function bucketOf(chat: ChatSummary, now: number): string {
 
 const ORDER = [t("مثبّتة"), t("اليوم"), t("أمس"), t("آخر ٧ أيام"), t("آخر ٣٠ يوم"), t("أقدم")];
 
+// From two characters on, the search looks inside every message (on the agent); one
+// character only narrows the titles already on screen.
+const DEEP_SEARCH_FROM = 2;
+const DEBOUNCE_MS = 220;
+
+/** Looks inside the messages as the user types; the newest query wins, older ones are dropped. */
+function useChatSearch(query: string, workspaceId?: string | null, refreshKey?: unknown) {
+  const [results, setResults] = useState<ChatSearchResult[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const q = query.trim();
+  const deep = q.length >= DEEP_SEARCH_FROM;
+
+  useEffect(() => {
+    if (!deep) {
+      setResults(null);
+      setSearching(false);
+      return;
+    }
+    const controller = new AbortController();
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      searchChats(q, workspaceId, controller.signal)
+        .then((found) => setResults(found))
+        .catch((e: unknown) => {
+          if ((e as { name?: string })?.name !== "AbortError") setResults([]);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setSearching(false);
+        });
+    }, DEBOUNCE_MS);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [q, deep, workspaceId, refreshKey]);
+
+  return { deep, results, searching };
+}
+
+/** The snippet with the matched words marked. */
+function Marked({ text, marks }: { text: string; marks: [number, number][] }) {
+  const pieces: React.ReactNode[] = [];
+  let at = 0;
+  marks.forEach(([start, end], i) => {
+    if (start > at) pieces.push(text.slice(at, start));
+    pieces.push(
+      <mark
+        key={i}
+        className="rounded-[3px] px-px"
+        style={{ background: "color-mix(in oklch, var(--color-accent) 32%, transparent)", color: "var(--color-ink)" }}
+      >
+        {text.slice(start, end)}
+      </mark>,
+    );
+    at = end;
+  });
+  if (at < text.length) pieces.push(text.slice(at));
+  return <>{pieces}</>;
+}
+
 export function ChatList({
   chats,
   models,
@@ -38,20 +99,26 @@ export function ChatList({
   onPin,
   className = "",
   width,
+  workspaceId,
 }: {
   chats: ChatSummary[];
   models: LlmModel[];
   activeId?: string;
   loading?: boolean;
   onNew: () => void;
-  onOpen: (id: string) => void;
+  /** `messageId` when opened from a search result: the chat opens at that message. */
+  onOpen: (id: string, messageId?: string) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onPin: (id: string, pinned: boolean) => void;
   className?: string;
   width?: number;
+  /** Search the same chats the list shows. */
+  workspaceId?: string | null;
 }) {
   const [query, setQuery] = useState("");
+  // A new or deleted chat changes what a search should find, so it searches again.
+  const { deep, results, searching } = useChatSearch(query, workspaceId, chats.length);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
 
@@ -86,7 +153,9 @@ export function ChatList({
           <input
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
-            placeholder={t("دوّر بمحادثاتك…")}
+            onKeyDown={(e) => e.key === "Escape" && setQuery("")}
+            placeholder={t("دوّر بالعناوين والرسائل…")}
+            aria-label={t("دوّر بالعناوين والرسائل…")}
             className="w-full bg-transparent py-1.5 text-xs outline-none"
             style={{ color: "var(--color-ink)" }}
             dir={fieldDir(query)}
@@ -118,7 +187,17 @@ export function ChatList({
           </div>
         )}
 
-        {groups.map((group) => (
+        {deep && (
+          <SearchResults
+            query={query.trim()}
+            results={results}
+            searching={searching}
+            activeId={activeId}
+            onOpen={onOpen}
+          />
+        )}
+
+        {!deep && groups.map((group) => (
           <section key={group.name}>
             <h3
               className="sticky top-0 z-10 px-2 py-1.5 text-[11px] font-medium backdrop-blur"
@@ -164,13 +243,113 @@ export function ChatList({
             {t("ابدأ وحدة واسأل رفيق أي شي.")}
           </p>
         )}
-        {!loading && chats.length > 0 && groups.length === 0 && (
+        {!deep && !loading && chats.length > 0 && groups.length === 0 && (
           <p className="px-3 py-8 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
             {t("ما في محادثة بهالاسم.")}
           </p>
         )}
       </div>
     </aside>
+  );
+}
+
+function SearchResults({
+  query,
+  results,
+  searching,
+  activeId,
+  onOpen,
+}: {
+  query: string;
+  results: ChatSearchResult[] | null;
+  searching: boolean;
+  activeId?: string;
+  onOpen: (id: string, messageId?: string) => void;
+}) {
+  const muted = { color: "var(--color-ink-muted)" };
+  return (
+    <section aria-live="polite">
+      <h3
+        className="sticky top-0 z-10 flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-medium backdrop-blur"
+        style={{ ...muted, background: "color-mix(in oklch, var(--color-bg) 85%, transparent)" }}
+      >
+        {t("نتائج البحث")}
+        {results && <span className="tabular-nums opacity-60">{results.length}</span>}
+        {searching && (
+          <motion.span
+            className="ms-auto h-1.5 w-1.5 rounded-full"
+            style={{ background: "var(--color-accent)" }}
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+            aria-label={t("عم يدوّر…")}
+          />
+        )}
+      </h3>
+
+      {results === null && searching && (
+        <div className="flex flex-col gap-2 px-1 pt-1">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="shimmer h-14 rounded-lg" />
+          ))}
+        </div>
+      )}
+
+      {results && results.length === 0 && !searching && (
+        <p className="px-3 py-8 text-center text-xs leading-relaxed" style={muted}>
+          {t("ما لقيت شي بـ «{0}».", { 0: query })}
+        </p>
+      )}
+
+      <ul>
+        <AnimatePresence initial={false}>
+          {results?.map((r, i) => (
+            <motion.li
+              key={r.chat_id}
+              layout="position"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0, transition: { duration: 0.2, delay: Math.min(i, 8) * 0.02, ease: easeOutExpo } }}
+              exit={{ opacity: 0, transition: { duration: 0.12 } }}
+            >
+              <button
+                onClick={() => onOpen(r.chat_id, r.snippet?.message_id)}
+                className="flex w-full flex-col items-start gap-1 rounded-lg px-3 py-2 text-start transition-colors hover:bg-[var(--color-surface)]"
+                style={r.chat_id === activeId ? { background: "var(--color-surface-2)" } : undefined}
+              >
+                <span className="flex w-full items-center gap-1.5">
+                  {r.pinned && <PinIcon className="h-3 w-3 shrink-0" style={{ color: "var(--color-accent)" }} />}
+                  <span className="min-w-0 flex-1 truncate text-sm" dir="auto">
+                    <TokenText text={r.title} />
+                  </span>
+                </span>
+                {r.snippet && (
+                  <span className="line-clamp-2 text-[12px] leading-relaxed" dir="auto" style={muted}>
+                    <span className="font-medium" style={{ color: "var(--color-ink)" }}>
+                      {r.snippet.role === "user" ? t("إنت:") : t("رفيق:")}{" "}
+                    </span>
+                    <Marked text={r.snippet.text} marks={r.snippet.marks} />
+                  </span>
+                )}
+                <span className="flex items-center gap-1.5 text-[11px]" style={muted}>
+                  <span>{timeAgo(r.updated_at)}</span>
+                  {r.matches > 0 && (
+                    <>
+                      <span className="opacity-50">·</span>
+                      <span className="tabular-nums">{t("{0} نتيجة", { 0: r.matches })}</span>
+                    </>
+                  )}
+                  {r.title_match && (
+                    <>
+                      <span className="opacity-50">·</span>
+                      <span>{t("بالعنوان")}</span>
+                    </>
+                  )}
+                </span>
+              </button>
+            </motion.li>
+          ))}
+        </AnimatePresence>
+      </ul>
+    </section>
   );
 }
 

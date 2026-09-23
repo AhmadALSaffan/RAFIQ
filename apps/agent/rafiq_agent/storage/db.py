@@ -59,9 +59,14 @@ async def _add_missing_columns(conn: AsyncConnection) -> None:
 
 
 async def init_db() -> None:
+    from rafiq_agent.core.search import create_index
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await _add_missing_columns(conn)
+        # The full-text index for chat search (core/search.py). It fills itself in on the
+        # first search, so a database from before it existed needs nothing more.
+        await create_index(conn)
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:

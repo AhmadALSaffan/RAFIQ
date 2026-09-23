@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
   attachChatStream,
@@ -256,6 +256,34 @@ export function ChatPage({
   useLayoutEffect(() => {
     if (stickRef.current) scrollToBottom();
   }, [messages, draft, scrollToBottom]);
+
+  // Opened from a search result (`?m=<message id>`): once that message is on screen, stop
+  // following the bottom, bring it to the middle, and light it up for a moment. The id then
+  // leaves the URL, so going back or reloading doesn't jump again.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const jumpTo = searchParams.get("m");
+  const [flash, setFlash] = useState<string | null>(null);
+  useEffect(() => {
+    if (!jumpTo || loadingChat || !messages.some((m) => m.id === jumpTo)) return;
+    const target = scrollRef.current?.querySelector(`[data-message-id="${CSS.escape(jumpTo)}"]`);
+    if (target) {
+      unstick();
+      requestAnimationFrame(() => target.scrollIntoView({ block: "center", behavior: "smooth" }));
+      setFlash(jumpTo);
+    }
+    setSearchParams(
+      (params) => {
+        params.delete("m");
+        return params;
+      },
+      { replace: true },
+    );
+  }, [jumpTo, loadingChat, messages, unstick, setSearchParams]);
+  useEffect(() => {
+    if (!flash) return;
+    const timer = window.setTimeout(() => setFlash(null), 2200);
+    return () => window.clearTimeout(timer);
+  }, [flash]);
 
   // Cards opening, code blocks growing, images loading: keep the bottom in view as it moves,
   // rather than snapping to it on the next event.
@@ -629,10 +657,12 @@ export function ChatPage({
       setListOpen(false);
       navigate("/chat");
     },
-    onOpen: (id: string) => {
+    // A search result opens the chat at the message that matched.
+    onOpen: (id: string, messageId?: string) => {
       setListOpen(false);
-      navigate(`/chat/${id}`);
+      navigate(messageId ? `/chat/${id}?m=${encodeURIComponent(messageId)}` : `/chat/${id}`);
     },
+    workspaceId,
     onDelete: removeChat,
     onRename: rename,
     onPin: pin,
@@ -738,13 +768,24 @@ export function ChatPage({
                 {messages.map((m, i) => (
                   <div key={m.id} className="flex flex-col gap-6">
                     {startsNewDay(messages[i - 1], m) && <DayDivider iso={m.created_at} />}
-                    <MessageView
-                      message={m}
-                      model={models.find((x) => x.id === m.model_id) ?? undefined}
-                      onOpenTask={(id) => navigate(`/tasks/${id}`)}
-                      onEdit={streaming ? undefined : editMessage}
-                      onFork={streaming ? undefined : forkFrom}
-                    />
+                    {/* Where a search result lands; lit up for a moment when it does. */}
+                    <div
+                      data-message-id={m.id}
+                      className="flex flex-col rounded-2xl transition-[outline-color] duration-700"
+                      style={{
+                        outline: "2px solid",
+                        outlineOffset: 8,
+                        outlineColor: flash === m.id ? "color-mix(in oklch, var(--color-accent) 60%, transparent)" : "transparent",
+                      }}
+                    >
+                      <MessageView
+                        message={m}
+                        model={models.find((x) => x.id === m.model_id) ?? undefined}
+                        onOpenTask={(id) => navigate(`/tasks/${id}`)}
+                        onEdit={streaming ? undefined : editMessage}
+                        onFork={streaming ? undefined : forkFrom}
+                      />
+                    </div>
                     {current?.summary_until === m.id && current.summary && <SummaryDivider summary={current.summary} />}
                   </div>
                 ))}

@@ -113,6 +113,27 @@ class ChatSummaryOut(BaseModel):
         return value or DEFAULT_REPLY_SETTINGS
 
 
+class SearchSnippetOut(BaseModel):
+    message_id: str
+    role: str
+    text: str
+    # [start, end) of each matched word inside `text`.
+    marks: list[tuple[int, int]]
+
+
+class ChatSearchOut(BaseModel):
+    """One chat that matched a search: why, and the best place it matched."""
+
+    chat_id: str
+    title: str
+    updated_at: datetime
+    pinned: bool
+    title_match: bool
+    # Messages in this chat containing every word of the search (up to the search's cap).
+    matches: int
+    snippet: SearchSnippetOut | None = None
+
+
 class ChatDetailOut(ChatSummaryOut):
     messages: list[ChatMessageOut] = []
 

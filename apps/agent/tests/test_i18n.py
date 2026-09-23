@@ -52,6 +52,8 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     # Character-class regexes, not text.
     "core/export_html.py": {"_is_arabic"},
     "skills/install.py": {"_SAFE_NAME"},
+    # Letter tables and prefix regexes for folding Arabic in search; it shows no text.
+    "core/search.py": "*",
 }
 
 

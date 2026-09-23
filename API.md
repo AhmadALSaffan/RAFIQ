@@ -57,6 +57,7 @@ Full list at `/docs`; the ones scripts usually want:
 | `GET /tasks/{id}/changes` · `…/apply` · `…/revert` · `…/describe` · `…/commit {message}` | A task's git changes |
 | `WS /tasks/{id}/stream?token=` | Live transcript |
 | `GET/POST /chats` · `POST /chats/{id}/messages` (SSE) · `GET /chats/{id}/export?format=html|md` | Chats |
+| `GET /chats/search?q=&workspace_id=` | Chats whose messages or titles hold every word — Arabic folded (harakat, hamza forms, the article). Each result carries a snippet with the matched words marked |
 | `GET /designs/{id}/documents` · `GET /designs/{id}/documents/read?path=` | What a design's preview can open: its own documents and the HTML files in its folder |
 | `GET/POST/PATCH/DELETE /memories` | What Rafiq remembers |
 | `GET/POST/PUT/DELETE /workspaces` | Workspaces (folder, model, instructions) |

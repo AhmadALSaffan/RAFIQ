@@ -201,6 +201,19 @@ export interface TurnUsage {
   cost_usd: number;
 }
 
+/** A chat that matched a search inside chats (agent core/search.py). */
+export interface ChatSearchResult {
+  chat_id: string;
+  title: string;
+  updated_at: string;
+  pinned: boolean;
+  title_match: boolean;
+  /** Messages in this chat containing every word of the search. */
+  matches: number;
+  /** The best matching message, cut around the match; `marks` are [start, end) in `text`. */
+  snippet: { message_id: string; role: string; text: string; marks: [number, number][] } | null;
+}
+
 export interface ChatSummary {
   id: string;
   title: string;

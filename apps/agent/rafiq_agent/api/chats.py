@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from rafiq_agent.api.deps import require_token
+from rafiq_agent.core import search as chat_search
 from rafiq_agent.core.agent_runtime import load_settings
 from rafiq_agent.core.chat_service import (
     ChatError,
@@ -34,9 +35,11 @@ from rafiq_agent.schemas.chats import (
     ChatCreate,
     ChatDetailOut,
     ChatFork,
+    ChatSearchOut,
     ChatSummaryOut,
     ChatUpdate,
     MessageCreate,
+    SearchSnippetOut,
     SummarizeIn,
     SummarizeOut,
 )
@@ -88,6 +91,34 @@ async def list_chats(
         summary.streaming = active_turn(chat.id) is not None
         out.append(summary)
     return out
+
+
+@router.get("/search", response_model=list[ChatSearchOut])
+async def search_chats(
+    q: str = Query("", max_length=200),
+    workspace_id: str | None = Query(None),
+    limit: int = Query(30, ge=1, le=100),
+    session: AsyncSession = Depends(get_session),
+) -> list[ChatSearchOut]:
+    """Chats whose messages or titles contain every word of `q` — Arabic folded so harakat,
+    hamza forms and the article don't get in the way (core/search.py)."""
+    results = await chat_search.search(session, q, workspace_id, limit)
+    return [
+        ChatSearchOut(
+            chat_id=r.chat_id,
+            title=r.title,
+            updated_at=r.updated_at,
+            pinned=r.pinned,
+            title_match=r.title_match,
+            matches=r.matches,
+            snippet=SearchSnippetOut(
+                message_id=r.snippet.message_id, role=r.snippet.role, text=r.snippet.text, marks=r.snippet.marks
+            )
+            if r.snippet
+            else None,
+        )
+        for r in results
+    ]
 
 
 @router.post("", response_model=ChatDetailOut, status_code=201)
