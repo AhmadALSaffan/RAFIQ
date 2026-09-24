@@ -83,7 +83,7 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 ## Features
 
 - 💬 **Chat** — Stream replies from any connected model with Markdown, image and file attachments, `@` to reference files in the chat's folder, `#` to mention your tracker issues, and `/` commands to adjust reply length, language, temperature, and reasoning
-- 🗜️ **Token control** — Rafiq describes only the tools a chat can actually use, names its skills instead of shipping the whole catalogue, caps every reply, reads files in pages, and folds long chats into a summary. A default chat's fixed overhead dropped from ~13,700 characters per message to ~5,600, and **economy mode** takes it to ~300. Every reply shows what it cost. See [docs/TOKENS.md](docs/TOKENS.md)
+- 🗜️ **Token control** — Rafiq describes only the tools a chat can actually use, caps every reply, reads files in pages, and folds long chats into a summary. **Save tokens** (Settings → Cost, or per chat) names the skills instead of describing every one — ~8,200 characters of fixed overhead per message instead of ~13,600 — and **economy mode** takes it to ~160. Every reply shows what it cost. See [docs/TOKENS.md](docs/TOKENS.md)
 - 🗂️ **Parallel tasks** — Hand off jobs and Rafiq works through them in the folders you pick, up to 100 at once (you set the limit). Tasks that would edit the same files take turns, and a task can wait for the ones it depends on. Each has live progress, re-run, and a full step-by-step transcript
 - 🧩 **Plans → tasks** — Send a plan in chat and the model splits it into tasks, shows their live status in the chat, waits for them to finish, and replies with the results
 - 🔁 **Replies that keep going** — Leave a chat mid-reply and the reply keeps being written; come back and it picks up live where it is
@@ -94,6 +94,10 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 - 🧠 **Memory across chats** — “Remember that I…” and Rafiq keeps it (behind its own permission, so you see what's saved); every later chat and task knows it, and Settings lets you edit or delete anything
 - 🗂️ **Workspaces** — A project's folder, default model and standing instructions in one place; switch workspace and chats, tasks and designs filter to it
 - 📤 **Share a chat** — Export any chat as a single self-contained HTML page (light and dark, tool cards included) or as Markdown
+- 🔎 **Search inside your chats** — The box above the chat list looks through every message, not just titles, with Arabic folded the way people write it (harakat, hamza forms, «ال», a leading «و» or «ب»): a line from the matching message with the words marked, and one click opens the chat at that message
+- 🗄️ **Archive** — Move a chat out of the list without deleting it; search still finds it, and writing in it brings it back
+- 💾 **Backup and restore** — Settings → General saves chats, tasks, settings, models, memory, skills and attachments in one zip — never a key — and restores it after showing what's inside, keeping a copy of what it replaces
+- 📜 **Logs in the app** — Rafiq's own log and each MCP server's, with a filter, copy and live refresh; keys, tokens and passwords are masked before they reach the screen
 - 🧩 **Skills you install** — Paste a GitHub repository, a folder in one, a raw `SKILL.md` or a zip and it becomes a skill; skills can bring their own `/` commands, announced when they land. Two bundled design skills (`design-taste`, Vercel's `web-interface-guidelines`) keep generated UI from looking generated
 - ⌨️ **`rafiq` on the command line** — `rafiq task "…" --wait`, `rafiq chat "…"`, `rafiq tasks`, `rafiq approve` — from any terminal while the app runs (see `API.md`)
 - 📌 **Project instructions** — Put a `RAFIQ.md` (or `AGENTS.md`) in a project and every chat and task there reads it first: build commands, conventions, what not to touch
@@ -162,7 +166,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.4.0_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.4.1_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)
