@@ -6,7 +6,8 @@ requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.32",
-  "sqlalchemy>=2.0",
+  # The async engine needs greenlet, which SQLAlchemy 2.1 only installs with this extra.
+  "sqlalchemy[asyncio]>=2.0",
   "aiosqlite>=0.20",
   "pydantic>=2.9",
   "keyring>=25.5",
