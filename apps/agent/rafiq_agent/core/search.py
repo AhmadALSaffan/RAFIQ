@@ -181,6 +181,7 @@ class Result:
     title_match: bool
     matches: int
     snippet: Snippet | None = None
+    archived: bool = False
     rank: float = 0.0
     _best: str | None = field(default=None, repr=False)
 
@@ -288,7 +289,7 @@ async def search(
     results: dict[str, Result] = {}
     chats = (
         await session.execute(
-            text(f"SELECT c.id, c.title, c.updated_at, c.pinned FROM chats c WHERE {scope}"),
+            text(f"SELECT c.id, c.title, c.updated_at, c.pinned, c.archived_at FROM chats c WHERE {scope}"),
             params,
         )
     ).all()
@@ -301,24 +302,27 @@ async def search(
         result = results.get(chat_id)
         if result is None:
             result = results[chat_id] = Result(
-                chat_id, row[1], _as_datetime(row[2]), bool(row[3]), False, 0, rank=rank, _best=message_id
+                chat_id, row[1], _as_datetime(row[2]), bool(row[3]), False, 0,
+                rank=rank, archived=row[4] is not None, _best=message_id,
             )
         result.matches += 1
 
     # Titles count too: a chat can be found by its name alone.
-    for chat_id, title, updated_at, pinned in chats:
+    for chat_id, title, updated_at, pinned, archived_at in chats:
         title_words = [f for w in _WORD.findall(fold(title or "")[0]) for f in _index_forms(w)]
         if all(any(tw.startswith(f) for tw in title_words for f in forms) for forms in groups):
             result = results.get(chat_id)
             if result is None:
                 result = results[chat_id] = Result(
-                    chat_id, title, _as_datetime(updated_at), bool(pinned), True, 0, rank=0.0
+                    chat_id, title, _as_datetime(updated_at), bool(pinned), True, 0,
+                    rank=0.0, archived=archived_at is not None,
                 )
             result.title_match = True
 
+    # Archived chats are found too, after the ones still in use at the same level of match.
     ordered = sorted(
         results.values(),
-        key=lambda r: (not r.title_match, r.rank if r.matches else 0.0, -r.updated_at.timestamp()),
+        key=lambda r: (not r.title_match, r.archived, r.rank if r.matches else 0.0, -r.updated_at.timestamp()),
     )[:limit]
 
     best_ids = [r._best for r in ordered if r._best]

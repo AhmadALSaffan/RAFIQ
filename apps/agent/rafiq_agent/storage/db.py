@@ -42,6 +42,7 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "pinned": "BOOLEAN DEFAULT 0",
         "mode": "VARCHAR DEFAULT 'chat'",
         "workspace_id": "VARCHAR",
+        "archived_at": "DATETIME",
     },
     "chat_messages": {"parts": "JSON", "attachments": "JSON"},
     "designs": {"working_dir": "VARCHAR", "saved_path": "VARCHAR", "workspace_id": "VARCHAR", "files": "JSON"},

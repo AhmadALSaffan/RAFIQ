@@ -59,6 +59,9 @@ class ChatUpdate(BaseModel):
     title: str | None = None
     model_id: str | None = None
     pinned: bool | None = None
+    # True archives the chat (and unpins it: a pinned chat nobody sees is a contradiction);
+    # False brings it back to the list.
+    archived: bool | None = None
     working_dir: str | None = None  # "" clears the folder
     settings: ReplySettings | None = None
 
@@ -98,6 +101,7 @@ class ChatSummaryOut(BaseModel):
     summary: str | None = None
     summary_until: str | None = None
     pinned: bool = False
+    archived_at: datetime | None = None
     message_count: int = 0
     # A reply is being written right now (the page can reattach to it).
     streaming: bool = False
@@ -129,6 +133,8 @@ class ChatSearchOut(BaseModel):
     updated_at: datetime
     pinned: bool
     title_match: bool
+    # Archived chats are still found; the list marks them.
+    archived: bool = False
     # Messages in this chat containing every word of the search (up to the search's cap).
     matches: int
     snippet: SearchSnippetOut | None = None

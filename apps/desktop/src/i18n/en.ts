@@ -1235,4 +1235,13 @@ export const en: Dictionary = {
   "رفيق:": "Rafiq:",
   "{0} نتيجة": "{0} matches",
   "بالعنوان": "in the title",
+  "الأرشيف": "Archive",
+  "رجوع للمحادثات": "Back to chats",
+  "مخفية عن القائمة بس البحث بيلاقيها. أي رسالة جديدة فيها بترجّعها.": "Out of the list, but search still finds them. A new message in one brings it back.",
+  "أرشف": "Archive",
+  "أرشف المحادثة": "Archive chat",
+  "رجّعها من الأرشيف": "Unarchive",
+  "مؤرشفة": "archived",
+  "هالمحادثة بالأرشيف — إذا كتبت فيها بترجع لقائمة المحادثات.": "This chat is archived — write in it and it goes back to your chat list.",
+  "رجّعها للقائمة": "Back to the list",
 };

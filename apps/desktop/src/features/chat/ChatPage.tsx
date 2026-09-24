@@ -30,6 +30,7 @@ import {
   resolveChatPermission,
   sendChatMessage,
   setChatFolder,
+  setChatArchived,
   setChatPinned,
   stopChat,
   summarizeChat,
@@ -50,7 +51,7 @@ import { SparkIcon } from "../../components/Icons";
 import { DropZone, useUploads } from "../../components/Attachments";
 import { DrawnCheck } from "../../components/ui";
 import { FolderChip } from "../../components/FolderPicker";
-import { AlertIcon, ArrowDownIcon, ChatIcon, CompressIcon } from "../../components/Icons";
+import { AlertIcon, ArchiveIcon, ArrowDownIcon, ChatIcon, CompressIcon } from "../../components/Icons";
 import { TokenText } from "../../components/TokenText";
 import { Composer } from "./Composer";
 import { AssistantBlock, DayDivider, MessageView, startsNewDay, SummaryDivider, Welcome } from "./Transcript";
@@ -158,7 +159,7 @@ export function ChatPage({
 
   // The list follows the active workspace.
   useEffect(() => {
-    listChats(workspaceId)
+    listChats(workspaceId, true)
       .then(setChats)
       .catch(() => undefined)
       .finally(() => setLoadingChats(false));
@@ -321,6 +322,9 @@ export function ChatPage({
     if ((!content && !attachments.length) || streaming || !modelId) return;
     setError(null);
     stickRef.current = true;
+    if (routeId && current?.archived_at) {
+      setChats((prev) => prev.map((c) => (c.id === routeId ? { ...c, archived_at: null } : c)));
+    }
 
     let chatId = routeId;
     if (!chatId) {
@@ -525,7 +529,7 @@ export function ChatPage({
     setError(null);
     try {
       const fork = await forkChat(routeId, isStored(message) ? message.id : undefined);
-      setChats(await listChats(workspaceId));
+      setChats(await listChats(workspaceId, true));
       navigate(`/chat/${fork.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("ما قدرت أفرّع المحادثة"));
@@ -594,7 +598,7 @@ export function ChatPage({
       if (!routeId) return;
       try {
         const fork = await forkChat(routeId);
-        setChats(await listChats(workspaceId));
+        setChats(await listChats(workspaceId, true));
         navigate(`/chat/${fork.id}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : t("ما قدرت أفرّع المحادثة"));
@@ -627,6 +631,18 @@ export function ChatPage({
     setChats((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
     const updated = await renameChat(id, title);
     setChats((prev) => prev.map((c) => (c.id === id ? { ...c, ...updated } : c)));
+  }
+
+  /** Out of the list (or back into it). The chat stays open if it's the one on screen. */
+  async function archive(id: string, archived: boolean) {
+    const stamp = archived ? new Date().toISOString() : null;
+    setChats((prev) => prev.map((c) => (c.id === id ? { ...c, archived_at: stamp, pinned: archived ? false : c.pinned } : c)));
+    try {
+      const updated = await setChatArchived(id, archived);
+      setChats((prev) => prev.map((c) => (c.id === id ? { ...c, ...updated } : c)));
+    } catch {
+      setChats(await listChats(workspaceId, true).catch(() => chats));
+    }
   }
 
   async function pin(id: string, pinned: boolean) {
@@ -666,6 +682,7 @@ export function ChatPage({
     onDelete: removeChat,
     onRename: rename,
     onPin: pin,
+    onArchive: archive,
   };
 
   return (
@@ -815,8 +832,31 @@ export function ChatPage({
             )}
 
             <AnimatePresence>
+              {current?.archived_at && (
+                <motion.div
+                  key="archived"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-xs"
+                  style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-ink-muted)" }}
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <ArchiveIcon className="h-4 w-4 shrink-0" />
+                    {t("هالمحادثة بالأرشيف — إذا كتبت فيها بترجع لقائمة المحادثات.")}
+                  </span>
+                  <button
+                    onClick={() => void archive(current.id, false)}
+                    className="shrink-0 rounded-md px-2 py-1 font-medium transition-colors hover:bg-[var(--color-surface-2)]"
+                    style={{ color: "var(--color-accent)" }}
+                  >
+                    {t("رجّعها للقائمة")}
+                  </button>
+                </motion.div>
+              )}
               {error && (
                 <motion.div
+                  key="error"
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}

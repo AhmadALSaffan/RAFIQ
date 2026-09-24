@@ -12,8 +12,12 @@ export async function searchChats(q: string, workspaceId?: string | null, signal
   return request<ChatSearchResult[]>(`/chats/search?${params}`, { signal });
 }
 
-export async function listChats(workspaceId?: string | null): Promise<ChatSummary[]> {
-  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : "";
+/** The chat list. `includeArchived` adds the archived ones (the list keeps them in their own section). */
+export async function listChats(workspaceId?: string | null, includeArchived = false): Promise<ChatSummary[]> {
+  const params = new URLSearchParams();
+  if (workspaceId) params.set("workspace_id", workspaceId);
+  if (includeArchived) params.set("include_archived", "true");
+  const query = params.toString() ? `?${params}` : "";
   return request<ChatSummary[]>(`/chats${query}`);
 }
 
@@ -48,6 +52,11 @@ export async function getChat(id: string): Promise<ChatDetail> {
 
 export async function renameChat(id: string, title: string): Promise<ChatSummary> {
   return request<ChatSummary>(`/chats/${id}`, { method: "PATCH", body: JSON.stringify({ title }) });
+}
+
+/** Archiving also unpins; any new message brings the chat back on its own. */
+export async function setChatArchived(id: string, archived: boolean): Promise<ChatSummary> {
+  return request<ChatSummary>(`/chats/${id}`, { method: "PATCH", body: JSON.stringify({ archived }) });
 }
 
 export async function setChatPinned(id: string, pinned: boolean): Promise<ChatSummary> {

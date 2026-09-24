@@ -208,6 +208,8 @@ export interface ChatSearchResult {
   updated_at: string;
   pinned: boolean;
   title_match: boolean;
+  /** Archived chats are still found; the list marks them. */
+  archived: boolean;
   /** Messages in this chat containing every word of the search. */
   matches: number;
   /** The best matching message, cut around the match; `marks` are [start, end) in `text`. */
@@ -217,6 +219,8 @@ export interface ChatSearchResult {
 export interface ChatSummary {
   id: string;
   title: string;
+  /** Set when archived: out of the list, still searchable, back on the next message. */
+  archived_at?: string | null;
   model_id: string | null;
   working_dir: string | null;
   workspace_id?: string | null;

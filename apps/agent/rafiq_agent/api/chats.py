@@ -69,7 +69,11 @@ def _http(error: ChatError) -> HTTPException:
 
 @router.get("", response_model=list[ChatSummaryOut])
 async def list_chats(
-    workspace_id: str | None = Query(None), session: AsyncSession = Depends(get_session)
+    workspace_id: str | None = Query(None),
+    # The app asks for archived chats too and keeps them in their own section; anything
+    # else (the CLI, scripts) gets the list as the user sees it.
+    include_archived: bool = Query(False),
+    session: AsyncSession = Depends(get_session),
 ) -> list[ChatSummaryOut]:
     counts = (
         select(ChatMessage.chat_id, func.count(ChatMessage.id).label("n"))
@@ -82,6 +86,7 @@ async def list_chats(
         # Design sessions live on the designs page; they'd only be noise here.
         .where(func.coalesce(Chat.mode, "chat") != "design")
         .where(Chat.workspace_id == workspace_id if workspace_id else True)
+        .where(True if include_archived else Chat.archived_at.is_(None))
         .order_by(Chat.pinned.desc(), Chat.updated_at.desc())
     )
     out = []
@@ -110,6 +115,7 @@ async def search_chats(
             updated_at=r.updated_at,
             pinned=r.pinned,
             title_match=r.title_match,
+            archived=r.archived,
             matches=r.matches,
             snippet=SearchSnippetOut(
                 message_id=r.snippet.message_id, role=r.snippet.role, text=r.snippet.text, marks=r.snippet.marks
@@ -209,6 +215,10 @@ async def update_chat(
         chat.model_id = body.model_id
     if body.pinned is not None:
         chat.pinned = body.pinned
+    if body.archived is not None:
+        chat.archived_at = _now() if body.archived else None
+        if body.archived:
+            chat.pinned = False
     if body.working_dir is not None:
         chat.working_dir = _checked_dir(body.working_dir)
     if body.settings is not None:

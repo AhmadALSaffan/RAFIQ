@@ -8,7 +8,7 @@ import { folderName } from "../lib/folders";
 import { fieldDir } from "../lib/bidi";
 import { BrandMark } from "./BrandMark";
 import { TokenText } from "./TokenText";
-import { CompressIcon, FolderIcon, PencilIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "./Icons";
+import { ArchiveIcon, CompressIcon, FolderIcon, PencilIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "./Icons";
 import { Button } from "./ui";
 import { useElementMenu } from "./ContextMenu";
 
@@ -97,6 +97,7 @@ export function ChatList({
   onDelete,
   onRename,
   onPin,
+  onArchive,
   className = "",
   width,
   workspaceId,
@@ -111,6 +112,8 @@ export function ChatList({
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onPin: (id: string, pinned: boolean) => void;
+  /** `archived` true moves the chat to the archive, false brings it back. */
+  onArchive: (id: string, archived: boolean) => void;
   className?: string;
   width?: number;
   /** Search the same chats the list shows. */
@@ -121,18 +124,54 @@ export function ChatList({
   const { deep, results, searching } = useChatSearch(query, workspaceId, chats.length);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  // The archive is its own view of the same list: out of the way, one click to reach.
+  const [view, setView] = useState<"chats" | "archive">("chats");
+  const active = useMemo(() => chats.filter((c) => !c.archived_at), [chats]);
+  const archived = useMemo(
+    () => chats.filter((c) => c.archived_at).sort((a, b) => (b.archived_at ?? "").localeCompare(a.archived_at ?? "")),
+    [chats],
+  );
+  useEffect(() => {
+    if (view === "archive" && archived.length === 0) setView("chats");
+  }, [view, archived.length]);
 
   const groups = useMemo(() => {
     const now = Date.now();
     const q = query.trim().toLowerCase();
-    const matched = q ? chats.filter((c) => c.title.toLowerCase().includes(q)) : chats;
+    const matched = q ? active.filter((c) => c.title.toLowerCase().includes(q)) : active;
     const map = new Map<string, ChatSummary[]>();
     for (const chat of matched) {
       const bucket = bucketOf(chat, now);
       map.set(bucket, [...(map.get(bucket) ?? []), chat]);
     }
     return ORDER.filter((name) => map.has(name)).map((name) => ({ name, items: map.get(name)! }));
-  }, [chats, query]);
+  }, [active, query]);
+
+  const row = (chat: ChatSummary, i: number) => (
+    <Row
+      key={chat.id}
+      chat={chat}
+      index={i}
+      model={models.find((m) => m.id === chat.model_id)}
+      active={chat.id === activeId}
+      renaming={renaming === chat.id}
+      confirming={confirming === chat.id}
+      archivedView={Boolean(chat.archived_at)}
+      onOpen={() => onOpen(chat.id)}
+      onStartRename={() => {
+        setConfirming(null);
+        setRenaming(chat.id);
+      }}
+      onRename={(title) => {
+        setRenaming(null);
+        if (title.trim() && title.trim() !== chat.title) onRename(chat.id, title.trim());
+      }}
+      onPin={() => onPin(chat.id, !chat.pinned)}
+      onArchive={() => onArchive(chat.id, !chat.archived_at)}
+      onDelete={() => (confirming === chat.id ? onDelete(chat.id) : setConfirming(chat.id))}
+      onLeave={() => confirming === chat.id && setConfirming(null)}
+    />
+  );
 
   return (
     <aside
@@ -197,7 +236,25 @@ export function ChatList({
           />
         )}
 
-        {!deep && groups.map((group) => (
+        {!deep && view === "archive" && (
+          <section>
+            <h3
+              className="sticky top-0 z-10 px-2 py-1.5 text-[11px] font-medium backdrop-blur"
+              style={{ color: "var(--color-ink-muted)", background: "color-mix(in oklch, var(--color-bg) 85%, transparent)" }}
+            >
+              {t("الأرشيف")}
+              <span className="ms-1 tabular-nums opacity-60">{archived.length}</span>
+            </h3>
+            <p className="px-2 pb-2 text-[11px] leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
+              {t("مخفية عن القائمة بس البحث بيلاقيها. أي رسالة جديدة فيها بترجّعها.")}
+            </p>
+            <ul>
+              <AnimatePresence initial={false}>{archived.map(row)}</AnimatePresence>
+            </ul>
+          </section>
+        )}
+
+        {!deep && view === "chats" && groups.map((group) => (
           <section key={group.name}>
             <h3
               className="sticky top-0 z-10 px-2 py-1.5 text-[11px] font-medium backdrop-blur"
@@ -207,48 +264,39 @@ export function ChatList({
               <span className="ms-1 tabular-nums opacity-60">{group.items.length}</span>
             </h3>
             <ul>
-              <AnimatePresence initial={false}>
-                {group.items.map((chat, i) => (
-                  <Row
-                    key={chat.id}
-                    chat={chat}
-                    index={i}
-                    model={models.find((m) => m.id === chat.model_id)}
-                    active={chat.id === activeId}
-                    renaming={renaming === chat.id}
-                    confirming={confirming === chat.id}
-                    onOpen={() => onOpen(chat.id)}
-                    onStartRename={() => {
-                      setConfirming(null);
-                      setRenaming(chat.id);
-                    }}
-                    onRename={(title) => {
-                      setRenaming(null);
-                      if (title.trim() && title.trim() !== chat.title) onRename(chat.id, title.trim());
-                    }}
-                    onPin={() => onPin(chat.id, !chat.pinned)}
-                    onDelete={() => (confirming === chat.id ? onDelete(chat.id) : setConfirming(chat.id))}
-                    onLeave={() => confirming === chat.id && setConfirming(null)}
-                  />
-                ))}
-              </AnimatePresence>
+              <AnimatePresence initial={false}>{group.items.map(row)}</AnimatePresence>
             </ul>
           </section>
         ))}
 
-        {!loading && chats.length === 0 && (
+        {!deep && view === "chats" && !loading && active.length === 0 && (
           <p className="px-3 py-8 text-center text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
             {t("محادثاتك رح تظهر هون.")}
             <br />
             {t("ابدأ وحدة واسأل رفيق أي شي.")}
           </p>
         )}
-        {!deep && !loading && chats.length > 0 && groups.length === 0 && (
+        {!deep && view === "chats" && !loading && active.length > 0 && groups.length === 0 && (
           <p className="px-3 py-8 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
             {t("ما في محادثة بهالاسم.")}
           </p>
         )}
       </div>
+
+      {!deep && archived.length > 0 && (
+        <div className="border-t px-2 py-2" style={{ borderColor: "var(--color-border)" }}>
+          <button
+            onClick={() => setView(view === "archive" ? "chats" : "archive")}
+            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface)]"
+            style={{ color: view === "archive" ? "var(--color-accent)" : "var(--color-ink-muted)" }}
+            aria-pressed={view === "archive"}
+          >
+            <ArchiveIcon className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1 text-start">{view === "archive" ? t("رجوع للمحادثات") : t("الأرشيف")}</span>
+            {view === "chats" && <span className="tabular-nums opacity-70">{archived.length}</span>}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
@@ -343,6 +391,15 @@ function SearchResults({
                       <span>{t("بالعنوان")}</span>
                     </>
                   )}
+                  {r.archived && (
+                    <>
+                      <span className="opacity-50">·</span>
+                      <span className="flex items-center gap-1">
+                        <ArchiveIcon className="h-3 w-3" />
+                        {t("مؤرشفة")}
+                      </span>
+                    </>
+                  )}
                 </span>
               </button>
             </motion.li>
@@ -360,10 +417,12 @@ function Row({
   active,
   renaming,
   confirming,
+  archivedView,
   onOpen,
   onStartRename,
   onRename,
   onPin,
+  onArchive,
   onDelete,
   onLeave,
 }: {
@@ -373,10 +432,13 @@ function Row({
   active: boolean;
   renaming: boolean;
   confirming: boolean;
+  /** Shown in the archive: "bring back" instead of pin and archive. */
+  archivedView: boolean;
   onOpen: () => void;
   onStartRename: () => void;
   onRename: (title: string) => void;
   onPin: () => void;
+  onArchive: () => void;
   onDelete: () => void;
   onLeave: () => void;
 }) {
@@ -388,7 +450,12 @@ function Row({
       layout="position"
       onContextMenu={menu(() => [
         { id: "open", label: t("افتح المحادثة"), onSelect: onOpen },
-        { id: "pin", label: chat.pinned ? t("إلغاء التثبيت") : t("ثبّت فوق"), onSelect: onPin },
+        ...(archivedView
+          ? [{ id: "unarchive", label: t("رجّعها من الأرشيف"), onSelect: onArchive }]
+          : [
+              { id: "pin", label: chat.pinned ? t("إلغاء التثبيت") : t("ثبّت فوق"), onSelect: onPin },
+              { id: "archive", label: t("أرشف المحادثة"), onSelect: onArchive },
+            ]),
         { id: "rename", label: t("إعادة تسمية"), onSelect: onStartRename },
         { id: "delete", label: t("احذف المحادثة"), onSelect: onDelete, danger: true },
       ])}
@@ -484,11 +551,16 @@ function Row({
           }`}
           style={{ background: "var(--color-surface-2)" }}
         >
-          <Action label={chat.pinned ? t("إلغاء التثبيت") : t("ثبّت")} onClick={onPin} active={chat.pinned}>
-            <PinIcon className="h-3.5 w-3.5" />
-          </Action>
+          {!archivedView && (
+            <Action label={chat.pinned ? t("إلغاء التثبيت") : t("ثبّت")} onClick={onPin} active={chat.pinned}>
+              <PinIcon className="h-3.5 w-3.5" />
+            </Action>
+          )}
           <Action label={t("إعادة تسمية")} onClick={onStartRename}>
             <PencilIcon className="h-3.5 w-3.5" />
+          </Action>
+          <Action label={archivedView ? t("رجّعها من الأرشيف") : t("أرشف")} onClick={onArchive}>
+            <ArchiveIcon className="h-3.5 w-3.5" />
           </Action>
           <Action label={confirming ? t("اضغط مرة ثانية للحذف") : t("حذف")} onClick={onDelete} danger={confirming}>
             <TrashIcon className="h-3.5 w-3.5" />

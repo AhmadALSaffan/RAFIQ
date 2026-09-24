@@ -348,6 +348,8 @@ class ChatTurn:
                 chat.title = first_line[:60]
             chat.model_id = model.id
             chat.updated_at = now()
+            # Writing in an archived chat means it's in use again: back to the list.
+            chat.archived_at = None
 
             user_message = ChatMessage(
                 chat_id=chat.id,

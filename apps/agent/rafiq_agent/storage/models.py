@@ -240,6 +240,9 @@ class Chat(Base):
     summary_until: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # Set when the user archives the chat: it leaves the list but stays searchable, and
+    # writing in it again brings it back (cleared on the next message).
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     messages: Mapped[list["ChatMessage"]] = relationship(
         back_populates="chat", cascade="all, delete-orphan", order_by="ChatMessage.created_at"
