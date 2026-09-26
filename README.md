@@ -96,6 +96,7 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 - 📤 **Share a chat** — Export any chat as a single self-contained HTML page (light and dark, tool cards included) or as Markdown
 - 🔎 **Search inside your chats** — The box above the chat list looks through every message, not just titles, with Arabic folded the way people write it (harakat, hamza forms, «ال», a leading «و» or «ب»): a line from the matching message with the words marked, and one click opens the chat at that message
 - 🗄️ **Archive** — Move a chat out of the list without deleting it; search still finds it, and writing in it brings it back
+- ⌨️ **Ctrl+K opens everything** — Every page, settings section and command, plus your chats, tasks and designs, in one box; Arabic folded as you type, English keywords welcome, and chats searched inside their messages
 - 💾 **Backup and restore** — Settings → General saves chats, tasks, settings, models, memory, skills and attachments in one zip — never a key — and restores it after showing what's inside, keeping a copy of what it replaces
 - 📜 **Logs in the app** — Rafiq's own log and each MCP server's, with a filter, copy and live refresh; keys, tokens and passwords are masked before they reach the screen
 - 🧩 **Skills you install** — Paste a GitHub repository, a folder in one, a raw `SKILL.md` or a zip and it becomes a skill; skills can bring their own `/` commands, announced when they land. Two bundled design skills (`design-taste`, Vercel's `web-interface-guidelines`) keep generated UI from looking generated
@@ -166,7 +167,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.4.1_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.4.2_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)
