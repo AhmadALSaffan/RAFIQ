@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { createDesign, deleteDesign, getDesign, initQuestions, listDesigns, listModels, listSkills } from "../lib/api";
 import type { AgentSkill, DesignSummary, InitQuestion, LlmModel } from "../lib/types";
@@ -61,12 +61,23 @@ const STATUS_COLOR: Record<string, string> = {
 
 export function DesignsPage() {
   const navigate = useNavigate();
+  // `?new=1` (from Ctrl+K) opens the new-design wizard; the flag then leaves the URL.
+  const [params, setParams] = useSearchParams();
+  const askedNew = params.get("new") === "1";
   const [designs, setDesigns] = useState<DesignSummary[]>([]);
   const [previews, setPreviews] = useState<Record<string, string | null>>({});
   const [models, setModels] = useState<LlmModel[]>([]);
   const [skills, setSkills] = useState<AgentSkill[]>([]);
   const [loading, setLoading] = useState(true);
   const [wizard, setWizard] = useState(false);
+  useEffect(() => {
+    if (!askedNew) return;
+    setWizard(true);
+    setParams((p) => {
+      p.delete("new");
+      return p;
+    }, { replace: true });
+  }, [askedNew, setParams]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const { currentId: workspaceId } = useWorkspaces();

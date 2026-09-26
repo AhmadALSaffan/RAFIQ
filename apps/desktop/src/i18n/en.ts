@@ -1244,4 +1244,10 @@ export const en: Dictionary = {
   "مؤرشفة": "archived",
   "هالمحادثة بالأرشيف — إذا كتبت فيها بترجع لقائمة المحادثات.": "This chat is archived — write in it and it goes back to your chat list.",
   "رجّعها للقائمة": "Back to the list",
+  "ابحث بكل شي": "Search everything",
+  "ابحث بكل شي…": "Search everything…",
+  "انتقل": "Go to",
+  "بالرسائل": "In messages",
+  "ما لقيت شي.": "Nothing found.",
+  "↑↓ للتنقل · Enter للفتح · Esc للإغلاق": "↑↓ to move · Enter to open · Esc to close",
 };

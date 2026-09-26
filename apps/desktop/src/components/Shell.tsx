@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import {
@@ -9,11 +9,13 @@ import {
   LinkIcon,
   ModelsIcon,
   MoonIcon,
+  SearchIcon,
   SettingsIcon,
   SparkIcon,
   SunIcon,
   TasksIcon,
 } from "./Icons";
+import { CommandPalette, usePaletteShortcut } from "./CommandPalette";
 import { DEFAULT_LAYOUT, NAV_COLLAPSED, NAV_MAX, NAV_MIN, setLayout, useLayout } from "../lib/layout";
 import { Resizer } from "./Resizer";
 import { useTheme } from "../lib/theme";
@@ -146,6 +148,13 @@ export function Shell() {
   const layout = useLayout();
   const collapsed = layout.navCollapsed;
 
+  // Ctrl+K from anywhere; any page change closes it.
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const togglePalette = useCallback(() => setPaletteOpen((o) => !o), []);
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+  usePaletteShortcut(togglePalette);
+  useEffect(() => setPaletteOpen(false), [location.pathname]);
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="flex h-full">
@@ -197,6 +206,24 @@ export function Shell() {
           </div>
 
           <WorkspaceSwitcher collapsed={collapsed} />
+
+          <button
+            onClick={() => setPaletteOpen(true)}
+            title={collapsed ? `${t("ابحث بكل شي")} (Ctrl K)` : undefined}
+            aria-label={t("ابحث بكل شي")}
+            className={`mb-3 flex items-center gap-2.5 rounded-lg border py-1.5 text-xs transition-colors hover:border-[var(--color-accent)] ${collapsed ? "justify-center px-2" : "px-2.5"}`}
+            style={{ borderColor: "var(--color-border)", background: "var(--color-bg)", color: "var(--color-ink-muted)" }}
+          >
+            <SearchIcon className="h-4 w-4 shrink-0" />
+            {!collapsed && (
+              <>
+                <span className="flex-1 truncate text-start">{t("ابحث بكل شي")}</span>
+                <kbd className="shrink-0 rounded border px-1 text-[10px]" style={{ borderColor: "var(--color-border)" }} dir="ltr">
+                  Ctrl K
+                </kbd>
+              </>
+            )}
+          </button>
 
           <div className="flex flex-1 flex-col gap-1">
             {navItems.map(({ to, label, Icon }) => {
@@ -323,6 +350,14 @@ export function Shell() {
         </main>
       </div>
       <ToastStack toasts={toasts} onDismiss={dismiss} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={closePalette}
+        theme={theme}
+        onToggleTheme={toggle}
+        navCollapsed={collapsed}
+        onToggleNav={() => setLayout({ navCollapsed: !collapsed })}
+      />
     </MotionConfig>
   );
 }

@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useCurrentWorkspaceId } from "../../lib/workspace";
 import { AnimatePresence, motion } from "motion/react";
 import { createTask, deleteTask, getTask, listModels, listTasks } from "../../lib/api";
@@ -87,11 +87,22 @@ function matchesFilter(task: TaskSummary, filter: Filter): boolean {
 
 export function TasksPage() {
   const navigate = useNavigate();
+  // `?new=1` (from Ctrl+K) opens the new-task form; the flag then leaves the URL.
+  const [params, setParams] = useSearchParams();
+  const askedNew = params.get("new") === "1";
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
   const [models, setModels] = useState<LlmModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [composing, setComposing] = useState(false);
+  useEffect(() => {
+    if (!askedNew) return;
+    setComposing(true);
+    setParams((p) => {
+      p.delete("new");
+      return p;
+    }, { replace: true });
+  }, [askedNew, setParams]);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
