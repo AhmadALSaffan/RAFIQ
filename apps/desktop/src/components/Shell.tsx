@@ -21,6 +21,7 @@ import { Resizer } from "./Resizer";
 import { useTheme } from "../lib/theme";
 import { getSettings, listTasks } from "../lib/api";
 import { notify, syncBackground } from "../lib/background";
+import { syncQuickAsk } from "../lib/quickAsk";
 import type { TaskSummary } from "../lib/types";
 import { easeOutExpo, snappy } from "../lib/motion";
 import { ToastStack, type Toast } from "./Toasts";
@@ -136,12 +137,28 @@ export function Shell() {
   const navigate = useNavigate();
   const { running, queued, approvals, toasts, dismiss } = useTaskWatcher(location.pathname, navigate);
 
-  // The tray and close-to-tray follow the saved setting from the first moment.
+  // The tray, close-to-tray and the quick-ask shortcut follow the saved settings from the
+  // first moment — the main window loads even when Rafiq starts hidden in the tray.
   useEffect(() => {
     getSettings()
-      .then((s) => syncBackground(s.run_in_background ?? true))
+      .then((s) => {
+        void syncBackground(s.run_in_background ?? true);
+        void syncQuickAsk(s.quick_ask_shortcut ?? null);
+      })
       .catch(() => undefined);
   }, []);
+
+  // "Open in Rafiq" from the quick-ask box lands here.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    void (async () => {
+      const { isTauri } = await import("@tauri-apps/api/core");
+      if (!isTauri()) return;
+      const { listen } = await import("@tauri-apps/api/event");
+      off = await listen<string>("rafiq://navigate", (event) => navigate(event.payload));
+    })();
+    return () => off?.();
+  }, [navigate]);
   const section = "/" + (location.pathname.split("/")[1] ?? "");
   // Chat and the design workspace fill the window and scroll their own panes.
   const fullHeight = section === "/chat" || /^\/designs\/.+/.test(location.pathname);

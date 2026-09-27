@@ -13,6 +13,7 @@ import { TasksPage } from "./features/tasks/TasksPage";
 import { TaskDetailPage } from "./features/tasks/TaskDetailPage";
 import { SettingsPage } from "./routes/SettingsPage";
 import { AboutPage } from "./routes/AboutPage";
+import { QuickAsk } from "./routes/QuickAsk";
 
 export function App() {
   return (
@@ -20,6 +21,8 @@ export function App() {
       <TopProgress />
       <BootGate>
         <Routes>
+          {/* The quick-ask window (global shortcut): no sidebar, just the box. */}
+          <Route path="/quick" element={<QuickAsk />} />
           <Route element={<Shell />}>
             <Route index element={<Navigate to="/chat" replace />} />
             {/* One optional-param route so /chat → /chat/:id never remounts the page mid-stream. */}

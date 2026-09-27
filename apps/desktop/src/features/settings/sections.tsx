@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { QUICK_ASK_SHORTCUTS, syncQuickAsk } from "../../lib/quickAsk";
 import { motion } from "motion/react";
 import { getWebSearchKeys, listModels, saveWebSearchKey } from "../../lib/api";
 import { autostartEnabled, setAutostart, syncBackground } from "../../lib/background";
@@ -172,6 +173,13 @@ export function WebSettings({ settings, persist }: { settings: AppSettings; pers
 
 export function BackgroundSettings({ settings, persist }: { settings: AppSettings; persist: Persist }) {
   const [autostart, setAutostartState] = useState<boolean | null>(null);
+  const [quickError, setQuickError] = useState<string | null>(null);
+  const quick = settings.quick_ask_shortcut ?? null;
+
+  async function setQuick(shortcut: string | null) {
+    persist({ ...settings, quick_ask_shortcut: shortcut });
+    setQuickError(await syncQuickAsk(shortcut));
+  }
 
   useEffect(() => {
     autostartEnabled().then(setAutostartState);
@@ -195,6 +203,26 @@ export function BackgroundSettings({ settings, persist }: { settings: AppSetting
           checked={autostart}
           onChange={(on) => void setAutostart(on).then(setAutostartState)}
         />
+      )}
+      <ToggleRow
+        label={t("سؤال سريع من أي مكان")}
+        hint={t("اختصار بيفتح مربّع صغير فوق أي برنامج: بتسأل، بيرد، وإذا بدك بتكمّل المحادثة برفيق.")}
+        checked={quick !== null}
+        onChange={(on) => void setQuick(on ? QUICK_ASK_SHORTCUTS[0] : null)}
+      />
+      {quick !== null && (
+        <SelectRow
+          label={t("الاختصار")}
+          hint={t("اضغطه بأي وقت، ورفيق شغّال بالخلفية.")}
+          value={quick}
+          options={QUICK_ASK_SHORTCUTS.map((s) => ({ value: s, label: s }))}
+          onChange={(s) => void setQuick(s)}
+        />
+      )}
+      {quickError && (
+        <p className="px-1 text-xs" style={{ color: "var(--color-danger)" }} role="alert">
+          {quickError}
+        </p>
       )}
     </Section>
   );

@@ -65,6 +65,9 @@ class AppSettings(BaseModel):
     # the skills are worth their tokens until the user says otherwise. Each chat can still
     # flip its own copy from /إعدادات.
     token_saver: bool = False
+    # The global shortcut that opens the quick-ask box from anywhere in Windows (a Tauri
+    # accelerator, e.g. "Ctrl+Shift+Space"). None switches it off.
+    quick_ask_shortcut: str | None = "Ctrl+Shift+Space"
 
     def model_post_init(self, __context: object) -> None:
         # Settings saved before a permission existed get its default, not a validation error.

@@ -11,7 +11,8 @@ use rand::RngCore;
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, State, Wry};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder, Wry};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 /// Closing the window hides it to the tray instead of quitting (the setting lives in the
 /// agent; the page tells us on start and whenever it changes).
@@ -41,6 +42,60 @@ fn show_main(app: &AppHandle) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
+    }
+}
+
+/// The quick-ask window: a small box that floats over whatever the user is doing. Built
+/// the first time it's asked for (a second webview costs memory nobody should pay for a
+/// shortcut they never press), then shown and hidden, never destroyed.
+const QUICK: &str = "quick";
+
+/// Is this window the one in front? Asked of Windows itself: once the keyboard is inside
+/// the page, the window's own "focused" flag says no even while it plainly is.
+#[cfg(windows)]
+fn in_front(window: &tauri::WebviewWindow) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+    match window.hwnd() {
+        Ok(hwnd) => hwnd.0 as usize == unsafe { GetForegroundWindow() }.0 as usize,
+        Err(_) => false,
+    }
+}
+
+#[cfg(not(windows))]
+fn in_front(window: &tauri::WebviewWindow) -> bool {
+    window.is_focused().unwrap_or(false)
+}
+
+fn toggle_quick(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(QUICK) {
+        let shown = window.is_visible().unwrap_or(false);
+        if shown && in_front(&window) {
+            let _ = window.hide();
+        } else {
+            let _ = window.center();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        return;
+    }
+    let built = WebviewWindowBuilder::new(app, QUICK, WebviewUrl::App("index.html#/quick".into()))
+        .title("رفيق")
+        .inner_size(640.0, 440.0)
+        .resizable(false)
+        .decorations(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .center()
+        .focused(true)
+        .build();
+    match built {
+        // Asking for focus at build time isn't enough the first time: the window isn't
+        // up yet, so Windows leaves the keyboard where it was. Ask again now it exists
+        // (and the page asks once more when it has loaded).
+        Ok(window) => {
+            let _ = window.set_focus();
+        }
+        Err(err) => log::error!("quick-ask window: {err}"),
     }
 }
 
@@ -161,6 +216,41 @@ fn quit_app(app: AppHandle) {
     quit(&app);
 }
 
+/// The quick-ask shortcut, from the setting: `None` switches it off. Any shortcut set
+/// before is released first, so changing it never leaves the old one behind. The error is
+/// the reason in words — most often another program holding the same keys.
+#[tauri::command]
+fn set_quick_ask_shortcut(app: AppHandle, shortcut: Option<String>) -> Result<(), String> {
+    let shortcuts = app.global_shortcut();
+    shortcuts.unregister_all().map_err(|e| e.to_string())?;
+    let Some(keys) = shortcut.filter(|k| !k.trim().is_empty()) else {
+        return Ok(());
+    };
+    shortcuts
+        .on_shortcut(keys.as_str(), |app, _shortcut, event| {
+            if event.state() == ShortcutState::Pressed {
+                toggle_quick(app);
+            }
+        })
+        .map_err(|e| e.to_string())
+}
+
+/// Hides the quick box (Esc, or a question answered and taken to the main window).
+#[tauri::command]
+fn hide_quick_ask(app: AppHandle) {
+    if let Some(window) = app.get_webview_window(QUICK) {
+        let _ = window.hide();
+    }
+}
+
+/// "Open in Rafiq": the main window comes forward at `route` and the quick box goes away.
+#[tauri::command]
+fn open_in_main(app: AppHandle, route: String) {
+    hide_quick_ask(app.clone());
+    show_main(&app);
+    let _ = app.emit_to("main", "rafiq://navigate", route);
+}
+
 /// Windows' own icon for a file type, as a data URL. `name` is just "file.ext".
 #[tauri::command]
 fn system_file_icon(name: String) -> Option<String> {
@@ -245,6 +335,8 @@ pub fn run() {
         // restart that follows it.
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // The quick-ask shortcut: registered by the page from the saved setting.
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_api_config,
             system_file_icon,
@@ -253,7 +345,10 @@ pub fn run() {
             open_external,
             set_run_in_background,
             set_tray_labels,
-            quit_app
+            quit_app,
+            set_quick_ask_shortcut,
+            hide_quick_ask,
+            open_in_main
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -314,14 +409,22 @@ pub fn run() {
             }
             Ok(())
         })
+        // Two windows now, so every event says which one it's about. The quick box is only
+        // ever hidden. The main window decides the app's life: closing it hides to the tray
+        // or quits for real — explicitly, because the hidden quick box would otherwise keep
+        // the app alive with no window and no agent.
         .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } if window.label() == QUICK => {
+                api.prevent_close();
+                let _ = window.hide();
+            }
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if RUN_IN_BACKGROUND.load(Ordering::Relaxed) {
                     api.prevent_close();
                     let _ = window.hide();
                 }
             }
-            tauri::WindowEvent::Destroyed => stop_backend(window.app_handle()),
+            tauri::WindowEvent::Destroyed if window.label() == "main" => quit(window.app_handle()),
             _ => {}
         })
         .run(tauri::generate_context!())

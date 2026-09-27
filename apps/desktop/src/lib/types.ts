@@ -390,6 +390,8 @@ export interface AppSettings {
   memory_enabled: boolean;
   /** What a new chat's "save tokens" starts at; each chat can still flip its own copy. */
   token_saver: boolean;
+  /** The global shortcut for the quick-ask box ("Ctrl+Shift+Space"); null = off. */
+  quick_ask_shortcut: string | null;
 }
 
 /** What a backup holds, read from its manifest (see agent core/backup.py). */
