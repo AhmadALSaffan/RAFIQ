@@ -4,6 +4,7 @@ Routes only: validate input, call `core.chat_service`, shape the response. The t
 (context building, the agent loop, the SSE events) lives in the service.
 """
 
+import re
 from datetime import UTC, datetime
 from urllib.parse import quote
 
@@ -32,9 +33,12 @@ from rafiq_agent.core.prompts import DEFAULT_TITLE
 from rafiq_agent.core.tasks_service import TaskCreateError, resolve_working_dir
 from rafiq_agent.i18n import tr
 from rafiq_agent.schemas.chats import (
+    BookmarkIn,
+    BookmarkOut,
     ChatCreate,
     ChatDetailOut,
     ChatFork,
+    ChatMessageOut,
     ChatSearchOut,
     ChatSummaryOut,
     ChatUpdate,
@@ -124,6 +128,46 @@ async def search_chats(
             else None,
         )
         for r in results
+    ]
+
+
+_SPACES = re.compile(r"\s+")
+
+
+def excerpt(message: ChatMessage, limit: int = 160) -> str:
+    """The start of a message on one line. A reply that is all tool calls has no text of its
+    own, so the first text part stands in."""
+    text = message.content or ""
+    if not text.strip():
+        text = next((p.get("text", "") for p in message.parts or [] if p.get("kind") == "text"), "")
+    text = _SPACES.sub(" ", text).strip()
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
+
+@router.get("/bookmarks", response_model=list[BookmarkOut])
+async def list_bookmarks(
+    workspace_id: str | None = Query(None),
+    session: AsyncSession = Depends(get_session),
+) -> list[BookmarkOut]:
+    """Every starred message, newest star first — archived chats included."""
+    rows = await session.execute(
+        select(ChatMessage, Chat)
+        .join(Chat, Chat.id == ChatMessage.chat_id)
+        .where(ChatMessage.bookmarked_at.is_not(None))
+        .where(Chat.workspace_id == workspace_id if workspace_id else True)
+        .order_by(ChatMessage.bookmarked_at.desc())
+    )
+    return [
+        BookmarkOut(
+            chat_id=chat.id,
+            chat_title=chat.title,
+            message_id=message.id,
+            role=message.role,
+            excerpt=excerpt(message),
+            bookmarked_at=message.bookmarked_at,
+            archived=chat.archived_at is not None,
+        )
+        for message, chat in rows.all()
     ]
 
 
@@ -287,6 +331,23 @@ async def delete_message(chat_id: str, message_id: str, session: AsyncSession = 
     await session.commit()
 
 
+@router.put("/{chat_id}/messages/{message_id}/bookmark", response_model=ChatMessageOut)
+async def bookmark_message(
+    chat_id: str, message_id: str, body: BookmarkIn, session: AsyncSession = Depends(get_session)
+) -> ChatMessageOut:
+    """Stars a message (or takes the star off). Starring again keeps the first time."""
+    message = await session.get(ChatMessage, message_id)
+    if not message or message.chat_id != chat_id:
+        raise HTTPException(status_code=404, detail="message not found")
+    if not body.bookmarked:
+        message.bookmarked_at = None
+    elif message.bookmarked_at is None:
+        message.bookmarked_at = _now()
+    await session.commit()
+    await session.refresh(message)
+    return ChatMessageOut.model_validate(message)
+
+
 @router.post("/{chat_id}/messages/{message_id}/truncate", response_model=ChatDetailOut)
 async def truncate_from(
     chat_id: str, message_id: str, session: AsyncSession = Depends(get_session)
@@ -353,6 +414,8 @@ async def fork_chat(
                 model_id=m.model_id,
                 parts=m.parts,
                 attachments=m.attachments,
+                # A copy of the conversation keeps what was starred in it.
+                bookmarked_at=m.bookmarked_at,
                 created_at=m.created_at,
             )
         )

@@ -29,6 +29,7 @@ import {
   renameChat,
   resolveChatPermission,
   sendChatMessage,
+  setBookmark,
   setChatFolder,
   setChatArchived,
   setChatPinned,
@@ -47,6 +48,7 @@ import { Resizer } from "../../components/Resizer";
 import { DoneDialog, type CommandDef } from "../../components/ComposerMenus";
 import { chatToMarkdown, ExportDialog, HelpDialog, RenameDialog, ReplyConfigDialog, saveTextFile } from "../../components/ChatCommands";
 import { PromptLibraryDialog, SavePromptDialog } from "./prompts";
+import { BookmarksMenu } from "./bookmarks";
 import { useWorkspaces } from "../../lib/workspace";
 import { SparkIcon } from "../../components/Icons";
 import { DropZone, useUploads } from "../../components/Attachments";
@@ -663,6 +665,34 @@ export function ChatPage({
     }
   }
 
+  /** Star a message (or take the star off): shown at once, put back if the agent says no. */
+  async function bookmark(message: ChatMessage, bookmarked: boolean) {
+    if (!routeId) return;
+    const chatId = routeId;
+    const previous = message.bookmarked_at ?? null;
+    const mark = (value: string | null) =>
+      setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, bookmarked_at: value } : m)));
+    mark(bookmarked ? new Date().toISOString() : null);
+    try {
+      const saved = await setBookmark(chatId, message.id, bookmarked);
+      if (routeRef.current === chatId) mark(saved.bookmarked_at ?? null);
+    } catch (err) {
+      if (routeRef.current === chatId) mark(previous);
+      setError(err instanceof Error ? err.message : t("ما قدرت أعلّم الرسالة"));
+    }
+  }
+
+  /** Scroll to a message and light it up — the same path a search result takes. */
+  function jumpToMessage(messageId: string) {
+    setSearchParams(
+      (params) => {
+        params.set("m", messageId);
+        return params;
+      },
+      { replace: true },
+    );
+  }
+
   async function pin(id: string, pinned: boolean) {
     setChats((prev) => prev.map((c) => (c.id === id ? { ...c, pinned } : c)));
     const updated = await setChatPinned(id, pinned);
@@ -777,6 +807,7 @@ export function ChatPage({
               <TokenText text={current?.title ?? t("محادثة جديدة")} />
             </motion.h2>
           </AnimatePresence>
+          <BookmarksMenu messages={messages} onJump={jumpToMessage} onRemove={(m) => void bookmark(m, false)} />
           <FolderChip value={folder} onChange={changeFolder} />
         </header>
         )}
@@ -820,6 +851,7 @@ export function ChatPage({
                         onEdit={streaming ? undefined : editMessage}
                         onFork={streaming ? undefined : forkFrom}
                         onSavePrompt={(msg) => setSavingPrompt(msg.content)}
+                        onBookmark={routeId && !m.id.startsWith("temp") ? bookmark : undefined}
                       />
                     </div>
                     {current?.summary_until === m.id && current.summary && <SummaryDivider summary={current.summary} />}

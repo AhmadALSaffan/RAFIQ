@@ -3,7 +3,7 @@ import { locale } from "../../i18n";
 
 import { getApiConfig } from "../config";
 import { request } from "./client";
-import type { ChatDetail, ChatMessage, ChatSearchResult, ChatSummary, ReplySettings, Resolution, SummarizeResult, TaskStatus, ToolCall } from "../types";
+import type { Bookmark, ChatDetail, ChatMessage, ChatSearchResult, ChatSummary, ReplySettings, Resolution, SummarizeResult, TaskStatus, ToolCall } from "../types";
 
 /** Chats whose messages or titles hold every word of `q`; Arabic is folded on the agent. */
 export async function searchChats(q: string, workspaceId?: string | null, signal?: AbortSignal): Promise<ChatSearchResult[]> {
@@ -80,6 +80,20 @@ export async function deleteChatMessage(chatId: string, messageId: string): Prom
 }
 
 /** Drops a message and everything after it — how editing a question starts. */
+/** Stars a message, or takes the star off. */
+export async function setBookmark(chatId: string, messageId: string, bookmarked: boolean): Promise<ChatMessage> {
+  return request<ChatMessage>(`/chats/${chatId}/messages/${messageId}/bookmark`, {
+    method: "PUT",
+    body: JSON.stringify({ bookmarked }),
+  });
+}
+
+/** Every starred message, newest star first, archived chats included. */
+export async function listBookmarks(workspaceId?: string | null): Promise<Bookmark[]> {
+  const query = workspaceId ? `?${new URLSearchParams({ workspace_id: workspaceId })}` : "";
+  return request<Bookmark[]>(`/chats/bookmarks${query}`);
+}
+
 export async function truncateChatFrom(chatId: string, messageId: string): Promise<ChatDetail> {
   return request<ChatDetail>(`/chats/${chatId}/messages/${messageId}/truncate`, { method: "POST" });
 }

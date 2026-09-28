@@ -1284,4 +1284,11 @@ export const en: Dictionary = {
   "دوّر…": "Search…",
   "ما في برومبتات لسا. كليك يمين على أي رسالة بعتّها ← «احفظه كبرومبت»، أو اضغط «جديد».": "No prompts yet. Right-click any message you sent → “Save as a prompt”, or press “New”.",
   "{0} مرة": { one: "{0} use", other: "{0} uses" },
+  // Bookmarks
+  "الرسائل المعلّمة": "Starred messages",
+  "ما قدرت أعلّم الرسالة": "Couldn't star the message",
+  "شيل العلامة": "Remove star",
+  "علّم الرسالة": "Star message",
+  "إنت": "You",
+  "(بدون نص)": "(no text)",
 };

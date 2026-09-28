@@ -86,9 +86,28 @@ class ChatMessageOut(BaseModel):
     model_id: str | None = None
     parts: list[dict[str, Any]] | None = None
     attachments: list[dict[str, Any]] | None = None
+    bookmarked_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class BookmarkIn(BaseModel):
+    bookmarked: bool
+
+
+class BookmarkOut(BaseModel):
+    """A starred message, with enough around it to recognise it in a list."""
+
+    chat_id: str
+    chat_title: str
+    message_id: str
+    role: str
+    # The start of the message, whitespace folded — what the list shows.
+    excerpt: str
+    bookmarked_at: datetime
+    # Archived chats keep their bookmarks; the list says where they live.
+    archived: bool = False
 
 
 class ChatSummaryOut(BaseModel):

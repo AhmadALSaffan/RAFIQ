@@ -259,7 +259,20 @@ export interface ChatMessage {
   model_id?: string | null;
   parts?: ChatPart[] | null;
   attachments?: Attachment[] | null;
+  /** When the user starred it; absent or null when it isn't. */
+  bookmarked_at?: string | null;
   created_at: string;
+}
+
+/** A starred message, anywhere — what Ctrl+K lists. */
+export interface Bookmark {
+  chat_id: string;
+  chat_title: string;
+  message_id: string;
+  role: "user" | "assistant";
+  excerpt: string;
+  bookmarked_at: string;
+  archived: boolean;
 }
 
 export interface ChatDetail extends ChatSummary {

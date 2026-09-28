@@ -44,7 +44,7 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "workspace_id": "VARCHAR",
         "archived_at": "DATETIME",
     },
-    "chat_messages": {"parts": "JSON", "attachments": "JSON"},
+    "chat_messages": {"parts": "JSON", "attachments": "JSON", "bookmarked_at": "DATETIME"},
     "designs": {"working_dir": "VARCHAR", "saved_path": "VARCHAR", "workspace_id": "VARCHAR", "files": "JSON"},
     "mcp_servers": {"auth": "VARCHAR DEFAULT 'none'", "preset": "VARCHAR"},
 }

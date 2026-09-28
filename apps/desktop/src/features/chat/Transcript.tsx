@@ -22,6 +22,7 @@ import { StatusPill } from "../../components/StatusPill";
 import { SILENT_TOOLS, textOf } from "./draft";
 import { isGone, useTaskSummaries } from "./taskStatus";
 import { SUGGESTIONS } from "./constants";
+import { StarButton } from "./bookmarks";
 
 import { t } from "../../i18n";
 /** First screen of an empty chat: what رفيق can do, in one glance. */
@@ -102,6 +103,7 @@ export function MessageView({
   onEdit,
   onFork,
   onSavePrompt,
+  onBookmark,
 }: {
   message: ChatMessage;
   model?: LlmModel;
@@ -112,7 +114,10 @@ export function MessageView({
   onFork?: (message: ChatMessage) => void;
   /** Keep this question as a reusable prompt. */
   onSavePrompt?: (message: ChatMessage) => void;
+  /** Star this message (or take the star off). */
+  onBookmark?: (message: ChatMessage, bookmarked: boolean) => void;
 }) {
+  const starred = Boolean(message.bookmarked_at);
   const menu = useElementMenu();
   if (message.role === "user") {
     return (
@@ -126,6 +131,7 @@ export function MessageView({
           ...(onEdit ? [{ id: "edit", label: t("عدّل وابعت من جديد"), onSelect: () => onEdit(message) }] : []),
           ...(onFork ? [{ id: "fork", label: t("افرع محادثة من هون"), onSelect: () => onFork(message) }] : []),
           ...(onSavePrompt && message.content ? [{ id: "prompt", label: t("احفظه كبرومبت"), onSelect: () => onSavePrompt(message) }] : []),
+          ...(onBookmark ? [{ id: "bookmark", label: starred ? t("شيل العلامة") : t("علّم الرسالة"), onSelect: () => onBookmark(message, !starred) }] : []),
         ])}
       >
         {message.attachments && message.attachments.length > 0 && <AttachmentGallery attachments={message.attachments} align="end" />}
@@ -134,7 +140,15 @@ export function MessageView({
             <TokenText text={message.content} />
           </div>
         )}
-        <div className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        <div className="flex items-center gap-1">
+          {onBookmark && (
+            <StarButton
+              on={starred}
+              onToggle={() => onBookmark(message, !starred)}
+              className={starred ? "" : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100"}
+            />
+          )}
+          <div className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
           {onEdit && message.content && (
             <button
               onClick={() => onEdit(message)}
@@ -161,12 +175,22 @@ export function MessageView({
               {clockTime(message.created_at)}
             </span>
           )}
+          </div>
         </div>
       </motion.div>
     );
   }
   const parts: ChatPart[] = message.parts?.length ? message.parts : message.content ? [{ kind: "text", text: message.content }] : [];
-  return <AssistantBlock parts={parts} reasoning={message.reasoning ?? ""} model={model} onOpenTask={onOpenTask} />;
+  return (
+    <AssistantBlock
+      parts={parts}
+      reasoning={message.reasoning ?? ""}
+      model={model}
+      onOpenTask={onOpenTask}
+      bookmarked={starred}
+      onBookmark={onBookmark ? () => onBookmark(message, !starred) : undefined}
+    />
+  );
 }
 
 /** What the reply cost, in the quietest form that is still readable. Cached input is
@@ -193,6 +217,8 @@ export function AssistantBlock({
   usage,
   onResolve,
   onOpenTask,
+  bookmarked = false,
+  onBookmark,
 }: {
   parts: ChatPart[];
   reasoning: string;
@@ -202,6 +228,9 @@ export function AssistantBlock({
   usage?: TurnUsage;
   onResolve?: (id: string, resolution: "approved" | "denied") => void;
   onOpenTask: (id: string) => void;
+  /** A saved reply can be starred; the one still streaming can't. */
+  bookmarked?: boolean;
+  onBookmark?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const menu = useElementMenu();
@@ -222,6 +251,7 @@ export function AssistantBlock({
       className="group flex gap-3"
       onContextMenu={menu(() => [
         { id: "copy-reply", label: t("انسخ الرد"), disabled: !text, onSelect: () => void navigator.clipboard.writeText(text) },
+        ...(onBookmark ? [{ id: "bookmark", label: bookmarked ? t("شيل العلامة") : t("علّم الرسالة"), onSelect: onBookmark }] : []),
       ])}
     >
       <motion.div
@@ -275,7 +305,12 @@ export function AssistantBlock({
         ))}
         {thinking && <ThinkingDots label={visible.length ? t("عم يكمّل…") : t("عم يفكّر…")} />}
         {usage && <UsageLine usage={usage} />}
-        {!live && text && (
+        {!live && (text || onBookmark) && (
+          <div className="-mt-1 flex items-center gap-0.5 self-start">
+          {onBookmark && (
+            <StarButton on={bookmarked} onToggle={onBookmark} className={bookmarked ? "" : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100"} />
+          )}
+          {text && (
           <button
             onClick={() =>
               navigator.clipboard.writeText(text).then(() => {
@@ -283,11 +318,13 @@ export function AssistantBlock({
                 setTimeout(() => setCopied(false), 1400);
               })
             }
-            className="-mt-1 self-start rounded-md px-2 py-1 text-xs opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] focus-visible:opacity-100 group-hover:opacity-100"
+            className="rounded-md px-2 py-1 text-xs opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] focus-visible:opacity-100 group-hover:opacity-100"
             style={{ color: "var(--color-ink-muted)" }}
           >
             {copied ? t("انتسخ ✓") : t("نسخ الرد")}
           </button>
+          )}
+          </div>
         )}
       </div>
     </motion.div>

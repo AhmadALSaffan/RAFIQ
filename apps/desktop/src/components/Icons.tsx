@@ -186,6 +186,15 @@ export function FileIcon({ className, style }: IconProps) {
   );
 }
 
+/** Outlined, or filled for a message that is starred. */
+export function StarIcon({ className, style, filled = false }: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...base} className={className} style={style} fill={filled ? "currentColor" : "none"}>
+      <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9L12 3.5Z" />
+    </svg>
+  );
+}
+
 export function XIcon({ className, style }: IconProps) {
   return (
     <svg {...base} className={className} style={style}>

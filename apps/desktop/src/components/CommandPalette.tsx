@@ -13,8 +13,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { listChats, listDesigns, listPrompts, listTasks, searchChats } from "../lib/api";
-import type { ChatSearchResult, ChatSummary, DesignSummary, SavedPrompt, TaskSummary } from "../lib/types";
+import { listBookmarks, listChats, listDesigns, listPrompts, listTasks, searchChats } from "../lib/api";
+import type { Bookmark, ChatSearchResult, ChatSummary, DesignSummary, SavedPrompt, TaskSummary } from "../lib/types";
 import { useCurrentWorkspaceId } from "../lib/workspace";
 import { fieldDir } from "../lib/bidi";
 import { timeAgo } from "../lib/time";
@@ -31,6 +31,7 @@ import {
   SearchIcon,
   SettingsIcon,
   SparkIcon,
+  StarIcon,
   SunIcon,
   TasksIcon,
   WandIcon,
@@ -53,6 +54,10 @@ type Item = {
 };
 
 type Group = { title: string; items: Item[] };
+
+function FilledStar({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return <StarIcon className={className} style={{ ...style, color: "var(--color-accent)" }} filled />;
+}
 
 const DEEP_FROM = 2;
 
@@ -141,6 +146,7 @@ export function CommandPalette({
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
   const [designs, setDesigns] = useState<DesignSummary[]>([]);
   const [prompts, setPrompts] = useState<SavedPrompt[]>([]);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const { pathname } = useLocation();
   const [found, setFound] = useState<ChatSearchResult[]>([]);
   const input = useRef<HTMLInputElement>(null);
@@ -156,6 +162,7 @@ export function CommandPalette({
     listTasks(workspaceId).then(setTasks).catch(() => setTasks([]));
     listDesigns(workspaceId).then(setDesigns).catch(() => setDesigns([]));
     listPrompts().then(setPrompts).catch(() => setPrompts([]));
+    listBookmarks(workspaceId).then(setBookmarks).catch(() => setBookmarks([]));
   }, [open, workspaceId]);
 
   // Inside the messages, from two letters on — the newest query wins.
@@ -266,6 +273,13 @@ export function CommandPalette({
       keywords: p.body.slice(0, 300),
       run: go(`${chatPath}?prompt=${encodeURIComponent(p.id)}`),
     }));
+    const bookmarkItems: Item[] = bookmarks.map((b) => ({
+      id: `bookmark-${b.message_id}`,
+      label: b.excerpt || b.chat_title,
+      hint: b.chat_title,
+      Icon: FilledStar,
+      run: go(`/chat/${b.chat_id}?m=${encodeURIComponent(b.message_id)}`),
+    }));
 
     if (!q) {
       return [
@@ -275,6 +289,7 @@ export function CommandPalette({
         { title: t("مهام"), items: taskItems.slice(0, 4) },
         { title: t("التصاميم"), items: designItems.slice(0, 3) },
         { title: t("البرومبتات"), items: promptItems.slice(0, 3) },
+        { title: t("الرسائل المعلّمة"), items: bookmarkItems.slice(0, 3) },
       ].filter((g) => g.items.length);
     }
 
@@ -298,8 +313,9 @@ export function CommandPalette({
       { title: t("مهام"), items: rank(taskItems, q, 5) },
       { title: t("التصاميم"), items: rank(designItems, q, 5) },
       { title: t("البرومبتات"), items: rank(promptItems, q, 5) },
+      { title: t("الرسائل المعلّمة"), items: rank(bookmarkItems, q, 5) },
     ].filter((g) => g.items.length);
-  }, [q, chats, tasks, designs, prompts, pathname, found, theme, navCollapsed, go, onClose, onToggleTheme, onToggleNav]);
+  }, [q, chats, tasks, designs, prompts, bookmarks, pathname, found, theme, navCollapsed, go, onClose, onToggleTheme, onToggleNav]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 

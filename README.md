@@ -97,6 +97,7 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 - 🔎 **Search inside your chats** — The box above the chat list looks through every message, not just titles, with Arabic folded the way people write it (harakat, hamza forms, «ال», a leading «و» or «ب»): a line from the matching message with the words marked, and one click opens the chat at that message
 - 🗄️ **Archive** — Move a chat out of the list without deleting it; search still finds it, and writing in it brings it back
 - ⌨️ **Ctrl+K opens everything** — Every page, settings section and command, plus your chats, tasks and designs, in one box; Arabic folded as you type, English keywords welcome, and chats searched inside their messages
+- ⭐ **Bookmarks** — Star any message, yours or Rafiq's; the chat header lists the starred ones and takes you straight back to each, and Ctrl+K finds them across every chat
 - 📝 **Prompt library** — Save any message you sent as a reusable prompt, with `{{variables}}` for the parts that change; `/prompt` (or Ctrl+K) fills them in and drops the text in the message box
 - ⚡ **Quick ask from anywhere** — Ctrl+Shift+Space (or a shortcut you pick in Settings) opens a small always-on-top box over any app: ask, read the answer, and carry the chat on in Rafiq with one click
 - 💾 **Backup and restore** — Settings → General saves chats, tasks, settings, models, memory, skills and attachments in one zip — never a key — and restores it after showing what's inside, keeping a copy of what it replaces

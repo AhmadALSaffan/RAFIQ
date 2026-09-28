@@ -277,6 +277,8 @@ class ChatMessage(Base):
     # Ordered text / tool / permission / task parts of an assistant reply, for display.
     parts: Mapped[list | None] = mapped_column(JSON, nullable=True)
     attachments: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Starred by the user, to find it again from the chat header or Ctrl+K.
+    bookmarked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     chat: Mapped[Chat] = relationship(back_populates="messages")
