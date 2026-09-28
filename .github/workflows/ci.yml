@@ -8,7 +8,9 @@
 name: CI
 
 on:
+  # Branches only: a release tag points at a commit that was already checked on main.
   push:
+    branches: ["**"]
   pull_request:
 
 # A new push to the same branch makes the previous run pointless.
