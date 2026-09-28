@@ -13,6 +13,28 @@ class TemplateIn(BaseModel):
     working_dir: str | None = None
 
 
+class PromptIn(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    body: str = Field(min_length=1, max_length=20_000)
+
+
+class PromptUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=120)
+    body: str | None = Field(default=None, min_length=1, max_length=20_000)
+
+
+class PromptOut(BaseModel):
+    id: str
+    title: str
+    body: str
+    # The `{{name}}` parts, in the order they first appear — what the app asks the user for.
+    variables: list[str] = []
+    uses: int = 0
+    last_used_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class TemplateImportIn(BaseModel):
     # Either a URL to a JSON file ({"templates": [...]}, or a bare list) or the items.
     url: str | None = None

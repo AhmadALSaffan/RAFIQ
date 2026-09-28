@@ -30,6 +30,7 @@ import {
   StopIcon,
   TasksIcon,
   TerminalIcon,
+  WandIcon,
 } from "./Icons";
 import { systemFileIcon } from "../lib/fileIcons";
 import { fieldDir } from "../lib/bidi";
@@ -62,6 +63,7 @@ export type CommandId =
   | "pin"
   | "title"
   | "template"
+  | "prompts"
   | "tasks"
   | "schedule"
   | "design"
@@ -157,6 +159,7 @@ export const COMMANDS: CommandDef[] = [
   { id: "pin", label: t("/ثبّت"), hint: t("ثبّت المحادثة (أو فكّ تثبيتها) بأول القائمة"), aliases: ["pin", t("ثبت"), t("ثبّت"), t("تثبيت")], Icon: PinIcon, needs: "chat" },
   { id: "title", label: t("/عنوان"), hint: t("غيّر عنوان المحادثة"), aliases: ["title", "rename", t("عنوان"), t("اسم"), t("سمي")], Icon: PencilIcon, needs: "chat" },
   { id: "template", label: t("/قالب"), hint: t("احفظ آخر طلب كقالب مهمة تعيده بضغطة"), aliases: ["template", t("قالب"), t("قوالب")], Icon: TasksIcon, needs: "chat" },
+  { id: "prompts", label: t("/برومبت"), hint: t("نصوصك الجاهزة — بمتغيرات تعبّيها كل مرة"), aliases: ["prompt", "prompts", t("برومبت"), t("برومبتات"), t("موجه")], Icon: WandIcon },
   { id: "tasks", label: t("/مهام"), hint: t("روح لصفحة المهام"), aliases: ["tasks", t("مهام"), t("المهام")], Icon: TasksIcon },
   { id: "schedule", label: t("/جدولة"), hint: t("جدول مهمة تتكرر كل يوم أو أسبوع"), aliases: ["schedule", "cron", t("جدولة"), t("جدول"), t("مجدولة")], Icon: ClockIcon },
   { id: "design", label: t("/تصميم"), hint: t("ابدأ تصميم واجهة قبل ما تبرمجها"), aliases: ["design", t("تصميم"), t("صمم"), t("صمّم")], Icon: SparkIcon },

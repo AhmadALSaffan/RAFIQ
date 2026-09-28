@@ -46,6 +46,7 @@ import { usePageMenu } from "../../components/ContextMenu";
 import { Resizer } from "../../components/Resizer";
 import { DoneDialog, type CommandDef } from "../../components/ComposerMenus";
 import { chatToMarkdown, ExportDialog, HelpDialog, RenameDialog, ReplyConfigDialog, saveTextFile } from "../../components/ChatCommands";
+import { PromptLibraryDialog, SavePromptDialog } from "./prompts";
 import { useWorkspaces } from "../../lib/workspace";
 import { SparkIcon } from "../../components/Icons";
 import { DropZone, useUploads } from "../../components/Attachments";
@@ -95,6 +96,9 @@ export function ChatPage({
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  // The prompt library: open (optionally on one prompt), and the text being saved as one.
+  const [promptsOpen, setPromptsOpen] = useState<{ id: string | null } | null>(null);
+  const [savingPrompt, setSavingPrompt] = useState<string | null>(null);
   // Slash commands that installed skills bring along.
   const [skillCommands, setSkillCommands] = useState<CommandDef[]>([]);
   const { current: workspace, currentId: workspaceId } = useWorkspaces();
@@ -263,6 +267,19 @@ export function ChatPage({
   // leaves the URL, so going back or reloading doesn't jump again.
   const [searchParams, setSearchParams] = useSearchParams();
   const jumpTo = searchParams.get("m");
+  // Opened from the command palette on a saved prompt (`?prompt=<id>`).
+  const promptParam = searchParams.get("prompt");
+  useEffect(() => {
+    if (!promptParam) return;
+    setPromptsOpen({ id: promptParam });
+    setSearchParams(
+      (params) => {
+        params.delete("prompt");
+        return params;
+      },
+      { replace: true },
+    );
+  }, [promptParam, setSearchParams]);
   const [flash, setFlash] = useState<string | null>(null);
   useEffect(() => {
     if (!jumpTo || loadingChat || !messages.some((m) => m.id === jumpTo)) return;
@@ -608,6 +625,7 @@ export function ChatPage({
     if (id === "pin") return routeId && current ? pin(routeId, !current.pinned) : undefined;
     if (id === "title") return routeId ? setRenameOpen(true) : undefined;
     if (id === "template") return keepAsTemplate();
+    if (id === "prompts") return setPromptsOpen({ id: null });
     if (id === "folder") {
       const picked = await pickFolder(folder ?? undefined);
       if (picked) await changeFolder(picked);
@@ -801,6 +819,7 @@ export function ChatPage({
                         onOpenTask={(id) => navigate(`/tasks/${id}`)}
                         onEdit={streaming ? undefined : editMessage}
                         onFork={streaming ? undefined : forkFrom}
+                        onSavePrompt={(msg) => setSavingPrompt(msg.content)}
                       />
                     </div>
                     {current?.summary_until === m.id && current.summary && <SummaryDivider summary={current.summary} />}
@@ -994,6 +1013,20 @@ export function ChatPage({
               void exportChat(format);
             }}
           />
+        )}
+        {promptsOpen && (
+          <PromptLibraryDialog
+            key="prompts"
+            initialId={promptsOpen.id}
+            onClose={() => setPromptsOpen(null)}
+            onInsert={(text) => {
+              setPromptsOpen(null);
+              setPrefill({ text, at: Date.now() });
+            }}
+          />
+        )}
+        {savingPrompt !== null && (
+          <SavePromptDialog key="save-prompt" initial={savingPrompt} onClose={() => setSavingPrompt(null)} onSaved={() => setSavingPrompt(null)} />
         )}
         {renameOpen && routeId && (
           <RenameDialog

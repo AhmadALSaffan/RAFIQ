@@ -101,6 +101,9 @@ export function Composer({
     setCaret(prefill.text.length);
     const el = ref.current;
     if (el) {
+      // Focusing fires a selection event that reads the box back into state — it must
+      // already hold the new text, or it puts the old one back.
+      el.value = prefill.text;
       el.focus();
       requestAnimationFrame(() => el.setSelectionRange(prefill.text.length, prefill.text.length));
     }

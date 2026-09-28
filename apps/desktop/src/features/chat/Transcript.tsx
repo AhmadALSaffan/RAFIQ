@@ -101,6 +101,7 @@ export function MessageView({
   onOpenTask,
   onEdit,
   onFork,
+  onSavePrompt,
 }: {
   message: ChatMessage;
   model?: LlmModel;
@@ -109,6 +110,8 @@ export function MessageView({
   onEdit?: (message: ChatMessage) => void;
   /** Copy the chat up to here into a new one. */
   onFork?: (message: ChatMessage) => void;
+  /** Keep this question as a reusable prompt. */
+  onSavePrompt?: (message: ChatMessage) => void;
 }) {
   const menu = useElementMenu();
   if (message.role === "user") {
@@ -122,6 +125,7 @@ export function MessageView({
           { id: "copy", label: t("انسخ الرسالة"), onSelect: () => void navigator.clipboard.writeText(message.content) },
           ...(onEdit ? [{ id: "edit", label: t("عدّل وابعت من جديد"), onSelect: () => onEdit(message) }] : []),
           ...(onFork ? [{ id: "fork", label: t("افرع محادثة من هون"), onSelect: () => onFork(message) }] : []),
+          ...(onSavePrompt && message.content ? [{ id: "prompt", label: t("احفظه كبرومبت"), onSelect: () => onSavePrompt(message) }] : []),
         ])}
       >
         {message.attachments && message.attachments.length > 0 && <AttachmentGallery attachments={message.attachments} align="end" />}

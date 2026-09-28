@@ -240,6 +240,8 @@ EN: dict[str, str] = {
     # Logs
     "ما لقيت هالسجل.": "That log doesn't exist.",
     "ما قدرت أقرأ السجل: {0}": "Couldn't read the log: {0}",
+    # Prompt library
+    "ما لقيت هالبرومبت.": "That prompt doesn't exist.",
 }
 
 RU: dict[str, str] = {
@@ -481,4 +483,6 @@ RU: dict[str, str] = {
     # Logs
     "ما لقيت هالسجل.": "Такого журнала нет.",
     "ما قدرت أقرأ السجل: {0}": "Не удалось прочитать журнал: {0}",
+    # Prompt library
+    "ما لقيت هالبرومبت.": "Такого промпта нет.",
 }

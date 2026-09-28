@@ -1,7 +1,7 @@
-/** Task templates, schedules, and MCP servers. */
+/** Task templates, saved prompts, schedules, and MCP servers. */
 
 import { request } from "./client";
-import type { CatalogTemplate, McpConnectResult, McpRequirements, McpServer, McpServerInput, Schedule, ScheduleInput, TaskTemplate } from "../types";
+import type { CatalogTemplate, McpConnectResult, McpRequirements, McpServer, McpServerInput, SavedPrompt, Schedule, ScheduleInput, TaskTemplate } from "../types";
 
 export async function listTemplates(): Promise<TaskTemplate[]> {
   return request<TaskTemplate[]>("/templates");
@@ -34,6 +34,27 @@ export async function exportTemplates(): Promise<{ name: string; prompt: string 
 /** Adds templates from a JSON URL or a list; names already present are skipped. */
 export async function importTemplates(body: { url?: string; templates?: { name: string; prompt: string }[] }): Promise<TaskTemplate[]> {
   return request<TaskTemplate[]>("/templates/import", { method: "POST", body: JSON.stringify(body) });
+}
+
+export async function listPrompts(): Promise<SavedPrompt[]> {
+  return request<SavedPrompt[]>("/prompts");
+}
+
+export async function createPrompt(title: string, body: string): Promise<SavedPrompt> {
+  return request<SavedPrompt>("/prompts", { method: "POST", body: JSON.stringify({ title, body }) });
+}
+
+export async function updatePrompt(id: string, patch: { title?: string; body?: string }): Promise<SavedPrompt> {
+  return request<SavedPrompt>(`/prompts/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+}
+
+export async function deletePrompt(id: string): Promise<void> {
+  await request<void>(`/prompts/${id}`, { method: "DELETE" });
+}
+
+/** Counts a use, so the most used prompts stay on top. */
+export async function markPromptUsed(id: string): Promise<SavedPrompt> {
+  return request<SavedPrompt>(`/prompts/${id}/use`, { method: "POST" });
 }
 
 export async function listSchedules(): Promise<Schedule[]> {

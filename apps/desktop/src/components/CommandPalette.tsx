@@ -11,10 +11,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { listChats, listDesigns, listTasks, searchChats } from "../lib/api";
-import type { ChatSearchResult, ChatSummary, DesignSummary, TaskSummary } from "../lib/types";
+import { listChats, listDesigns, listPrompts, listTasks, searchChats } from "../lib/api";
+import type { ChatSearchResult, ChatSummary, DesignSummary, SavedPrompt, TaskSummary } from "../lib/types";
 import { useCurrentWorkspaceId } from "../lib/workspace";
 import { fieldDir } from "../lib/bidi";
 import { timeAgo } from "../lib/time";
@@ -33,6 +33,7 @@ import {
   SparkIcon,
   SunIcon,
   TasksIcon,
+  WandIcon,
 } from "./Icons";
 import { t } from "../i18n";
 
@@ -139,6 +140,8 @@ export function CommandPalette({
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
   const [designs, setDesigns] = useState<DesignSummary[]>([]);
+  const [prompts, setPrompts] = useState<SavedPrompt[]>([]);
+  const { pathname } = useLocation();
   const [found, setFound] = useState<ChatSearchResult[]>([]);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -152,6 +155,7 @@ export function CommandPalette({
     listChats(workspaceId).then(setChats).catch(() => setChats([]));
     listTasks(workspaceId).then(setTasks).catch(() => setTasks([]));
     listDesigns(workspaceId).then(setDesigns).catch(() => setDesigns([]));
+    listPrompts().then(setPrompts).catch(() => setPrompts([]));
   }, [open, workspaceId]);
 
   // Inside the messages, from two letters on — the newest query wins.
@@ -182,6 +186,8 @@ export function CommandPalette({
   );
 
   const groups: Group[] = useMemo(() => {
+    // A saved prompt goes into the chat on screen, or a new one.
+    const chatPath = pathname.startsWith("/chat") ? pathname : "/chat";
     const pages: Item[] = [
       { id: "p-chat", label: t("المحادثات"), Icon: ChatIcon, keywords: "chats chat conversations", run: go("/chat") },
       { id: "p-work", label: t("شغلي"), Icon: InboxIcon, keywords: "my work issues jira linear github inbox", run: go("/work") },
@@ -209,6 +215,7 @@ export function CommandPalette({
       { id: "c-chat", label: t("محادثة جديدة"), Icon: PlusIcon, keywords: "new chat", run: go("/chat") },
       { id: "c-task", label: t("مهمة جديدة"), Icon: PlusIcon, keywords: "new task", run: go("/tasks?new=1") },
       { id: "c-design", label: t("تصميم جديد"), Icon: PlusIcon, keywords: "new design", run: go("/designs?new=1") },
+      { id: "c-prompts", label: t("البرومبتات"), Icon: WandIcon, keywords: "prompts prompt saved snippets library", run: go(`${chatPath}?prompt=all`) },
       {
         id: "c-theme",
         label: theme === "dark" ? t("وضع فاتح") : t("وضع غامق"),
@@ -251,6 +258,14 @@ export function CommandPalette({
       Icon: SparkIcon,
       run: go(`/designs/${d.id}`),
     }));
+    const promptItems: Item[] = prompts.map((p) => ({
+      id: `prompt-${p.id}`,
+      label: p.title,
+      hint: p.variables.length ? p.variables.map((v) => `{{${v}}}`).join(" ") : undefined,
+      Icon: WandIcon,
+      keywords: p.body.slice(0, 300),
+      run: go(`${chatPath}?prompt=${encodeURIComponent(p.id)}`),
+    }));
 
     if (!q) {
       return [
@@ -259,6 +274,7 @@ export function CommandPalette({
         { title: t("محادثات"), items: chatItems.slice(0, 5) },
         { title: t("مهام"), items: taskItems.slice(0, 4) },
         { title: t("التصاميم"), items: designItems.slice(0, 3) },
+        { title: t("البرومبتات"), items: promptItems.slice(0, 3) },
       ].filter((g) => g.items.length);
     }
 
@@ -281,8 +297,9 @@ export function CommandPalette({
       { title: t("بالرسائل"), items: messageItems },
       { title: t("مهام"), items: rank(taskItems, q, 5) },
       { title: t("التصاميم"), items: rank(designItems, q, 5) },
+      { title: t("البرومبتات"), items: rank(promptItems, q, 5) },
     ].filter((g) => g.items.length);
-  }, [q, chats, tasks, designs, found, theme, navCollapsed, go, onClose, onToggleTheme, onToggleNav]);
+  }, [q, chats, tasks, designs, prompts, pathname, found, theme, navCollapsed, go, onClose, onToggleTheme, onToggleNav]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 

@@ -10,7 +10,7 @@ import { XIcon } from "./Icons";
 
 import { t } from "../i18n";
 /** Shared modal shell for the composer's dialogs. */
-function Dialog({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }) {
+export function Dialog({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <motion.div
       className="fixed inset-0 flex items-center justify-center p-6"

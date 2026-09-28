@@ -122,6 +122,22 @@ class McpServer(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class SavedPrompt(Base):
+    """Text the user keeps retyping, saved to drop into the message box again. `{{name}}`
+    marks the parts that change; the app asks for them before inserting."""
+
+    __tablename__ = "prompts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    title: Mapped[str] = mapped_column(String)
+    body: Mapped[str] = mapped_column(Text)
+    # How often it was used, and when last — the most used come first.
+    uses: Mapped[int] = mapped_column(Integer, default=0)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class TaskTemplate(Base):
     """A task you run often, saved to start again in one click."""
 

@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import json
+import re
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,6 +28,9 @@ from rafiq_agent.schemas.automation import (
     McpServerIn,
     McpServerOut,
     McpStatus,
+    PromptIn,
+    PromptOut,
+    PromptUpdate,
     ScheduleIn,
     ScheduleOut,
     TemplateImportIn,
@@ -34,7 +38,7 @@ from rafiq_agent.schemas.automation import (
     TemplateOut,
 )
 from rafiq_agent.storage.db import get_session
-from rafiq_agent.storage.models import LlmModel, McpServer, Schedule, TaskTemplate
+from rafiq_agent.storage.models import LlmModel, McpServer, SavedPrompt, Schedule, TaskTemplate
 from rafiq_agent.storage.secrets import delete_named_secret
 
 router = APIRouter(tags=["automation"], dependencies=[Depends(require_token)])
@@ -51,6 +55,87 @@ def _folder(raw: str | None) -> str | None:
 
 
 # ── Templates ─────────────────────────────────────────────────────────────────────────
+
+
+# ── Prompt library ────────────────────────────────────────────────────────────
+
+# {{name}}: letters, digits, underscores or dashes — Arabic included — with spaces inside.
+_VARIABLE = re.compile(r"\{\{\s*([\w\-](?:[\w\- ]{0,58}[\w\-])?)\s*\}\}")
+
+
+def prompt_variables(body: str) -> list[str]:
+    """The `{{name}}` parts of a prompt, each once, in the order they first appear."""
+    return list(dict.fromkeys(m.group(1) for m in _VARIABLE.finditer(body)))
+
+
+def _prompt_out(row: SavedPrompt) -> PromptOut:
+    return PromptOut(
+        id=row.id,
+        title=row.title,
+        body=row.body,
+        variables=prompt_variables(row.body),
+        uses=row.uses or 0,
+        last_used_at=row.last_used_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+async def _prompt(session: AsyncSession, prompt_id: str) -> SavedPrompt:
+    row = await session.get(SavedPrompt, prompt_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=tr("ما لقيت هالبرومبت."))
+    return row
+
+
+@router.get("/prompts", response_model=list[PromptOut])
+async def list_prompts(session: AsyncSession = Depends(get_session)) -> list[PromptOut]:
+    """Most used first, then the newest."""
+    rows = await session.execute(
+        select(SavedPrompt).order_by(SavedPrompt.uses.desc(), SavedPrompt.updated_at.desc())
+    )
+    return [_prompt_out(r) for r in rows.scalars().all()]
+
+
+@router.post("/prompts", response_model=PromptOut, status_code=201)
+async def create_prompt(body: PromptIn, session: AsyncSession = Depends(get_session)) -> PromptOut:
+    row = SavedPrompt(title=body.title.strip(), body=body.body)
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return _prompt_out(row)
+
+
+@router.patch("/prompts/{prompt_id}", response_model=PromptOut)
+async def update_prompt(
+    prompt_id: str, body: PromptUpdate, session: AsyncSession = Depends(get_session)
+) -> PromptOut:
+    row = await _prompt(session, prompt_id)
+    if body.title is not None:
+        row.title = body.title.strip()
+    if body.body is not None:
+        row.body = body.body
+    row.updated_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(row)
+    return _prompt_out(row)
+
+
+@router.delete("/prompts/{prompt_id}", status_code=204)
+async def delete_prompt(prompt_id: str, session: AsyncSession = Depends(get_session)) -> None:
+    await session.delete(await _prompt(session, prompt_id))
+    await session.commit()
+
+
+@router.post("/prompts/{prompt_id}/use", response_model=PromptOut)
+async def use_prompt(prompt_id: str, session: AsyncSession = Depends(get_session)) -> PromptOut:
+    """Counted when a prompt goes into the message box, so the list keeps the useful ones on top."""
+    row = await _prompt(session, prompt_id)
+    row.uses = (row.uses or 0) + 1
+    row.last_used_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(row)
+    return _prompt_out(row)
 
 
 @router.get("/templates", response_model=list[TemplateOut])

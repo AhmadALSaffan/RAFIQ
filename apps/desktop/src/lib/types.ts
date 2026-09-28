@@ -551,6 +551,18 @@ export interface TaskChanges {
   truncated: boolean;
 }
 
+/** A saved prompt: text the user keeps retyping, with `{{name}}` for the parts that change. */
+export interface SavedPrompt {
+  id: string;
+  title: string;
+  body: string;
+  variables: string[];
+  uses: number;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TaskTemplate {
   id: string;
   name: string;
