@@ -1291,4 +1291,6 @@ export const en: Dictionary = {
   "علّم الرسالة": "Star message",
   "إنت": "You",
   "(بدون نص)": "(no text)",
+  // Transcript window
+  "{0} رسالة أقدم": { one: "{0} earlier message", other: "{0} earlier messages" },
 };

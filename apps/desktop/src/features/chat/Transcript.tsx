@@ -4,7 +4,7 @@
  * summary marker. No data fetching lives here — it all arrives as props.
  */
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ChatMessage, ChatPart, LlmModel, TaskStatus, TurnUsage } from "../../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../../lib/motion";
@@ -78,6 +78,67 @@ export function Welcome({ hasModels, onPick, onModels }: { hasModels: boolean; o
     </motion.div>
   );
 }
+
+/** What a row can do. One stable object for the whole transcript, so a row only
+ *  re-renders when its own message changes — not on every token of a streaming reply. */
+export interface RowActions {
+  openTask: (id: string) => void;
+  edit: (message: ChatMessage) => void;
+  fork: (message: ChatMessage) => void;
+  savePrompt: (message: ChatMessage) => void;
+  bookmark: (message: ChatMessage, bookmarked: boolean) => void;
+}
+
+/** One message of a saved conversation, with the day marker above it and the summary
+ *  marker below it when they belong there. */
+export const TranscriptRow = memo(function TranscriptRow({
+  message,
+  model,
+  newDay,
+  flash,
+  summary,
+  editable,
+  bookmarkable,
+  actions,
+}: {
+  message: ChatMessage;
+  model?: LlmModel;
+  newDay: boolean;
+  /** Lit up for a moment after a jump to it. */
+  flash: boolean;
+  summary?: string | null;
+  /** Off while a reply streams: editing or forking mid-reply would race it. */
+  editable: boolean;
+  bookmarkable: boolean;
+  actions: RowActions;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      {newDay && <DayDivider iso={message.created_at} />}
+      {/* Where a search result or a bookmark lands. */}
+      <div
+        data-message-id={message.id}
+        className="flex flex-col rounded-2xl transition-[outline-color] duration-700"
+        style={{
+          outline: "2px solid",
+          outlineOffset: 8,
+          outlineColor: flash ? "color-mix(in oklch, var(--color-accent) 60%, transparent)" : "transparent",
+        }}
+      >
+        <MessageView
+          message={message}
+          model={model}
+          onOpenTask={actions.openTask}
+          onEdit={editable ? actions.edit : undefined}
+          onFork={editable ? actions.fork : undefined}
+          onSavePrompt={actions.savePrompt}
+          onBookmark={bookmarkable ? actions.bookmark : undefined}
+        />
+      </div>
+      {summary && <SummaryDivider summary={summary} />}
+    </div>
+  );
+});
 
 export function startsNewDay(previous: ChatMessage | undefined, message: ChatMessage): boolean {
   return isNewDay(previous?.created_at, message.created_at);

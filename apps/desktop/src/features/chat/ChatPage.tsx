@@ -9,7 +9,7 @@
  * explicit chat id and can drop the conversation list and the page header.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -57,7 +57,8 @@ import { FolderChip } from "../../components/FolderPicker";
 import { AlertIcon, ArchiveIcon, ArrowDownIcon, ChatIcon, CompressIcon } from "../../components/Icons";
 import { TokenText } from "../../components/TokenText";
 import { Composer } from "./Composer";
-import { AssistantBlock, DayDivider, MessageView, startsNewDay, SummaryDivider, Welcome } from "./Transcript";
+import { AssistantBlock, startsNewDay, TranscriptRow, Welcome, type RowActions } from "./Transcript";
+import { earlierStart, firstStart, NEAR_TOP, startIncluding } from "./transcriptWindow";
 import { applyEvent, textOf, type Draft } from "./draft";
 import { DEFAULT_REPLY_SETTINGS, MODEL_KEY, savedModel } from "./constants";
 
@@ -81,6 +82,9 @@ export function ChatPage({
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [models, setModels] = useState<LlmModel[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Long chats render only their latest messages (transcriptWindow.ts). `win.start` is the
+  // first one on the page, set when a chat opens; later messages join at the bottom.
+  const [win, setWin] = useState<{ chat: string | null; start: number }>({ chat: null, start: 0 });
   const [loadingChat, setLoadingChat] = useState(false);
   // Text pushed into the composer from outside it (editing a question you already asked).
   const [prefill, setPrefill] = useState<{ text: string; at: number } | null>(null);
@@ -202,17 +206,22 @@ export function ChatPage({
     chatModelRef.current = null;
     if (routeId && skipLoadRef.current === routeId) {
       skipLoadRef.current = null;
+      // A chat that was just started here: everything in it is already on the page.
+      setWin({ chat: routeId, start: 0 });
       return;
     }
     abortRef.current?.abort();
     if (!routeId) {
       setMessages([]);
+      setWin({ chat: null, start: 0 });
       return;
     }
     setLoadingChat(true);
     getChat(routeId)
       .then((chat) => {
         setMessages(chat.messages);
+        // Set with the messages, in the same render — never a frame with all of them.
+        setWin({ chat: chat.id, start: firstStart(chat.messages.length) });
         setChats((prev) => (prev.some((c) => c.id === chat.id) ? prev.map((c) => (c.id === chat.id ? { ...c, ...chat } : c)) : [chat, ...prev]));
         chatModelRef.current = chat.model_id ?? null;
         if (chat.model_id && modelsRef.current.some((m) => m.id === chat.model_id && m.verify_ok !== false)) setModelId(chat.model_id);
@@ -252,13 +261,43 @@ export function ChatPage({
     setAtBottom(false);
   }, []);
 
-  const onChatScroll = useCallback((el: HTMLDivElement) => {
-    if (ownScrollTop.current !== null && Math.abs(el.scrollTop - ownScrollTop.current) < 2) return;
-    ownScrollTop.current = null;
-    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
-    stickRef.current = bottom;
-    setAtBottom(bottom);
-  }, []);
+  // Until the window is set for the chat on screen, the latest batch is shown.
+  const start = win.chat === (routeId ?? null) ? Math.min(win.start, messages.length) : firstStart(messages.length);
+
+  // Adding older messages above the reader must not move what they're reading: remember
+  // the height before, and push the scroll down by exactly what was added.
+  const growFrom = useRef<{ height: number; top: number } | null>(null);
+  const showEarlier = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || start === 0 || growFrom.current) return;
+    growFrom.current = { height: el.scrollHeight, top: el.scrollTop };
+    setWin({ chat: routeId ?? null, start: earlierStart(start) });
+  }, [start, routeId]);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    const from = growFrom.current;
+    if (!el || !from) return;
+    growFrom.current = null;
+    el.scrollTop = from.top + (el.scrollHeight - from.height);
+    ownScrollTop.current = el.scrollTop;
+  }, [start]);
+  // A window that doesn't fill the screen can't be scrolled up to ask for more.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el && start > 0 && !loadingChat && el.scrollHeight <= el.clientHeight + NEAR_TOP) showEarlier();
+  }, [start, loadingChat, messages.length, showEarlier]);
+
+  const onChatScroll = useCallback(
+    (el: HTMLDivElement) => {
+      if (el.scrollTop < NEAR_TOP) showEarlier();
+      if (ownScrollTop.current !== null && Math.abs(el.scrollTop - ownScrollTop.current) < 2) return;
+      ownScrollTop.current = null;
+      const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+      stickRef.current = bottom;
+      setAtBottom(bottom);
+    },
+    [showEarlier],
+  );
 
   useLayoutEffect(() => {
     if (stickRef.current) scrollToBottom();
@@ -284,7 +323,14 @@ export function ChatPage({
   }, [promptParam, setSearchParams]);
   const [flash, setFlash] = useState<string | null>(null);
   useEffect(() => {
-    if (!jumpTo || loadingChat || !messages.some((m) => m.id === jumpTo)) return;
+    const index = jumpTo && !loadingChat ? messages.findIndex((m) => m.id === jumpTo) : -1;
+    if (!jumpTo || index < 0) return;
+    // Further back than the page goes: bring its batch in first, then come back here.
+    if (index < start) {
+      unstick();
+      setWin({ chat: routeId ?? null, start: startIncluding(index, start) });
+      return;
+    }
     const target = scrollRef.current?.querySelector(`[data-message-id="${CSS.escape(jumpTo)}"]`);
     if (target) {
       unstick();
@@ -298,7 +344,7 @@ export function ChatPage({
       },
       { replace: true },
     );
-  }, [jumpTo, loadingChat, messages, unstick, setSearchParams]);
+  }, [jumpTo, loadingChat, messages, start, routeId, unstick, setSearchParams]);
   useEffect(() => {
     if (!flash) return;
     const timer = window.setTimeout(() => setFlash(null), 2200);
@@ -682,6 +728,22 @@ export function ChatPage({
     }
   }
 
+  // The rows get one unchanging set of actions that always calls the latest handlers.
+  const handlers = useRef({ editMessage, forkFrom, bookmark, navigate });
+  useLayoutEffect(() => {
+    handlers.current = { editMessage, forkFrom, bookmark, navigate };
+  });
+  const rowActions = useMemo<RowActions>(
+    () => ({
+      openTask: (id) => handlers.current.navigate(`/tasks/${id}`),
+      edit: (m) => void handlers.current.editMessage(m),
+      fork: (m) => void handlers.current.forkFrom(m),
+      savePrompt: (m) => setSavingPrompt(m.content),
+      bookmark: (m, on) => void handlers.current.bookmark(m, on),
+    }),
+    [],
+  );
+
   /** Scroll to a message and light it up — the same path a search result takes. */
   function jumpToMessage(messageId: string) {
     setSearchParams(
@@ -831,32 +893,31 @@ export function ChatPage({
               </div>
             ) : (
               <>
-                {messages.map((m, i) => (
-                  <div key={m.id} className="flex flex-col gap-6">
-                    {startsNewDay(messages[i - 1], m) && <DayDivider iso={m.created_at} />}
-                    {/* Where a search result lands; lit up for a moment when it does. */}
-                    <div
-                      data-message-id={m.id}
-                      className="flex flex-col rounded-2xl transition-[outline-color] duration-700"
-                      style={{
-                        outline: "2px solid",
-                        outlineOffset: 8,
-                        outlineColor: flash === m.id ? "color-mix(in oklch, var(--color-accent) 60%, transparent)" : "transparent",
-                      }}
-                    >
-                      <MessageView
-                        message={m}
-                        model={models.find((x) => x.id === m.model_id) ?? undefined}
-                        onOpenTask={(id) => navigate(`/tasks/${id}`)}
-                        onEdit={streaming ? undefined : editMessage}
-                        onFork={streaming ? undefined : forkFrom}
-                        onSavePrompt={(msg) => setSavingPrompt(msg.content)}
-                        onBookmark={routeId && !m.id.startsWith("temp") ? bookmark : undefined}
-                      />
-                    </div>
-                    {current?.summary_until === m.id && current.summary && <SummaryDivider summary={current.summary} />}
-                  </div>
-                ))}
+                {start > 0 && (
+                  <button
+                    onClick={showEarlier}
+                    className="self-center rounded-full px-3 py-1 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
+                    style={{ color: "var(--color-ink-muted)" }}
+                  >
+                    {t("{0} رسالة أقدم", { 0: start })}
+                  </button>
+                )}
+                {messages.slice(start).map((m, offset) => {
+                  const i = start + offset;
+                  return (
+                    <TranscriptRow
+                      key={m.id}
+                      message={m}
+                      model={models.find((x) => x.id === m.model_id)}
+                      newDay={startsNewDay(messages[i - 1], m)}
+                      flash={flash === m.id}
+                      summary={current?.summary_until === m.id ? current.summary : null}
+                      editable={!streaming}
+                      bookmarkable={Boolean(routeId) && !m.id.startsWith("temp")}
+                      actions={rowActions}
+                    />
+                  );
+                })}
                 {summarizing && (
                   <motion.p
                     initial={{ opacity: 0 }}
