@@ -57,6 +57,11 @@ export async function createTask(input: {
   return { ...raw, events: raw.events.map(toTaskEvent) };
 }
 
+/** A failed or cancelled task goes back in line and continues from where it stopped. */
+export async function resumeTask(id: string): Promise<TaskSummary> {
+  return request<TaskSummary>(`/tasks/${id}/resume`, { method: "POST" });
+}
+
 /** Plan mode: the user approved the plan (maybe edited) — the task runs it now. */
 export async function approveTaskPlan(id: string, plan?: string): Promise<TaskSummary> {
   return request<TaskSummary>(`/tasks/${id}/plan/approve`, { method: "POST", body: JSON.stringify({ plan: plan ?? null }) });

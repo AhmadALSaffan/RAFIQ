@@ -35,10 +35,54 @@ async def plan(working_dir: str | None, isolate: bool) -> dict[str, Any] | None:
     return None
 
 
+def continues(info: dict[str, Any] | None) -> bool:
+    """Whether a stopped task's git record can be picked up again: it has a repo and the
+    commit its changes are measured from."""
+    return bool(info and info.get("repo") and info.get("base"))
+
+
+async def _continue(
+    task_id: str, working_dir: Path, info: dict[str, Any]
+) -> tuple[Path, dict[str, Any]] | None:
+    """A resumed task keeps the base it started from, so what it finally changes is the
+    work of both runs together. In place, the folder already holds the first run's edits; in
+    a worktree, the new one starts from the first run's result rather than from scratch.
+    None when git can't give that back (the caller starts over)."""
+    repo = Path(info["repo"])
+    if not repo.is_dir():
+        return None
+    subdir = info.get("subdir") or ""
+    fresh: dict[str, Any] = {**info, "state": "running", "error": None}
+    if info.get("mode") == "worktree":
+        start = info.get("result") or info["base"]
+        try:
+            tree, links = await gitops.add_worktree(repo, task_id, start, subdir)
+        except gitops.GitError:
+            return None
+        fresh.update(worktree=str(tree), links=links)
+        effective = tree / subdir if subdir else tree
+    else:
+        fresh.update(worktree=None, links=[])
+        effective = working_dir
+    await _save(task_id, fresh)
+    return effective, fresh
+
+
 async def prepare(
-    task_id: str, title: str, working_dir: Path, paths: list[str], planned: dict[str, Any] | None
+    task_id: str,
+    title: str,
+    working_dir: Path,
+    paths: list[str],
+    planned: dict[str, Any] | None,
+    resume: bool = False,
 ) -> tuple[Path, dict[str, Any] | None]:
-    """Before the task runs. Returns the folder it should work in, and the git record."""
+    """Before the task runs. Returns the folder it should work in, and the git record.
+    `resume`: the task ran before, and `planned` is its record from then."""
+    if resume and continues(planned):
+        assert planned is not None
+        if (picked := await _continue(task_id, working_dir, planned)) is not None:
+            return picked
+        planned = {"planned": "worktree"} if planned.get("mode") == "worktree" else None
     repo = await gitops.repo_root(working_dir)
     if repo is None:
         return working_dir, None

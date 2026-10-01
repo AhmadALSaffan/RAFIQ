@@ -24,6 +24,7 @@ PLACEHOLDER = re.compile(r"\{\w+\}")
 NOT_TRANSLATED: dict[str, set[str] | str] = {
     "core/prompts.py": "*",
     "core/loop.py": "*",
+    "core/resume.py": "*",
     "tools/skills.py": "*",
     "tools/tasks.py": "*",
     "skills/registry.py": "*",

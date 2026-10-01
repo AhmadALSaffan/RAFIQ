@@ -2,6 +2,8 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import select
+
 from rafiq_agent.auth.resolve import llm_for
 from rafiq_agent.core.attachments import AttachmentError, build_user_content, load_attachments
 from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
@@ -9,6 +11,7 @@ from rafiq_agent.core.manager import manager
 from rafiq_agent.core.memory import memory_note
 from rafiq_agent.core.project_notes import project_instructions
 from rafiq_agent.core.prompts import PLAN_APPROVED, PLAN_PROMPT, STEP_NOTE
+from rafiq_agent.core.resume import is_resume, resume_message
 from rafiq_agent.core.task_git import prepare as prepare_git
 from rafiq_agent.core.task_git import settle as settle_git
 from rafiq_agent.core.workspace import session_dir
@@ -19,7 +22,7 @@ from rafiq_agent.llm.discovery import friendly_error, supports_vision
 from rafiq_agent.llm.presets import native_tools
 from rafiq_agent.schemas.settings import AppSettings
 from rafiq_agent.storage.db import SessionLocal
-from rafiq_agent.storage.models import LlmModel, SettingsRow, Task
+from rafiq_agent.storage.models import LlmModel, SettingsRow, Task, TaskEvent
 from rafiq_agent.tools.base import ToolRegistry
 from rafiq_agent.tools.filesystem import (
     FilesystemDeleteTool,
@@ -77,8 +80,6 @@ ALL_GROUPS = frozenset({"files", "web", "browser", "issues", "skills", "mcp", "d
 
 async def _has_integrations() -> bool:
     """Whether any issue tracker is connected. No account, no issue tools."""
-    from sqlalchemy import select
-
     from rafiq_agent.storage.models import IntegrationAccount
 
     try:
@@ -239,6 +240,16 @@ async def run_task(task_id: str) -> None:
         )
         attachment_ids = [a["id"] for a in (task.attachments or [])]
         paths = list(task.paths or [])
+        # A task the user resumed carries its earlier steps into this run (core/resume.py).
+        saved = (
+            await session.execute(
+                select(TaskEvent.type, TaskEvent.payload)
+                .where(TaskEvent.task_id == task_id)
+                .order_by(TaskEvent.created_at, TaskEvent.id)
+            )
+        ).all()
+        history = [(kind, dict(payload or {})) for kind, payload in saved]
+        resumed = is_resume(history)
 
     if not model:
         await manager.emit_event(task_id, "error", {"message": tr("النموذج تبع هالمهمة انحذف.")})
@@ -258,7 +269,7 @@ async def run_task(task_id: str) -> None:
         settings = await load_settings()
         # A worktree of its own when the folder is a git repo (and isolation is on), or a
         # checkpoint before it edits in place — either way its changes can be reviewed.
-        effective, git_info = await prepare_git(task_id, title, working_dir, paths, planned)
+        effective, git_info = await prepare_git(task_id, title, working_dir, paths, planned, resume=resumed)
         llm = llm_for(model, fallback=fallback)
         attachments = await load_attachments(attachment_ids)
         user_content = build_user_content(prompt, attachments, supports_vision(llm.model))
@@ -287,6 +298,8 @@ async def run_task(task_id: str) -> None:
             # The approved plan is part of the conversation, so the run follows it.
             messages.append({"role": "assistant", "content": plan_text})
             messages.append({"role": "user", "content": PLAN_APPROVED})
+        if resumed:
+            messages.append({"role": "user", "content": resume_message(history[:-1])})
 
         async def permit(
             tool_name: str, category: str, args: dict[str, Any], preview: str | None = None

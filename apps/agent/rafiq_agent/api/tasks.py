@@ -11,6 +11,7 @@ from rafiq_agent.config import AUTH_TOKEN
 from rafiq_agent.core import gitops, task_git
 from rafiq_agent.core.git_describe import describe_changes
 from rafiq_agent.core.manager import manager
+from rafiq_agent.core.resume import RESUMED
 from rafiq_agent.core.task_git import discard as discard_git
 from rafiq_agent.core.tasks_service import TaskCreateError
 from rafiq_agent.core.tasks_service import create_task as create_task_record
@@ -107,6 +108,35 @@ async def delete_task(task_id: str) -> None:
 @router.post("/{task_id}/cancel", status_code=202)
 async def cancel_task(task_id: str) -> dict[str, bool]:
     return {"cancelled": await manager.cancel(task_id)}
+
+
+@router.post("/{task_id}/resume", response_model=TaskSummaryOut)
+async def resume_task(task_id: str) -> TaskSummaryOut:
+    """Puts a failed or cancelled task back in line to continue from where it stopped: the
+    next run is given what it already did (see core/resume.py), and keeps working in the
+    same folder and on the same git base, so nothing finished is redone."""
+    async with SessionLocal() as session:
+        task = await session.get(Task, task_id)
+        if task is None:
+            raise HTTPException(status_code=404, detail="task not found")
+        if task.status not in ("failed", "cancelled"):
+            raise HTTPException(status_code=400, detail=tr("بس المهمة الفاشلة أو الملغية بتنكمّل."))
+        previous, git = task.status, dict(task.git or {})
+        working_dir, paths, depends_on = task.working_dir, task.paths, task.depends_on
+    # The marker goes in first: the run that starts next reads it to know this is a resume.
+    await manager.emit_event(task_id, RESUMED, {"from": previous})
+    await manager.set_status(task_id, "queued")
+    manager.enqueue(
+        task_id,
+        working_dir,
+        paths,
+        depends_on,
+        isolated=bool(git.get("planned")) or git.get("mode") == "worktree",
+    )
+    async with SessionLocal() as session:
+        task = await session.get(Task, task_id)
+        assert task is not None
+        return _summary(task)
 
 
 async def _planned(task_id: str) -> Task:

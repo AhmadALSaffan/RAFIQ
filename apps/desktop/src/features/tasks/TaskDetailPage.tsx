@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { approveTaskPlan, cancelTask, createTask, deleteTask, getTask, listModels, rejectTaskPlan, resolvePermission, subscribeTask } from "../../lib/api";
+import { approveTaskPlan, cancelTask, createTask, deleteTask, getTask, listModels, rejectTaskPlan, resolvePermission, resumeTask, subscribeTask } from "../../lib/api";
 import type { LlmModel, TaskDetail, TaskEvent, ToolCall } from "../../lib/types";
 import { folderName, revealPath } from "../../lib/folders";
 import { easeOutExpo } from "../../lib/motion";
@@ -35,7 +35,7 @@ import { Button, DrawnCheck } from "../../components/ui";
 import { Markdown } from "../../components/Markdown";
 import { PermissionCard, ThinkingDots, ToolCard } from "../../components/steps";
 import { AttachmentGallery } from "../../components/Attachments";
-import { formatDuration } from "./pieces";
+import { canResume, finishedSteps, formatDuration } from "./pieces";
 import { fieldDir } from "../../lib/bidi";
 import { ChangesPanel } from "./ChangesPanel";
 
@@ -67,6 +67,7 @@ function toBlocks(events: TaskEvent[]): Block[] {
     } else if (e.type === "permission_request") blocks.push({ kind: "permission", key: e.id, event: e });
     else if (e.type === "plan") blocks.push({ kind: "plan", key: e.id, text: e.text });
     else if (e.type === "plan_approved") blocks.push({ kind: "note", key: e.id, text: t("وافقت على الخطة — بلّش التنفيذ.") });
+    else if (e.type === "resumed") blocks.push({ kind: "note", key: e.id, text: t("كمّلت المهمة من وين وقفت.") });
     else if (e.type === "error") blocks.push({ kind: "error", key: e.id, message: e.message });
   }
   return blocks;
@@ -80,6 +81,8 @@ export function TaskDetailPage() {
   const [sweep, setSweep] = useState<"success" | "danger" | null>(null);
   const [copied, setCopied] = useState(false);
   const [rerunning, setRerunning] = useState(false);
+  const [resuming, setResuming] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastStatus = useRef<string | null>(null);
@@ -177,9 +180,25 @@ export function TaskDetailPage() {
     }
   }, [task, rerunning, navigate]);
 
+  const resume = useCallback(async () => {
+    if (!task || resuming) return;
+    setResuming(true);
+    setResumeError(null);
+    try {
+      const updated = await resumeTask(task.id);
+      // The socket brings the marker event and the new status; this just makes it instant.
+      setTask((prev) => (prev ? { ...prev, ...updated, events: prev.events } : prev));
+    } catch (error) {
+      setResumeError(error instanceof Error && error.message ? error.message : t("ما قدرت أكمّل المهمة."));
+    } finally {
+      setResuming(false);
+    }
+  }, [task, resuming]);
+
   usePageMenu(() => [
     { id: "back", label: t("رجوع للمهام"), onSelect: () => navigate("/tasks") },
     { id: "copy-prompt", label: t("انسخ الطلب"), onSelect: copyPrompt, disabled: !task },
+    { id: "resume", label: t("كمّل من وين وقفت"), onSelect: () => void resume(), disabled: !task || !canResume(task.status) || resuming },
     { id: "rerun", label: t("شغّلها من جديد"), onSelect: () => void rerun(), disabled: !task },
     {
       id: "folder",
@@ -330,6 +349,18 @@ export function TaskDetailPage() {
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {canResume(task.status) && (
+          <ResumeBanner
+            key="resume"
+            done={finishedSteps(task.events)}
+            busy={resuming}
+            error={resumeError}
+            onResume={() => void resume()}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {task.status === "queued" && (
@@ -493,6 +524,41 @@ function DeleteTaskButton({ running, onConfirm }: { running: boolean; onConfirm:
         </motion.button>
       )}
     </AnimatePresence>
+  );
+}
+
+/** A task that stopped midway: continue from the failure point, or start over from the top. */
+function ResumeBanner({ done, busy, error, onResume }: { done: number; busy: boolean; error: string | null; onResume: () => void }) {
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6, transition: { duration: 0.2 } }}
+      transition={{ duration: 0.35, ease: easeOutExpo }}
+      className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border px-4 py-3"
+      style={{
+        borderColor: "color-mix(in oklch, var(--color-accent) 45%, transparent)",
+        background: "color-mix(in oklch, var(--color-accent) 7%, transparent)",
+      }}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium" dir="auto">
+          {done > 0 ? t("خلّصت {0} خطوة قبل ما توقف — كمّلها من وين وقفت من غير ما تعيد اللي انعمل.", { 0: done }) : t("وقفت المهمة قبل ما تخلّص أي خطوة.")}
+        </p>
+        <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+          {t("«شغّلها من جديد» بتبلّش مهمة جديدة من الأول.")}
+        </p>
+        {error && (
+          <p className="mt-1 text-xs" style={{ color: "var(--color-danger)" }} role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+      <Button onClick={onResume} disabled={busy}>
+        {busy ? <SpinnerIcon className="h-4 w-4" /> : <RefreshIcon className="h-4 w-4" />}
+        {t("كمّل من وين وقفت")}
+      </Button>
+    </motion.section>
   );
 }
 

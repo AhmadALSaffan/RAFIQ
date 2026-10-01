@@ -161,6 +161,7 @@ export type TaskEvent =
   | { id: string; type: "status"; status: TaskStatus; note?: string; created_at: string }
   | { id: string; type: "plan"; text: string; created_at: string }
   | { id: string; type: "plan_approved"; text: string; created_at: string }
+  | { id: string; type: "resumed"; from: TaskStatus; created_at: string }
   | { id: string; type: "error"; message: string; created_at: string };
 
 export interface TaskDetail extends TaskSummary {

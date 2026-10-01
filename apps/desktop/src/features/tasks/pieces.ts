@@ -1,6 +1,6 @@
 /** Shared vocabulary for the tasks pages: status colours, filter names, and durations. */
 
-import type { TaskStatus } from "../../lib/types";
+import type { TaskEvent, TaskStatus } from "../../lib/types";
 import { parseUtc } from "../../lib/time";
 
 import { t } from "../../i18n";
@@ -25,6 +25,22 @@ const FILTER_LABEL: Record<string, string> = {
 
 export function statusFilterLabel(filter: string): string {
   return FILTER_LABEL[filter] ?? filter;
+}
+
+/** A task that stopped (failed, or was cancelled) can pick up again where it left off. */
+export function canResume(status: TaskStatus): boolean {
+  return status === "failed" || status === "cancelled";
+}
+
+/** How many tool steps got done since the last time the task was resumed — the work a new
+ *  run would otherwise repeat. */
+export function finishedSteps(events: TaskEvent[]): number {
+  let done = 0;
+  for (const e of events) {
+    if (e.type === "resumed") done = 0;
+    else if (e.type === "tool_result" && e.ok) done++;
+  }
+  return done;
 }
 
 /** A run's length in words a person reads at a glance — never a bare millisecond count. */
