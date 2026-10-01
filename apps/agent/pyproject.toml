@@ -1,6 +1,6 @@
 [project]
 name = "rafiq-agent"
-version = "0.4.6"
+version = "0.4.7"
 description = "Rafiq local agent runtime (FastAPI sidecar)"
 requires-python = ">=3.11"
 dependencies = [
