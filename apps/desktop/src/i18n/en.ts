@@ -1302,4 +1302,18 @@ export const en: Dictionary = {
   "(بدون نص)": "(no text)",
   // Transcript window
   "{0} رسالة أقدم": { one: "{0} earlier message", other: "{0} earlier messages" },
+  // MCP permissions per tool
+  "القراءة: {0} · التعديل: {1}": "Reading: {0} · Changing: {1}",
+  "حسب الإعداد العام: {0}": "Follows the global setting: {0}",
+  "الأدوات اللي بتقرأ بس": "Tools that only read",
+  "بحث، عرض، قراءة — الخادم معلّمها إنها ما بتغيّر شي": "Search, list, read — the server marks them as changing nothing",
+  "الإعداد العام": "Global setting",
+  "الأدوات اللي بتعدّل": "Tools that make changes",
+  "كل أداة ما معلّمة للقراءة بس — إنشاء، تعديل، حذف، إرسال": "Every tool not marked read-only — create, edit, delete, send",
+  "كل أداة لحالها": "Tool by tool",
+  "بتقرأ بس": "read-only",
+  "مثل أدوات القراءة": "Like reading tools",
+  "مثل أدوات التعديل": "Like changing tools",
+  "لما يتصل الخادم، بتطلع أدواته هون وبتقدر تحدد كل وحدة لحالها.": "Once the server connects, its tools show up here and you can set each one.",
+  "بتنطبق من الرسالة الجاية — ما بدها إعادة اتصال.": "Applies from the next message — no reconnect needed.",
 };

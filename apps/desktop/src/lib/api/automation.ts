@@ -1,7 +1,7 @@
 /** Task templates, saved prompts, schedules, and MCP servers. */
 
 import { request } from "./client";
-import type { CatalogTemplate, McpConnectResult, McpRequirements, McpServer, McpServerInput, SavedPrompt, Schedule, ScheduleInput, TaskTemplate } from "../types";
+import type { CatalogTemplate, McpConnectResult, McpRequirements, McpPermissions, McpServer, McpServerInput, SavedPrompt, Schedule, ScheduleInput, TaskTemplate } from "../types";
 
 export async function listTemplates(): Promise<TaskTemplate[]> {
   return request<TaskTemplate[]>("/templates");
@@ -106,6 +106,11 @@ export async function logoutMcpServer(id: string): Promise<McpServer> {
 }
 
 /** Connects now and lists the server's tools; throws with the reason when it can't. */
+/** What a server's tools may do without asking. Applies from the next message. */
+export async function setMcpPermissions(id: string, permissions: McpPermissions): Promise<McpServer> {
+  return request<McpServer>(`/mcp/${id}/permissions`, { method: "PUT", body: JSON.stringify(permissions) });
+}
+
 export async function testMcpServer(id: string): Promise<McpServer> {
   return request<McpServer>(`/mcp/${id}/test`, { method: "POST" });
 }

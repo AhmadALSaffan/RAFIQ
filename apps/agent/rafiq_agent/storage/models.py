@@ -118,6 +118,9 @@ class McpServer(Base):
     # The catalogue entry it was made from (lib/mcpCatalog.ts), so the UI shows its logo
     # and hides the command line; None for a custom server.
     preset: Mapped[str | None] = mapped_column(String, nullable=True)
+    # What its tools may do without asking: {"read": mode, "write": mode, "tools": {name: mode}}
+    # (mode = "auto" | "ask" | "deny"). Anything unset follows the global "MCP" permission.
+    permissions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

@@ -646,7 +646,24 @@ export interface McpServer {
   preset: string | null;
   /** OAuth servers: the browser step is done. */
   authorized: boolean;
-  status: { connected: boolean; tools: string[]; error: string | null };
+  /** What its tools may do without asking; unset parts follow the global "mcp" permission. */
+  permissions: McpPermissions;
+  status: { connected: boolean; tools: string[]; tool_details?: McpToolInfo[]; error: string | null };
+}
+
+export interface McpPermissions {
+  read?: PermissionMode | null;
+  write?: PermissionMode | null;
+  /** Per tool, by the server's own tool name; beats read/write. */
+  tools: Record<string, PermissionMode>;
+}
+
+export interface McpToolInfo {
+  name: string;
+  title?: string | null;
+  description: string;
+  /** The server marks it as only reading (MCP `readOnlyHint`). */
+  read_only: boolean;
 }
 
 export interface InitQuestion {

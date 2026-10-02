@@ -140,10 +140,15 @@ async def build_registry(
 
 
 def policy_decision(tool_name: str, category: str, permissions: dict[str, str]) -> str:
-    """'allow' | 'deny' | 'ask' for one tool call under the user's settings."""
+    """'allow' | 'deny' | 'ask' for one tool call under the user's settings. An MCP tool
+    follows its server's own settings first (mcp_bridge.resolve_mode), then the global one."""
+    from rafiq_agent.mcp_bridge import mode_for
+
     if category == "read_only":
         return "allow"
-    mode = permissions.get(permission_key(tool_name), "ask")
+    mode = (mode_for(tool_name) if tool_name.startswith("mcp__") else None) or permissions.get(
+        permission_key(tool_name), "ask"
+    )
     return {"auto": "allow", "deny": "deny"}.get(mode, "ask")
 
 

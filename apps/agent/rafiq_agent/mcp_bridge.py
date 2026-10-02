@@ -4,7 +4,8 @@ Each enabled server gets one long-lived connection (a child process over stdio, 
 Streamable HTTP endpoint), started on first use and kept for the life of the app. Its tools
 join every chat and task as `mcp__<server>__<tool>`, behind the "MCP" permission — the
 server is software the user chose to run, but what the model does with it is still theirs
-to approve.
+to approve. Each server can narrow that down: one mode for the tools that only read (the
+server marks them with `readOnlyHint`), one for the rest, and one per tool on top.
 """
 
 import asyncio
@@ -74,6 +75,50 @@ class _Config:
     url: str | None
     auth: str = "none"
     preset: str | None = None
+    permissions: dict | None = None
+
+
+MODES = ("auto", "ask", "deny")
+# The mode each MCP tool on offer was given by its server's settings (None = the global
+# "MCP" permission decides), filled in whenever the tools are listed for a turn.
+_MODES: dict[str, str | None] = {}
+
+
+def _hint(hints: Any, name: str) -> bool:
+    # The SDK spells the protocol's camelCase fields in snake_case (read_only_hint); older
+    # releases kept readOnlyHint. Either way it's the same hint.
+    camel = name.split("_")[0] + "".join(part.title() for part in name.split("_")[1:])
+    return bool(getattr(hints, name, None) or getattr(hints, camel, None))
+
+
+def is_read_only(tool: Any) -> bool:
+    """Only what the server explicitly marks read-only, and never something it also calls
+    destructive — a missing hint means the tool may change things."""
+    hints = getattr(tool, "annotations", None)
+    return _hint(hints, "read_only_hint") and not _hint(hints, "destructive_hint")
+
+
+def resolve_mode(permissions: dict | None, tool: str, read_only: bool) -> str | None:
+    """The server's own say on one tool: its per-tool mode, else its read or write mode,
+    else None (the global setting)."""
+    permissions = permissions or {}
+    mode = (permissions.get("tools") or {}).get(tool)
+    if mode in MODES:
+        return mode
+    mode = permissions.get("read" if read_only else "write")
+    return mode if mode in MODES else None
+
+
+def mode_for(tool_name: str) -> str | None:
+    """The server-level mode of an `mcp__…` tool offered this turn, if its server set one."""
+    return _MODES.get(tool_name)
+
+
+def _config(r: McpServer) -> "_Config":
+    return _Config(
+        r.id, r.name, r.transport, r.command, list(r.args or []), r.url, r.auth or "none", r.preset,
+        dict(r.permissions or {}),
+    )
 
 
 # On Windows these are .cmd shims, not real executables. Handing one straight to
@@ -266,22 +311,29 @@ class McpManager:
     async def _enabled(self) -> list[_Config]:
         async with SessionLocal() as session:
             rows = (await session.execute(select(McpServer).where(McpServer.enabled.is_(True)))).scalars().all()
-        return [
-            _Config(r.id, r.name, r.transport, r.command, list(r.args or []), r.url, r.auth or "none", r.preset)
-            for r in rows
-        ]
+        return [_config(r) for r in rows]
 
     def status(self, server_id: str) -> dict[str, Any]:
         conn = self.connections.get(server_id)
         if conn is None:
-            return {"connected": False, "tools": [], "error": None}
-        return {"connected": conn.connected, "tools": [t.name for t in conn.tools], "error": conn.error}
+            return {"connected": False, "tools": [], "tool_details": [], "error": None}
+        return {
+            "connected": conn.connected,
+            "tools": [t.name for t in conn.tools],
+            "tool_details": [
+                {
+                    "name": t.name,
+                    "title": getattr(t, "title", None),
+                    "description": (t.description or "")[:300],
+                    "read_only": is_read_only(t),
+                }
+                for t in conn.tools
+            ],
+            "error": conn.error,
+        }
 
     async def connect(self, server: McpServer) -> Connection:
-        config = _Config(
-            server.id, server.name, server.transport, server.command, list(server.args or []), server.url,
-            server.auth or "none", server.preset,
-        )
+        config = _config(server)
         await self.disconnect(server.id)
         conn = Connection(config)
         self.connections[server.id] = conn
@@ -291,10 +343,7 @@ class McpManager:
     def begin(self, server: McpServer) -> Connection:
         """Like connect(), but returns at once: the connection keeps going in the background
         (an OAuth server is waiting for the user's browser)."""
-        config = _Config(
-            server.id, server.name, server.transport, server.command, list(server.args or []), server.url,
-            server.auth or "none", server.preset,
-        )
+        config = _config(server)
         conn = Connection(config)
         self.connections[server.id] = conn
         conn._ready, conn._stop, conn.error = asyncio.Event(), asyncio.Event(), None
@@ -328,6 +377,9 @@ class McpManager:
         for config in configs:
             if config.id not in self.connections:
                 self.connections[config.id] = Connection(config)
+            else:
+                # Permissions change without reconnecting; the next turn uses the new ones.
+                self.connections[config.id].config.permissions = config.permissions
 
         now = asyncio.get_running_loop().time()
 
@@ -343,7 +395,9 @@ class McpManager:
         for config in configs:
             conn = self.connections[config.id]
             for tool in conn.tools if conn.connected else []:
-                out.append(McpTool(conn, tool))
+                wrapped = McpTool(conn, tool)
+                _MODES[wrapped.name] = resolve_mode(config.permissions, tool.name, is_read_only(tool))
+                out.append(wrapped)
         return out
 
     async def shutdown(self) -> None:

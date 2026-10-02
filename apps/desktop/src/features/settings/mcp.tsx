@@ -5,9 +5,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { connectMcpServer, deleteMcpServer, listMcpServers, logoutMcpServer, mcpRequirements, saveMcpServer, testMcpServer } from "../../lib/api";
+import { connectMcpServer, deleteMcpServer, getSettings, listMcpServers, logoutMcpServer, mcpRequirements, saveMcpServer, testMcpServer } from "../../lib/api";
 import { MCP_CATEGORY_LABEL, MCP_PRESETS, presetById, REQUIREMENT_LABEL, REQUIREMENT_URL, type McpPreset } from "../../lib/mcpCatalog";
-import type { McpRequirements, McpServer, McpServerInput } from "../../lib/types";
+import type { McpRequirements, McpServer, McpServerInput, PermissionMode } from "../../lib/types";
 import { openExternal } from "../../lib/links";
 import { easeOutExpo, listContainer, listItem, snappy } from "../../lib/motion";
 import { Button, Reveal } from "../../components/ui";
@@ -15,6 +15,7 @@ import { AlertIcon, ExternalIcon, PlusIcon, SpinnerIcon, TrashIcon, XIcon } from
 import { McpLogo } from "../../components/McpLogo";
 import { FolderPicker } from "../../components/FolderPicker";
 import { Card, Hint, Section, Switch } from "./controls";
+import { McpToolPermissions } from "./mcpPermissions";
 import { t } from "../../i18n";
 
 // ── Custom-server draft ─────────────────────────────────────────────────────────────────
@@ -399,6 +400,8 @@ export function McpSettings() {
   const [requirements, setRequirements] = useState<McpRequirements | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // The global "MCP tools" permission — what a server's unset permissions fall back to.
+  const [globalMode, setGlobalMode] = useState<PermissionMode>("ask");
 
   const load = () =>
     listMcpServers()
@@ -409,6 +412,9 @@ export function McpSettings() {
     mcpRequirements()
       .then(setRequirements)
       .catch(() => setRequirements(null));
+    getSettings()
+      .then((s) => setGlobalMode(s.permissions.mcp ?? "ask"))
+      .catch(() => undefined);
   }, []);
 
   async function test(id: string) {
@@ -714,6 +720,11 @@ export function McpSettings() {
                     <Switch checked={server.enabled} onChange={(on) => void toggle(server, on)} label={t("مفعّل")} />
                   </div>
                 </div>
+                <McpToolPermissions
+                  server={server}
+                  globalMode={globalMode}
+                  onSaved={(updated) => setServers((list) => list.map((s) => (s.id === updated.id ? updated : s)))}
+                />
               </Card>
             </motion.div>
           );

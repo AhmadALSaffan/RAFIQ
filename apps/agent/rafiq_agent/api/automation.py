@@ -24,6 +24,7 @@ from rafiq_agent.schemas.automation import (
     CatalogOut,
     CatalogTemplate,
     McpConnectOut,
+    McpPermissions,
     McpRequirementsOut,
     McpServerIn,
     McpServerOut,
@@ -346,6 +347,7 @@ def _mcp_out(server: McpServer) -> McpServerOut:
         auth=server.auth or "none",
         preset=server.preset,
         authorized=(server.auth == "oauth") and mcp_oauth.is_authorized(server.id),
+        permissions=McpPermissions.model_validate(server.permissions or {}),
         status=McpStatus(**MANAGER.status(server.id)),
     )
 
@@ -409,6 +411,23 @@ async def update_mcp(server_id: str, body: McpServerIn, session: AsyncSession = 
     await session.commit()
     await session.refresh(server)
     await MANAGER.disconnect(server_id)  # the next use connects with the new settings
+    return _mcp_out(server)
+
+
+@router.put("/mcp/{server_id}/permissions", response_model=McpServerOut)
+async def set_mcp_permissions(
+    server_id: str, body: McpPermissions, session: AsyncSession = Depends(get_session)
+) -> McpServerOut:
+    """What this server's tools may do without asking. Takes effect from the next message —
+    no reconnect needed."""
+    server = await session.get(McpServer, server_id)
+    if server is None:
+        raise HTTPException(status_code=404, detail="server not found")
+    server.permissions = body.model_dump(exclude_none=True)
+    await session.commit()
+    await session.refresh(server)
+    if conn := MANAGER.connections.get(server_id):
+        conn.config.permissions = dict(server.permissions or {})
     return _mcp_out(server)
 
 

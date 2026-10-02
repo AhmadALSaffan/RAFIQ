@@ -114,10 +114,31 @@ class McpConnectOut(BaseModel):
     error: str | None = None
 
 
+class McpToolInfo(BaseModel):
+    name: str
+    title: str | None = None
+    description: str = ""
+    # The server says the tool only reads (MCP `readOnlyHint`) — it falls under "read".
+    read_only: bool = False
+
+
 class McpStatus(BaseModel):
     connected: bool = False
     tools: list[str] = []
+    tool_details: list[McpToolInfo] = []
     error: str | None = None
+
+
+McpMode = Literal["auto", "ask", "deny"]
+
+
+class McpPermissions(BaseModel):
+    """What one server's tools may do. None follows the global "MCP" permission."""
+
+    read: McpMode | None = None
+    write: McpMode | None = None
+    # Per tool, by the server's own tool name; beats read/write.
+    tools: dict[str, McpMode] = {}
 
 
 class McpServerOut(BaseModel):
@@ -133,6 +154,7 @@ class McpServerOut(BaseModel):
     preset: str | None = None
     # OAuth servers: the browser step is done (tokens on file).
     authorized: bool = False
+    permissions: McpPermissions = McpPermissions()
     status: McpStatus = McpStatus()
 
 
