@@ -83,6 +83,16 @@ class Harness:
     def running(self) -> set[str]:
         return set(self.manager._running)
 
+    async def becomes(self, expected: set[str], timeout: float = 5.0) -> set[str]:
+        """What is running once it matches `expected`, or when `timeout` runs out. Each
+        status change is a database write, so a fixed pause is too short on a slow runner;
+        a scheduler that gets it wrong still never matches, and the assert shows what ran."""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+        while self.running() != expected and loop.time() < deadline:
+            await asyncio.sleep(0.01)
+        return self.running()
+
     async def finish(self, task_id: str, status: str = "completed") -> None:
         self.outcome[task_id] = status
         self.gates.setdefault(task_id, asyncio.Event()).set()
@@ -105,7 +115,7 @@ async def test_unrelated_tasks_run_at_the_same_time(db, tmp_path):
     for i, task_id in enumerate(ids):
         h.manager.enqueue(task_id, str(tmp_path / f"t{i}"))
     await settle()
-    assert h.running() == set(ids)
+    assert await h.becomes(set(ids)) == set(ids)
     for task_id in ids:
         await h.finish(task_id)
 
@@ -116,9 +126,9 @@ async def test_tasks_on_one_folder_take_turns_in_order(db, tmp_path):
     h.manager.enqueue(first, str(tmp_path))
     h.manager.enqueue(second, str(tmp_path))
     await settle()
-    assert h.running() == {first}
+    assert await h.becomes({first}) == {first}
     await h.finish(first)
-    assert h.running() == {second}
+    assert await h.becomes({second}) == {second}
     await h.finish(second)
 
 
@@ -128,7 +138,7 @@ async def test_declared_paths_let_one_folder_run_in_parallel(db, tmp_path):
     h.manager.enqueue(api, str(tmp_path), ["src/api"])
     h.manager.enqueue(ui, str(tmp_path), ["src/ui"])
     await settle()
-    assert h.running() == {api, ui}
+    assert await h.becomes({api, ui}) == {api, ui}
     await h.finish(api)
     await h.finish(ui)
 
@@ -139,7 +149,7 @@ async def test_worktree_tasks_on_one_folder_run_together(db, tmp_path):
     h.manager.enqueue(first, str(tmp_path), isolated=True)
     h.manager.enqueue(second, str(tmp_path), isolated=True)
     await settle()
-    assert h.running() == {first, second}
+    assert await h.becomes({first, second}) == {first, second}
     await h.finish(first)
     await h.finish(second)
 
@@ -151,11 +161,11 @@ async def test_a_later_task_doesnt_jump_ahead_of_an_earlier_overlapping_one(db, 
     h.manager.enqueue(b, str(tmp_path))  # whole folder: waits for a
     h.manager.enqueue(c, str(tmp_path), ["docs"])  # free of a, but b (earlier) wants docs too
     await settle()
-    assert h.running() == {a}
+    assert await h.becomes({a}) == {a}
     await h.finish(a)
-    assert h.running() == {b}
+    assert await h.becomes({b}) == {b}
     await h.finish(b)
-    assert h.running() == {c}
+    assert await h.becomes({c}) == {c}
     await h.finish(c)
 
 
@@ -166,7 +176,7 @@ async def test_depends_on_waits_and_a_failed_dependency_fails_the_task(db, tmp_p
     h.manager.enqueue(base, str(tmp_path / "base"))
     h.manager.enqueue(after, str(tmp_path / "after"), depends_on=[base])
     await settle()
-    assert h.running() == {base}
+    assert await h.becomes({base}) == {base}
     await h.finish(base, "failed")
     assert after not in h.started
     async with SessionLocal() as session:
@@ -179,9 +189,9 @@ async def test_the_parallel_limit_is_respected(db, tmp_path):
     for i, task_id in enumerate(ids):
         h.manager.enqueue(task_id, str(tmp_path / f"t{i}"))
     await settle()
-    assert h.running() == set(ids[:2])
+    assert await h.becomes(set(ids[:2])) == set(ids[:2])
     await h.finish(ids[0])
-    assert h.running() == {ids[1], ids[2]}
+    assert await h.becomes({ids[1], ids[2]}) == {ids[1], ids[2]}
     for task_id in ids[1:]:
         await h.finish(task_id)
 
