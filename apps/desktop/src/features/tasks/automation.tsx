@@ -15,6 +15,7 @@ import { Button, EmptyState, ErrorText, Field, Reveal } from "../../components/u
 import { FolderPicker } from "../../components/FolderPicker";
 import { ClockIcon, DownloadIcon, GlobeIcon, PlusIcon, SpinnerIcon, TasksIcon, TrashIcon } from "../../components/Icons";
 import { Switch } from "../settings/controls";
+import { RecentRuns, ScheduleHistory } from "./scheduleHistory";
 import { intlLocale, t } from "../../i18n";
 
 export type TemplateSeed = { title: string; prompt: string; model_id?: string | null; working_dir?: string | null };
@@ -188,6 +189,8 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
   const navigate = useNavigate();
   const [schedules, setSchedules] = useState<Schedule[] | null>(null);
   const [editing, setEditing] = useState<(ScheduleInput & { id?: string }) | null>(null);
+  // The schedule whose history is open (one at a time keeps the list readable).
+  const [historyOf, setHistoryOf] = useState<string | null>(null);
   const usable = models.filter((m) => m.verify_ok !== false);
 
   const load = () =>
@@ -249,9 +252,10 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
                 variants={listItem}
                 exit="exit"
                 layout="position"
-                className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+                className="rounded-xl border px-4 py-3"
                 style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", opacity: schedule.enabled ? 1 : 0.6 }}
               >
+                <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium" dir="auto">
                     {schedule.title}
@@ -264,11 +268,16 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
                     {schedule.enabled && schedule.next_run_at && (
                       <span>{t("الجاية: {0}", { 0: upcomingLabel(schedule.next_run_at) })}</span>
                     )}
-                    {schedule.last_task_id && (
-                      <button onClick={() => navigate(`/tasks/${schedule.last_task_id}`)} className="underline underline-offset-2">
-                        {t("آخر تشغيل")}
+                    {(schedule.recent?.length ?? 0) > 0 || schedule.last_task_id ? (
+                      <button
+                        onClick={() => setHistoryOf((id) => (id === schedule.id ? null : schedule.id))}
+                        className="flex items-center gap-1.5 rounded-md px-1 underline-offset-2 hover:underline"
+                        aria-expanded={historyOf === schedule.id}
+                      >
+                        <RecentRuns statuses={schedule.recent ?? []} />
+                        {historyOf === schedule.id ? t("خبّي السجل") : t("السجل")}
                       </button>
-                    )}
+                    ) : null}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
@@ -291,6 +300,10 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
                   </button>
                   <Switch checked={schedule.enabled} onChange={(on) => void toggle(schedule, on)} label={t("مفعّلة")} />
                 </div>
+                </div>
+                <Reveal open={historyOf === schedule.id}>
+                  <ScheduleHistory scheduleId={schedule.id} />
+                </Reveal>
               </motion.li>
             ))}
           </AnimatePresence>

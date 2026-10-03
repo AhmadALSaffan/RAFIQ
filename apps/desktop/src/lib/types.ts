@@ -607,6 +607,27 @@ export interface Schedule extends ScheduleInput {
   last_run_at: string | null;
   last_task_id: string | null;
   created_at: string;
+  /** How the latest runs ended, newest first. */
+  recent?: ScheduleRunStatus[];
+}
+
+/** A task status, or what happened instead of a task. */
+export type ScheduleRunStatus = TaskStatus | "not_started" | "deleted";
+
+/** One run of a schedule and how it went. */
+export interface ScheduleRun {
+  id: string;
+  trigger: "schedule" | "manual";
+  started_at: string;
+  task_id: string | null;
+  status: ScheduleRunStatus;
+  finished_at: string | null;
+  duration_seconds: number | null;
+  /** The start of the task's last report, for a finished run. */
+  summary: string | null;
+  /** Why it failed, or why it never started. */
+  error: string | null;
+  cost_usd: number;
 }
 
 export interface McpServerInput {

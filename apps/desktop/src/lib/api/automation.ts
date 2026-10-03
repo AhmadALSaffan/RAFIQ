@@ -1,7 +1,7 @@
 /** Task templates, saved prompts, schedules, and MCP servers. */
 
 import { request } from "./client";
-import type { CatalogTemplate, McpConnectResult, McpRequirements, McpPermissions, McpServer, McpServerInput, SavedPrompt, Schedule, ScheduleInput, TaskTemplate } from "../types";
+import type { CatalogTemplate, McpConnectResult, McpRequirements, McpPermissions, McpServer, McpServerInput, SavedPrompt, Schedule, ScheduleInput, ScheduleRun, TaskTemplate } from "../types";
 
 export async function listTemplates(): Promise<TaskTemplate[]> {
   return request<TaskTemplate[]>("/templates");
@@ -55,6 +55,11 @@ export async function deletePrompt(id: string): Promise<void> {
 /** Counts a use, so the most used prompts stay on top. */
 export async function markPromptUsed(id: string): Promise<SavedPrompt> {
   return request<SavedPrompt>(`/prompts/${id}/use`, { method: "POST" });
+}
+
+/** Every run of a schedule, newest first, with how each one went. */
+export async function scheduleRuns(id: string, limit = 50): Promise<ScheduleRun[]> {
+  return request<ScheduleRun[]>(`/schedules/${id}/runs?limit=${limit}`);
 }
 
 export async function listSchedules(): Promise<Schedule[]> {

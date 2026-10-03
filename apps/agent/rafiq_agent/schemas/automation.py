@@ -88,8 +88,30 @@ class ScheduleOut(ScheduleIn):
     last_run_at: datetime | None = None
     last_task_id: str | None = None
     created_at: datetime
+    # How the latest runs ended, newest first (see ScheduleRunOut.status) — a glance at
+    # whether the schedule is healthy without opening its history.
+    recent: list[str] = []
 
     model_config = {"from_attributes": True}
+
+
+class ScheduleRunOut(BaseModel):
+    """One run of a schedule and how it went."""
+
+    id: str
+    trigger: Literal["schedule", "manual"] = "schedule"
+    started_at: datetime
+    task_id: str | None = None
+    # The task's status, "not_started" when it couldn't be created, "deleted" when the
+    # task was removed since.
+    status: str
+    finished_at: datetime | None = None
+    duration_seconds: float | None = None
+    # The start of the task's last report, for a finished run.
+    summary: str | None = None
+    # Why it failed or never started.
+    error: str | None = None
+    cost_usd: float = 0.0
 
 
 class McpServerIn(BaseModel):

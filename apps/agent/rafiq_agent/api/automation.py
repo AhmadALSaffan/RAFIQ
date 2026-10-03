@@ -9,13 +9,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent import mcp_oauth
 from rafiq_agent.api.deps import require_token
+from rafiq_agent.core import schedules as schedule_runs
 from rafiq_agent.core.schedules import next_run, parse_time, start_now
 from rafiq_agent.core.tasks_service import TaskCreateError, resolve_working_dir
 from rafiq_agent.i18n import tr
@@ -34,6 +35,7 @@ from rafiq_agent.schemas.automation import (
     PromptUpdate,
     ScheduleIn,
     ScheduleOut,
+    ScheduleRunOut,
     TemplateImportIn,
     TemplateIn,
     TemplateOut,
@@ -281,27 +283,43 @@ def _apply(schedule: Schedule, body: ScheduleIn) -> None:
     schedule.next_run_at = next_run(schedule, datetime.now(UTC)) if body.enabled else None
 
 
+async def _schedule_out(session: AsyncSession, schedule: Schedule) -> ScheduleOut:
+    out = ScheduleOut.model_validate(schedule)
+    out.recent = await schedule_runs.recent(session, schedule.id)
+    return out
+
+
 @router.get("/schedules", response_model=list[ScheduleOut])
-async def list_schedules(session: AsyncSession = Depends(get_session)) -> list[Schedule]:
+async def list_schedules(session: AsyncSession = Depends(get_session)) -> list[ScheduleOut]:
     rows = await session.execute(select(Schedule).order_by(Schedule.created_at.desc()))
-    return list(rows.scalars().all())
+    return [await _schedule_out(session, s) for s in rows.scalars().all()]
+
+
+@router.get("/schedules/{schedule_id}/runs", response_model=list[ScheduleRunOut])
+async def schedule_history(
+    schedule_id: str, limit: int = Query(50, ge=1, le=200), session: AsyncSession = Depends(get_session)
+) -> list[ScheduleRunOut]:
+    """Every run of a schedule, newest first, with how each one went."""
+    if await session.get(Schedule, schedule_id) is None:
+        raise HTTPException(status_code=404, detail="schedule not found")
+    return [ScheduleRunOut(**run) for run in await schedule_runs.history(session, schedule_id, limit)]
 
 
 @router.post("/schedules", response_model=ScheduleOut, status_code=201)
-async def create_schedule(body: ScheduleIn, session: AsyncSession = Depends(get_session)) -> Schedule:
+async def create_schedule(body: ScheduleIn, session: AsyncSession = Depends(get_session)) -> ScheduleOut:
     await _checked_schedule(body, session)
     schedule = Schedule(title="", prompt="", model_id=body.model_id)
     _apply(schedule, body)
     session.add(schedule)
     await session.commit()
     await session.refresh(schedule)
-    return schedule
+    return await _schedule_out(session, schedule)
 
 
 @router.put("/schedules/{schedule_id}", response_model=ScheduleOut)
 async def update_schedule(
     schedule_id: str, body: ScheduleIn, session: AsyncSession = Depends(get_session)
-) -> Schedule:
+) -> ScheduleOut:
     schedule = await session.get(Schedule, schedule_id)
     if schedule is None:
         raise HTTPException(status_code=404, detail="schedule not found")
@@ -309,13 +327,14 @@ async def update_schedule(
     _apply(schedule, body)
     await session.commit()
     await session.refresh(schedule)
-    return schedule
+    return await _schedule_out(session, schedule)
 
 
 @router.delete("/schedules/{schedule_id}", status_code=204)
 async def delete_schedule(schedule_id: str, session: AsyncSession = Depends(get_session)) -> None:
     schedule = await session.get(Schedule, schedule_id)
     if schedule is not None:
+        await schedule_runs.forget(session, schedule_id)
         await session.delete(schedule)
         await session.commit()
 

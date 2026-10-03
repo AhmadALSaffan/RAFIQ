@@ -175,6 +175,22 @@ class Schedule(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class ScheduleRun(Base):
+    """One time a schedule came due or was started by hand — including the times its task
+    couldn't even be created (the model was deleted, the folder is gone). What the task did
+    is read from the task itself; this row only says it was started, when, and how."""
+
+    __tablename__ = "schedule_runs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    schedule_id: Mapped[str] = mapped_column(String, index=True)
+    task_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    trigger: Mapped[str] = mapped_column(String, default="schedule")  # "schedule" | "manual"
+    # Why no task was started, when none was.
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class Memory(Base):
     """One thing the user asked Rafiq to keep in mind across chats (see core/memory.py)."""
 
