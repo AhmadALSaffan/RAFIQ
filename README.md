@@ -98,6 +98,7 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 - 🔎 **Search inside your chats** — The box above the chat list looks through every message, not just titles, with Arabic folded the way people write it (harakat, hamza forms, «ال», a leading «و» or «ب»): a line from the matching message with the words marked, and one click opens the chat at that message
 - 🗄️ **Archive** — Move a chat out of the list without deleting it; search still finds it, and writing in it brings it back
 - ⌨️ **Ctrl+K opens everything** — Every page, settings section and command, plus your chats, tasks and designs, in one box; Arabic folded as you type, English keywords welcome, and chats searched inside their messages
+- 🧩 **Templates with blanks** — Write `{{branch}}`, `{{folder}}` or any name in a task template; Rafiq asks for each before the task starts, and fills the folder, git branch and date itself
 - 🗓️ **Schedule history** — Every run of a scheduled task, on time or by hand, with how it went: duration, cost, the gist of its report, or why it failed or never started
 - 🛡️ **Permissions per MCP tool** — Let a server's read-only tools run on their own, ask before the ones that change things, and allow or block any single tool
 - ⭐ **Bookmarks** — Star any message, yours or Rafiq's; the chat header lists the starred ones and takes you straight back to each, and Ctrl+K finds them across every chat
@@ -173,7 +174,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.4.9_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.4.10_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)
