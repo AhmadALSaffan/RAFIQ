@@ -19,7 +19,15 @@ from rafiq_agent.api.settings import SETTINGS_KEY
 from rafiq_agent.core import logs
 from rafiq_agent.i18n import tr
 from rafiq_agent.llm import usage
-from rafiq_agent.schemas.insights import Diagnostics, LogInfo, LogOut, UsageByModel, UsageDay, UsageSummary
+from rafiq_agent.schemas.insights import (
+    Diagnostics,
+    LogInfo,
+    LogOut,
+    UsageByModel,
+    UsageByWorkspace,
+    UsageDay,
+    UsageSummary,
+)
 from rafiq_agent.schemas.settings import AppSettings
 from rafiq_agent.storage.db import get_session
 from rafiq_agent.storage.models import (
@@ -32,6 +40,7 @@ from rafiq_agent.storage.models import (
     SettingsRow,
     Task,
     UsageRecord,
+    Workspace,
 )
 
 router = APIRouter(tags=["insights"], dependencies=[Depends(require_token)])
@@ -101,6 +110,13 @@ async def usage_summary(
         by_day=[
             UsageDay(date=day, cost_usd=round(float(cost or 0.0), 6), tokens=int(tokens or 0))
             for day, cost, tokens in day_rows
+        ],
+        by_workspace=[
+            UsageByWorkspace(
+                id=ws.id, name=ws.name, color=ws.color,
+                today_usd=usage.workspace_today(ws.id), daily_budget_usd=ws.daily_budget_usd,
+            )
+            for ws in (await session.execute(select(Workspace).order_by(Workspace.created_at))).scalars()
         ],
     )
 

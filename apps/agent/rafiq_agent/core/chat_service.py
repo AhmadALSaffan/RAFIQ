@@ -615,7 +615,7 @@ class ChatTurn:
 
     async def _run(self, messages: list[dict[str, Any]], registry: ToolRegistry) -> None:
         # Everything this turn spends is counted against the chat (see llm/usage.py).
-        usage.scope("chat", self.chat_id, self.model_id).apply()
+        usage.scope("chat", self.chat_id, self.model_id, getattr(self, "workspace_id", None)).apply()
         spent = usage.collect()
         spent.__enter__()
         try:

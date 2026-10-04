@@ -261,7 +261,7 @@ async def run_task(task_id: str) -> None:
         await manager.set_status(task_id, "failed")
         return
 
-    usage.scope("task", task_id, model.id).apply()
+    usage.scope("task", task_id, model.id, workspace_id).apply()
     await manager.set_status(task_id, "running")
     if mode == "plan" and not plan_text:
         # First pass: only a plan. The task waits ("planned") until the user approves it.

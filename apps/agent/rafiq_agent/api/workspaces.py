@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
 from rafiq_agent.core.tasks_service import TaskCreateError, resolve_working_dir
+from rafiq_agent.llm import usage
 from rafiq_agent.storage.db import get_session
 from rafiq_agent.storage.models import Chat, Design, Task, Workspace
 
@@ -26,11 +27,15 @@ class WorkspaceIn(BaseModel):
     model_id: str | None = None
     instructions: str | None = Field(default=None, max_length=8000)
     color: str | None = Field(default=None, max_length=16)
+    # A daily limit (USD) for model calls made from this workspace; None or 0: none.
+    daily_budget_usd: float | None = Field(default=None, ge=0, le=100_000)
 
 
 class WorkspaceOut(WorkspaceIn):
     id: str
     created_at: datetime
+    # Spent today by its chats and tasks.
+    today_usd: float = 0.0
     chats: int = 0
     tasks: int = 0
     designs: int = 0
@@ -67,7 +72,9 @@ def _out(row: Workspace, counts: dict[str, int]) -> WorkspaceOut:
         model_id=row.model_id,
         instructions=row.instructions,
         color=row.color,
+        daily_budget_usd=row.daily_budget_usd,
         created_at=row.created_at,
+        today_usd=usage.workspace_today(row.id),
         chats=counts.get("chats", 0),
         tasks=counts.get("tasks", 0),
         designs=counts.get("designs", 0),
@@ -89,10 +96,12 @@ async def create_workspace(body: WorkspaceIn, session: AsyncSession = Depends(ge
         model_id=body.model_id or None,
         instructions=(body.instructions or "").strip() or None,
         color=body.color or None,
+        daily_budget_usd=body.daily_budget_usd or None,
     )
     session.add(row)
     await session.commit()
     await session.refresh(row)
+    usage.set_workspace_budget(row.id, row.name, row.daily_budget_usd)
     return _out(row, {})
 
 
@@ -106,8 +115,10 @@ async def update_workspace(workspace_id: str, body: WorkspaceIn, session: AsyncS
     row.model_id = body.model_id or None
     row.instructions = (body.instructions or "").strip() or None
     row.color = body.color or None
+    row.daily_budget_usd = body.daily_budget_usd or None
     await session.commit()
     await session.refresh(row)
+    usage.set_workspace_budget(row.id, row.name, row.daily_budget_usd)
     return _out(row, (await _counts(session)).get(row.id, {}))
 
 
@@ -121,6 +132,7 @@ async def delete_workspace(workspace_id: str, session: AsyncSession = Depends(ge
         await session.execute(update(model).where(model.workspace_id == workspace_id).values(workspace_id=None))
     await session.delete(row)
     await session.commit()
+    usage.set_workspace_budget(workspace_id, "", None)
 
 
 async def workspace_note(workspace_id: str | None) -> str:

@@ -456,13 +456,17 @@ export interface Workspace {
   model_id: string | null;
   instructions: string | null;
   color: string | null;
+  /** What it may spend on models in a day (USD); null = no limit of its own. */
+  daily_budget_usd?: number | null;
+  /** Spent today by its chats and tasks. */
+  today_usd?: number;
   created_at: string;
   chats: number;
   tasks: number;
   designs: number;
 }
 
-export type WorkspaceInput = Pick<Workspace, "name" | "working_dir" | "model_id" | "instructions" | "color">;
+export type WorkspaceInput = Pick<Workspace, "name" | "working_dir" | "model_id" | "instructions" | "color" | "daily_budget_usd">;
 
 export interface CatalogTemplate {
   name: string;
@@ -504,6 +508,8 @@ export interface UsageSummary {
   total_tokens: number;
   by_model: UsageByModel[];
   by_day: { date: string; cost_usd: number; tokens: number }[];
+  /** Today's spending of each workspace against its own daily limit. */
+  by_workspace?: { id: string; name: string; color: string | null; today_usd: number; daily_budget_usd: number | null }[];
 }
 
 /** The bug report — see the agent's api/insights.py; carries nothing secret. */

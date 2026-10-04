@@ -46,6 +46,8 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
     },
     "chat_messages": {"parts": "JSON", "attachments": "JSON", "bookmarked_at": "DATETIME"},
     "designs": {"working_dir": "VARCHAR", "saved_path": "VARCHAR", "workspace_id": "VARCHAR", "files": "JSON"},
+    "workspaces": {"daily_budget_usd": "FLOAT"},
+    "usage_records": {"workspace_id": "VARCHAR"},
     "mcp_servers": {"auth": "VARCHAR DEFAULT 'none'", "preset": "VARCHAR", "permissions": "JSON"},
 }
 

@@ -216,6 +216,8 @@ class Workspace(Base):
     model_id: Mapped[str | None] = mapped_column(String, nullable=True)
     instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     color: Mapped[str | None] = mapped_column(String, nullable=True)
+    # What this workspace may spend on models in a day (USD); None means no limit of its own.
+    daily_budget_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -236,6 +238,8 @@ class UsageRecord(Base):
     # What the call was for: "chat" | "task" | "design" | "other", and which one.
     scope: Mapped[str] = mapped_column(String, default="other")
     scope_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # The workspace the chat or task belonged to at the time, for per-workspace budgets.
+    workspace_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
     completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
     # Prompt tokens that were served from the provider's cache (cheaper, already counted above).

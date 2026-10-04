@@ -14,6 +14,7 @@ import { folderName } from "../lib/folders";
 import { refreshWorkspaces, setCurrentWorkspace, useWorkspaces, WORKSPACE_COLORS } from "../lib/workspace";
 import { FolderPicker } from "./FolderPicker";
 import { Button, ErrorText, Field } from "./ui";
+import { BudgetMeter } from "./BudgetMeter";
 import { BriefcaseIcon, ChevronDownIcon, PlusIcon, SettingsIcon, TrashIcon, XIcon } from "./Icons";
 import { t } from "../i18n";
 
@@ -116,7 +117,35 @@ function Row({ active, onClick, children }: { active: boolean; onClick: () => vo
   );
 }
 
-const EMPTY: WorkspaceInput = { name: "", working_dir: null, model_id: null, instructions: null, color: WORKSPACE_COLORS[0] };
+const EMPTY: WorkspaceInput = { name: "", working_dir: null, model_id: null, instructions: null, color: WORKSPACE_COLORS[0], daily_budget_usd: null };
+
+/** Dollars, typed freely: the text is kept as typed ("1." on the way to "1.5"), the number
+ *  goes up. Empty means no limit. */
+function DollarInput({ value, onChange }: { value: number | null; onChange: (value: number | null) => void }) {
+  const [text, setText] = useState(value ? String(value) : "");
+  useEffect(() => {
+    // Another workspace opened for editing: show its number, unless the text already says it.
+    if ((Number(text) || null) !== (value || null)) setText(value ? String(value) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <div className="flex items-center gap-1.5">
+      <span style={{ color: "var(--color-ink-muted)" }}>$</span>
+      <input
+        value={text}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^\d.]/g, "");
+          setText(raw);
+          onChange(Number(raw) > 0 ? Number(raw) : null);
+        }}
+        inputMode="decimal"
+        placeholder={t("بلا حد")}
+        className="input w-32 tabular-nums"
+        dir="ltr"
+      />
+    </div>
+  );
+}
 
 export function WorkspacesDialog({ onClose }: { onClose: () => void }) {
   const { all } = useWorkspaces();
@@ -196,8 +225,9 @@ export function WorkspacesDialog({ onClose }: { onClose: () => void }) {
                     {" · "}
                     {t("{0} محادثة، {1} مهمة، {2} تصميم", { 0: w.chats, 1: w.tasks, 2: w.designs })}
                   </p>
+                  {w.daily_budget_usd ? <BudgetMeter spent={w.today_usd ?? 0} limit={w.daily_budget_usd} className="mt-1 max-w-56" /> : null}
                 </div>
-                <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setEditing({ id: w.id, draft: { name: w.name, working_dir: w.working_dir, model_id: w.model_id, instructions: w.instructions, color: w.color } })}>
+                <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setEditing({ id: w.id, draft: { name: w.name, working_dir: w.working_dir, model_id: w.model_id, instructions: w.instructions, color: w.color, daily_budget_usd: w.daily_budget_usd ?? null } })}>
                   {t("عدّل")}
                 </Button>
                 <button onClick={() => void remove(w)} aria-label={t("احذف")} title={t("احذف المساحة — الجلسات بتضل بس بدون مساحة")} className="rounded-md p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
@@ -226,6 +256,12 @@ export function WorkspacesDialog({ onClose }: { onClose: () => void }) {
             </Field>
             <Field label={t("تعليمات دائمة (اختياري)")} hint={t("بتنضاف لكل محادثة ومهمة بهالمساحة — مثلاً: «المشروع بـ TypeScript، لا تستخدم any، الرد بالعربي».")}>
               <textarea value={editing.draft.instructions ?? ""} onChange={(e) => setEditing({ ...editing, draft: { ...editing.draft, instructions: e.target.value || null } })} rows={3} className="input resize-none" dir={fieldDir(editing.draft.instructions ?? "")} />
+            </Field>
+            <Field label={t("حد المصروف اليومي (اختياري)")} hint={t("لما محادثات ومهام هالمساحة يصرفوا هالمبلغ باليوم، رفيق بيوقف يبعت للنماذج منها لبكرا — والباقي بيكمّل عادي. فاضي = بلا حد.")}>
+              <DollarInput
+                value={editing.draft.daily_budget_usd ?? null}
+                onChange={(daily_budget_usd) => setEditing({ ...editing, draft: { ...editing.draft, daily_budget_usd } })}
+              />
             </Field>
             <div className="flex items-center gap-2">
               <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>

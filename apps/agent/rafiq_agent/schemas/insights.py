@@ -20,6 +20,16 @@ class UsageDay(BaseModel):
     tokens: int
 
 
+class UsageByWorkspace(BaseModel):
+    """Today's spending of one workspace against its own daily limit."""
+
+    id: str
+    name: str
+    color: str | None = None
+    today_usd: float
+    daily_budget_usd: float | None = None
+
+
 class UsageSummary(BaseModel):
     days: int
     today_usd: float
@@ -30,6 +40,7 @@ class UsageSummary(BaseModel):
     total_tokens: int
     by_model: list[UsageByModel]
     by_day: list[UsageDay]
+    by_workspace: list[UsageByWorkspace] = []
 
 
 class LogInfo(BaseModel):

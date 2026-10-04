@@ -8,7 +8,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { getDiagnostics, getUsage } from "../../lib/api";
+import { getDiagnostics, getUsage, saveWorkspace } from "../../lib/api";
+import { refreshWorkspaces, useWorkspaces } from "../../lib/workspace";
+import { BudgetMeter, money } from "../../components/BudgetMeter";
 import { easeOutExpo, listContainer, listItem } from "../../lib/motion";
 import type { AppSettings, UsageSummary } from "../../lib/types";
 import { Button } from "../../components/ui";
@@ -18,11 +20,6 @@ import { Card, Hint, Section, ToggleRow } from "./controls";
 import { t } from "../../i18n";
 
 type Persist = (next: AppSettings) => void;
-
-function money(value: number): string {
-  if (!value) return "$0";
-  return value < 0.01 ? `$${value.toFixed(4)}` : `$${value.toFixed(2)}`;
-}
 
 function tokens(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -62,6 +59,7 @@ export function UsageSettings({ settings, persist }: { settings: AppSettings; pe
   const [summary, setSummary] = useState<UsageSummary | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { all: workspaces } = useWorkspaces();
 
   const load = useCallback(() => {
     getUsage(30)
@@ -86,6 +84,17 @@ export function UsageSettings({ settings, persist }: { settings: AppSettings; pe
   }
 
   const peak = Math.max(1, ...(summary?.by_day ?? []).map((d) => d.cost_usd));
+
+  async function setWorkspaceBudget(id: string, daily: number) {
+    const w = workspaces.find((x) => x.id === id);
+    if (!w) return;
+    await saveWorkspace(
+      { name: w.name, working_dir: w.working_dir, model_id: w.model_id, instructions: w.instructions, color: w.color, daily_budget_usd: daily || null },
+      id,
+    ).catch(() => undefined);
+    await refreshWorkspaces();
+    load();
+  }
 
   return (
     <Section
@@ -152,6 +161,27 @@ export function UsageSettings({ settings, persist }: { settings: AppSettings; pe
           </div>
         )}
       </Card>
+
+      {summary?.by_workspace && summary.by_workspace.length > 0 && (
+        <Card>
+          <p className="text-sm font-medium">{t("حد لكل مساحة عمل")}</p>
+          <Hint>{t("فوق الحد العام: كل مساحة إلها مصروفها اليومي. لما توصل حدها، محادثاتها ومهامها بتوقف لبكرا والباقي بيكمّل.")}</Hint>
+          <motion.ul variants={listContainer} initial="hidden" animate="show" className="mt-3 flex flex-col divide-y" style={{ borderColor: "var(--color-border)" }}>
+            {summary.by_workspace.map((w) => (
+              <motion.li key={w.id} variants={listItem} className="flex items-center gap-4 py-2.5" style={{ borderColor: "var(--color-border)" }}>
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: w.color ?? "var(--color-ink-muted)" }} />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <p className="truncate text-sm" dir="auto">
+                    {w.name}
+                  </p>
+                  <BudgetMeter spent={w.today_usd} limit={w.daily_budget_usd} className="max-w-72" />
+                </div>
+                <BudgetField label={t("حد يومي")} value={w.daily_budget_usd ?? 0} onCommit={(n) => void setWorkspaceBudget(w.id, n)} />
+              </motion.li>
+            ))}
+          </motion.ul>
+        </Card>
+      )}
 
       <ToggleRow
         label={t("توفير التوكنز")}

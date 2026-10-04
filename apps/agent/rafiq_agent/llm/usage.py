@@ -4,9 +4,10 @@ Each request reports its tokens; litellm's price table turns those into dollars.
 numbers are written to `usage_records` and kept as running totals in memory, so checking
 a budget before a call is a comparison, not a query.
 
-Scope (which chat or task a call belongs to) travels in a context variable, so a turn
-sets it once and every call underneath it — including the ones tools make — is counted
-against the right thing.
+Scope (which chat or task a call belongs to, and its workspace) travels in a context
+variable, so a turn sets it once and every call underneath it — including the ones tools
+make — is counted against the right thing. A workspace can have a daily limit of its own,
+on top of the global ones.
 """
 
 import asyncio
@@ -21,7 +22,9 @@ import litellm
 
 log = logging.getLogger(__name__)
 
-_scope: ContextVar[tuple[str, str | None, str | None]] = ContextVar("usage_scope", default=("other", None, None))
+_scope: ContextVar[tuple[str, str | None, str | None, str | None]] = ContextVar(
+    "usage_scope", default=("other", None, None, None)
+)
 # Set while a turn is running, so the UI can be told what that one reply cost.
 _collector: ContextVar[list["Usage"] | None] = ContextVar("usage_collector", default=None)
 
@@ -32,6 +35,9 @@ _today_usd = 0.0
 _month_usd = 0.0
 _daily_budget = 0.0
 _monthly_budget = 0.0
+# Today's spending per workspace, and each workspace's own daily limit (name, USD).
+_workspace_today: dict[str, float] = {}
+_workspace_budgets: dict[str, tuple[str, float]] = {}
 # Rows still being written, so nothing is lost if the app closes mid-write.
 _pending: set[asyncio.Task] = set()
 
@@ -57,9 +63,9 @@ class Usage:
         return bool(self.prompt_tokens or self.completion_tokens)
 
 
-def scope(kind: str, scope_id: str | None = None, model_ref: str | None = None):
-    """Count everything under this block against one chat, task or design."""
-    return _ScopeToken(kind, scope_id, model_ref)
+def scope(kind: str, scope_id: str | None = None, model_ref: str | None = None, workspace_id: str | None = None):
+    """Count everything under this block against one chat, task or design (and its workspace)."""
+    return _ScopeToken(kind, scope_id, model_ref, workspace_id)
 
 
 class collect:
@@ -91,8 +97,8 @@ class collect:
 
 
 class _ScopeToken:
-    def __init__(self, kind: str, scope_id: str | None, model_ref: str | None) -> None:
-        self._value = (kind, scope_id, model_ref)
+    def __init__(self, kind: str, scope_id: str | None, model_ref: str | None, workspace_id: str | None) -> None:
+        self._value = (kind, scope_id, model_ref, workspace_id)
         self._token = None
 
     def __enter__(self) -> None:
@@ -118,6 +124,20 @@ def set_budgets(daily_usd: float | None, monthly_usd: float | None) -> None:
     _monthly_budget = max(0.0, float(monthly_usd or 0.0))
 
 
+def set_workspace_budget(workspace_id: str, name: str, daily_usd: float | None) -> None:
+    """A workspace's own daily limit; 0 or None removes it."""
+    if daily_usd and daily_usd > 0:
+        _workspace_budgets[workspace_id] = (name, float(daily_usd))
+    else:
+        _workspace_budgets.pop(workspace_id, None)
+
+
+def workspace_today(workspace_id: str) -> float:
+    """What a workspace has spent today (UTC, like the global daily total)."""
+    _roll_over()
+    return round(_workspace_today.get(workspace_id, 0.0), 6)
+
+
 def totals() -> dict[str, float]:
     _roll_over()
     return {
@@ -134,6 +154,7 @@ def _roll_over() -> None:
     day, month = _keys(datetime.now(UTC))
     if day != _today_key:
         _today_key, _today_usd = day, 0.0
+        _workspace_today.clear()
     if month != _month_key:
         _month_key, _month_usd = month, 0.0
 
@@ -147,6 +168,13 @@ def check_budget() -> None:
         raise BudgetExceeded(tr("وصلت حد المصروف اليومي ({0}$). غيّره أو طفّيه من الإعدادات ← الاستهلاك.", f"{_daily_budget:g}"))
     if _monthly_budget and _month_usd >= _monthly_budget:
         raise BudgetExceeded(tr("وصلت حد المصروف الشهري ({0}$). غيّره أو طفّيه من الإعدادات ← الاستهلاك.", f"{_monthly_budget:g}"))
+    workspace_id = _scope.get()[3]
+    if workspace_id and workspace_id in _workspace_budgets:
+        name, limit = _workspace_budgets[workspace_id]
+        if _workspace_today.get(workspace_id, 0.0) >= limit:
+            raise BudgetExceeded(
+                tr("مساحة العمل «{0}» وصلت حدها اليومي ({1}$). غيّره من إعدادات المساحة، أو كمّل بمساحة تانية.", name, f"{limit:g}")
+            )
 
 
 def measure(model: str, raw: Any) -> Usage:
@@ -187,26 +215,30 @@ def record(model: str, raw: Any) -> None:
         usage = measure(model, raw)
         if not usage:
             return
-        kind, scope_id, model_ref = _scope.get()
-        _add(usage.cost_usd)
+        kind, scope_id, model_ref, workspace_id = _scope.get()
+        _add(usage.cost_usd, workspace_id)
         if (turn := _collector.get()) is not None:
             turn.append(usage)
         # Written in the background so a reply never waits on bookkeeping.
-        task = asyncio.get_running_loop().create_task(_write(model, usage, kind, scope_id, model_ref))
+        task = asyncio.get_running_loop().create_task(_write(model, usage, kind, scope_id, model_ref, workspace_id))
         _pending.add(task)
         task.add_done_callback(_pending.discard)
     except Exception:  # noqa: BLE001 - bookkeeping is never fatal
         log.debug("usage not recorded", exc_info=True)
 
 
-def _add(cost: float) -> None:
+def _add(cost: float, workspace_id: str | None = None) -> None:
     global _today_usd, _month_usd
     _roll_over()
     _today_usd += cost
     _month_usd += cost
+    if workspace_id:
+        _workspace_today[workspace_id] = _workspace_today.get(workspace_id, 0.0) + cost
 
 
-async def _write(model: str, usage: Usage, kind: str, scope_id: str | None, model_ref: str | None) -> None:
+async def _write(
+    model: str, usage: Usage, kind: str, scope_id: str | None, model_ref: str | None, workspace_id: str | None = None
+) -> None:
     from rafiq_agent.storage.db import SessionLocal
     from rafiq_agent.storage.models import UsageRecord
 
@@ -218,6 +250,7 @@ async def _write(model: str, usage: Usage, kind: str, scope_id: str | None, mode
                     model_ref=model_ref,
                     scope=kind,
                     scope_id=scope_id,
+                    workspace_id=workspace_id,
                     prompt_tokens=usage.prompt_tokens,
                     completion_tokens=usage.completion_tokens,
                     cached_tokens=usage.cached_tokens,
@@ -235,7 +268,7 @@ async def load_totals() -> None:
     from sqlalchemy import func, select
 
     from rafiq_agent.storage.db import SessionLocal
-    from rafiq_agent.storage.models import UsageRecord
+    from rafiq_agent.storage.models import Chat, Design, Task, UsageRecord, Workspace
 
     now = datetime.now(UTC)
     _today_key, _month_key = _keys(now)
@@ -261,5 +294,21 @@ async def load_totals() -> None:
                     )
                 ).scalar_one()
             )
+            # Per workspace: rows made before they carried one take it from their chat/task.
+            owner = func.coalesce(UsageRecord.workspace_id, Chat.workspace_id, Task.workspace_id, Design.workspace_id)
+            rows = await session.execute(
+                select(owner, func.sum(UsageRecord.cost_usd))
+                .select_from(UsageRecord)
+                .outerjoin(Chat, (UsageRecord.scope == "chat") & (Chat.id == UsageRecord.scope_id))
+                .outerjoin(Task, (UsageRecord.scope == "task") & (Task.id == UsageRecord.scope_id))
+                .outerjoin(Design, (UsageRecord.scope == "design") & (Design.id == UsageRecord.scope_id))
+                .where(UsageRecord.created_at >= day_start)
+                .group_by(owner)
+            )
+            _workspace_today.clear()
+            _workspace_today.update({ws: float(cost or 0.0) for ws, cost in rows.all() if ws})
+            _workspace_budgets.clear()
+            for ws in (await session.execute(select(Workspace))).scalars():
+                set_workspace_budget(ws.id, ws.name, ws.daily_budget_usd)
     except Exception:  # noqa: BLE001 - an empty total is better than a failed start
         log.debug("usage totals not loaded", exc_info=True)

@@ -1342,4 +1342,12 @@ export const en: Dictionary = {
   "بدون كلمة المرور — إلها خانتها لحالها. إذا لصقت رابط فيه كلمة مرور، رفيق بيشيلها منه وبيحفظها بالخانة.": "Without the password — it has its own field. If you paste a link that contains one, Rafiq takes it out and keeps it in that field.",
   "كلمة المرور": "Password",
   "بتنحفظ بخزنة ويندوز (Credential Manager)، مش مع إعدادات الخادم. اتركها فاضية إذا القاعدة ما بدها كلمة مرور.": "Stored in the Windows vault (Credential Manager), not with the server settings. Leave it empty if the database needs none.",
+  // Workspace budgets
+  "اليوم {0} · بلا حد": "Today {0} · no limit",
+  "وصل الحد: {0} من {1}": "Limit reached: {0} of {1}",
+  "اليوم {0} من {1}": "Today {0} of {1}",
+  "حد المصروف اليومي (اختياري)": "Daily spending limit (optional)",
+  "لما محادثات ومهام هالمساحة يصرفوا هالمبلغ باليوم، رفيق بيوقف يبعت للنماذج منها لبكرا — والباقي بيكمّل عادي. فاضي = بلا حد.": "Once this workspace's chats and tasks spend this much in a day, Rafiq stops sending them to models until tomorrow — everything else carries on. Empty = no limit.",
+  "حد لكل مساحة عمل": "A limit per workspace",
+  "فوق الحد العام: كل مساحة إلها مصروفها اليومي. لما توصل حدها، محادثاتها ومهامها بتوقف لبكرا والباقي بيكمّل.": "On top of the global limit: each workspace has its own daily spending. When one reaches its limit, its chats and tasks pause until tomorrow and the rest carry on.",
 };
