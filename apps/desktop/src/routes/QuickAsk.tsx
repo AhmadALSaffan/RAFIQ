@@ -18,7 +18,7 @@ import { Logo } from "../components/Logo";
 import { CopyIcon, ExternalIcon, PlusIcon, StopIcon } from "../components/Icons";
 import { useTheme } from "../lib/theme";
 import { useCurrentWorkspaceId } from "../lib/workspace";
-import { fieldDir } from "../lib/bidi";
+import { messageDir } from "../lib/bidi";
 import { easeOutExpo } from "../lib/motion";
 import { t } from "../i18n";
 
@@ -296,7 +296,7 @@ export function QuickAsk() {
           disabled={!modelId}
           className="max-h-32 w-full resize-none bg-transparent px-1 text-[0.9375rem] outline-none"
           style={{ color: "var(--color-ink)" }}
-          dir={fieldDir(text)}
+          dir={messageDir(text)}
         />
       </div>
     </div>

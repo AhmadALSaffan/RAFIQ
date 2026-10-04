@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fieldDir, isolate, isolateMentions, LRI, PDI, splitTokens, stripBidi } from "./bidi";
+import { direction } from "../i18n";
+import { fieldDir, isolate, isolateMentions, LRI, messageDir, PDI, splitTokens, stripBidi } from "./bidi";
 
 describe("mentions in Arabic text", () => {
   it("wraps a mention in isolate characters", () => {
@@ -46,5 +47,20 @@ describe("fieldDir", () => {
   it("lets the typed text decide once there is any", () => {
     expect(fieldDir("hello")).toBe("auto");
     expect(fieldDir("مرحبا")).toBe("auto");
+  });
+});
+
+describe("messageDir", () => {
+  it("is not turned left-to-right by a mention or a command at the start", () => {
+    expect(messageDir(`${isolate("@src/api.ts")} راجعه`)).toBe("rtl");
+    expect(messageDir(`${isolate("#RAF-12")} `)).toBe(direction());
+    expect(messageDir("/لخص")).toBe(direction());
+  });
+
+  it("follows the first letter of the prose around the mentions", () => {
+    expect(messageDir(`review ${isolate("@src/api.ts")} please`)).toBe("ltr");
+    expect(messageDir(`شوف ${isolate("@a.ts")}`)).toBe("rtl");
+    expect(messageDir("12 + 3 = ")).toBe(direction());
+    expect(messageDir("")).toBe(direction());
   });
 });

@@ -71,3 +71,22 @@ export function isolateMentions(markdown: string): string {
 export function fieldDir(value: string | null | undefined): "rtl" | "ltr" | "auto" {
   return value && value.trim() ? "auto" : direction();
 }
+
+const RTL_LETTER = /[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Syriac}\p{Script=Thaana}]/u;
+const ANY_LETTER = /\p{L}/u;
+
+/**
+ * Direction for a message box, where mentions and commands are Latin by nature. The
+ * browser's `dir="auto"` reads them as the first strong letters — even inside isolates — so
+ * "@src/api.ts راجعه" turned the whole box left-to-right: the caret jumped to the other
+ * side and the Arabic after the mention was laid out backwards. Here the first letter
+ * *outside* mentions and commands decides; with none yet, the UI's direction does.
+ */
+export function messageDir(value: string | null | undefined): "rtl" | "ltr" {
+  const prose = (value ?? "").replace(TOKEN_RE, " ");
+  for (const char of prose) {
+    if (RTL_LETTER.test(char)) return "rtl";
+    if (ANY_LETTER.test(char)) return "ltr";
+  }
+  return direction();
+}

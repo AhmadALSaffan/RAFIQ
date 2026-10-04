@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { providerLabel } from "../../lib/api";
 import type { LlmModel, TrackerIssue } from "../../lib/types";
-import { fieldDir, isolate } from "../../lib/bidi";
+import { isolate, messageDir } from "../../lib/bidi";
 import { stripBidi } from "../../lib/bidi";
 import { takeChatMessage } from "../../lib/handoff";
 import { easeOutExpo, snappy } from "../../lib/motion";
@@ -199,7 +199,7 @@ export function Composer({
             ref={mirror}
             aria-hidden
             className="composer-mirror pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-2 py-1.5 text-[0.9375rem] leading-relaxed"
-            dir={fieldDir(text)}
+            dir={messageDir(text)}
           >
             <TokenText text={text} />
           </div>
@@ -235,7 +235,7 @@ export function Composer({
             if (mirror.current) mirror.current.scrollTop = e.currentTarget.scrollTop;
           }}
           className="composer-input relative block max-h-[220px] w-full resize-none bg-transparent px-2 py-1.5 text-[0.9375rem] leading-relaxed outline-none"
-          dir={fieldDir(text)}
+          dir={messageDir(text)}
         />
         </div>
         <div className="mt-1 flex items-center justify-between gap-2">
