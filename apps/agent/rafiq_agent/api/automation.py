@@ -20,7 +20,7 @@ from rafiq_agent.core import schedules as schedule_runs
 from rafiq_agent.core.schedules import next_run, parse_time, start_now
 from rafiq_agent.core.tasks_service import TaskCreateError, resolve_working_dir
 from rafiq_agent.i18n import tr
-from rafiq_agent.mcp_bridge import MANAGER, load_secrets, save_secrets, secret_name
+from rafiq_agent.mcp_bridge import MANAGER, load_secrets, save_secrets, secret_name, secure_args
 from rafiq_agent.schemas.automation import (
     CatalogOut,
     CatalogTemplate,
@@ -379,8 +379,9 @@ def _checked_mcp(body: McpServerIn) -> None:
 
 
 def _merged(saved: dict[str, str], incoming: dict[str, str]) -> dict[str, str]:
-    """Keys the user kept with an empty value keep their saved secret."""
-    return {k: (v if v else saved.get(k, "")) for k, v in incoming.items() if k.strip()}
+    """Keys the user kept with an empty value keep their saved secret; an optional one left
+    empty with nothing saved (a database without a password) isn't stored at all."""
+    return {k: (v if v else saved.get(k, "")) for k, v in incoming.items() if k.strip() and (v or saved.get(k))}
 
 
 @router.get("/mcp", response_model=list[McpServerOut])
@@ -392,11 +393,12 @@ async def list_mcp(session: AsyncSession = Depends(get_session)) -> list[McpServ
 @router.post("/mcp", response_model=McpServerOut, status_code=201)
 async def create_mcp(body: McpServerIn, session: AsyncSession = Depends(get_session)) -> McpServerOut:
     _checked_mcp(body)
+    args, env = secure_args([a for a in body.args if a], body.env)
     server = McpServer(
         name=body.name.strip(),
         transport=body.transport,
         command=(body.command or "").strip() or None,
-        args=[a for a in body.args if a],
+        args=args,
         url=(body.url or "").strip() or None,
         enabled=body.enabled,
         auth=body.auth if body.transport == "http" else "none",
@@ -404,7 +406,7 @@ async def create_mcp(body: McpServerIn, session: AsyncSession = Depends(get_sess
     )
     session.add(server)
     await session.flush()
-    server.secret_keys = save_secrets(server.id, _merged({}, body.env), _merged({}, body.headers))
+    server.secret_keys = save_secrets(server.id, _merged({}, env), _merged({}, body.headers))
     await session.commit()
     await session.refresh(server)
     return _mcp_out(server)
@@ -417,15 +419,16 @@ async def update_mcp(server_id: str, body: McpServerIn, session: AsyncSession = 
         raise HTTPException(status_code=404, detail="server not found")
     _checked_mcp(body)
     saved = load_secrets(server_id)
+    args, env = secure_args([a for a in body.args if a], body.env)
     server.name, server.transport = body.name.strip(), body.transport
     server.command = (body.command or "").strip() or None
-    server.args = [a for a in body.args if a]
+    server.args = args
     server.url = (body.url or "").strip() or None
     server.enabled = body.enabled
     server.auth = body.auth if body.transport == "http" else "none"
     server.preset = (body.preset or "").strip() or None
     server.secret_keys = save_secrets(
-        server_id, _merged(saved["env"], body.env), _merged(saved["headers"], body.headers)
+        server_id, _merged(saved["env"], env), _merged(saved["headers"], body.headers)
     )
     await session.commit()
     await session.refresh(server)

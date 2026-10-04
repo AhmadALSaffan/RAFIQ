@@ -14,6 +14,8 @@ export interface McpSecretField {
   help?: string;
   /** Where to create the token. */
   url?: string;
+  /** Can be left empty (a database without a password). */
+  optional?: boolean;
 }
 
 export interface McpParam {
@@ -192,14 +194,28 @@ export const MCP_PRESETS: McpPreset[] = [
   {
     id: "postgres",
     name: "PostgreSQL",
-    blurb: t("استعلامات قراءة على قاعدة Postgres عبر رابط الاتصال."),
+    blurb: t("استعلامات وتعديلات على قاعدة Postgres — كل تعديل بياخد إذنك."),
     transport: "stdio",
-    command: "npx",
-    args: "-y @modelcontextprotocol/server-postgres {param}",
+    // Crystal DBA's postgres-mcp: reads and writes. It breaks on MCP SDK 2.x, hence the pin.
+    command: "uvx",
+    args: "--with mcp<2 postgres-mcp --access-mode=unrestricted {param}",
     auth: "none",
-    param: { label: t("رابط الاتصال"), placeholder: "postgresql://user:pass@localhost:5432/db", kind: "text", help: t("بينحفظ مع إعداد الخادم — استخدم مستخدم قراءة بس.") },
-    needs: "npx",
-    docs: "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/postgres",
+    param: {
+      label: t("رابط الاتصال"),
+      placeholder: "postgresql://user@localhost:5432/db",
+      kind: "text",
+      help: t("بدون كلمة المرور — إلها خانتها لحالها. إذا لصقت رابط فيه كلمة مرور، رفيق بيشيلها منه وبيحفظها بالخانة."),
+    },
+    secrets: [
+      {
+        key: "PGPASSWORD",
+        label: t("كلمة المرور"),
+        help: t("بتنحفظ بخزنة ويندوز (Credential Manager)، مش مع إعدادات الخادم. اتركها فاضية إذا القاعدة ما بدها كلمة مرور."),
+        optional: true,
+      },
+    ],
+    needs: "uvx",
+    docs: "https://github.com/crystaldba/postgres-mcp",
     category: "data",
   },
   {

@@ -16,6 +16,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 from sqlalchemy import select
 
@@ -59,6 +60,71 @@ def save_secrets(server_id: str, env: dict[str, str], headers: dict[str, str]) -
         with contextlib.suppress(Exception):
             delete_named_secret(secret_name(server_id))
     return sorted(env) + sorted(headers)
+
+
+# ── Database passwords ────────────────────────────────────────────────────────────────
+
+# Postgres reads the password from PGPASSWORD when the connection string has none, so the
+# string (saved with the server, in the database) never needs to carry it.
+PASSWORD_ENV = {"postgres": "PGPASSWORD", "postgresql": "PGPASSWORD"}
+# The Postgres preset: Crystal DBA's postgres-mcp, which can write as well as read (every
+# change still goes through the user's MCP permissions). It doesn't pin the MCP SDK and
+# breaks on 2.x, so the SDK is pinned for it.
+POSTGRES_ARGS = ["--with", "mcp<2", "postgres-mcp", "--access-mode=unrestricted"]
+OLD_POSTGRES = "@modelcontextprotocol/server-postgres"
+
+
+def split_password(url: str) -> tuple[str, str]:
+    """`postgresql://user:pass@host/db` → (`postgresql://user@host/db`, `pass`). Anything
+    without a password comes back as it was."""
+    try:
+        parts = urlsplit(url)
+        password = parts.password
+    except ValueError:
+        return url, ""
+    if password is None or "@" not in parts.netloc:
+        return url, ""
+    userinfo, host = parts.netloc.rsplit("@", 1)
+    user = userinfo.split(":", 1)[0]
+    return urlunsplit(parts._replace(netloc=f"{user}@{host}" if user else host)), unquote(password)
+
+
+def secure_args(args: list[str], env: dict[str, str]) -> tuple[list[str], dict[str, str]]:
+    """Moves a password out of a database URL in the arguments (which are saved in plain
+    sight) into the server's secret environment (which lives in the keychain). A password
+    the user typed into the password field wins over one pasted in the URL."""
+    env = dict(env)
+    out = []
+    for arg in args:
+        scheme = arg.split("://", 1)[0].lower() if "://" in arg else ""
+        if scheme in PASSWORD_ENV:
+            arg, password = split_password(arg)
+            if password and not env.get(PASSWORD_ENV[scheme]):
+                env[PASSWORD_ENV[scheme]] = password
+        out.append(arg)
+    return out, env
+
+
+async def upgrade_saved_servers() -> None:
+    """Postgres servers saved by earlier versions: the password sat in the connection string
+    in the database, and the server could only read. Move the password to the keychain and
+    switch to the server that can write. Runs at startup; does nothing once done."""
+    async with SessionLocal() as session:
+        rows = (await session.execute(select(McpServer).where(McpServer.preset == "postgres"))).scalars().all()
+        changed = False
+        for server in rows:
+            args = list(server.args or [])
+            url = next((a for a in args if "://" in a), None)
+            if OLD_POSTGRES not in args and not (url and split_password(url)[1]):
+                continue
+            saved = load_secrets(server.id)
+            safe, env = secure_args([url] if url else [], saved["env"])
+            server.command = "uvx"
+            server.args = [*POSTGRES_ARGS, *safe]
+            server.secret_keys = save_secrets(server.id, env, saved["headers"])
+            changed = True
+        if changed:
+            await session.commit()
 
 
 def slug(name: str) -> str:

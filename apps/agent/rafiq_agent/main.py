@@ -33,6 +33,7 @@ from rafiq_agent.i18n import reset_request_locale, set_request_locale
 from rafiq_agent.llm import usage
 from rafiq_agent.llm.resilience import set_concurrency
 from rafiq_agent.mcp_bridge import MANAGER as MCP
+from rafiq_agent.mcp_bridge import upgrade_saved_servers as upgrade_mcp_servers
 from rafiq_agent.storage.db import init_db
 from rafiq_agent.tools.browser import BROWSER
 
@@ -60,6 +61,8 @@ def remove_discovery() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    with contextlib.suppress(Exception):
+        await upgrade_mcp_servers()  # e.g. a password that used to sit in a saved URL
     settings = await load_settings()
     set_concurrency(settings.provider_concurrency)
     usage.set_budgets(settings.daily_budget_usd, settings.monthly_budget_usd)

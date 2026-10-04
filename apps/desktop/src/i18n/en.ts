@@ -1120,7 +1120,6 @@ export const en: Dictionary = {
   "Jira وConfluence عبر خادم Atlassian الرسمي.": "Jira and Confluence through Atlassian's official server.",
   "الأخطاء والـ issues من Sentry، مع تفاصيلها.": "Errors and issues from Sentry, with their details.",
   "جداول، استعلامات SQL، وإدارة مشاريع Supabase.": "Tables, SQL queries and Supabase project management.",
-  "استعلامات قراءة على قاعدة Postgres عبر رابط الاتصال.": "Read-only queries on a Postgres database via its connection URL.",
   "استعلام وتحليل ملفات SQLite محلية.": "Query and analyse local SQLite files.",
   "عملاء، فواتير، ومدفوعات Stripe.": "Stripe customers, invoices and payments.",
   "مشاريع Firebase: Firestore، Auth، والاستضافة.": "Firebase projects: Firestore, Auth and Hosting.",
@@ -1163,7 +1162,6 @@ export const en: Dictionary = {
   "المجلد اللي بيقدر يوصله": "Folder it may access",
   "Access token من Supabase": "Supabase access token",
   "رابط الاتصال": "Connection URL",
-  "بينحفظ مع إعداد الخادم — استخدم مستخدم قراءة بس.": "Stored with the server settings — use a read-only user.",
   "ملف قاعدة البيانات": "Database file",
   "بيستخدم تسجيل دخولك بـ firebase-tools (شغّل «npx firebase login» مرة بالطرفية).": "Uses your firebase-tools login (run “npx firebase login” once in a terminal).",
   "مفتاح Brave Search API": "Brave Search API key",
@@ -1331,4 +1329,9 @@ export const en: Dictionary = {
   "ما اشتغلت لسا. أول تشغيل بيطلع هون، مع نتيجته.": "Hasn't run yet. The first run shows up here, with how it went.",
   "{0} تشغيل · {1} من {2} نجحت": "{0} runs · {1} of {2} succeeded",
   "يدوي": "manual",
+  // Template blanks, Postgres preset
+  "استعلامات وتعديلات على قاعدة Postgres — كل تعديل بياخد إذنك.": "Query and change a Postgres database — every change asks you first.",
+  "بدون كلمة المرور — إلها خانتها لحالها. إذا لصقت رابط فيه كلمة مرور، رفيق بيشيلها منه وبيحفظها بالخانة.": "Without the password — it has its own field. If you paste a link that contains one, Rafiq takes it out and keeps it in that field.",
+  "كلمة المرور": "Password",
+  "بتنحفظ بخزنة ويندوز (Credential Manager)، مش مع إعدادات الخادم. اتركها فاضية إذا القاعدة ما بدها كلمة مرور.": "Stored in the Windows vault (Credential Manager), not with the server settings. Leave it empty if the database needs none.",
 };

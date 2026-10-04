@@ -220,7 +220,7 @@ function PresetConnect({
   const alive = useRef(true);
   useEffect(() => () => void (alive.current = false), []);
 
-  const secretsFilled = (preset.secrets ?? []).every((s) => (values[s.key] ?? "").trim() || existing?.secret_keys.includes(s.key));
+  const secretsFilled = (preset.secrets ?? []).every((s) => s.optional || (values[s.key] ?? "").trim() || existing?.secret_keys.includes(s.key));
   const paramFilled = !preset.param || param.trim();
 
   async function watch(id: string) {
