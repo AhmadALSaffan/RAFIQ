@@ -16,6 +16,7 @@ import { FolderPicker } from "../../components/FolderPicker";
 import { ClockIcon, DownloadIcon, GlobeIcon, PlusIcon, SpinnerIcon, TasksIcon, TrashIcon } from "../../components/Icons";
 import { Switch } from "../settings/controls";
 import { RecentRuns, ScheduleHistory } from "./scheduleHistory";
+import { variablesOf } from "../../lib/variables";
 import { intlLocale, t } from "../../i18n";
 
 export type TemplateSeed = { title: string; prompt: string; model_id?: string | null; working_dir?: string | null };
@@ -33,6 +34,10 @@ export const BUILTIN_TEMPLATES: { name: string; prompt: string }[] = [
   {
     name: t("تحديث README"),
     prompt: t("اقرأ المشروع وحدّث ملف README ليشرح شو بيعمل، كيف ينثبت ويشتغل، وكيف تنعمل المساهمة. لا تخترع ميزات مو موجودة."),
+  },
+  {
+    name: t("مراجعة فرع"),
+    prompt: t("راجع التغييرات على الفرع {{branch}} مقارنة مع {{base}}: الأخطاء، المشاكل الأمنية، والاختبارات الناقصة. لا تعدّل شي — اكتب تقرير مرتب حسب الأهمية."),
   },
   {
     name: t("ترتيب الملفات"),
@@ -516,6 +521,9 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
             <Field label={t("شو بدك رفيق يعمل؟")}>
               <textarea value={editing.prompt} onChange={(e) => setEditing({ ...editing, prompt: e.target.value })} rows={4} className="input resize-none" dir={fieldDir(editing.prompt)} />
             </Field>
+            <p className="-mt-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              {t("حط {0} مكان اللي بيتغير كل مرة — مثل {{folder}} أو {{branch}}. رفيق بيسألك عنه لما تستخدم القالب، والمجلد والفرع والتاريخ بيتعبّوا لحالهم.", { 0: `{{${t("الاسم")}}}` })}
+            </p>
             <FolderPicker value={editing.working_dir} onChange={(v) => setEditing({ ...editing, working_dir: v })} />
             <Field label={t("النموذج (اختياري)")}>
               <select value={editing.model_id} onChange={(e) => setEditing({ ...editing, model_id: e.target.value })} className="input">
@@ -571,6 +579,20 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
                 <p className="line-clamp-2 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }} dir="auto">
                   {template.prompt}
                 </p>
+                {variablesOf(template.prompt, template.name).length > 0 && (
+                  <p className="flex flex-wrap gap-1" title={t("بيسألك عنهن قبل ما تبلّش المهمة")}>
+                    {variablesOf(template.prompt, template.name).map((name) => (
+                      <span
+                        key={name}
+                        className="rounded-md px-1.5 py-0.5 font-mono text-[10.5px]"
+                        style={{ background: "color-mix(in oklch, var(--color-accent) 14%, transparent)", color: "var(--color-accent)" }}
+                        dir="auto"
+                      >
+                        {`{{${name}}}`}
+                      </span>
+                    ))}
+                  </p>
+                )}
                 <div className="mt-auto flex items-center gap-1">
                   <Button
                     className="px-2.5 py-1 text-xs"

@@ -16,21 +16,10 @@ import { PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "../../components/Ic
 import { fieldDir } from "../../lib/bidi";
 import { easeOutExpo } from "../../lib/motion";
 import { t } from "../../i18n";
+import { fillPrompt, variablesOf } from "../../lib/variables";
 
-// The same rule as the agent (api/automation.py): letters, digits, _ and -, spaces inside.
-const VARIABLE = /\{\{\s*([\p{L}\p{N}\p{M}_-](?:[\p{L}\p{N}\p{M}_\- ]{0,58}[\p{L}\p{N}\p{M}_-])?)\s*\}\}/gu;
-
-/** The `{{name}}` parts of a prompt, each once, in the order they first appear. */
-export function variablesOf(body: string): string[] {
-  const seen: string[] = [];
-  for (const m of body.matchAll(VARIABLE)) if (!seen.includes(m[1])) seen.push(m[1]);
-  return seen;
-}
-
-/** The prompt with every `{{name}}` replaced; a name left empty stays as it was. */
-export function fillPrompt(body: string, values: Record<string, string>): string {
-  return body.replace(VARIABLE, (whole, name: string) => (values[name]?.trim() ? values[name] : whole));
-}
+// The `{{name}}` rule is shared with task templates (lib/variables.ts).
+export { fillPrompt, variablesOf } from "../../lib/variables";
 
 /** A title from the text itself: its first line, short. */
 export function titleFrom(body: string): string {

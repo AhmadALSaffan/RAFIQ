@@ -14,6 +14,8 @@ import { Button, ErrorText, Field } from "../../components/ui";
 import { FolderPicker } from "../../components/FolderPicker";
 import { DropZone, UploadChips, useUploads } from "../../components/Attachments";
 import type { TemplateSeed } from "./automation";
+import { TemplateVariables } from "./templateVariables";
+import { fillPrompt, variablesOf } from "../../lib/variables";
 
 import { t } from "../../i18n";
 const MODES: { id: TaskMode; label: string; hint: string; Icon: typeof SparkIcon }[] = [
@@ -46,6 +48,10 @@ export function NewTaskForm({
   const [saving, setSaving] = useState(false);
   const [savedTemplate, setSavedTemplate] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // `{{blanks}}` from a template (or typed by hand) — filled in before the task starts.
+  const blanks = variablesOf(prompt, title);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const unfilled = blanks.filter((name) => !values[name]?.trim());
 
   async function keepAsTemplate() {
     setError(null);
@@ -70,9 +76,11 @@ export function NewTaskForm({
     setSaving(true);
     setError(null);
     try {
+      const filledPrompt = fillPrompt(prompt, values);
+      const filledTitle = fillPrompt(title, values);
       const task = await createTask({
-        title: title.trim() || prompt.trim().slice(0, 48),
-        prompt,
+        title: filledTitle.trim() || filledPrompt.trim().slice(0, 48),
+        prompt: filledPrompt,
         modelId,
         workingDir: folder.trim() || undefined,
         attachmentIds: uploads.ready.map((a) => a.id),
@@ -145,6 +153,8 @@ export function NewTaskForm({
         </div>
 
         <FolderPicker value={folder} onChange={setFolder} />
+
+        <TemplateVariables names={blanks} folder={folder} values={values} onChange={setValues} />
 
         <div className="flex flex-col gap-2">
           <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
@@ -242,7 +252,11 @@ export function NewTaskForm({
         <ErrorText message={error} />
 
         <div className="flex justify-start gap-2">
-          <Button type="submit" disabled={saving || uploads.busy || !prompt.trim() || !modelId}>
+          <Button
+            type="submit"
+            disabled={saving || uploads.busy || !prompt.trim() || !modelId || unfilled.length > 0}
+            title={unfilled.length ? t("عبّي: {0}", { 0: unfilled.map((n) => `{{${n}}}`).join(" · ") }) : undefined}
+          >
             {saving ? (
               <>
                 <SpinnerIcon className="h-4 w-4" />

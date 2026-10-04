@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from rafiq_agent.api.deps import require_token
+from rafiq_agent.core import gitops
 from rafiq_agent.i18n import tr
 
 router = APIRouter(prefix="/files", tags=["files"], dependencies=[Depends(require_token)])
@@ -26,6 +27,15 @@ SKIP_DIRS = {
     ".pytest_cache",
 }
 MAX_WALK = 20_000
+
+
+@router.get("/git")
+async def git_info(dir: str = Query(..., description="a folder the user picked")) -> dict[str, object]:
+    """Whether a folder is in a git repository, and its current branch — what a task
+    template's `{{branch}}` starts out as."""
+    branch = await gitops.current_branch(Path(dir).expanduser())
+    repo = branch is not None or await gitops.repo_root(Path(dir).expanduser()) is not None
+    return {"repo": repo, "branch": branch}
 
 
 @router.get("")

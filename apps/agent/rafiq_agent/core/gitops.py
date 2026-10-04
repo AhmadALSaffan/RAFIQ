@@ -88,6 +88,16 @@ async def repo_root(directory: str | Path | None) -> Path | None:
     return Path(result.out.strip()).resolve()
 
 
+async def current_branch(directory: str | Path | None) -> str | None:
+    """The branch checked out in a folder's repository; None outside git or on a detached HEAD."""
+    repo = await repo_root(directory)
+    if repo is None:
+        return None
+    result = await asyncio.to_thread(_run, ["rev-parse", "--abbrev-ref", "HEAD"], repo, None, None)
+    name = result.out.strip() if result.code == 0 else ""
+    return name if name and name != "HEAD" else None
+
+
 async def _head(repo: Path) -> str | None:
     result = await asyncio.to_thread(_run, ["rev-parse", "--verify", "-q", "HEAD"], repo, None, None)
     return result.out.strip() if result.code == 0 else None
