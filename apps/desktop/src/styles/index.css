@@ -324,3 +324,14 @@ body {
   color: var(--color-accent);
   font-weight: 500;
 }
+
+/* Behind the textarea, a token must be exactly as wide as the textarea's own (invisible)
+   text, or the caret lands inside the letters after it: weight 500 made each mention ~6px
+   wider. So no weight, padding or border here — only colour and a tint, which take no room. */
+.composer-mirror .composer-token {
+  font-weight: inherit;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--color-accent) 12%, transparent);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
