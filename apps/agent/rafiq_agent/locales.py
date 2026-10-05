@@ -245,6 +245,8 @@ EN: dict[str, str] = {
     "ما لقيت هالبرومبت.": "That prompt doesn't exist.",
     # Workspace budgets
     "مساحة العمل «{0}» وصلت حدها اليومي ({1}$). غيّره من إعدادات المساحة، أو كمّل بمساحة تانية.": "Workspace \u201c{0}\u201d has reached its daily limit (${1}). Change it in the workspace settings, or carry on in another workspace.",
+    # Design history
+    "ما لقيت هالنسخة من التصميم.": "That version of the design doesn't exist.",
 }
 
 RU: dict[str, str] = {
@@ -491,4 +493,6 @@ RU: dict[str, str] = {
     "ما لقيت هالبرومبت.": "Такого промпта нет.",
     # Workspace budgets
     "مساحة العمل «{0}» وصلت حدها اليومي ({1}$). غيّره من إعدادات المساحة، أو كمّل بمساحة تانية.": "Рабочее пространство «{0}» исчерпало дневной лимит (${1}). Измените его в настройках пространства или продолжите в другом.",
+    # Design history
+    "ما لقيت هالنسخة من التصميم.": "Такой версии дизайна нет.",
 }

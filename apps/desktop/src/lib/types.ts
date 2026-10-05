@@ -734,6 +734,34 @@ export interface DesignDocument {
   size: number | null;
 }
 
+/** One version of one design document — which reply wrote it, and how much it changed. */
+export interface DesignVersion {
+  id: string;
+  document: string;
+  /** 1 for the document's first version, counting up. */
+  number: number;
+  message_id: string;
+  created_at: string;
+  lines: number;
+  /** Lines added and removed since the document's previous version. */
+  added: number;
+  removed: number;
+  /** The first line of what the model said with it. */
+  summary: string;
+}
+
+export type DiffRun =
+  | { kind: "same" | "add" | "del"; lines: string[]; start: number }
+  | { kind: "skip"; count: number };
+
+export interface DesignDiff {
+  a: DesignVersion;
+  b: DesignVersion;
+  added: number;
+  removed: number;
+  runs: DiffRun[];
+}
+
 export interface Design {
   /** First message of the design chat; sent automatically while that chat is empty. */
   kickoff: string;

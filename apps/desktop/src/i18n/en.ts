@@ -1350,4 +1350,18 @@ export const en: Dictionary = {
   "لما محادثات ومهام هالمساحة يصرفوا هالمبلغ باليوم، رفيق بيوقف يبعت للنماذج منها لبكرا — والباقي بيكمّل عادي. فاضي = بلا حد.": "Once this workspace's chats and tasks spend this much in a day, Rafiq stops sending them to models until tomorrow — everything else carries on. Empty = no limit.",
   "حد لكل مساحة عمل": "A limit per workspace",
   "فوق الحد العام: كل مساحة إلها مصروفها اليومي. لما توصل حدها، محادثاتها ومهامها بتوقف لبكرا والباقي بيكمّل.": "On top of the global limit: each workspace has its own daily spending. When one reaches its limit, its chats and tasks pause until tomorrow and the rest carry on.",
+  // Design history
+  "{0} · ن{1}": "{0} · v{1}",
+  "كل مرة النموذج بيكتب أو بيعدّل الواجهة، بتنحفظ نسخة هون — وبتقدر تقارن بين أي تنتين أو ترجع لوحدة قديمة.": "Every time the model writes or changes the design, a version is kept here — compare any two, or go back to an older one.",
+  "الحالية": "current",
+  "قارن مع": "Compare with",
+  "ولا شي — اعرضها لحالها": "Nothing — show it alone",
+  "جنب بعض": "Side by side",
+  "الأسطر اللي تغيّرت": "Changed lines",
+  "رجّع هالنسخة": "Restore this version",
+  "من {0} لـ {1}": "From {0} to {1}",
+  "النسختين متطابقتين.": "The two versions are identical.",
+  "… {0} سطر ما تغيّروا": "… {0} unchanged lines",
+  "النسخ": "History",
+  "رجعت {0}": "Restored {0}",
 };

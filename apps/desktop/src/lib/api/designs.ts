@@ -1,13 +1,7 @@
 /** Design sessions: the brief, the preview, and the handoff to a build session. */
 
 import { request } from "./client";
-import type {
-  Design,
-  DesignDocument,
-  DesignSummary,
-  HandoffResult,
-  InitQuestion,
-} from "../types";
+import type { Design, DesignDiff, DesignDocument, DesignSummary, DesignVersion, HandoffResult, InitQuestion } from "../types";
 
 export async function initQuestions(): Promise<InitQuestion[]> {
   return request<InitQuestion[]>("/designs/questions");
@@ -72,4 +66,23 @@ export async function handoffDesign(
   body: { target: "chat" | "task"; chat_id?: string; model_id?: string; working_dir?: string },
 ): Promise<HandoffResult> {
   return request<HandoffResult>(`/designs/${id}/handoff`, { method: "POST", body: JSON.stringify(body) });
+}
+
+/** Every version of every document of a design, newest first. */
+export async function listDesignVersions(id: string): Promise<DesignVersion[]> {
+  return request<DesignVersion[]>(`/designs/${id}/versions`);
+}
+
+export async function getDesignVersion(id: string, versionId: string): Promise<DesignVersion & { html: string }> {
+  return request(`/designs/${id}/versions/${encodeURIComponent(versionId)}`);
+}
+
+/** What changed from version `a` to version `b`. */
+export async function compareDesignVersions(id: string, a: string, b: string): Promise<DesignDiff> {
+  return request<DesignDiff>(`/designs/${id}/compare?${new URLSearchParams({ a, b })}`);
+}
+
+/** Makes an older version the current one for its document. */
+export async function restoreDesignVersion(id: string, versionId: string): Promise<Design> {
+  return request<Design>(`/designs/${id}/versions/${encodeURIComponent(versionId)}/restore`, { method: "POST" });
 }

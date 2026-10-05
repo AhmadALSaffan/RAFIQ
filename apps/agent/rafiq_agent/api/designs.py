@@ -10,7 +10,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
-from rafiq_agent.core.designs import brief_message, handoff_message, localized_questions
+from rafiq_agent.core import designs as design_core
+from rafiq_agent.core.designs import (
+    brief_message,
+    handoff_message,
+    localized_questions,
+    merge_files,
+    save_preview,
+)
 from rafiq_agent.core.tasks_service import TaskCreateError, create_task, resolve_working_dir
 from rafiq_agent.core.workspace import session_dir, workspace_root
 from rafiq_agent.i18n import tr
@@ -18,7 +25,7 @@ from rafiq_agent.schemas.chats import ReplySettings
 from rafiq_agent.skills.install import SkillInstallError, fetch, find_skills, install_folder
 from rafiq_agent.skills.registry import USER_DIR, Skill, all_skills, get_skill, reload_skills
 from rafiq_agent.storage.db import get_session
-from rafiq_agent.storage.models import Chat, Design, LlmModel
+from rafiq_agent.storage.models import Chat, ChatMessage, Design, LlmModel
 
 router = APIRouter(tags=["designs"], dependencies=[Depends(require_token)])
 
@@ -452,6 +459,105 @@ async def read_design_document(design_id: str, path: str, session: AsyncSession 
     if target.stat().st_size > MAX_DOCUMENT_BYTES:
         raise HTTPException(status_code=400, detail=tr("الملف كبير كتير على المعاينة."))
     return {"name": target.stem, "html": target.read_text(encoding="utf-8", errors="replace")}
+
+
+# ── History ───────────────────────────────────────────────────────────────────────────
+
+
+class DesignVersionOut(BaseModel):
+    """One version of one document: which reply wrote it, and how much it changed."""
+
+    id: str
+    document: str
+    number: int
+    message_id: str
+    created_at: datetime
+    lines: int
+    # Lines added and removed since this document's previous version.
+    added: int
+    removed: int
+    # The first line of what the model said with it.
+    summary: str = ""
+
+
+class DesignVersionHtml(DesignVersionOut):
+    html: str
+
+
+class DesignDiffOut(BaseModel):
+    a: DesignVersionOut
+    b: DesignVersionOut
+    added: int
+    removed: int
+    runs: list[dict[str, Any]]
+
+
+async def _versions(session: AsyncSession, design: Design) -> list[dict[str, Any]]:
+    rows = await session.execute(
+        select(ChatMessage).where(ChatMessage.chat_id == design.chat_id).order_by(ChatMessage.created_at)
+    )
+    return design_core.versions(list(rows.scalars().all()), design.title)
+
+
+async def _design_and_versions(session: AsyncSession, design_id: str) -> tuple[Design, list[dict[str, Any]]]:
+    design = await session.get(Design, design_id)
+    if not design:
+        raise HTTPException(status_code=404, detail="design not found")
+    return design, await _versions(session, design)
+
+
+def _version(found: list[dict[str, Any]], version_id: str) -> dict[str, Any]:
+    match = next((v for v in found if v["id"] == version_id), None)
+    if match is None:
+        raise HTTPException(status_code=404, detail=tr("ما لقيت هالنسخة من التصميم."))
+    return match
+
+
+def _meta(version: dict[str, Any]) -> DesignVersionOut:
+    return DesignVersionOut(**{k: v for k, v in version.items() if k != "html"})
+
+
+@router.get("/designs/{design_id}/versions", response_model=list[DesignVersionOut])
+async def design_versions(design_id: str, session: AsyncSession = Depends(get_session)) -> list[DesignVersionOut]:
+    """Every version of every document, newest first."""
+    _, found = await _design_and_versions(session, design_id)
+    return [_meta(v) for v in reversed(found)]
+
+
+@router.get("/designs/{design_id}/versions/{version_id}", response_model=DesignVersionHtml)
+async def design_version(design_id: str, version_id: str, session: AsyncSession = Depends(get_session)) -> DesignVersionHtml:
+    _, found = await _design_and_versions(session, design_id)
+    return DesignVersionHtml(**_version(found, version_id))
+
+
+@router.get("/designs/{design_id}/compare", response_model=DesignDiffOut)
+async def compare_versions(design_id: str, a: str, b: str, session: AsyncSession = Depends(get_session)) -> DesignDiffOut:
+    """What changed from version `a` to version `b` (any two, even of different documents)."""
+    _, found = await _design_and_versions(session, design_id)
+    old, new = _version(found, a), _version(found, b)
+    added, removed = design_core.line_changes(old["html"], new["html"])
+    return DesignDiffOut(a=_meta(old), b=_meta(new), added=added, removed=removed, runs=design_core.diff(old["html"], new["html"]))
+
+
+@router.post("/designs/{design_id}/versions/{version_id}/restore", response_model=DesignOut)
+async def restore_version(design_id: str, version_id: str, session: AsyncSession = Depends(get_session)) -> DesignOut:
+    """Makes an older version the current one for its document (and the preview, and the
+    saved file). The history keeps everything — restoring is a step forward, not a delete."""
+    design, found = await _design_and_versions(session, design_id)
+    version = _version(found, version_id)
+    files = merge_files(design.files, [{"name": version["document"], "html": version["html"]}])
+    path = save_preview(design.working_dir, version["document"], version["html"])
+    for item in files:
+        if item["name"] == version["document"] and path:
+            item["path"] = path
+    design.files = files
+    design.preview_html = version["html"]
+    if path:
+        design.saved_path = path
+    design.updated_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(design)
+    return _out(design)
 
 
 @router.delete("/designs/{design_id}", status_code=204)

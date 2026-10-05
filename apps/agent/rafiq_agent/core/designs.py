@@ -1,6 +1,7 @@
 """The design session: the `impeccable init` brief, the prompt built from it, and the
 preview extracted from whatever the model writes back."""
 
+import difflib
 import re
 from pathlib import Path
 from typing import Any
@@ -270,3 +271,93 @@ def merge_files(saved: list[dict[str, Any]] | None, fresh: list[dict[str, str]])
         else:
             files.append({"name": item["name"], "html": item["html"]})
     return files[:20]
+
+
+# ── History ───────────────────────────────────────────────────────────────────────────
+#
+# Every reply that wrote a document is still in the design's conversation, so its history
+# needs no storage of its own: replaying the replies in order gives each document's
+# versions — for designs made before history existed, too.
+
+
+def versions(messages: list[Any], title: str) -> list[dict[str, Any]]:
+    """Every version of every document, oldest first. `messages` are the design chat's
+    messages in order; each assistant reply that carried HTML adds a version of each
+    document it wrote. A version's id is `<message id>.<block index>`."""
+    out: list[dict[str, Any]] = []
+    counts: dict[str, int] = {}
+    previous: dict[str, str] = {}
+    for message in messages:
+        if getattr(message, "role", "") != "assistant" or not getattr(message, "content", ""):
+            continue
+        summary = _first_line(strip_preview(message.content))
+        for index, doc in enumerate(extract_previews(message.content, title)):
+            name, html = doc["name"], doc["html"]
+            if previous.get(name) == html:
+                continue  # rewritten word for word: not a new version
+            counts[name] = counts.get(name, 0) + 1
+            added, removed = line_changes(previous.get(name, ""), html)
+            out.append({
+                "id": f"{message.id}.{index}",
+                "document": name,
+                "number": counts[name],
+                "message_id": message.id,
+                "created_at": message.created_at,
+                "lines": html.count("\n") + 1,
+                "added": added,
+                "removed": removed,
+                "summary": summary,
+                "html": html,
+            })
+            previous[name] = html
+    return out
+
+
+def _first_line(text: str, limit: int = 140) -> str:
+    for line in (text or "").splitlines():
+        line = line.strip().lstrip("#>*- ").strip()
+        if line:
+            return line if len(line) <= limit else line[: limit - 1].rstrip() + "…"
+    return ""
+
+
+def _lines(html: str) -> list[str]:
+    return html.replace("\r\n", "\n").split("\n") if html else []
+
+
+def line_changes(old: str, new: str) -> tuple[int, int]:
+    """(lines added, lines removed) going from `old` to `new`."""
+    added = removed = 0
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, _lines(old), _lines(new), autojunk=False).get_opcodes():
+        if tag in ("replace", "delete"):
+            removed += i2 - i1
+        if tag in ("replace", "insert"):
+            added += j2 - j1
+    return added, removed
+
+
+def diff(old: str, new: str, context: int = 3) -> list[dict[str, Any]]:
+    """The changes from `old` to `new` as runs of lines: "same", "del" and "add", with
+    long unchanged stretches folded into a "skip" that says how many lines it hides."""
+    a, b = _lines(old), _lines(new)
+    runs: list[dict[str, Any]] = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if tag == "equal":
+            same = a[i1:i2]
+            first, last = not runs, i2 == len(a)
+            if len(same) > context * 2 + 1 or (first and len(same) > context) or (last and len(same) > context):
+                head = [] if first else same[:context]
+                tail = [] if last else same[-context:]
+                if head:
+                    runs.append({"kind": "same", "lines": head, "start": i1 + 1})
+                runs.append({"kind": "skip", "count": len(same) - len(head) - len(tail)})
+                if tail:
+                    runs.append({"kind": "same", "lines": tail, "start": i2 - len(tail) + 1})
+            else:
+                runs.append({"kind": "same", "lines": same, "start": i1 + 1})
+            continue
+        if tag in ("replace", "delete"):
+            runs.append({"kind": "del", "lines": a[i1:i2], "start": i1 + 1})
+        if tag in ("replace", "insert"):
+            runs.append({"kind": "add", "lines": b[j1:j2], "start": j1 + 1})
+    return runs
