@@ -98,6 +98,8 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 - 🔎 **Search inside your chats** — The box above the chat list looks through every message, not just titles, with Arabic folded the way people write it (harakat, hamza forms, «ال», a leading «و» or «ب»): a line from the matching message with the words marked, and one click opens the chat at that message
 - 🗄️ **Archive** — Move a chat out of the list without deleting it; search still finds it, and writing in it brings it back
 - ⌨️ **Ctrl+K opens everything** — Every page, settings section and command, plus your chats, tasks and designs, in one box; Arabic folded as you type, English keywords welcome, and chats searched inside their messages
+- 🎨 **A new look** — Bold headings, big numbers and calm blocks in light and dark, tabs on top for what you have open, a slim icon rail, and a home screen with how your day is going
+- ✍️ **Write your own skills** — Write or edit a skill with its reference files and / commands inside the app; it's checked as you type and previewed as the model will read it, and a built-in skill can be copied and made your own
 - 🕰️ **Design history** — Every version of every design screen; compare any two side by side or line by line, and bring an old one back
 - 💰 **A budget per workspace** — Give each workspace its own daily spending limit; when one reaches it, only its chats and tasks pause until tomorrow
 - 🧩 **Templates with blanks** — Write `{{branch}}`, `{{folder}}` or any name in a task template; Rafiq asks for each before the task starts, and fills the folder, git branch and date itself
@@ -176,7 +178,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.4.13_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.4.14_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)
