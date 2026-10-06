@@ -247,6 +247,25 @@ EN: dict[str, str] = {
     "مساحة العمل «{0}» وصلت حدها اليومي ({1}$). غيّره من إعدادات المساحة، أو كمّل بمساحة تانية.": "Workspace \u201c{0}\u201d has reached its daily limit (${1}). Change it in the workspace settings, or carry on in another workspace.",
     # Design history
     "ما لقيت هالنسخة من التصميم.": "That version of the design doesn't exist.",
+    # Skill editor
+    "ما لقيت هالمهارة.": "Skill not found.",
+    "الملف لازم يبلّش بترويسة بين سطرين --- فيها name و description.": "The file must start with a header between two --- lines, with name and description.",
+    "ناقص name بالترويسة — هو الاسم اللي النموذج بيطلب فيه المهارة.": "The header has no name — it's what the model asks for the skill by.",
+    "الأفضل يكون الاسم أحرف إنجليزية صغيرة وأرقام و - بس (مثلاً my-skill).": "Best to keep the name to lowercase letters, digits and - (e.g. my-skill).",
+    "ناقص description — النموذج بيقرّر يقرأ المهارة أو لا من الوصف.": "No description — the model decides whether to read the skill from it.",
+    "الوصف قصير كتير: قول متى لازم النموذج يستعمل هالمهارة.": "The description is very short: say when the model should use this skill.",
+    "الوصف طويل ({0} حرف) — بينبعت مع كل رسالة، خلّيه أقل من {1}.": "The description is long ({0} characters) — it's sent with every message; keep it under {1}.",
+    "المهارة فاضية — اكتب التعليمات تحت الترويسة.": "The skill is empty — write the instructions under the header.",
+    "الملف أطول من {0} حرف: النموذج بيقرأ أول {0} بس. انقل التفاصيل لملفات مرجعية.": "The file is longer than {0} characters: the model reads only the first {0}. Move details into reference files.",
+    "الأمر رقم {0} بلا name.": "Command {0} has no name.",
+    "الأمر /{0} لازم يكون إله prompt أو prompt_file.": "The /{0} command needs a prompt or a prompt_file.",
+    "الأمر /{0} بيشاور على {1} وهالملف مش موجود.": "The /{0} command points to {1}, which doesn't exist.",
+    "هاي مهارة مدمجة — اعمل نسختك منها أول وعدّل عليها.": "This is a built-in skill — make your own copy first, then edit that.",
+    "اسم الملف لازم ينتهي بـ .md ويكون جوّا المهارة (أو جوّا commands/).": "The file name must end in .md and stay inside the skill (or inside commands/).",
+    "ما لقيت هالملف بالمهارة.": "That file isn't in the skill.",
+    "الملف كبير كتير (أكتر من {0} حرف).": "The file is too large (over {0} characters).",
+    "ما بينحذف SKILL.md — احذف المهارة كلها بدالها.": "SKILL.md can't be deleted on its own — delete the whole skill instead.",
+    "في مهارة إلك بهالاسم من قبل — اختار اسم تاني.": "You already have a skill with this name — choose another.",
 }
 
 RU: dict[str, str] = {
@@ -495,4 +514,23 @@ RU: dict[str, str] = {
     "مساحة العمل «{0}» وصلت حدها اليومي ({1}$). غيّره من إعدادات المساحة، أو كمّل بمساحة تانية.": "Рабочее пространство «{0}» исчерпало дневной лимит (${1}). Измените его в настройках пространства или продолжите в другом.",
     # Design history
     "ما لقيت هالنسخة من التصميم.": "Такой версии дизайна нет.",
+    # Skill editor
+    "ما لقيت هالمهارة.": "Навык не найден.",
+    "الملف لازم يبلّش بترويسة بين سطرين --- فيها name و description.": "Файл должен начинаться с заголовка между двумя строками --- с полями name и description.",
+    "ناقص name بالترويسة — هو الاسم اللي النموذج بيطلب فيه المهارة.": "В заголовке нет name — по нему модель запрашивает навык.",
+    "الأفضل يكون الاسم أحرف إنجليزية صغيرة وأرقام و - بس (مثلاً my-skill).": "Лучше, чтобы имя состояло из строчных латинских букв, цифр и - (например, my-skill).",
+    "ناقص description — النموذج بيقرّر يقرأ المهارة أو لا من الوصف.": "Нет description — по описанию модель решает, читать ли навык.",
+    "الوصف قصير كتير: قول متى لازم النموذج يستعمل هالمهارة.": "Описание слишком короткое: укажите, когда модели стоит использовать этот навык.",
+    "الوصف طويل ({0} حرف) — بينبعت مع كل رسالة، خلّيه أقل من {1}.": "Описание длинное ({0} символов) — оно отправляется с каждым сообщением; держите его короче {1}.",
+    "المهارة فاضية — اكتب التعليمات تحت الترويسة.": "Навык пуст — напишите инструкции под заголовком.",
+    "الملف أطول من {0} حرف: النموذج بيقرأ أول {0} بس. انقل التفاصيل لملفات مرجعية.": "Файл длиннее {0} символов: модель читает только первые {0}. Вынесите детали в справочные файлы.",
+    "الأمر رقم {0} بلا name.": "У команды {0} нет name.",
+    "الأمر /{0} لازم يكون إله prompt أو prompt_file.": "Команде /{0} нужен prompt или prompt_file.",
+    "الأمر /{0} بيشاور على {1} وهالملف مش موجود.": "Команда /{0} ссылается на {1}, но такого файла нет.",
+    "هاي مهارة مدمجة — اعمل نسختك منها أول وعدّل عليها.": "Это встроенный навык — сначала создайте свою копию и редактируйте её.",
+    "اسم الملف لازم ينتهي بـ .md ويكون جوّا المهارة (أو جوّا commands/).": "Имя файла должно оканчиваться на .md и находиться внутри навыка (или в commands/).",
+    "ما لقيت هالملف بالمهارة.": "Такого файла в навыке нет.",
+    "الملف كبير كتير (أكتر من {0} حرف).": "Файл слишком большой (больше {0} символов).",
+    "ما بينحذف SKILL.md — احذف المهارة كلها بدالها.": "SKILL.md нельзя удалить отдельно — удалите навык целиком.",
+    "في مهارة إلك بهالاسم من قبل — اختار اسم تاني.": "У вас уже есть навык с таким именем — выберите другое.",
 }

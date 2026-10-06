@@ -22,6 +22,7 @@ from rafiq_agent.core.tasks_service import TaskCreateError, create_task, resolve
 from rafiq_agent.core.workspace import session_dir, workspace_root
 from rafiq_agent.i18n import tr
 from rafiq_agent.schemas.chats import ReplySettings
+from rafiq_agent.skills import editor as skill_editor
 from rafiq_agent.skills.install import SkillInstallError, fetch, find_skills, install_folder
 from rafiq_agent.skills.registry import USER_DIR, Skill, all_skills, get_skill, reload_skills
 from rafiq_agent.storage.db import get_session
@@ -190,6 +191,107 @@ async def install_skill_from_url(body: "SkillImport") -> SkillInstallOut:
         skills=[_skill_out(s) for s in skills],
         commands=[f"/{c.name}" for s in skills for c in s.commands],
     )
+
+
+class SkillIssueOut(BaseModel):
+    message: str
+    line: int | None = None
+
+
+class SkillCheckOut(BaseModel):
+    ok: bool
+    name: str
+    description: str
+    commands: list[dict[str, str]]
+    errors: list[SkillIssueOut]
+    warnings: list[SkillIssueOut]
+    size: int
+
+
+class SkillText(BaseModel):
+    content: str
+
+
+class SkillFileIn(BaseModel):
+    path: str
+    content: str
+
+
+class SkillFileOut(BaseModel):
+    path: str
+    size: int
+
+
+def _check_out(check: skill_editor.SkillCheck) -> SkillCheckOut:
+    return SkillCheckOut(
+        ok=check.ok,
+        name=check.name,
+        description=check.description,
+        commands=[{"name": n, "description": d} for n, d in check.commands],
+        errors=[SkillIssueOut(message=i.message, line=i.line) for i in check.errors],
+        warnings=[SkillIssueOut(message=i.message, line=i.line) for i in check.warnings],
+        size=check.size,
+    )
+
+
+@router.post("/skills/check", response_model=SkillCheckOut)
+async def check_skill(body: SkillText) -> SkillCheckOut:
+    """What's wrong with a SKILL.md before it's saved — the editor calls this as you type."""
+    return _check_out(skill_editor.check_skill(body.content))
+
+
+@router.post("/skills/create", response_model=SkillOut, status_code=201)
+async def create_skill(body: SkillText) -> SkillOut:
+    """A new skill written in the app; its folder is named after the `name` in the header."""
+    try:
+        return _skill_out(skill_editor.create_skill(body.content))
+    except skill_editor.SkillEditError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/skills/{name}/copy", response_model=SkillOut, status_code=201)
+async def copy_skill(name: str) -> SkillOut:
+    """The user's own, editable version of a bundled skill; it takes over the same name."""
+    try:
+        return _skill_out(skill_editor.copy_skill(name))
+    except skill_editor.SkillEditError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/skills/{name}/files", response_model=list[SkillFileOut])
+async def skill_files(name: str) -> list[SkillFileOut]:
+    skill = get_skill(name)
+    if not skill:
+        raise HTTPException(status_code=404, detail=tr("ما لقيت هالمهارة."))
+    return [SkillFileOut(path=str(f["path"]), size=int(f["size"])) for f in skill_editor.list_files(skill)]  # type: ignore[call-overload]
+
+
+@router.get("/skills/{name}/file")
+async def skill_file(name: str, path: str = "SKILL.md") -> dict[str, str]:
+    """The whole file for editing (what the model reads is trimmed; this isn't)."""
+    skill = get_skill(name)
+    if not skill:
+        raise HTTPException(status_code=404, detail=tr("ما لقيت هالمهارة."))
+    try:
+        return {"path": path, "content": skill_editor.read_file(skill, path)}
+    except skill_editor.SkillEditError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.put("/skills/{name}/file", response_model=SkillOut)
+async def save_skill_file(name: str, body: SkillFileIn) -> SkillOut:
+    try:
+        return _skill_out(skill_editor.write_file(name, body.path, body.content))
+    except skill_editor.SkillEditError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/skills/{name}/file", status_code=204)
+async def delete_skill_file(name: str, path: str) -> None:
+    try:
+        skill_editor.delete_file(name, path)
+    except skill_editor.SkillEditError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/skills/{name}")

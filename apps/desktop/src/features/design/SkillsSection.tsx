@@ -11,7 +11,8 @@ import { deleteSkill, installSkillFromUrl, mcpRequirements } from "../../lib/api
 import type { AgentSkill, SkillInstallResult } from "../../lib/types";
 import { easeOutExpo, listContainer, listItem } from "../../lib/motion";
 import { Button, ErrorText } from "../../components/ui";
-import { DownloadIcon, ExternalIcon, SpinnerIcon, TrashIcon, WandIcon, XIcon } from "../../components/Icons";
+import { DownloadIcon, ExternalIcon, PencilIcon, PlusIcon, SpinnerIcon, TrashIcon, WandIcon, XIcon } from "../../components/Icons";
+import { SkillEditor, type SkillEditorMode } from "./SkillEditor";
 import { t } from "../../i18n";
 
 /** Public design skills worth having. Each installs straight from its repository. */
@@ -48,6 +49,7 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
   const [error, setError] = useState<string | null>(null);
   const [installed, setInstalled] = useState<SkillInstallResult | null>(null);
   const [hasNode, setHasNode] = useState<boolean | null>(null);
+  const [editing, setEditing] = useState<SkillEditorMode | null>(null);
 
   useEffect(() => {
     // Only for the hint under the catalog — nothing here runs a command.
@@ -91,16 +93,22 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
         </p>
         <div className="flex flex-wrap gap-1.5">
           {bundled.map((skill) => (
-            <Chip key={skill.name} skill={skill} />
+            <Chip key={skill.name} skill={skill} onOpen={() => setEditing({ kind: "view", name: skill.name })} />
           ))}
         </div>
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-medium">{t("مهاراتك")}</h3>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-medium">{t("مهاراتك")}</h3>
+          <Button variant="soft" className="px-3 py-1.5 text-xs" onClick={() => setEditing({ kind: "new" })}>
+            <PlusIcon className="h-3.5 w-3.5" />
+            {t("اكتب مهارة")}
+          </Button>
+        </div>
         {own.length === 0 ? (
           <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            {t("لسا ما نزّلت مهارات. حط رابط تحت أو اختار من القائمة.")}
+            {t("لسا ما عندك مهارات: اكتب وحدة هون، حط رابط تحت، أو اختار من القائمة.")}
           </p>
         ) : (
           <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-1.5">
@@ -111,10 +119,10 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
                   variants={listItem}
                   layout
                   exit={{ opacity: 0, height: 0, transition: { duration: 0.18 } }}
-                  className="flex items-center gap-3 rounded-lg border px-3 py-2"
-                  style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+                  className="flex items-center gap-3 rounded-2xl px-3 py-2"
+                  style={{ background: "var(--color-surface)" }}
                 >
-                  <WandIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-accent)" }} />
+                  <WandIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-xs" dir="ltr">
                       {skill.name}
@@ -128,7 +136,7 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
                   {skill.commands.length > 0 && (
                     <span className="hidden gap-1 sm:flex" dir="ltr">
                       {skill.commands.slice(0, 4).map((c) => (
-                        <code key={c.name} className="rounded-md px-1.5 py-0.5 text-[10px]" style={{ background: "var(--color-surface-2)", color: "var(--color-accent)" }}>
+                        <code key={c.name} className="rounded-md px-1.5 py-0.5 text-[10px]" style={{ background: "var(--color-surface-2)", color: "var(--color-ink)" }}>
                           /{c.name}
                         </code>
                       ))}
@@ -139,7 +147,16 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
                       )}
                     </span>
                   )}
-                  <button onClick={() => void remove(skill.name)} aria-label={t("احذف")} title={t("احذف المهارة")} className="rounded-md p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+                  <button
+                    onClick={() => setEditing({ kind: "edit", name: skill.name })}
+                    aria-label={t("عدّل المهارة")}
+                    title={t("عدّل المهارة")}
+                    className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]"
+                    style={{ color: "var(--color-ink-muted)" }}
+                  >
+                    <PencilIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => void remove(skill.name)} aria-label={t("احذف")} title={t("احذف المهارة")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
                     <TrashIcon className="h-3.5 w-3.5" />
                   </button>
                 </motion.li>
@@ -174,7 +191,7 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
           {CATALOG.map((item) => {
             const have = skills.some((s) => s.name === item.name && s.source === "user");
             return (
-              <div key={item.url} className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+              <div key={item.url} className="flex flex-col gap-2 rounded-2xl p-3" style={{ background: "var(--color-surface)" }}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-mono text-xs font-medium" dir="ltr">
                     {item.name}
@@ -215,13 +232,15 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
           </p>
           <div className="flex flex-wrap gap-1.5" dir="ltr">
             {commands.map((c) => (
-              <code key={`${c.skill}:${c.name}`} title={c.description || c.skill} className="rounded-md border px-2 py-0.5 text-[11px]" style={{ borderColor: "var(--color-border)", color: "var(--color-accent)" }}>
+              <code key={`${c.skill}:${c.name}`} title={c.description || c.skill} className="rounded-md border px-2 py-0.5 text-[11px]" style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}>
                 /{c.name}
               </code>
             ))}
           </div>
         </div>
       )}
+
+      <SkillEditor open={editing} onClose={() => setEditing(null)} onSaved={onChange} />
 
       <AnimatePresence>
         {installed && (
@@ -244,10 +263,10 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
             >
               <div className="flex items-start justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-base font-semibold">
-                  <WandIcon className="h-5 w-5" style={{ color: "var(--color-accent)" }} />
+                  <WandIcon className="h-5 w-5" style={{ color: "var(--color-ink-muted)" }} />
                   {installed.skills.length === 1 ? t("انثبّتت المهارة") : t("انثبّتت {0} مهارات", { 0: installed.skills.length })}
                 </h2>
-                <button onClick={() => setInstalled(null)} aria-label={t("إغلاق")} className="rounded-lg p-1 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+                <button onClick={() => setInstalled(null)} aria-label={t("إغلاق")} className="rounded-full p-1 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
                   <XIcon className="h-4 w-4" />
                 </button>
               </div>
@@ -266,11 +285,11 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
                 ))}
               </ul>
               {installed.commands.length > 0 ? (
-                <div className="rounded-lg border px-3 py-2" style={{ borderColor: "color-mix(in oklch, var(--color-accent) 40%, transparent)", background: "color-mix(in oklch, var(--color-accent) 8%, transparent)" }}>
+                <div className="rounded-[10px] px-3 py-2" style={{ background: "var(--color-surface-2)" }}>
                   <p className="mb-1.5 text-xs font-medium">{t("أوامر جديدة صارت بصندوق المحادثة:")}</p>
                   <div className="flex flex-wrap gap-1.5" dir="ltr">
                     {installed.commands.map((c) => (
-                      <code key={c} className="rounded-md px-2 py-0.5 text-xs" style={{ background: "var(--color-surface)", color: "var(--color-accent)" }}>
+                      <code key={c} className="rounded-md px-2 py-0.5 text-xs" style={{ background: "var(--color-surface)", color: "var(--color-ink)" }}>
                         {c}
                       </code>
                     ))}
@@ -292,16 +311,18 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
   );
 }
 
-function Chip({ skill }: { skill: AgentSkill }) {
+function Chip({ skill, onOpen }: { skill: AgentSkill; onOpen: () => void }) {
   return (
-    <span
+    <button
+      type="button"
+      onClick={onOpen}
       title={skill.description}
-      className="rounded-full border px-2.5 py-1 font-mono text-[11px]"
+      className="rounded-full border px-2.5 py-1 font-mono text-[11px] transition-colors hover:bg-[var(--color-surface)]"
       style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
       dir="ltr"
     >
       {skill.name}
-      {skill.commands.length > 0 && <span style={{ color: "var(--color-accent)" }}> ·/{skill.commands.length}</span>}
-    </span>
+      {skill.commands.length > 0 && <span style={{ color: "var(--color-ink-muted)" }}> ·/{skill.commands.length}</span>}
+    </button>
   );
 }
