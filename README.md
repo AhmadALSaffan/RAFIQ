@@ -56,25 +56,25 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 
 <div align="center">
 
-| Chat | Tasks |
+| Home | Chat |
 |:---:|:---:|
-| <img src="docs/screenshots/chat.webp" width="100%"> | <img src="docs/screenshots/tasks.webp" width="100%"> |
-| Stream a reply from any model you connected, with `/` commands, `@` for files and `#` for issues. | Hand work off and watch it run: live status, a plan to approve, and every step on the record. |
+| <img src="docs/screenshots/home.webp" width="100%"> | <img src="docs/screenshots/chat.webp" width="100%"> |
+| How your day is going at a glance: today's tasks and spending, recent chats, the next scheduled run, and a box to start a chat on the model you pick. | Stream a reply from any model you connected; a plan turns into tasks you can follow right in the chat. `/` commands, `@` for files and `#` for issues. |
 
-| One task, start to finish | Designs |
+| Tasks | One task, start to finish |
 |:---:|:---:|
-| <img src="docs/screenshots/task.webp" width="100%"> | <img src="docs/screenshots/design.webp" width="100%"> |
-| Each tool call, each approval, the changed files and their diff — with one click to apply, revert or commit. | Design the interface before you build it: a live preview beside the conversation that shaped it. |
+| <img src="docs/screenshots/tasks.webp" width="100%"> | <img src="docs/screenshots/task.webp" width="100%"> |
+| Hand work off and watch it run: what's running, waiting, done or stopped, and every task one click away. | Every step numbered, every tool call and its output, and what the task cost. |
 
-| Pick what the preview shows | MCP servers |
+| Designs | Write your own skills |
 |:---:|:---:|
-| <img src="docs/screenshots/design-files.webp" width="100%"> | <img src="docs/screenshots/settings-mcp.webp" width="100%"> |
-| The row above the preview lists every document of the design *and* every HTML file in its folder — one click swaps what you're looking at. | A catalogue of official servers: sign in through the browser, paste one token, or just connect. |
+| <img src="docs/screenshots/design.webp" width="100%"> | <img src="docs/screenshots/skills.webp" width="100%"> |
+| Design the interface before you build it: a live preview beside the conversation that shaped it, with every version kept. | Write or edit a skill with its files and `/` commands; it's checked as you type and previewed as the model will read it. |
 
-| Settings | Models |
+| Models | Cost |
 |:---:|:---:|
-| <img src="docs/screenshots/settings.webp" width="100%"> | <img src="docs/screenshots/models.webp" width="100%"> |
-| Eight sections down the side, each saying what's inside it. | Every provider in one place, each agent with its key, its fallback and its last check. |
+| <img src="docs/screenshots/models.webp" width="100%"> | <img src="docs/screenshots/cost.webp" width="100%"> |
+| Every model you connected, cloud or local, with its status, its fallback and what it cost over the last 30 days. | Today, this month and the tokens behind them, daily and monthly limits, and the spend of each model. |
 
 </div>
 
