@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { Route, Routes } from "react-router-dom";
 import { Shell } from "./components/Shell";
 import { ContextMenuProvider } from "./components/ContextMenu";
 import { BootGate } from "./components/BootGate";
@@ -14,6 +15,10 @@ import { TaskDetailPage } from "./features/tasks/TaskDetailPage";
 import { SettingsPage } from "./routes/SettingsPage";
 import { AboutPage } from "./routes/AboutPage";
 import { QuickAsk } from "./routes/QuickAsk";
+import { HomePage } from "./routes/HomePage";
+
+// The design-system sheet only exists in dev builds.
+const DesignSystemPage = import.meta.env.DEV ? lazy(() => import("./routes/DesignSystemPage").then((m) => ({ default: m.DesignSystemPage }))) : null;
 
 export function App() {
   return (
@@ -24,7 +29,7 @@ export function App() {
           {/* The quick-ask window (global shortcut): no sidebar, just the box. */}
           <Route path="/quick" element={<QuickAsk />} />
           <Route element={<Shell />}>
-            <Route index element={<Navigate to="/chat" replace />} />
+            <Route index element={<HomePage />} />
             {/* One optional-param route so /chat → /chat/:id never remounts the page mid-stream. */}
             <Route path="/chat/:id?" element={<ChatPage />} />
             <Route path="/tasks" element={<TasksPage />} />
@@ -36,6 +41,16 @@ export function App() {
             <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/about" element={<AboutPage />} />
+            {DesignSystemPage && (
+              <Route
+                path="/design-system"
+                element={
+                  <Suspense fallback={null}>
+                    <DesignSystemPage />
+                  </Suspense>
+                }
+              />
+            )}
           </Route>
         </Routes>
       </BootGate>

@@ -28,7 +28,6 @@ import {
   RefreshIcon,
   SpinnerIcon,
   StopIcon,
-  TerminalIcon,
   TrashIcon,
 } from "../../components/Icons";
 import { Button, DrawnCheck } from "../../components/ui";
@@ -38,6 +37,7 @@ import { AttachmentGallery } from "../../components/Attachments";
 import { canResume, finishedSteps, formatDuration } from "./pieces";
 import { fieldDir } from "../../lib/bidi";
 import { ChangesPanel } from "./ChangesPanel";
+import { BigNumber, Block as BrandBlock, BracketLabel, LedBar } from "../../components/brand";
 
 import { t } from "../../i18n";
 type Block =
@@ -242,16 +242,16 @@ export function TaskDetailPage() {
   }
 
   return (
-    <div className="relative mx-auto max-w-3xl px-8 py-10">
+    <div className="relative mx-auto max-w-3xl px-6 py-8">
       <CompletionSweep show={sweep !== null} tone={sweep ?? "success"} onDone={() => setSweep(null)} />
 
       <BackLink onClick={() => navigate("/tasks")} />
 
-      <header className="relative mb-4 mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "var(--color-border)" }}>
+      <header className="relative mb-4 mt-4">
         <ActionProgress active={running} />
-        <div className="flex items-start justify-between gap-4 px-4 py-3">
+        <div className="flex items-start justify-between gap-4 py-2">
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold" style={{ textWrap: "balance" }} dir="auto">
+            <h1 className="text-[28px] font-extrabold leading-tight" style={{ textWrap: "balance" }} dir="auto">
               {task.title}
             </h1>
             <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" style={{ color: "var(--color-ink-muted)" }}>
@@ -275,7 +275,6 @@ export function TaskDetailPage() {
                   whileHover={{ y: -1 }}
                   onClick={() => navigate(`/chat/${task.origin!.chat_id}`)}
                   className="flex items-center gap-1 underline-offset-2 hover:underline"
-                  style={{ color: "var(--color-accent)" }}
                 >
                   <ChatIcon className="h-4 w-4" />
                   {t("انعملت من محادثة")}
@@ -306,29 +305,34 @@ export function TaskDetailPage() {
           </div>
         </div>
 
-        <div
-          className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-4 py-2 text-xs"
-          style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-ink-muted)" }}
-        >
-          <Stat icon={<TerminalIcon className="h-3.5 w-3.5" />} value={blocks.length} text={(n) => t("{0} خطوة", { 0: n })} />
-          <Stat icon={<RefreshIcon className="h-3.5 w-3.5" />} value={toolsUsed} text={(n) => t("{0} أداة", { 0: n })} />
-          {duration && (
-            <span className="flex items-center gap-1.5">
-              <ClockIcon className="h-3.5 w-3.5" />
-              {running ? t("شغّالة من") : t("استغرقت")} {duration}
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <BrandBlock tone="inverse" className="flex flex-col gap-1.5">
+            <BracketLabel tone="inverse">{t("المصروف")}</BracketLabel>
+            <BigNumber value={task.cost_usd ?? 0} decimals={(task.cost_usd ?? 0) < 0.1 ? 3 : 2} prefix="$" size={30} />
+            <span className="num text-[11px] opacity-60">{t("{0} توكن", { 0: (task.tokens ?? 0).toLocaleString("en") })}</span>
+          </BrandBlock>
+          <BrandBlock className="flex flex-col gap-1.5">
+            <BracketLabel>{t("الخطوات")}</BracketLabel>
+            <BigNumber value={blocks.length} size={30} />
+            <LedBar value={running ? (blocks.length % 12) / 12 : 1} segments={12} label={t("الخطوات")} />
+          </BrandBlock>
+          <BrandBlock className="flex flex-col gap-1.5">
+            <BracketLabel>{t("الأدوات")}</BracketLabel>
+            <BigNumber value={toolsUsed} size={30} />
+          </BrandBlock>
+          <BrandBlock className="flex flex-col gap-1.5">
+            <BracketLabel>{running ? t("شغّالة من") : t("استغرقت")}</BracketLabel>
+            <span className="num text-[22px] font-bold leading-tight">{duration ?? "—"}</span>
+            <span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }} title={task.created_at}>
+              {t("بلّشت")} <span className="num">{clockTime(task.created_at)}</span>
             </span>
-          )}
-          <span className="ms-auto flex items-center gap-1.5" title={task.created_at}>
-            {t("بلّشت")} {clockTime(task.created_at)}
-          </span>
+          </BrandBlock>
         </div>
       </header>
 
-      <div
-        className="mb-6 flex flex-col gap-3 rounded-lg border px-4 py-3"
-        style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
-      >
-        <p className="whitespace-pre-wrap text-sm leading-relaxed" style={{ color: "var(--color-ink-muted)" }} dir="auto">
+      <div className="mb-6 flex flex-col gap-3 rounded-2xl px-4 py-3.5" style={{ background: "var(--color-surface)" }}>
+        <BracketLabel>{t("الطلب")}</BracketLabel>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed" dir="auto">
           {task.prompt}
         </p>
         {task.attachments && task.attachments.length > 0 && <AttachmentGallery attachments={task.attachments} />}
@@ -369,8 +373,8 @@ export function TaskDetailPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6, transition: { duration: 0.2 } }}
             transition={{ duration: 0.35, ease: easeOutExpo }}
-            className="mb-6 flex items-center gap-3 rounded-lg border border-dashed px-4 py-3 text-sm"
-            style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
+            className="mb-6 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm"
+            style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
           >
             <motion.span
               animate={{ rotate: [0, 180, 180, 360] }}
@@ -405,15 +409,21 @@ export function TaskDetailPage() {
 
       <ol className="flex flex-col gap-3">
         <AnimatePresence initial={false}>
-          {blocks.map((block) => (
+          {blocks.map((block, i) => (
             <motion.li
               key={block.key}
               layout="position"
               initial={{ opacity: 0, y: 10, filter: "blur(3px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               transition={{ duration: 0.36, ease: easeOutExpo }}
+              className="flex gap-3"
             >
-              <BlockView block={block} onResolve={handleResolve} />
+              <span className="num w-6 shrink-0 pt-2.5 text-[11px]" style={{ color: "var(--color-ink-muted)" }} aria-hidden>
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <div className="min-w-0 flex-1">
+                <BlockView block={block} onResolve={handleResolve} />
+              </div>
             </motion.li>
           ))}
         </AnimatePresence>
@@ -440,10 +450,9 @@ export function TaskDetailPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: easeOutExpo }}
-            className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium"
+            className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium"
             style={{
-              borderColor: "color-mix(in oklch, var(--color-success) 40%, transparent)",
-              background: "color-mix(in oklch, var(--color-success) 8%, transparent)",
+              background: "color-mix(in oklch, var(--color-success) 12%, var(--color-surface))",
               color: "var(--color-success)",
             }}
           >
@@ -461,18 +470,6 @@ export function TaskDetailPage() {
 
       <div ref={bottomRef} />
     </div>
-  );
-}
-
-/** A count with its noun, phrased by the dictionary so plurals read right in every language. */
-function Stat({ icon, value, text }: { icon: React.ReactNode; value: number; text: (n: number) => string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      {icon}
-      <motion.span key={value} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="tabular-nums">
-        {text(value)}
-      </motion.span>
-    </span>
   );
 }
 
@@ -517,7 +514,7 @@ function DeleteTaskButton({ running, onConfirm }: { running: boolean; onConfirm:
           onClick={() => setConfirming(true)}
           aria-label={t("حذف المهمة")}
           title={t("حذف المهمة")}
-          className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
+          className="rounded-full p-2 transition-colors hover:bg-[var(--color-surface-2)]"
           style={{ color: "var(--color-ink-muted)" }}
         >
           <TrashIcon className="h-4 w-4" />
@@ -535,11 +532,8 @@ function ResumeBanner({ done, busy, error, onResume }: { done: number; busy: boo
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -6, transition: { duration: 0.2 } }}
       transition={{ duration: 0.35, ease: easeOutExpo }}
-      className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border px-4 py-3"
-      style={{
-        borderColor: "color-mix(in oklch, var(--color-accent) 45%, transparent)",
-        background: "color-mix(in oklch, var(--color-accent) 7%, transparent)",
-      }}
+      className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl px-4 py-3.5"
+      style={{ background: "var(--color-surface)" }}
     >
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium" dir="auto">
@@ -554,7 +548,7 @@ function ResumeBanner({ done, busy, error, onResume }: { done: number; busy: boo
           </p>
         )}
       </div>
-      <Button onClick={onResume} disabled={busy}>
+      <Button variant="accent" onClick={onResume} disabled={busy}>
         {busy ? <SpinnerIcon className="h-4 w-4" /> : <RefreshIcon className="h-4 w-4" />}
         {t("كمّل من وين وقفت")}
       </Button>
@@ -584,7 +578,7 @@ function PlanApproval({ plan, onApprove, onReject }: { plan: string; onApprove: 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -6, transition: { duration: 0.2 } }}
       transition={{ duration: 0.35, ease: easeOutExpo }}
-      className="pending-ring mb-6 rounded-xl border-2 px-4 py-4"
+      className="pending-ring mb-6 rounded-2xl border-2 px-4 py-4"
       style={{ borderColor: "var(--color-pending)", background: "var(--color-surface)" }}
     >
       <div className="mb-3 flex items-center gap-2 text-sm font-medium">
@@ -597,7 +591,7 @@ function PlanApproval({ plan, onApprove, onReject }: { plan: string; onApprove: 
       {editing ? (
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={12} className="input resize-y font-mono text-xs leading-5" dir={fieldDir(text)} />
       ) : (
-        <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}>
+        <div className="rounded-xl px-4 py-3" style={{ background: "var(--color-surface-2)" }}>
           <Markdown text={text} />
         </div>
       )}
@@ -635,11 +629,8 @@ function BlockView({
   if (block.kind === "message") return <Markdown text={block.text} />;
   if (block.kind === "plan") {
     return (
-      <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
-        <p className="mb-2 flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--color-ink-muted)" }}>
-          <ListIcon className="h-3.5 w-3.5" />
-          {t("الخطة")}
-        </p>
+      <div className="rounded-2xl px-4 py-3.5" style={{ background: "var(--color-surface)" }}>
+        <BracketLabel className="mb-2 block">{t("الخطة")}</BracketLabel>
         <Markdown text={block.text} />
       </div>
     );
@@ -664,7 +655,7 @@ function BlockView({
   }
   return (
     <div
-      className="flex items-start gap-2 rounded-lg border px-4 py-3 text-sm"
+      className="flex items-start gap-2 rounded-2xl border px-4 py-3 text-sm"
       style={{ borderColor: "var(--color-danger)", color: "var(--color-danger)" }}
     >
       <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />

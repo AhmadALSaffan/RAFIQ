@@ -171,7 +171,7 @@ export function QuickAsk() {
   const muted = { color: "var(--color-ink-muted)" };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden rounded-xl border" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+    <div className="flex h-screen flex-col overflow-hidden rounded-2xl border" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
       {/* The window has no frame: this strip is what the user drags it by. */}
       <header data-tauri-drag-region className="flex shrink-0 items-center gap-2 px-4 pb-1 pt-3 select-none">
         <Logo className="pointer-events-none h-5 w-5" />
@@ -256,7 +256,7 @@ export function QuickAsk() {
         <div ref={bottom} />
       </div>
 
-      <div className="shrink-0 border-t px-3 pb-3 pt-2" style={{ borderColor: "var(--color-border)" }}>
+      <div className="m-2 mt-0 shrink-0 rounded-xl px-3 pb-2.5 pt-2" style={{ background: "var(--color-surface-2)" }}>
         {turns.length > 0 && (
           <div className="mb-2 flex items-center gap-1">
             <QuickButton onClick={() => void openInRafiq()} disabled={!chatId}>

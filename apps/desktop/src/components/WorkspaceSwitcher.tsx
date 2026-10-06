@@ -67,7 +67,7 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98, transition: { duration: 0.12 } }}
             transition={{ duration: 0.2, ease: easeOutExpo }}
-            className="absolute start-0 top-full mt-1 flex w-60 flex-col gap-0.5 rounded-xl border p-1.5 shadow-xl"
+            className="absolute start-0 top-full mt-1 flex w-60 flex-col gap-0.5 rounded-2xl border p-1.5 shadow-xl"
             style={{ zIndex: "var(--z-index-modal)" as unknown as number, borderColor: "var(--color-border)", background: "var(--color-surface)" }}
           >
             <Row active={currentId === null} onClick={() => (setCurrentWorkspace(null), setOpen(false))}>
@@ -110,7 +110,7 @@ function Row({ active, onClick, children }: { active: boolean; onClick: () => vo
     <button
       onClick={onClick}
       className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-xs transition-colors hover:bg-[var(--color-surface-2)]"
-      style={{ background: active ? "color-mix(in oklch, var(--color-accent) 12%, transparent)" : undefined, color: active ? "var(--color-ink)" : undefined }}
+      style={{ background: active ? "var(--color-surface-2)" : undefined, color: active ? "var(--color-ink)" : undefined }}
     >
       {children}
     </button>
@@ -206,7 +206,7 @@ export function WorkspacesDialog({ onClose }: { onClose: () => void }) {
               {t("كل مشروع بمجلده ونموذجه وتعليماته. لما تختار مساحة، المحادثات والمهام والتصاميم بتتصفّى عليها والجلسات الجديدة بتبلّش بإعداداتها.")}
             </p>
           </div>
-          <button onClick={onClose} aria-label={t("إغلاق")} className="rounded-lg p-1 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+          <button onClick={onClose} aria-label={t("إغلاق")} className="rounded-full p-1 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
             <XIcon className="h-4 w-4" />
           </button>
         </div>
@@ -230,7 +230,7 @@ export function WorkspacesDialog({ onClose }: { onClose: () => void }) {
                 <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setEditing({ id: w.id, draft: { name: w.name, working_dir: w.working_dir, model_id: w.model_id, instructions: w.instructions, color: w.color, daily_budget_usd: w.daily_budget_usd ?? null } })}>
                   {t("عدّل")}
                 </Button>
-                <button onClick={() => void remove(w)} aria-label={t("احذف")} title={t("احذف المساحة — الجلسات بتضل بس بدون مساحة")} className="rounded-md p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+                <button onClick={() => void remove(w)} aria-label={t("احذف")} title={t("احذف المساحة — الجلسات بتضل بس بدون مساحة")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
                   <TrashIcon className="h-3.5 w-3.5" />
                 </button>
               </li>

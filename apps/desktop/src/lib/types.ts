@@ -167,6 +167,9 @@ export type TaskEvent =
 export interface TaskDetail extends TaskSummary {
   prompt: string;
   events: TaskEvent[];
+  /** What its model calls have cost so far. */
+  cost_usd?: number;
+  tokens?: number;
 }
 
 export type ReplyLength = "short" | "balanced" | "detailed";
@@ -801,6 +804,29 @@ export interface AgentSkill {
   source: "bundled" | "user";
   files: string[];
   commands: SkillCommand[];
+}
+
+/** One problem the skill check found; `line` is 1-based in SKILL.md when known. */
+export interface SkillIssue {
+  message: string;
+  line: number | null;
+}
+
+/** What the agent made of a SKILL.md, before it's saved. Errors block saving. */
+export interface SkillCheck {
+  ok: boolean;
+  name: string;
+  description: string;
+  commands: { name: string; description: string }[];
+  errors: SkillIssue[];
+  warnings: SkillIssue[];
+  size: number;
+}
+
+/** A file inside a skill folder: SKILL.md, a reference .md, or commands/<name>.md. */
+export interface SkillFile {
+  path: string;
+  size: number;
 }
 
 export interface SkillInstallResult {

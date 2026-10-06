@@ -35,7 +35,7 @@ function when(iso: string): string {
 /** Errors stand out, warnings a little; everything else stays quiet. */
 function tone(line: string): string | undefined {
   if (/\b(error|exception|traceback|failed|fatal)\b/i.test(line)) return "var(--color-danger)";
-  if (/\bwarn(ing)?\b/i.test(line)) return "var(--color-accent)";
+  if (/\bwarn(ing)?\b/i.test(line)) return "var(--color-pending)";
   return undefined;
 }
 
@@ -147,7 +147,7 @@ export function LogsSettings() {
       <Hint>{t("المفاتيح والتوكنات وكلمات السر بتنخفى قبل ما توصل هون، فالسجل آمن تنسخه وتبعته مع أي مشكلة.")}</Hint>
 
       {list !== null && list.length === 0 && (
-        <div className="rounded-lg border px-4 py-6 text-center" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+        <div className="rounded-2xl px-4 py-6 text-center" style={{ background: "var(--color-surface)" }}>
           <p className="text-sm font-medium">{t("ما في سجلات لسا")}</p>
           <p className="mt-1 text-xs leading-relaxed" style={muted}>
             {t("سجل رفيق بينكتب بالنسخة المثبّتة من التطبيق، وكل خادم MCP محلي بيكتب سجله أول ما يشتغل.")}
@@ -170,18 +170,15 @@ export function LogsSettings() {
                     setLines(SHORT);
                     setFilter("");
                   }}
-                  className="relative rounded-lg px-3 py-1.5 text-start transition-colors"
+                  className="relative rounded-xl px-3 py-1.5 text-start transition-colors"
                   style={{ color: on ? "var(--color-ink)" : "var(--color-ink-muted)" }}
                   title={when(item.modified)}
                 >
                   {on && (
                     <motion.span
                       layoutId="log-pill"
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: "color-mix(in oklch, var(--color-accent) 14%, transparent)",
-                        boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--color-accent) 45%, transparent)",
-                      }}
+                      className="absolute inset-0 rounded-xl"
+                      style={{ background: "var(--color-surface)" }}
                       transition={snappy}
                     />
                   )}
@@ -194,7 +191,7 @@ export function LogsSettings() {
             })}
           </div>
 
-          <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+          <div className="overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)" }}>
             <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2" style={{ borderColor: "var(--color-border)" }}>
               <div className="relative min-w-40 flex-1">
                 <SearchIcon className="pointer-events-none absolute start-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={muted} />

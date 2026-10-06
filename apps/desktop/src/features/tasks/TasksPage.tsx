@@ -26,7 +26,6 @@ import {
   PlusIcon,
   SearchIcon,
   ShieldIcon,
-  TasksIcon,
   TrashIcon,
   XIcon,
 } from "../../components/Icons";
@@ -37,6 +36,7 @@ import { NewTaskForm } from "./NewTaskForm";
 import { SchedulesPanel, TemplatesPanel, type TemplateSeed } from "./automation";
 import { STATUS_COLOR, statusFilterLabel } from "./pieces";
 
+import { BigNumber, Block, BracketLabel, LedBar } from "../../components/brand";
 import { t } from "../../i18n";
 type Filter = "all" | "active" | "planned" | "queued" | "completed" | "failed";
 type View = "tasks" | "schedules" | "templates";
@@ -49,21 +49,21 @@ function ViewTabs({ value, onChange }: { value: View; onChange: (v: View) => voi
     { id: "templates", label: t("القوالب") },
   ];
   return (
-    <div className="mb-5 flex gap-1 rounded-xl p-1" style={{ background: "var(--color-surface-2)" }} role="tablist">
+    <div className="mb-5 inline-flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface)" }} role="tablist">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           role="tab"
           aria-selected={value === tab.id}
           onClick={() => onChange(tab.id)}
-          className="relative flex-1 rounded-lg px-3 py-1.5 text-sm"
-          style={{ color: value === tab.id ? "var(--color-ink)" : "var(--color-ink-muted)" }}
+          className="relative rounded-full px-4 py-1.5 text-sm transition-colors"
+          style={{ color: value === tab.id ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
         >
           {value === tab.id && (
             <motion.span
               layoutId="tasks-view"
-              className="absolute inset-0 rounded-lg"
-              style={{ background: "var(--color-surface)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+              className="absolute inset-0 rounded-full"
+              style={{ background: "var(--color-inverse)" }}
               transition={snappy}
             />
           )}
@@ -225,15 +225,17 @@ export function TasksPage() {
   }, [cursor]);
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-10">
+    <div className="mx-auto max-w-4xl px-6 py-8">
       <PageHeader
         title={t("المهام")}
+        scene="tasks"
         description={t("المهام بتشتغل بالتوازي، إلا اللي بتعدّل نفس الملفات فبتاخد دورها. فيك تضيف كتير مهام، أو تبعت خطة بالمحادثة ورفيق بيقسمها لمهام.")}
         actions={
           <>
             <RefreshButton spinning={refreshing} onClick={() => void refresh(true)} />
             {!composing && (
               <Button
+                variant="accent"
                 onClick={() => setComposing(true)}
                 disabled={usable.length === 0}
                 title={usable.length === 0 ? t("أضف نموذج شغّال أولاً") : undefined}
@@ -247,6 +249,8 @@ export function TasksPage() {
       />
 
       <ViewTabs value={view} onChange={setView} />
+
+      {view === "tasks" && tasks.length > 0 && <TaskNumbers counts={counts} total={tasks.length} />}
 
       {view === "schedules" && <SchedulesPanel models={models} />}
       {view === "templates" && (
@@ -287,21 +291,21 @@ export function TasksPage() {
                 setFilter(f);
                 setCursor(-1);
               }}
-              className="flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs transition-colors"
+              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors"
               style={{
-                borderColor: filter === f ? "var(--color-accent)" : "var(--color-border)",
-                background: filter === f ? "color-mix(in oklch, var(--color-accent) 12%, transparent)" : "transparent",
-                color: filter === f ? "var(--color-ink)" : "var(--color-ink-muted)",
+                borderColor: filter === f ? "var(--color-inverse)" : "var(--color-border)",
+                background: filter === f ? "var(--color-inverse)" : "transparent",
+                color: filter === f ? "var(--color-on-inverse)" : "var(--color-ink-muted)",
               }}
             >
               {statusFilterLabel(f)}
-              <span className="tabular-nums opacity-70">{counts[f]}</span>
+              <span className="num opacity-70">{counts[f]}</span>
             </button>
           ))}
 
           <div
-            className="flex min-w-40 flex-1 items-center gap-2 rounded-lg border px-3"
-            style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}
+            className="flex min-w-40 flex-1 items-center gap-2 rounded-full px-3.5"
+            style={{ background: "var(--color-surface)" }}
           >
             <SearchIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
             <input
@@ -328,12 +332,12 @@ export function TasksPage() {
       {loading ? (
         <div className="flex flex-col gap-2">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="shimmer h-[62px] rounded-lg border" style={{ borderColor: "var(--color-border)" }} />
+            <div key={i} className="shimmer h-[62px] rounded-2xl" />
           ))}
         </div>
       ) : tasks.length === 0 && !composing ? (
         <EmptyState
-          icon={<TasksIcon className="h-8 w-8" />}
+          scene="tasks"
           text={
             usable.length === 0
               ? t("أضف نموذج شغّال من صفحة النماذج، وبعدين ابدأ أول مهمة.")
@@ -352,7 +356,7 @@ export function TasksPage() {
           {t("ما في مهام مطابقة.")}
         </p>
       ) : (
-        <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
+        <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)" }}>
           <AnimatePresence initial={false}>
             {visible.map((task, index) => {
               const running = task.status === "running" || task.status === "pending";
@@ -364,7 +368,8 @@ export function TasksPage() {
                   variants={listItem}
                   exit="exit"
                   layout="position"
-                  className="group relative"
+                  className="group relative border-b last:border-b-0"
+                  style={{ borderColor: "var(--color-border)" }}
                   data-task-row={index}
                   onMouseLeave={() => confirming === task.id && setConfirming(null)}
                   onContextMenu={menu(() => [
@@ -385,18 +390,12 @@ export function TasksPage() {
                     transition={snappy}
                     onClick={() => navigate(`/tasks/${task.id}`)}
                     onMouseEnter={() => setCursor(-1)}
-                    className={`relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-lg border px-4 py-3 text-start transition-[background-color,padding] hover:bg-[var(--color-surface-2)] ${
+                    className={`relative flex w-full items-center justify-between gap-4 overflow-hidden px-4 py-3 text-start transition-[background-color,padding] hover:bg-[var(--color-surface-2)] ${
                       confirming === task.id ? "pe-24" : "pe-12"
                     }`}
                     style={{
-                      borderColor: focused
-                        ? "var(--color-accent)"
-                        : task.needs_approval
-                          ? "var(--color-pending)"
-                          : "var(--color-border)",
-                      background: focused
-                        ? "color-mix(in oklch, var(--color-accent) 8%, var(--color-surface))"
-                        : "var(--color-surface)",
+                      background: focused ? "var(--color-surface-2)" : "transparent",
+                      boxShadow: focused ? "inset 0 0 0 1.5px var(--color-ink-muted)" : undefined,
                     }}
                   >
                     {running && <RunningLine />}
@@ -428,7 +427,7 @@ export function TasksPage() {
                           </span>
                         )}
                         {task.origin?.chat_id && (
-                          <span className="flex items-center gap-1" style={{ color: "var(--color-accent)" }}>
+                          <span className="flex items-center gap-1">
                             <ChatIcon className="h-3.5 w-3.5" />
                             {t("من المحادثة")}
                           </span>
@@ -470,12 +469,34 @@ export function TasksPage() {
   );
 }
 
+/** Running / waiting / done / stopped as big numbers, the running one inverted. */
+function TaskNumbers({ counts, total }: { counts: Record<Filter, number>; total: number }) {
+  const settled = counts.completed + counts.failed;
+  const cells: { label: string; value: number; tone: "inverse" | "default" }[] = [
+    { label: t("عم تشتغل"), value: counts.active, tone: "inverse" },
+    { label: t("بالدور"), value: counts.queued, tone: "default" },
+    { label: t("خلصت"), value: counts.completed, tone: "default" },
+    { label: t("وقفت"), value: counts.failed, tone: "default" },
+  ];
+  return (
+    <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {cells.map((cell) => (
+        <Block key={cell.label} tone={cell.tone} className="flex flex-col gap-2">
+          <BracketLabel tone={cell.tone === "inverse" ? "inverse" : "muted"}>{cell.label}</BracketLabel>
+          <BigNumber value={cell.value} size={34} />
+          {cell.tone === "inverse" && <LedBar value={total ? settled / total : 0} tone="inverse" segments={10} label={t("المهام اللي خلصت")} />}
+        </Block>
+      ))}
+    </div>
+  );
+}
+
 /** A line that keeps moving while a task runs — the row's own heartbeat. */
 function RunningLine() {
   return (
     <motion.span
       className="absolute inset-x-0 top-0 h-0.5"
-      style={{ background: "linear-gradient(90deg, transparent, var(--color-accent), transparent)" }}
+      style={{ background: "linear-gradient(90deg, transparent, var(--color-ink), transparent)" }}
       animate={{ x: ["-60%", "160%"] }}
       transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
     />
@@ -490,7 +511,7 @@ function RowDelete({ confirming, running, onClick }: { confirming: boolean; runn
       transition={snappy}
       aria-label={confirming ? t("تأكيد الحذف") : t("حذف المهمة")}
       title={confirming ? (running ? t("المهمة شغّالة — رح توقف وتنحذف") : t("اضغط مرة ثانية للحذف")) : t("حذف")}
-      className={`absolute end-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-opacity ${
+      className={`absolute end-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 rounded-full px-2 py-1.5 text-xs font-medium transition-opacity ${
         confirming ? "opacity-100" : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
       }`}
       style={{

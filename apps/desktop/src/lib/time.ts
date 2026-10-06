@@ -41,6 +41,13 @@ export function clockTime(iso: string): string {
   return clockFormat.format(parseUtc(iso));
 }
 
+const bigClockFormat = new Intl.DateTimeFormat(intlLocale(), { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/** "09:30" — 24-hour, no am/pm, for a time set large. */
+export function bigClock(iso: string): string {
+  return bigClockFormat.format(parseUtc(iso));
+}
+
 /** True when this message opens a new calendar day in the transcript. */
 export function isNewDay(previousIso: string | undefined, iso: string): boolean {
   if (!previousIso) return true;

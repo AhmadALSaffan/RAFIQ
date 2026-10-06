@@ -4,6 +4,7 @@ import { waitForBackend } from "../lib/api";
 import { easeOutExpo } from "../lib/motion";
 import { Logo } from "./Logo";
 import { Button } from "./ui";
+import { LedBar } from "./brand";
 
 import { t } from "../i18n";
 /**
@@ -55,14 +56,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
             </motion.div>
 
             <div className="w-56">
-              <div className="h-1 overflow-hidden rounded-full" style={{ background: "var(--color-surface-2)" }}>
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: "var(--color-accent)" }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                />
-              </div>
+              <LedBar value={progress / 100} segments={16} tone="accent" label={t("جارِ تشغيل محرك رفيق…")} />
               <p className="mt-2.5 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
                 {stuck
                   ? t("المحرك تأخّر أكتر من المتوقع.")

@@ -109,7 +109,7 @@ export function WebSettings({ settings, persist }: { settings: AppSettings; pers
       <Card>
         <p className="text-sm font-medium">{t("البحث على الويب")}</p>
         <Hint>{t("قراءة الصفحات (web_fetch) شغّالة دايماً. للبحث اختار خدمة رسمية وحط مفتاحها — المفتاح بينحفظ بـ Windows Credential Manager.")}</Hint>
-        <div className="mt-3 flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup">
+        <div className="mt-3 flex flex-wrap gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup">
           {SEARCH.map((option) => {
             const active = option.id === provider;
             return (
@@ -118,10 +118,10 @@ export function WebSettings({ settings, persist }: { settings: AppSettings; pers
                 role="radio"
                 aria-checked={active}
                 onClick={() => persist({ ...settings, web_search_provider: option.id })}
-                className="relative flex-1 rounded-lg px-3 py-1.5 text-xs"
-                style={{ color: active ? "var(--color-bg)" : "var(--color-ink-muted)" }}
+                className="relative flex-1 rounded-full px-3 py-1.5 text-xs"
+                style={{ color: active ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
               >
-                {active && <motion.span layoutId="search-provider" className="absolute inset-0 rounded-lg" style={{ background: "var(--color-accent)" }} transition={snappy} />}
+                {active && <motion.span layoutId="search-provider" className="absolute inset-0 rounded-full" style={{ background: "var(--color-inverse)" }} transition={snappy} />}
                 <span className="relative">{option.label}</span>
               </button>
             );

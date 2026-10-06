@@ -7,7 +7,7 @@ import { easeOutExpo, listContainer, listItem, snappy } from "../lib/motion";
 import { timeAgo } from "../lib/time";
 import { BrandMark } from "../components/BrandMark";
 import { Button, EmptyState } from "../components/ui";
-import { AlertIcon, FolderIcon, PlusIcon, SparkIcon, TrashIcon, XIcon } from "../components/Icons";
+import { AlertIcon, FolderIcon, PlusIcon, TrashIcon, XIcon } from "../components/Icons";
 import { FolderChip } from "../components/FolderPicker";
 import { useElementMenu, usePageMenu } from "../components/ContextMenu";
 import { PageHeader, RefreshButton } from "../components/Page";
@@ -16,6 +16,7 @@ import { fieldDir } from "../lib/bidi";
 
 import { SkillsSection } from "../features/design/SkillsSection";
 import { useWorkspaces } from "../lib/workspace";
+import { Wireframe } from "../components/brand";
 
 import { t } from "../i18n";
 /** Cheap live thumbnail: the real document, scaled down and inert. */
@@ -23,17 +24,18 @@ function Thumb({ html }: { html: string | null }) {
   if (!html) {
     return (
       <div
-        className="flex h-36 items-center justify-center rounded-lg border text-xs"
-        style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
+        className="relative flex h-44 items-center justify-center overflow-hidden rounded-xl text-xs"
+        style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
       >
-        {t("لسا ما في معاينة")}
+        <Wireframe size={150} className="absolute -bottom-10 -end-8 opacity-30" />
+        <span className="relative">{t("لسا ما في معاينة")}</span>
       </div>
     );
   }
   return (
     <div
-      className="relative h-36 overflow-hidden rounded-lg border"
-      style={{ borderColor: "var(--color-border)", background: "white" }}
+      className="relative h-44 overflow-hidden rounded-xl border"
+      style={{ background: "white", borderColor: "var(--color-border)" }}
     >
       <iframe
         srcDoc={html}
@@ -41,7 +43,7 @@ function Thumb({ html }: { html: string | null }) {
         tabIndex={-1}
         sandbox="allow-scripts"
         className="pointer-events-none absolute start-0 top-0 origin-top-right"
-        style={{ width: "1200px", height: "900px", transform: "scale(0.28)", transformOrigin: "top right", border: 0 }}
+        style={{ width: "1200px", height: "900px", transform: "scale(0.34)", transformOrigin: "top right", border: 0 }}
       />
     </div>
   );
@@ -54,7 +56,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  draft: "var(--color-accent)",
+  draft: "var(--color-ink-muted)",
   ready: "var(--color-success)",
   handed_off: "var(--color-ink-muted)",
 };
@@ -124,14 +126,15 @@ export function DesignsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
+    <div className="mx-auto max-w-6xl px-6 py-8">
       <PageHeader
         title={t("التصاميم")}
+        scene="designs"
         description={t("صمّم الواجهة قبل ما تبرمجها: رفيق بيسألك أسئلة الـ brief، بيقرأ مهارات التصميم المدمجة، بيعطيك معاينة حيّة تناقشه فيها، ولما تجهز بتبعتها للجلسة اللي رح تبرمجها.")}
         actions={
           <>
             <RefreshButton spinning={refreshing} onClick={() => void loadDesigns()} />
-            <Button onClick={() => setWizard(true)} disabled={usable.length === 0}>
+            <Button variant="accent" onClick={() => setWizard(true)} disabled={usable.length === 0}>
               <PlusIcon className="h-4 w-4" />
               {t("تصميم جديد")}
             </Button>
@@ -140,34 +143,34 @@ export function DesignsPage() {
       />
 
       {usable.length === 0 && !loading && (
-        <p className="mb-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}>
+        <p className="mb-4 flex items-center gap-2 rounded-2xl px-4 py-3 text-sm" style={{ background: "var(--color-surface)", color: "var(--color-ink-muted)" }}>
           <AlertIcon className="h-4 w-4 shrink-0" />
           {t("أضف نموذج شغّال أولاً من صفحة النماذج.")}
         </p>
       )}
 
       {error && (
-        <p className="mb-4 rounded-lg border px-4 py-3 text-sm" style={{ borderColor: "var(--color-danger)", color: "var(--color-danger)" }}>
+        <p className="mb-4 rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: "var(--color-danger)", color: "var(--color-danger)" }}>
           {error}
         </p>
       )}
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="shimmer h-56 rounded-xl" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="shimmer h-60 rounded-2xl" />
           ))}
         </div>
       ) : designs.length === 0 ? (
         <EmptyState
-          icon={<SparkIcon className="h-8 w-8" />}
+          scene="designs"
           text={t("ما في تصاميم بعد. اضغط «تصميم جديد» وجاوب على تسع أسئلة — بعدها بتفتحلك جلسة تصميم فيها شات ومعاينة حيّة.")}
           action={
             usable.length > 0 ? <Button onClick={() => setWizard(true)}>{t("تصميم جديد")}</Button> : undefined
           }
         />
       ) : (
-        <motion.div variants={listContainer} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-2">
+        <motion.div variants={listContainer} initial="hidden" animate="show" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <AnimatePresence initial={false}>
           {designs.map((design) => (
             <motion.div
@@ -177,8 +180,8 @@ export function DesignsPage() {
               layout="position"
               whileHover={{ y: -3 }}
               transition={snappy}
-              className="group relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-xl border p-3"
-              style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+              className="group relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-2xl p-3"
+              style={{ background: "var(--color-surface)" }}
               onClick={() => navigate(`/designs/${design.id}`)}
               onContextMenu={menu(() => [
                 { id: "open", label: t("افتح التصميم"), onSelect: () => navigate(`/designs/${design.id}`) },
@@ -191,15 +194,10 @@ export function DesignsPage() {
                 { id: "delete", label: t("احذف التصميم"), onSelect: () => void remove(design.id), danger: true },
               ])}
             >
-              <span
-                className="absolute inset-x-0 top-0 h-0.5"
-                style={{ background: STATUS_COLOR[design.status] ?? "var(--color-border)" }}
-                aria-hidden
-              />
               <Thumb html={previews[design.id] ?? null} />
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium" dir="auto">
+                  <p className="truncate text-[15px] font-bold" style={{ fontFamily: "var(--font-display)" }} dir="auto">
                     {design.title}
                   </p>
                   <p className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
@@ -210,12 +208,10 @@ export function DesignsPage() {
                   </p>
                 </div>
                 <span
-                  className="shrink-0 rounded-full px-2 py-0.5 text-[11px]"
-                  style={{
-                    background: design.status === "ready" ? "color-mix(in oklch, var(--color-success) 14%, transparent)" : "var(--color-surface-2)",
-                    color: design.status === "ready" ? "var(--color-success)" : "var(--color-ink-muted)",
-                  }}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px]"
+                  style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
                 >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: STATUS_COLOR[design.status] ?? "var(--color-border)" }} />
                   {STATUS_LABEL[design.status] ?? design.status}
                 </span>
               </div>
@@ -226,7 +222,7 @@ export function DesignsPage() {
                 }}
                 aria-label={t("احذف التصميم")}
                 title={t("احذف التصميم")}
-                className="absolute end-2 top-2 rounded-md p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
+                className="absolute end-5 top-5 rounded-full p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
                 style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
               >
                 <TrashIcon className="h-3.5 w-3.5" />
@@ -317,8 +313,8 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
       >
         <header className="flex items-start justify-between gap-3 border-b px-5 py-4" style={{ borderColor: "var(--color-border)" }}>
           <div>
-            <h2 className="flex items-center gap-2 text-base font-semibold">
-              <span className="font-mono text-xs" style={{ color: "var(--color-accent)" }} dir="ltr">
+            <h2 className="flex items-center gap-2 text-lg font-extrabold">
+              <span className="font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
                 /impeccable init
               </span>
               {t("جمع معلومات المشروع")}
@@ -327,7 +323,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
               {t("تسع أسئلة. اللي بتتركه فاضي رفيق بيفترضه وبيقلّك شو افترض.")}
             </p>
           </div>
-          <button onClick={onClose} aria-label={t("إغلاق")} className="rounded-lg p-1 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+          <button onClick={onClose} aria-label={t("إغلاق")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
             <XIcon className="h-4 w-4" />
           </button>
         </header>
@@ -337,8 +333,8 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
             {questions.map((question, i) => (
               <div key={question.id}>
                 <label className="mb-1.5 flex items-baseline gap-2 text-sm">
-                  <span className="font-mono text-[11px] tabular-nums" style={{ color: "var(--color-ink-muted)" }}>
-                    {i + 1}
+                  <span className="num text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+                    {String(i + 1).padStart(2, "0")}
                   </span>
                   {question.label}
                   {!question.required && (
@@ -372,9 +368,9 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
                           onClick={() => (question.kind === "multi" ? toggle(question.id, option) : set(question.id, option))}
                           className="rounded-full border px-3 py-1.5 text-xs transition-colors"
                           style={{
-                            borderColor: selected ? "var(--color-accent)" : "var(--color-border)",
-                            background: selected ? "color-mix(in oklch, var(--color-accent) 14%, transparent)" : "transparent",
-                            color: selected ? "var(--color-ink)" : "var(--color-ink-muted)",
+                            borderColor: selected ? "var(--color-inverse)" : "var(--color-border)",
+                            background: selected ? "var(--color-inverse)" : "transparent",
+                            color: selected ? "var(--color-on-inverse)" : "var(--color-ink-muted)",
                           }}
                         >
                           {option}
@@ -424,11 +420,11 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
             onClick={() => setWebSearch(!searchOn)}
             className="flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
             style={{
-              background: searchOn ? "var(--color-accent)" : "var(--color-surface-2)",
+              background: searchOn ? "var(--color-inverse)" : "var(--color-surface-2)",
               justifyContent: searchOn ? "flex-end" : "flex-start",
             }}
           >
-            <motion.span layout transition={snappy} className="h-5 w-5 rounded-full bg-white shadow-sm" />
+            <motion.span layout transition={snappy} className="h-5 w-5 rounded-full shadow-sm" style={{ background: searchOn ? "var(--color-on-inverse)" : "#fff" }} />
           </button>
         </div>
 
@@ -451,7 +447,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
                 {error}
               </span>
             )}
-            <Button onClick={start} disabled={busy || missing.length > 0 || !modelId}>
+            <Button variant="accent" onClick={start} disabled={busy || missing.length > 0 || !modelId}>
               {busy ? t("جارِ البدء…") : t("ابدأ التصميم")}
             </Button>
           </div>

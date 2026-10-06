@@ -9,7 +9,7 @@ import { deleteSchedule, deleteTemplate, exportTemplates, importTemplates, listS
 import { saveTextFile } from "../../components/ChatCommands";
 import type { CatalogTemplate, LlmModel, Schedule, ScheduleInput, ScheduleKind, TaskTemplate } from "../../lib/types";
 import { listContainer, listItem, snappy } from "../../lib/motion";
-import { upcomingLabel } from "../../lib/time";
+import { bigClock, upcomingLabel } from "../../lib/time";
 import { fieldDir } from "../../lib/bidi";
 import { Button, EmptyState, ErrorText, Field, Reveal } from "../../components/ui";
 import { FolderPicker } from "../../components/FolderPicker";
@@ -107,7 +107,7 @@ function ScheduleForm({
   }
 
   return (
-    <div className="mb-4 flex flex-col gap-4 rounded-xl border p-5" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+    <div className="mb-4 flex flex-col gap-4 rounded-2xl p-5" style={{ background: "var(--color-surface)" }}>
       <Field label={t("شو بدك رفيق يعمل؟")}>
         <textarea value={draft.prompt} onChange={(e) => set({ prompt: e.target.value })} rows={3} className="input resize-none" dir={fieldDir(draft.prompt)} placeholder={t("مثلاً: لخّصلي مهامي الجديدة بـ Jira وشو المستعجل منها.")} />
       </Field>
@@ -119,10 +119,10 @@ function ScheduleForm({
         <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
           {t("متى؟")}
         </span>
-        <div className="flex gap-1 rounded-xl p-1" style={{ background: "var(--color-surface-2)" }}>
+        <div className="flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }}>
           {(["interval", "daily", "weekly"] as ScheduleKind[]).map((kind) => (
-            <button key={kind} type="button" onClick={() => set({ kind })} className="relative flex-1 rounded-lg px-3 py-1.5 text-xs" style={{ color: draft.kind === kind ? "var(--color-bg)" : "var(--color-ink-muted)" }}>
-              {draft.kind === kind && <motion.span layoutId="schedule-kind" className="absolute inset-0 rounded-lg" style={{ background: "var(--color-accent)" }} transition={snappy} />}
+            <button key={kind} type="button" onClick={() => set({ kind })} className="relative flex-1 rounded-full px-3 py-1.5 text-xs" style={{ color: draft.kind === kind ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}>
+              {draft.kind === kind && <motion.span layoutId="schedule-kind" className="absolute inset-0 rounded-full" style={{ background: "var(--color-inverse)" }} transition={snappy} />}
               <span className="relative">{kind === "interval" ? t("كل فترة") : kind === "daily" ? t("يومياً") : t("أيام محددة")}</span>
             </button>
           ))}
@@ -145,9 +145,9 @@ function ScheduleForm({
                     onClick={() => set({ weekdays: on ? (draft.weekdays ?? []).filter((d) => d !== i) : [...(draft.weekdays ?? []), i] })}
                     className="rounded-full border px-3 py-1 text-xs transition-colors"
                     style={{
-                      borderColor: on ? "var(--color-accent)" : "var(--color-border)",
-                      background: on ? "color-mix(in oklch, var(--color-accent) 14%, transparent)" : "transparent",
-                      color: on ? "var(--color-ink)" : "var(--color-ink-muted)",
+                      borderColor: on ? "var(--color-inverse)" : "var(--color-border)",
+                      background: on ? "var(--color-inverse)" : "transparent",
+                      color: on ? "var(--color-on-inverse)" : "var(--color-ink-muted)",
                     }}
                   >
                     {name}
@@ -245,9 +245,9 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
       </Reveal>
 
       {schedules === null ? (
-        <div className="shimmer h-20 rounded-xl" />
+        <div className="shimmer h-24 rounded-2xl" />
       ) : schedules.length === 0 ? (
-        !editing && <EmptyState icon={<ClockIcon className="h-8 w-8" />} text={t("ما في مهام مجدولة. مثلاً: «كل يوم الساعة 9 لخّصلي مهامي الجديدة»، أو «كل جمعة راجع التبعيات».")} />
+        !editing && <EmptyState scene="schedule" text={t("ما في مهام مجدولة. مثلاً: «كل يوم الساعة 9 لخّصلي مهامي الجديدة»، أو «كل جمعة راجع التبعيات».")} />
       ) : (
         <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
           <AnimatePresence initial={false}>
@@ -257,16 +257,20 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
                 variants={listItem}
                 exit="exit"
                 layout="position"
-                className="rounded-xl border px-4 py-3"
-                style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", opacity: schedule.enabled ? 1 : 0.6 }}
+                className="rounded-2xl px-4 py-3.5"
+                style={{ background: "var(--color-surface)", opacity: schedule.enabled ? 1 : 0.6 }}
               >
                 <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-4">
+                  <span className="num w-[5.5rem] shrink-0 text-[30px] font-bold leading-none" title={schedule.next_run_at ? upcomingLabel(schedule.next_run_at) : undefined}>
+                    {schedule.enabled && schedule.next_run_at ? bigClock(schedule.next_run_at) : "--:--"}
+                  </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium" dir="auto">
                     {schedule.title}
                   </p>
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                    <span className="flex items-center gap-1" style={{ color: "var(--color-accent)" }}>
+                    <span className="flex items-center gap-1">
                       <ClockIcon className="h-3 w-3" />
                       {describeSchedule(schedule)}
                     </span>
@@ -285,6 +289,7 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
                     ) : null}
                   </p>
                 </div>
+                </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <Button variant="ghost" onClick={() => void runNow(schedule)}>
                     {t("شغّل هلأ")}
@@ -298,7 +303,7 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
                       void deleteSchedule(schedule.id);
                     }}
                     aria-label={t("احذف")}
-                    className="rounded-md p-1.5 hover:bg-[var(--color-surface-2)]"
+                    className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]"
                     style={{ color: "var(--color-ink-muted)" }}
                   >
                     <TrashIcon className="h-3.5 w-3.5" />
@@ -432,7 +437,7 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
 
       <Reveal open={panel === "import"}>
         {panel === "import" && (
-          <div className="mb-4 flex flex-col gap-3 rounded-xl border p-4" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+          <div className="mb-4 flex flex-col gap-3 rounded-2xl p-4" style={{ background: "var(--color-surface)" }}>
             <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
               {t("رابط ملف JSON (متل اللي بيطلع من «صدّر»)، أو ملف من جهازك. القوالب اللي أسماؤها موجودة عندك بتنتخطى.")}
             </p>
@@ -462,7 +467,7 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
 
       <Reveal open={panel === "community"}>
         {panel === "community" && (
-          <div className="mb-4 flex flex-col gap-3 rounded-xl border p-4" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+          <div className="mb-4 flex flex-col gap-3 rounded-2xl p-4" style={{ background: "var(--color-surface)" }}>
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
                 {catalog?.source === "remote" ? t("أحدث قائمة من مستودع رفيق.") : t("القائمة اللي جاية مع التطبيق (ما قدرت أجيب الأحدث).")}
@@ -484,7 +489,7 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
                 {catalog.templates.map((item) => {
                   const have = templates?.some((x) => x.name === item.name);
                   return (
-                    <li key={item.name} className="flex flex-col gap-1.5 rounded-lg border px-3 py-2" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}>
+                    <li key={item.name} className="flex flex-col gap-1.5 rounded-[10px] px-3 py-2" style={{ background: "var(--color-surface-2)" }}>
                       <div className="flex items-center justify-between gap-2">
                         <p className="truncate text-sm font-medium" dir="auto">
                           {item.name}
@@ -514,7 +519,7 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
 
       <Reveal open={editing !== null}>
         {editing && (
-          <div className="mb-4 flex flex-col gap-4 rounded-xl border p-5" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+          <div className="mb-4 flex flex-col gap-4 rounded-2xl p-5" style={{ background: "var(--color-surface)" }}>
             <Field label={t("اسم القالب")}>
               <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="input" dir={fieldDir(editing.name)} />
             </Field>
@@ -549,7 +554,7 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
       </Reveal>
 
       {templates === null ? (
-        <div className="shimmer h-20 rounded-xl" />
+        <div className="shimmer h-24 rounded-2xl" />
       ) : (
         <motion.ul variants={listContainer} initial="hidden" animate="show" className="grid gap-2 sm:grid-cols-2">
           {all.map((template) => {
@@ -560,12 +565,12 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
                 variants={listItem}
                 whileHover={{ y: -2 }}
                 transition={snappy}
-                className="flex flex-col gap-2 rounded-xl border p-4"
-                style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+                className="flex flex-col gap-2 rounded-2xl p-4"
+                style={{ background: "var(--color-surface)" }}
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                    <TasksIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-accent)" }} />
+                    <TasksIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
                     <span className="truncate" dir="auto">
                       {template.name}
                     </span>
@@ -584,8 +589,8 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
                     {variablesOf(template.prompt, template.name).map((name) => (
                       <span
                         key={name}
-                        className="rounded-md px-1.5 py-0.5 font-mono text-[10.5px]"
-                        style={{ background: "color-mix(in oklch, var(--color-accent) 14%, transparent)", color: "var(--color-accent)" }}
+                        className="rounded-full border px-2 py-0.5 font-mono text-[10.5px]"
+                        style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
                         dir="auto"
                       >
                         {`{{${name}}}`}
@@ -622,7 +627,7 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
                           void deleteTemplate(template.id);
                         }}
                         aria-label={t("احذف")}
-                        className="rounded-md p-1.5 hover:bg-[var(--color-surface-2)]"
+                        className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]"
                         style={{ color: "var(--color-ink-muted)" }}
                       >
                         <TrashIcon className="h-3.5 w-3.5" />

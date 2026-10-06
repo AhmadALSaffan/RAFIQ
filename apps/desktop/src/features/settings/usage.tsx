@@ -17,6 +17,7 @@ import { Button } from "../../components/ui";
 import { DownloadIcon, RefreshIcon } from "../../components/Icons";
 import { saveTextFile } from "../../components/ChatCommands";
 import { Card, Hint, Section, ToggleRow } from "./controls";
+import { BigNumber, Block, BracketLabel, LedBar } from "../../components/brand";
 import { t } from "../../i18n";
 
 type Persist = (next: AppSettings) => void;
@@ -106,30 +107,30 @@ export function UsageSettings({ settings, persist }: { settings: AppSettings; pe
         </Button>
       }
     >
+      {/* Today inverted and large; the month and the tokens beside it. */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <Block tone="inverse" className="flex flex-col gap-2">
+          <BracketLabel tone="inverse">{t("اليوم")}</BracketLabel>
+          <BigNumber value={summary?.today_usd ?? 0} decimals={2} prefix="$" size={40} />
+          {(settings.daily_budget_usd ?? 0) > 0 && (
+            <LedBar value={Math.min(1, (summary?.today_usd ?? 0) / (settings.daily_budget_usd ?? 1))} tone="inverse" label={t("حد يومي")} />
+          )}
+        </Block>
+        <Block className="flex flex-col gap-2">
+          <BracketLabel>{t("هالشهر")}</BracketLabel>
+          <BigNumber value={summary?.month_usd ?? 0} decimals={2} prefix="$" size={34} />
+          {(settings.monthly_budget_usd ?? 0) > 0 && (
+            <LedBar value={Math.min(1, (summary?.month_usd ?? 0) / (settings.monthly_budget_usd ?? 1))} label={t("حد شهري")} />
+          )}
+        </Block>
+        <Block className="flex flex-col gap-2">
+          <BracketLabel>{t("توكنات (٣٠ يوم)")}</BracketLabel>
+          <p className="num text-[34px] font-bold leading-none">{tokens(summary?.total_tokens ?? 0)}</p>
+        </Block>
+      </div>
+
       <Card>
         <div className="flex flex-wrap items-end justify-between gap-6">
-          <div className="flex gap-6">
-            <div>
-              <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                {t("اليوم")}
-              </p>
-              <p className="text-2xl font-semibold tabular-nums" style={{ color: "var(--color-accent)" }}>
-                {money(summary?.today_usd ?? 0)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                {t("هالشهر")}
-              </p>
-              <p className="text-2xl font-semibold tabular-nums">{money(summary?.month_usd ?? 0)}</p>
-            </div>
-            <div>
-              <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                {t("توكنات (٣٠ يوم)")}
-              </p>
-              <p className="text-2xl font-semibold tabular-nums">{tokens(summary?.total_tokens ?? 0)}</p>
-            </div>
-          </div>
           <div className="flex gap-4">
             <BudgetField
               label={t("حد يومي")}
@@ -154,8 +155,8 @@ export function UsageSettings({ settings, persist }: { settings: AppSettings; pe
                 animate={{ height: `${Math.max(4, (day.cost_usd / peak) * 100)}%` }}
                 transition={{ duration: 0.4, ease: easeOutExpo }}
                 title={`${day.date} · ${money(day.cost_usd)}`}
-                className="flex-1 rounded-sm"
-                style={{ background: "color-mix(in oklch, var(--color-accent) 45%, transparent)" }}
+                className="flex-1 rounded-[3px]"
+                style={{ background: "var(--color-ink)", opacity: 0.8 }}
               />
             ))}
           </div>
@@ -203,7 +204,7 @@ export function UsageSettings({ settings, persist }: { settings: AppSettings; pe
                       {m.cached_tokens > 0 && ` · ${t("{0} من الكاش", { 0: tokens(m.cached_tokens) })}`}
                     </Hint>
                   </div>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums">{money(m.cost_usd)}</span>
+                  <span className="num shrink-0 text-lg font-bold">{money(m.cost_usd)}</span>
                 </div>
               </Card>
             </motion.li>

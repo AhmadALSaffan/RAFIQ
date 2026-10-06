@@ -109,12 +109,12 @@ function PresetPicker({ requirements, installed, onPick, onClose }: { requiremen
             {t("بتشبّكه بضغطة: يا بتسجّل دخول بالمتصفح، يا بتلصق توكن، يا ولا شي. الأمر والرابط رفيق بيهتم فيهم.")}
           </p>
         </div>
-        <button onClick={onClose} aria-label={t("إغلاق")} className="rounded-lg p-1 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+        <button onClick={onClose} aria-label={t("إغلاق")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
           <XIcon className="h-4 w-4" />
         </button>
       </div>
       {missing.length > 0 && (
-        <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2 text-xs" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}>
+        <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl px-3 py-2 text-xs" style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}>
           <AlertIcon className="h-3.5 w-3.5 shrink-0" />
           {t("مش منزّل على جهازك:")}
           {missing.map((k) => (
@@ -129,8 +129,8 @@ function PresetPicker({ requirements, installed, onPick, onClose }: { requiremen
       <div className="flex flex-col gap-4">
         {groups.map(({ c, items }) => (
           <div key={c}>
-            <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--color-ink-muted)" }}>
-              {MCP_CATEGORY_LABEL[c]}
+            <p className="mb-1.5 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+              ( {MCP_CATEGORY_LABEL[c]} )
             </p>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((p) => {
@@ -142,10 +142,10 @@ function PresetPicker({ requirements, installed, onPick, onClose }: { requiremen
                     type="button"
                     whileHover={{ y: -1 }}
                     onClick={() => onPick(p)}
-                    className="flex items-start gap-3 rounded-xl border px-3 py-2.5 text-start transition-colors hover:border-[var(--color-accent)]"
-                    style={{ borderColor: "var(--color-border)", background: "var(--color-bg)", opacity: have ? 0.6 : 1 }}
+                    className="flex items-start gap-3 rounded-2xl px-3 py-3 text-start transition-colors hover:bg-[var(--color-border)]"
+                    style={{ background: "var(--color-surface-2)", opacity: have ? 0.6 : 1 }}
                   >
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--color-surface-2)" }}>
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "var(--color-surface)" }}>
                       <McpLogo preset={p.id} className="h-4.5 w-4.5" />
                     </span>
                     <span className="min-w-0">
@@ -180,10 +180,10 @@ function PresetPicker({ requirements, installed, onPick, onClose }: { requiremen
           type="button"
           whileHover={{ y: -1 }}
           onClick={() => onPick(null)}
-          className="flex items-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-start text-sm"
+          className="flex items-center gap-2 rounded-2xl border border-dashed px-3 py-3 text-start text-sm"
           style={{ borderColor: "var(--color-border)" }}
         >
-          <PlusIcon className="h-4 w-4" style={{ color: "var(--color-accent)" }} />
+          <PlusIcon className="h-4 w-4" />
           <span>
             <span className="block font-medium">{t("مخصص")}</span>
             <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
@@ -291,7 +291,7 @@ function PresetConnect({
             {preset.blurb}
           </p>
         </div>
-        <button onClick={onClose} aria-label={t("إغلاق")} className="rounded-lg p-1 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+        <button onClick={onClose} aria-label={t("إغلاق")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
           <XIcon className="h-4 w-4" />
         </button>
       </div>
@@ -307,7 +307,7 @@ function PresetConnect({
               <span className="flex items-center justify-between text-xs font-medium">
                 {field.label}
                 {field.url && (
-                  <a href={field.url} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 font-normal underline-offset-2 hover:underline" style={{ color: "var(--color-accent)" }}>
+                  <a href={field.url} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 font-normal underline-offset-2 hover:underline" style={{ color: "var(--color-ink)" }}>
                     {t("أنشئ واحد")}
                     <ExternalIcon className="h-3 w-3" />
                   </a>
@@ -361,8 +361,8 @@ function PresetConnect({
           </div>
         </div>
       ) : stage === "browser" ? (
-        <div className="mt-3 flex items-center gap-3 rounded-lg border border-dashed px-3 py-3 text-sm" style={{ borderColor: "var(--color-border)" }}>
-          <SpinnerIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-accent)" }} />
+        <div className="mt-3 flex items-center gap-3 rounded-xl px-3 py-3 text-sm" style={{ background: "var(--color-surface-2)" }}>
+          <SpinnerIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
           <span>
             {t("كمّل تسجيل الدخول بالمتصفح…")}
             <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
@@ -375,7 +375,7 @@ function PresetConnect({
         </div>
       ) : stage === "testing" ? (
         <p className="mt-3 flex items-center gap-2 text-sm">
-          <SpinnerIcon className="h-4 w-4" style={{ color: "var(--color-accent)" }} />
+          <SpinnerIcon className="h-4 w-4" style={{ color: "var(--color-ink-muted)" }} />
           {t("عم يتصل…")}
         </p>
       ) : (
@@ -532,15 +532,15 @@ export function McpSettings() {
                   className="input min-w-0 flex-1"
                   dir="auto"
                 />
-                <div className="flex rounded-lg p-0.5" style={{ background: "var(--color-surface-2)" }}>
+                <div className="flex rounded-full p-0.5" style={{ background: "var(--color-surface-2)" }}>
                   {(["stdio", "http"] as const).map((kind) => (
                     <button
                       key={kind}
                       onClick={() => setDraft({ ...draft, transport: kind })}
-                      className="relative rounded-md px-3 py-1 text-xs"
-                      style={{ color: draft.transport === kind ? "var(--color-bg)" : "var(--color-ink-muted)" }}
+                      className="relative rounded-full px-3 py-1 text-xs"
+                      style={{ color: draft.transport === kind ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
                     >
-                      {draft.transport === kind && <motion.span layoutId="mcp-transport" className="absolute inset-0 rounded-md" style={{ background: "var(--color-accent)" }} transition={snappy} />}
+                      {draft.transport === kind && <motion.span layoutId="mcp-transport" className="absolute inset-0 rounded-full" style={{ background: "var(--color-inverse)" }} transition={snappy} />}
                       <span className="relative">{kind === "stdio" ? t("أمر محلي") : "HTTP"}</span>
                     </button>
                   ))}
@@ -592,7 +592,7 @@ export function McpSettings() {
                       <button
                         onClick={() => setDraft({ ...draft, secrets: draft.secrets.filter((_, j) => j !== i) })}
                         aria-label={t("احذف")}
-                        className="rounded-md p-1.5 hover:bg-[var(--color-surface-2)]"
+                        className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]"
                         style={{ color: "var(--color-ink-muted)" }}
                       >
                         <TrashIcon className="h-3.5 w-3.5" />
@@ -600,7 +600,7 @@ export function McpSettings() {
                     </motion.div>
                   ))}
                 </AnimatePresence>
-                <button onClick={() => setDraft({ ...draft, secrets: [...draft.secrets, { key: "", value: "", saved: false }] })} className="mt-1.5 text-xs underline underline-offset-2" style={{ color: "var(--color-accent)" }}>
+                <button onClick={() => setDraft({ ...draft, secrets: [...draft.secrets, { key: "", value: "", saved: false }] })} className="mt-1.5 text-xs underline underline-offset-2" style={{ color: "var(--color-ink)" }}>
                   {t("+ أضف قيمة")}
                 </button>
               </div>
@@ -714,7 +714,7 @@ export function McpSettings() {
                         {t("اختبر")}
                       </Button>
                     )}
-                    <button onClick={() => void remove(server.id)} aria-label={t("احذف")} className="rounded-md p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+                    <button onClick={() => void remove(server.id)} aria-label={t("احذف")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
                       <TrashIcon className="h-3.5 w-3.5" />
                     </button>
                     <Switch checked={server.enabled} onChange={(on) => void toggle(server, on)} label={t("مفعّل")} />

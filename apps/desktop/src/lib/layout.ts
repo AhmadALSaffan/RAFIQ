@@ -2,15 +2,11 @@ import { useSyncExternalStore } from "react";
 
 import { t } from "../i18n";
 /**
- * How wide the user wants each column. Kept in one tiny store (not React context) because
- * the shell's nav and the chat's own list live in different parts of the tree and both
- * need to read and write it, and it has to survive a reload.
+ * How wide the user wants the chat's columns. Kept in one tiny store (not React context)
+ * because the chat page and the settings page both read and write it, and it has to survive
+ * a reload. (The page nav is a fixed rail now — see Shell's RAIL.)
  */
 export interface LayoutPrefs {
-  /** Side nav width in px. */
-  nav: number;
-  /** Icons-only nav. */
-  navCollapsed: boolean;
   /** Conversation list width in px. */
   list: number;
   /** Hide the conversation list entirely. */
@@ -22,19 +18,13 @@ export interface LayoutPrefs {
 export type ReadingWidth = "narrow" | "medium" | "wide" | "full";
 
 export const DEFAULT_LAYOUT: LayoutPrefs = {
-  nav: 224,
-  navCollapsed: false,
   list: 240,
   listHidden: false,
   reading: "medium",
 };
 
-export const NAV_MIN = 168;
-export const NAV_MAX = 360;
 export const LIST_MIN = 190;
 export const LIST_MAX = 460;
-/** Collapsed nav shows only the icons. */
-export const NAV_COLLAPSED = 60;
 
 export const READING_WIDTHS: Record<ReadingWidth, string> = {
   narrow: "40rem",
@@ -60,12 +50,12 @@ function load(): LayoutPrefs {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_LAYOUT;
+    // Older saves carry the retired nav width; only the known keys are kept.
     const saved = JSON.parse(raw) as Partial<LayoutPrefs>;
     return {
-      ...DEFAULT_LAYOUT,
-      ...saved,
-      nav: clamp(saved.nav ?? DEFAULT_LAYOUT.nav, NAV_MIN, NAV_MAX),
       list: clamp(saved.list ?? DEFAULT_LAYOUT.list, LIST_MIN, LIST_MAX),
+      listHidden: saved.listHidden ?? DEFAULT_LAYOUT.listHidden,
+      reading: saved.reading ?? DEFAULT_LAYOUT.reading,
     };
   } catch {
     return DEFAULT_LAYOUT;
@@ -82,7 +72,6 @@ function subscribe(fn: () => void): () => void {
 
 export function setLayout(patch: Partial<LayoutPrefs>): void {
   const next = { ...current, ...patch };
-  next.nav = clamp(next.nav, NAV_MIN, NAV_MAX);
   next.list = clamp(next.list, LIST_MIN, LIST_MAX);
   current = next;
   try {

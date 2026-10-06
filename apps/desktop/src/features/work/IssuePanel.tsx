@@ -150,8 +150,8 @@ export function IssuePanel({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: -32, opacity: 0, transition: { duration: 0.16 } }}
       transition={{ duration: 0.26, ease: easeOutExpo }}
-      className="relative flex w-[440px] shrink-0 flex-col border-s"
-      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      className="relative m-2 flex w-[440px] shrink-0 flex-col overflow-hidden rounded-2xl"
+      style={{ background: "var(--color-surface)" }}
     >
       <ActionProgress active={busy !== null} />
       <CompletionSweep show={done} onDone={() => setDone(false)} />
@@ -173,7 +173,7 @@ export function IssuePanel({
         <button
           onClick={onClose}
           aria-label={t("إغلاق")}
-          className="rounded-md p-1 transition-colors hover:bg-[var(--color-surface-2)]"
+          className="rounded-full p-1 transition-colors hover:bg-[var(--color-surface-2)]"
           style={{ color: "var(--color-ink-muted)" }}
         >
           <XIcon className="h-4 w-4" />
@@ -385,7 +385,7 @@ function StatusControl({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98, transition: { duration: 0.12 } }}
             transition={{ duration: 0.18, ease: easeOutExpo }}
-            className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-lg border p-1 shadow-lg"
+            className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-xl border p-1 shadow-lg"
             style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
           >
             {options.map((option) => (
@@ -568,7 +568,7 @@ function TabButton({
         <motion.span
           layoutId="issue-tab"
           className="absolute inset-x-1 bottom-0 h-0.5 rounded-full"
-          style={{ background: "var(--color-accent)" }}
+          style={{ background: "var(--color-ink)" }}
           transition={snappy}
         />
       )}

@@ -147,14 +147,14 @@ export function BackupSection() {
     }
   }
 
-  const card = { borderColor: "var(--color-border)", background: "var(--color-surface)" };
+  const card = { borderColor: "transparent", background: "var(--color-surface)" };
   const muted = { color: "var(--color-ink-muted)" };
 
   return (
     <section className="mb-8">
-      <h2 className="mb-3 text-sm font-medium">{t("نسخة احتياطية")}</h2>
+      <h2 className="mb-3 text-[17px] font-bold">{t("نسخة احتياطية")}</h2>
       <div className="flex flex-col gap-2">
-        <div className="rounded-lg border px-4 py-3" style={card}>
+        <div className="rounded-2xl border px-4 py-3" style={card}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-medium">{t("احفظ كل شي بملف واحد")}</p>
@@ -183,7 +183,7 @@ export function BackupSection() {
           )}
         </div>
 
-        <div className="rounded-lg border px-4 py-3" style={card}>
+        <div className="rounded-2xl border px-4 py-3" style={card}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-medium">{t("استرجع من نسخة")}</p>
@@ -246,8 +246,8 @@ export function BackupSection() {
                 className="overflow-hidden"
               >
                 <div
-                  className="mt-3 rounded-lg border px-3 py-3"
-                  style={{ borderColor: "var(--color-accent)", background: "color-mix(in oklch, var(--color-accent) 8%, transparent)" }}
+                  className="mt-3 rounded-xl px-3 py-3"
+                  style={{ background: "color-mix(in oklch, var(--color-success) 12%, var(--color-surface))" }}
                 >
                   <p className="text-sm font-medium">{t("رجعت بياناتك.")}</p>
                   <Counts manifest={restored.manifest} />

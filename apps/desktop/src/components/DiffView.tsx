@@ -17,7 +17,7 @@ export function DiffView({ diff, maxHeight = "28rem" }: { diff: string; maxHeigh
             : line.startsWith("-")
               ? "var(--color-danger)"
               : line.startsWith("@@")
-                ? "var(--color-accent)"
+                ? "var(--color-ink-muted)"
                 : line.startsWith("diff ")
                   ? "var(--color-ink)"
                   : "var(--color-ink-muted)";

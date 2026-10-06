@@ -56,7 +56,7 @@ export function ConnectedAccountsSection() {
 
   return (
     <section className="mb-8">
-      <h2 className="mb-1 text-sm font-medium">{t("الحسابات المتصلة")}</h2>
+      <h2 className="mb-1 text-[17px] font-bold">{t("الحسابات المتصلة")}</h2>
       <p className="mb-3 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
         {t("مزوّدين بتسجّل عندهم دخول بحسابك بدل المفتاح. التوكن بينحفظ بخزنة ويندوز — مش بقاعدة البيانات — وكل نموذج بيستعمل الحساب اللي اخترته إله بس.")}
       </p>
@@ -75,8 +75,8 @@ export function ConnectedAccountsSection() {
               <motion.div
                 key={provider.id}
                 variants={listItem}
-                className="relative overflow-hidden rounded-lg border px-4 py-3"
-                style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+                className="relative overflow-hidden rounded-2xl px-4 py-3"
+                style={{ background: "var(--color-surface)" }}
               >
                 <StatusStripe color={connected ? "var(--color-success)" : "var(--color-border)"} />
                 <div className="flex items-center justify-between gap-3">
@@ -273,7 +273,7 @@ function AccountLine({
                   ? t("رح يوقف {0} لحتى تربطه من جديد", { 0: account.used_by.join(t("، ")) })
                   : t("افصل الحساب")
               }
-              className="rounded-md p-1.5 transition-colors hover:bg-[var(--color-surface-2)]"
+              className="rounded-full p-1.5 transition-colors hover:bg-[var(--color-surface-2)]"
               style={{ color: "var(--color-ink-muted)" }}
             >
               <TrashIcon className="h-3.5 w-3.5" />

@@ -57,9 +57,9 @@ export function AuthAICard({ onChanged }: { onChanged: () => void }) {
 
   return (
     <div
-      className="rounded-lg border px-4 py-3"
+      className="rounded-2xl border px-4 py-3"
       style={{
-        borderColor: config.enabled ? "var(--color-pending)" : "var(--color-border)",
+        borderColor: config.enabled ? "var(--color-pending)" : "transparent",
         background: "var(--color-surface)",
       }}
     >

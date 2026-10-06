@@ -40,7 +40,9 @@ import {
 } from "../../lib/api";
 import type { Attachment, ChatMessage, ChatSummary, LlmModel, ReplySettings, TrackerIssue } from "../../lib/types";
 import { canPickNatively, pickFolder } from "../../lib/folders";
-import { DEFAULT_LAYOUT, LIST_MAX, LIST_MIN, NAV_COLLAPSED, READING_WIDTHS, setLayout, useLayout } from "../../lib/layout";
+import { DEFAULT_LAYOUT, LIST_MAX, LIST_MIN, READING_WIDTHS, setLayout, useLayout } from "../../lib/layout";
+import { RAIL, TOPBAR } from "../../components/Shell";
+import { takeChatSend } from "../../lib/handoff";
 import { easeOutExpo, snappy } from "../../lib/motion";
 import { ChatList } from "../../components/ChatList";
 import { usePageMenu } from "../../components/ContextMenu";
@@ -232,6 +234,22 @@ export function ChatPage({
     // rejoin only touches refs and setters, so the one from this render is fine
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeId, navigate, embedded]);
+
+  // Started from the home screen's box: send it as soon as a model is ready.
+  const [handedOff] = useState(() => (embedded ? null : takeChatSend()));
+  const handoffSent = useRef(false);
+  // The model picked on the home screen wins over the remembered one.
+  useEffect(() => {
+    if (handedOff?.model && models.some((m) => m.id === handedOff.model)) setModelId(handedOff.model);
+  }, [handedOff, models]);
+  useEffect(() => {
+    if (!handedOff || handoffSent.current || routeId || !modelId || streaming) return;
+    if (handedOff.model && modelId !== handedOff.model && models.some((m) => m.id === handedOff.model)) return;
+    handoffSent.current = true;
+    void send(handedOff.text, []);
+    // send is stable enough for this one-shot kickoff
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handedOff, routeId, modelId, streaming, models]);
 
   const autoSent = useRef(false);
   useEffect(() => {
@@ -820,18 +838,18 @@ export function ChatPage({
           <>
             <motion.div
               className={`fixed inset-0 ${layout.listHidden ? "" : "lg:hidden"}`}
-              style={{ zIndex: "var(--z-index-modal-backdrop)" as unknown as number, background: "rgba(0,0,0,0.35)" }}
+              style={{ zIndex: "var(--z-index-modal-backdrop)" as unknown as number, background: "rgba(0,0,0,0.25)" }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setListOpen(false)}
             />
             <motion.div
-              className={`fixed bottom-0 top-0 flex shadow-2xl ${layout.listHidden ? "" : "lg:hidden"}`}
+              className={`fixed bottom-0 flex ${layout.listHidden ? "" : "lg:hidden"}`}
               style={{
                 zIndex: "var(--z-index-modal)" as unknown as number,
-                background: "var(--color-bg)",
-                insetInlineStart: layout.navCollapsed ? NAV_COLLAPSED : layout.nav,
+                top: TOPBAR,
+                insetInlineStart: RAIL,
               }}
               initial={{ x: 40, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
@@ -846,7 +864,7 @@ export function ChatPage({
 
       <DropZone onFiles={uploads.add} className="flex min-w-0 flex-1 flex-col">
         {!embedded && (
-        <header className="flex items-center justify-between gap-3 border-b px-6 py-2.5" style={{ borderColor: "var(--color-border)" }}>
+        <header className="flex items-center justify-between gap-3 px-6 pb-1 pt-3">
           <button
             onClick={() => setListOpen(true)}
             className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface-2)] ${layout.listHidden ? "" : "lg:hidden"}`}
@@ -863,7 +881,7 @@ export function ChatPage({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.2, ease: easeOutExpo }}
-              className="min-w-0 flex-1 truncate text-sm font-medium"
+              className="min-w-0 flex-1 truncate text-[17px] font-bold"
               dir="auto"
             >
               <TokenText text={current?.title ?? t("محادثة جديدة")} />
@@ -888,8 +906,8 @@ export function ChatPage({
               <Welcome hasModels={usable.length > 0} onPick={(s) => send(s, [])} onModels={() => navigate("/models")} />
             ) : loadingChat ? (
               <div className="flex flex-col gap-4">
-                <div className="shimmer h-10 w-2/3 self-end rounded-2xl" />
-                <div className="shimmer h-24 rounded-lg" />
+                <div className="shimmer h-12 w-2/3 self-end rounded-2xl" />
+                <div className="shimmer h-24 rounded-2xl" />
               </div>
             ) : (
               <>
@@ -950,8 +968,8 @@ export function ChatPage({
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-xs"
-                  style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-ink-muted)" }}
+                  className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-xs"
+                  style={{ background: "var(--color-surface)", color: "var(--color-ink-muted)" }}
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <ArchiveIcon className="h-4 w-4 shrink-0" />
@@ -959,8 +977,8 @@ export function ChatPage({
                   </span>
                   <button
                     onClick={() => void archive(current.id, false)}
-                    className="shrink-0 rounded-md px-2 py-1 font-medium transition-colors hover:bg-[var(--color-surface-2)]"
-                    style={{ color: "var(--color-accent)" }}
+                    className="shrink-0 rounded-[10px] px-2.5 py-1.5 font-medium transition-colors hover:bg-[var(--color-surface-2)]"
+                    style={{ color: "var(--color-ink)" }}
                   >
                     {t("رجّعها للقائمة")}
                   </button>
@@ -972,7 +990,7 @@ export function ChatPage({
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-start gap-2 rounded-lg border px-4 py-3 text-sm"
+                  className="flex items-start gap-2 rounded-2xl border px-4 py-3 text-sm"
                   style={{ borderColor: "var(--color-danger)", color: "var(--color-danger)" }}
                   role="alert"
                 >
@@ -1016,16 +1034,16 @@ export function ChatPage({
               exit={{ opacity: 0 }}
               className="px-6"
             >
-              <div className="mx-auto flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ maxWidth: reading, borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+              <div className="mx-auto flex w-full items-center justify-between gap-3 rounded-2xl px-3.5 py-2" style={{ maxWidth: reading, background: "var(--color-surface)" }}>
                 <span className="flex items-center gap-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                  <CompressIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-accent)" }} />
+                  <CompressIcon className="h-3.5 w-3.5 shrink-0" />
                   {t("المحادثة صارت طويلة — كل رسالة عم تبعت التاريخ كله للنموذج.")}
                 </span>
                 <button
                   onClick={summarizeNow}
                   disabled={summarizing}
-                  className="shrink-0 rounded-lg px-2.5 py-1 text-xs transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-50"
-                  style={{ color: "var(--color-accent)" }}
+                  className="shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-[filter] enabled:hover:brightness-110 disabled:opacity-50"
+                  style={{ background: "var(--color-inverse)", color: "var(--color-on-inverse)" }}
                 >
                   {summarizing ? t("جارِ التلخيص…") : t("لخّصها")}
                 </button>

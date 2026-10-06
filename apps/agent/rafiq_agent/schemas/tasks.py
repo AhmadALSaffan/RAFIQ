@@ -76,3 +76,6 @@ class TaskSummaryOut(BaseModel):
 class TaskDetailOut(TaskSummaryOut):
     prompt: str
     events: list[TaskEventOut] = []
+    # What the task's model calls have cost so far (sum of its usage records).
+    cost_usd: float = 0.0
+    tokens: int = 0

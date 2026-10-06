@@ -16,7 +16,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
 
 export const CATEGORY_COLOR: Record<string, string> = {
   todo: "var(--color-ink-muted)",
-  in_progress: "var(--color-accent)",
+  in_progress: "var(--color-ink)",
   done: "var(--color-success)",
 };
 
@@ -70,9 +70,9 @@ export function FilterChip({
       onClick={onClick}
       className="relative flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs transition-colors"
       style={{
-        borderColor: active ? "var(--color-accent)" : "var(--color-border)",
-        color: active ? "var(--color-ink)" : "var(--color-ink-muted)",
-        background: active ? "color-mix(in oklch, var(--color-accent) 12%, transparent)" : "transparent",
+        borderColor: active ? "var(--color-inverse)" : "var(--color-border)",
+        color: active ? "var(--color-on-inverse)" : "var(--color-ink-muted)",
+        background: active ? "var(--color-inverse)" : "transparent",
       }}
     >
       <span className="relative flex items-center gap-1">{children}</span>
@@ -99,10 +99,9 @@ export function IssueRow({
         onClick={onOpen}
         whileTap={{ scale: 0.995 }}
         transition={snappy}
-        className="relative flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-start transition-colors hover:bg-[var(--color-surface-2)]"
+        className="relative flex w-full items-start gap-3 px-4 py-3 text-start transition-colors hover:bg-[var(--color-surface-2)]"
         style={{
-          borderColor: active ? "var(--color-accent)" : "var(--color-border)",
-          background: active ? "color-mix(in oklch, var(--color-accent) 8%, transparent)" : "var(--color-surface)",
+          background: active ? "var(--color-surface-2)" : "transparent",
           opacity: done ? 0.7 : 1,
         }}
       >

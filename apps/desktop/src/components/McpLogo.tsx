@@ -84,7 +84,7 @@ export function McpLogo({ preset, className = "h-5 w-5" }: { preset: string | nu
     );
   }
   const Glyph = preset ? GLYPHS[preset] : undefined;
-  if (Glyph) return <Glyph className={className} style={{ color: "var(--color-accent)" }} />;
+  if (Glyph) return <Glyph className={className} style={{ color: "var(--color-ink)" }} />;
   return (
     <svg role="img" viewBox="0 0 24 24" className={className} fill="var(--color-ink-muted)" aria-label={siModelcontextprotocol.title}>
       <path d={siModelcontextprotocol.path} />

@@ -18,6 +18,8 @@ import { PermissionCard, ThinkingDots, ToolCard } from "../../components/steps";
 import { CompressIcon, ForkIcon, ModelsIcon, TasksIcon } from "../../components/Icons";
 import { Button } from "../../components/ui";
 import { Logo } from "../../components/Logo";
+import { Illustration } from "../../components/Illustration";
+import { LedBar } from "../../components/brand";
 import { StatusPill } from "../../components/StatusPill";
 import { SILENT_TOOLS, textOf } from "./draft";
 import { isGone, useTaskSummaries } from "./taskStatus";
@@ -35,13 +37,13 @@ export function Welcome({ hasModels, onPick, onModels }: { hasModels: boolean; o
       className="flex flex-col items-center py-10 text-center"
     >
       <motion.div
-        initial={{ scale: 0.7, rotate: -8, opacity: 0 }}
-        animate={{ scale: 1, rotate: 0, opacity: 1 }}
+        initial={{ scale: 0.85, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.6, ease: easeOutExpo }}
       >
-        <Logo className="h-16 w-16" />
+        <Illustration scene="thinking" size={170} />
       </motion.div>
-      <h2 className="mt-5 text-2xl font-semibold">{t("أهلاً، شو ببالك اليوم؟")}</h2>
+      <h2 className="mt-5 text-[30px] font-extrabold leading-tight">{t("أهلاً، شو ببالك اليوم؟")}</h2>
       <p className="mt-2 max-w-md text-sm leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
         {hasModels
           ? t("اسألني أي شي، ابعتلي صور أو ملفات، حدد مجلد من فوق لأعدّل ملفاته، أو ابعت خطة وأنا بحوّلها لمهام.")
@@ -49,18 +51,21 @@ export function Welcome({ hasModels, onPick, onModels }: { hasModels: boolean; o
       </p>
 
       {hasModels ? (
-        <motion.div variants={listContainer} initial="hidden" animate="show" className="mt-6 flex w-full flex-col gap-2">
-          {SUGGESTIONS.map((s) => (
+        <motion.div variants={listContainer} initial="hidden" animate="show" className="mt-7 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+          {SUGGESTIONS.map((s, i) => (
             <motion.button
               key={s.text}
               variants={listItem}
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => onPick(s.text)}
-              className="rounded-xl border px-4 py-3 text-start transition-colors hover:border-[var(--color-accent)]"
-              style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+              className="flex flex-col gap-2 rounded-2xl p-4 text-start transition-colors hover:bg-[var(--color-surface-2)]"
+              style={{ background: "var(--color-surface)" }}
             >
-              <span className="block text-sm" dir="auto">
+              <span className="num text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span className="block text-sm font-medium" dir="auto">
                 {s.text}
               </span>
               <span className="mt-0.5 block text-xs" style={{ color: "var(--color-ink-muted)" }}>
@@ -197,7 +202,7 @@ export function MessageView({
       >
         {message.attachments && message.attachments.length > 0 && <AttachmentGallery attachments={message.attachments} align="end" />}
         {message.content && (
-          <div className="whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[0.9375rem] leading-relaxed" style={{ background: "var(--color-surface-2)" }} dir="auto">
+          <div className="whitespace-pre-wrap rounded-2xl px-4 py-3 text-[0.9375rem] leading-relaxed" style={{ background: "var(--color-surface)" }} dir="auto">
             <TokenText text={message.content} />
           </div>
         )}
@@ -323,8 +328,8 @@ export function AssistantBlock({
         {/* The model that wrote the reply gets the byline, not the app. */}
         {model ? (
           <span
-            className="flex h-7 w-7 items-center justify-center rounded-lg"
-            style={{ background: "var(--color-surface-2)" }}
+            className="flex h-7 w-7 items-center justify-center rounded-full"
+            style={{ background: "var(--color-surface)" }}
             title={model.name}
           >
             <BrandMark provider={model.provider} className="h-4 w-4" />
@@ -432,21 +437,21 @@ function TaskCard({ taskId, title, onOpen, fresh }: { taskId: string; title: str
       whileHover={gone ? undefined : { y: -2 }}
       whileTap={gone ? undefined : { scale: 0.98 }}
       transition={snappy}
-      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-start ${fresh ? "flash-accent" : ""}`}
-      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-start ${fresh ? "flash-accent" : ""}`}
+      style={{ background: "var(--color-surface)" }}
     >
       <span className="flex min-w-0 items-center gap-3">
         <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-          style={{ background: "var(--color-surface-2)", color: "var(--color-accent)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+          style={{ background: "var(--color-inverse)", color: "var(--color-on-inverse)" }}
         >
-          <TasksIcon className="h-5 w-5" />
+          <TasksIcon className="h-[18px] w-[18px]" />
         </span>
         <span className="min-w-0">
-          <span className="block text-xs" style={{ color: summary?.needs_approval ? "var(--color-accent)" : "var(--color-ink-muted)" }}>
-            {gone ? t("مهمة انحذفت") : summary?.needs_approval ? t("بتستنى موافقتك — افتحها") : t("مهمة من المحادثة")}
+          <span className="block text-[11px]" style={{ color: summary?.needs_approval ? "var(--color-accent)" : "var(--color-ink-muted)" }}>
+            ( {gone ? t("مهمة انحذفت") : summary?.needs_approval ? t("بتستنى موافقتك — افتحها") : t("مهمة من المحادثة")} )
           </span>
-          <span className="block truncate text-sm font-medium">
+          <span className="mt-0.5 block truncate text-sm font-medium">
             <TokenText text={title} />
           </span>
         </span>
@@ -472,15 +477,15 @@ function TaskGroup({ tasks, onOpen, fresh }: { tasks: TaskRef[]; onOpen: (id: st
       initial={fresh ? { scale: 0.97, opacity: 0 } : false}
       animate={{ scale: 1, opacity: 1 }}
       transition={snappy}
-      className={`overflow-hidden rounded-xl border ${fresh ? "flash-accent" : ""}`}
-      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      className={`overflow-hidden rounded-2xl ${fresh ? "flash-accent" : ""}`}
+      style={{ background: "var(--color-surface)" }}
     >
-      <div className="flex items-center gap-3 px-4 pb-2 pt-3">
+      <div className="flex items-center gap-3 px-4 pb-2 pt-3.5">
         <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-          style={{ background: "var(--color-surface-2)", color: "var(--color-accent)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+          style={{ background: "var(--color-inverse)", color: "var(--color-on-inverse)" }}
         >
-          <TasksIcon className="h-5 w-5" />
+          <TasksIcon className="h-[18px] w-[18px]" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-medium">
@@ -488,26 +493,19 @@ function TaskGroup({ tasks, onOpen, fresh }: { tasks: TaskRef[]; onOpen: (id: st
             {tasks.length <= 10 ? t("{0} مهام", { 0: tasks.length }) : t("{0} من المهام", { 0: tasks.length })}
           </span>
           <span className="flex flex-wrap gap-x-2 text-xs tabular-nums" style={{ color: "var(--color-ink-muted)" }}>
-            {running > 0 && <span style={{ color: "var(--color-accent)" }}>{t("{0} شغّالة", { 0: running })}</span>}
+            {running > 0 && <span style={{ color: "var(--color-ink)" }}>{t("{0} شغّالة", { 0: running })}</span>}
             {waiting > 0 && <span>{t("{0} بالانتظار", { 0: waiting })}</span>}
             {done > 0 && <span style={{ color: "var(--color-success)" }}>{t("{0} خلصت", { 0: done })}</span>}
             {failed > 0 && <span style={{ color: "var(--color-danger)" }}>{t("{0} وقفت", { 0: failed })}</span>}
             {approvals > 0 && <span style={{ color: "var(--color-accent)" }}>{t("{0} بتستنى موافقتك", { 0: approvals })}</span>}
           </span>
         </span>
-        <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--color-ink-muted)" }}>
-          {settled}/{tasks.length}
+        <span className="num shrink-0 text-lg font-bold" dir="ltr">
+          {settled}
+          <span style={{ color: "var(--color-ink-muted)" }}>/{tasks.length}</span>
         </span>
       </div>
-      <div className="mx-4 mb-2 h-1 overflow-hidden rounded-full" style={{ background: "var(--color-surface-2)" }}>
-        <motion.div
-          className="h-full rounded-full"
-          style={{ background: failed && !done ? "var(--color-danger)" : "var(--color-accent)" }}
-          initial={false}
-          animate={{ width: `${(settled / tasks.length) * 100}%` }}
-          transition={{ duration: 0.5, ease: easeOutExpo }}
-        />
-      </div>
+      <LedBar value={settled / tasks.length} segments={Math.min(Math.max(tasks.length, 8), 24)} label={t("المهام اللي خلصت")} className="mx-4 mb-3" />
       <ul className="max-h-72 overflow-y-auto border-t py-1" style={{ borderColor: "var(--color-border)" }}>
         {tasks.map((task) => {
           const summary = known.get(task.task_id);
@@ -561,7 +559,7 @@ function Reasoning({ text, live }: { text: string; live: boolean }) {
             className="overflow-hidden"
           >
             <p
-              className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg px-3 py-2 text-xs leading-relaxed"
+              className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl px-3.5 py-2.5 text-xs leading-relaxed"
               style={{ background: "var(--color-surface)", color: "var(--color-ink-muted)" }}
               dir="auto"
             >
@@ -598,8 +596,8 @@ export function SummaryDivider({ summary }: { summary: string }) {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.25, ease: easeOutExpo }}
-            className="mt-3 overflow-hidden whitespace-pre-wrap rounded-lg border px-4 py-3 text-xs leading-relaxed"
-            style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-ink-muted)" }}
+            className="mt-3 overflow-hidden whitespace-pre-wrap rounded-2xl px-4 py-3 text-xs leading-relaxed"
+            style={{ background: "var(--color-surface)", color: "var(--color-ink-muted)" }}
           >
             {summary}
           </motion.p>

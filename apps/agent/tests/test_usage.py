@@ -133,3 +133,26 @@ async def test_editing_a_question_rewinds_the_chat(client):
     third = messages[2]["id"]
     left = (await client.post(f"/chats/{chat_id}/messages/{third}/truncate")).json()
     assert [m["content"] for m in left["messages"]] == ["first", "reply"]
+
+
+async def test_a_task_shows_what_it_cost(client):
+    from rafiq_agent.storage.models import Task, UsageRecord
+
+    async with SessionLocal() as session:
+        model = LlmModel(name="m", provider="openai", model_id="gpt-4o-mini")
+        session.add(model)
+        await session.flush()
+        task = Task(title="t", prompt="p", model_id=model.id, status="completed")
+        session.add(task)
+        await session.flush()
+        session.add_all([
+            UsageRecord(model_name="gpt-4o-mini", scope="task", scope_id=task.id, prompt_tokens=100, completion_tokens=20, cost_usd=0.25),
+            UsageRecord(model_name="gpt-4o-mini", scope="task", scope_id=task.id, prompt_tokens=50, completion_tokens=5, cost_usd=0.5),
+            UsageRecord(model_name="gpt-4o-mini", scope="chat", scope_id=task.id, prompt_tokens=999, completion_tokens=9, cost_usd=9.0),
+        ])
+        await session.commit()
+        task_id = task.id
+
+    body = (await client.get(f"/tasks/{task_id}")).json()
+    assert body["cost_usd"] == pytest.approx(0.75)
+    assert body["tokens"] == 175

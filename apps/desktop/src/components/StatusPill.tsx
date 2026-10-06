@@ -8,7 +8,7 @@ import { DrawnCheck } from "./ui";
 const color: Record<TaskStatus, string> = {
   queued: "var(--color-ink-muted)",
   pending: "var(--color-ink-muted)",
-  running: "var(--color-accent)",
+  running: "var(--color-on-inverse)",
   planned: "var(--color-pending)",
   completed: "var(--color-success)",
   failed: "var(--color-danger)",
@@ -30,8 +30,8 @@ export function StatusPill({ status }: { status: TaskStatus }) {
       className="inline-flex shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-[color,background-color,border-color] duration-300"
       style={{
         color: color[status],
-        borderColor: status === "running" ? "color-mix(in oklch, var(--color-accent) 45%, transparent)" : "var(--color-border)",
-        background: status === "running" ? "color-mix(in oklch, var(--color-accent) 8%, transparent)" : "transparent",
+        borderColor: status === "running" ? "var(--color-inverse)" : "var(--color-border)",
+        background: status === "running" ? "var(--color-inverse)" : "transparent",
       }}
     >
       <AnimatePresence mode="wait" initial={false}>

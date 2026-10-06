@@ -95,8 +95,8 @@ export function UpdateCard() {
 
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3"
-      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3"
+      style={{ background: "var(--color-surface)" }}
     >
       <div className="min-w-0">
         <p className="text-sm font-medium">{t("التحديثات")}</p>

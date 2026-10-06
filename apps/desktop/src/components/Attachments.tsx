@@ -136,7 +136,7 @@ export function UploadChips({ items, onRemove }: { items: UploadItem[]; onRemove
                     >
                       <span
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md"
-                        style={{ background: "var(--color-surface-2)", color: "var(--color-accent)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+                        style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
                       >
                         <FileIcon className="h-5 w-5" />
                       </span>
@@ -251,7 +251,7 @@ function FileChip({ attachment }: { attachment: Attachment }) {
     >
       <span
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
-        style={{ background: "var(--color-surface-2)", color: "var(--color-accent)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+        style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
       >
         <FileIcon className="h-4 w-4" />
       </span>

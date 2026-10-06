@@ -91,8 +91,8 @@ export function MemorySettings({ settings, persist }: { settings: AppSettings; p
                 variants={listItem}
                 layout
                 exit={{ opacity: 0, height: 0, marginTop: 0, transition: { duration: 0.18 } }}
-                className="flex items-center gap-3 rounded-lg border px-3 py-2"
-                style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", opacity: m.enabled ? 1 : 0.55 }}
+                className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5"
+                style={{ background: "var(--color-surface)", opacity: m.enabled ? 1 : 0.55 }}
               >
                 <p className="min-w-0 flex-1 text-sm" dir="auto">
                   {m.text}
@@ -101,7 +101,7 @@ export function MemorySettings({ settings, persist }: { settings: AppSettings; p
                   {m.kind === "preference" ? t("تفضيل") : m.kind === "project" ? t("مشروع") : t("معلومة")}
                 </span>
                 <Switch checked={m.enabled} onChange={(v) => void toggle(m, v)} label={t("مفعّلة")} />
-                <button onClick={() => void remove(m.id)} aria-label={t("احذف")} className="rounded-md p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
+                <button onClick={() => void remove(m.id)} aria-label={t("احذف")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
                   <TrashIcon className="h-3.5 w-3.5" />
                 </button>
               </motion.li>

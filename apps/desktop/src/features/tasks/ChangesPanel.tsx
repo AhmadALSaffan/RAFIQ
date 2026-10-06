@@ -17,7 +17,7 @@ import { fieldDir } from "../../lib/bidi";
 import { t } from "../../i18n";
 
 const STATE: Record<ChangesState, { label: string; color: string }> = {
-  running: { label: t("المهمة لسا شغّالة"), color: "var(--color-accent)" },
+  running: { label: t("المهمة لسا شغّالة"), color: "var(--color-ink)" },
   applied: { label: t("مطبّقة على مجلدك"), color: "var(--color-success)" },
   pending: { label: t("جاهزة — ما انطبقت لأن المهمة ما كمّلت"), color: "var(--color-pending)" },
   conflict: { label: t("ما انطبقت — نفس الأماكن تغيّرت بمجلدك"), color: "var(--color-danger)" },
@@ -105,8 +105,8 @@ export function ChangesPanel({ taskId, status }: { taskId: string; status: TaskS
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: easeOutExpo }}
-      className="mb-6 overflow-hidden rounded-xl border"
-      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      className="mb-6 overflow-hidden rounded-2xl"
+      style={{ background: "var(--color-surface)" }}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <button onClick={() => setOpen((v) => !v)} className="flex min-w-0 items-center gap-2 text-start" aria-expanded={open}>
@@ -194,7 +194,7 @@ export function ChangesPanel({ taskId, status }: { taskId: string; status: TaskS
                 dir={fieldDir(commit.message)}
               />
               {commit.pr && (
-                <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}>
+                <div className="rounded-[10px] p-3" style={{ background: "var(--color-surface-2)" }}>
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <p className="text-xs font-medium" dir="auto">
                       {commit.pr.pr_title}

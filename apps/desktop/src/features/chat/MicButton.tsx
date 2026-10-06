@@ -75,13 +75,13 @@ export function MicButton({ disabled, onText }: { disabled: boolean; onText: (te
         disabled={disabled || state === "working"}
         aria-label={state === "recording" ? t("خلّصت") : t("سجّل صوت")}
         title={state === "recording" ? t("اضغط لتوقف التسجيل") : t("احكي بدل ما تكتب")}
-        className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-40"
+        className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-40"
         style={{ color: state === "recording" ? "var(--color-danger)" : "var(--color-ink-muted)" }}
       >
         {state === "working" ? <SpinnerIcon className="h-4 w-4" /> : <MicIcon className="h-4 w-4" />}
         {state === "recording" && (
           <motion.span
-            className="absolute inset-0 rounded-lg"
+            className="absolute inset-0 rounded-full"
             style={{ border: "1.5px solid var(--color-danger)" }}
             animate={{ opacity: [0.9, 0.25, 0.9] }}
             transition={{ duration: 1.4, repeat: Infinity }}
@@ -95,7 +95,7 @@ export function MicButton({ disabled, onText }: { disabled: boolean; onText: (te
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             onAnimationComplete={() => setTimeout(() => setError(null), 4000)}
-            className="absolute bottom-full start-0 mb-2 w-56 rounded-lg border px-2.5 py-1.5 text-xs shadow-lg"
+            className="absolute bottom-full start-0 mb-2 w-56 rounded-2xl border px-2.5 py-1.5 text-xs shadow-lg"
             style={{
               zIndex: "var(--z-index-dropdown)" as unknown as number,
               borderColor: "var(--color-border)",

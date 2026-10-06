@@ -41,7 +41,7 @@ export function Dialog({ title, subtitle, onClose, children }: { title: string; 
           <button
             onClick={onClose}
             aria-label={t("إغلاق")}
-            className="rounded-lg p-1 transition-colors hover:bg-[var(--color-surface-2)]"
+            className="rounded-full p-1 transition-colors hover:bg-[var(--color-surface-2)]"
             style={{ color: "var(--color-ink-muted)" }}
           >
             <XIcon className="h-4 w-4" />
@@ -66,20 +66,20 @@ function Segmented<T extends string>({
   name: string;
 }) {
   return (
-    <div className="flex gap-1 rounded-xl p-1" style={{ background: "var(--color-surface-2)" }}>
+    <div className="flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }}>
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
-          className="relative flex-1 rounded-lg px-3 py-1.5 text-xs transition-colors"
-          style={{ color: option.value === value ? "var(--color-bg)" : "var(--color-ink-muted)" }}
+          className="relative flex-1 rounded-full px-3 py-1.5 text-xs transition-colors"
+          style={{ color: option.value === value ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
         >
           {option.value === value && (
             <motion.span
               layoutId={`seg-${name}`}
-              className="absolute inset-0 rounded-lg"
-              style={{ background: "var(--color-accent)" }}
+              className="absolute inset-0 rounded-full"
+              style={{ background: "var(--color-inverse)" }}
               transition={{ type: "spring", stiffness: 520, damping: 40 }}
             />
           )}
@@ -101,13 +101,13 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
       </span>
       <span
         className="mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors"
-        style={{ background: checked ? "var(--color-accent)" : "var(--color-border)" }}
+        style={{ background: checked ? "var(--color-inverse)" : "var(--color-border)" }}
       >
         <motion.span
           layout
           transition={{ type: "spring", stiffness: 600, damping: 38 }}
           className="h-4 w-4 rounded-full"
-          style={{ background: "var(--color-bg)", marginInlineStart: checked ? "1rem" : 0 }}
+          style={{ background: checked ? "var(--color-on-inverse)" : "var(--color-surface)", marginInlineStart: checked ? "1rem" : 0 }}
         />
       </span>
     </button>
@@ -201,7 +201,7 @@ export function ReplyConfigDialog({
             dir="ltr"
             value={draft.temperature ?? 0.7}
             onChange={(e) => set({ temperature: Number(e.currentTarget.value) })}
-            className="w-full accent-[var(--color-accent)]"
+            className="w-full accent-[var(--color-ink)]"
           />
           {draft.temperature !== null && (
             <button
@@ -316,7 +316,7 @@ export function HelpDialog({ onClose, extra = [] }: { onClose: () => void; extra
         <ul className="flex flex-col gap-1.5">
           {[...COMMANDS, ...extra].map((cmd) => (
             <li key={cmd.id} className="flex items-start gap-2.5">
-              <cmd.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--color-accent)" }} />
+              <cmd.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
               <span className="min-w-0">
                 <span className="text-sm">{cmd.label}</span>
                 {cmd.from && (
@@ -368,10 +368,10 @@ export function ExportDialog({ onClose, onPick }: { onClose: () => void; onPick:
           <button
             key={o.id}
             onClick={() => onPick(o.id)}
-            className="flex items-start gap-3 rounded-xl border px-4 py-3 text-start transition-colors hover:border-[var(--color-accent)]"
+            className="flex items-start gap-3 rounded-xl border px-4 py-3 text-start transition-colors hover:border-[var(--color-ink-muted)]"
             style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}
           >
-            <o.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--color-accent)" }} />
+            <o.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
             <span>
               <span className="block text-sm font-medium">{o.title}</span>
               <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>

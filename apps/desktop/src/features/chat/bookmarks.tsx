@@ -39,7 +39,7 @@ export function StarButton({ on, onToggle, className = "" }: { on: boolean; onTo
       aria-label={label}
       aria-pressed={on}
       title={label}
-      className={`rounded-md p-1 transition-colors hover:bg-[var(--color-surface-2)] ${className}`}
+      className={`rounded-full p-1 transition-colors hover:bg-[var(--color-surface-2)] ${className}`}
       style={{ color: on ? "var(--color-accent)" : "var(--color-ink-muted)" }}
     >
       <motion.span key={on ? "on" : "off"} initial={{ scale: on ? 0.4 : 1 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 520, damping: 18 }} className="block">
@@ -110,7 +110,7 @@ export function BookmarksMenu({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98, transition: { duration: 0.12 } }}
                 transition={{ duration: 0.2, ease: easeOutExpo }}
-                className="absolute end-0 top-full mt-2 flex max-h-96 w-80 origin-top flex-col overflow-y-auto rounded-xl border p-1.5 shadow-lg"
+                className="absolute end-0 top-full mt-2 flex max-h-96 w-80 origin-top flex-col overflow-y-auto rounded-2xl border p-1.5 shadow-lg"
                 style={{ zIndex: "var(--z-index-dropdown)" as unknown as number, borderColor: "var(--color-border)", background: "var(--color-surface)" }}
                 role="menu"
               >

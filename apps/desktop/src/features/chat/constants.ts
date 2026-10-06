@@ -32,3 +32,12 @@ export function savedModel(): string | null {
     return null;
   }
 }
+
+/** Remember the model for the next new chat (convenience only — storage may be unavailable). */
+export function rememberModel(id: string): void {
+  try {
+    localStorage.setItem(MODEL_KEY, id);
+  } catch {
+    // convenience only
+  }
+}

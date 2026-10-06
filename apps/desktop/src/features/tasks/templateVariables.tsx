@@ -67,8 +67,8 @@ export function TemplateVariables({
           className="overflow-hidden"
         >
           <div
-            className="flex flex-col gap-3 rounded-lg border p-4"
-            style={{ borderColor: "color-mix(in oklch, var(--color-accent) 35%, var(--color-border))", background: "color-mix(in oklch, var(--color-accent) 5%, var(--color-bg))" }}
+            className="flex flex-col gap-3 rounded-2xl p-4"
+            style={{ background: "var(--color-surface-2)" }}
           >
             <div>
               <p className="text-sm font-medium">{t("عبّي الأجزاء اللي بتتغير")}</p>
@@ -81,7 +81,7 @@ export function TemplateVariables({
                 const value = values[name] ?? "";
                 return (
                   <label key={name} className="flex flex-col gap-1">
-                    <span className="flex items-center gap-1.5 font-mono text-xs" style={{ color: "var(--color-accent)" }} dir="auto">
+                    <span className="flex items-center gap-1.5 font-mono text-xs" style={{ color: "var(--color-ink)" }} dir="auto">
                       {`{{${name}}}`}
                       {!value.trim() && (
                         <span className="font-sans text-[10px]" style={{ color: "var(--color-ink-muted)" }}>

@@ -15,7 +15,7 @@ import { READING_WIDTHS, useLayout } from "../../lib/layout";
 import { BrandMark } from "../../components/BrandMark";
 import { TokenText } from "../../components/TokenText";
 import { UploadChips, useUploads } from "../../components/Attachments";
-import { ModelsIcon, PaperclipIcon, StopIcon } from "../../components/Icons";
+import { ChevronDownIcon, ModelsIcon, PaperclipIcon, StopIcon } from "../../components/Icons";
 import {
   CommandMenu,
   FileMenu,
@@ -151,8 +151,8 @@ export function Composer({
       <motion.div
         layout
         transition={{ duration: 0.25, ease: easeOutExpo }}
-        className="relative mx-auto w-full rounded-2xl border p-2 transition-[border-color,box-shadow] focus-within:border-[var(--color-accent)] focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--color-accent)_18%,transparent)]"
-        style={{ maxWidth: reading, borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+        className="relative mx-auto w-full rounded-2xl p-2.5 transition-shadow focus-within:shadow-[0_0_0_1.5px_color-mix(in_oklch,var(--color-ink)_30%,transparent)]"
+        style={{ maxWidth: reading, background: "var(--color-surface)" }}
       >
         <AnimatePresence>
           {menuOpen && trigger?.kind === "/" && (
@@ -247,7 +247,7 @@ export function Composer({
               disabled={disabled}
               aria-label={t("إرفاق ملفات")}
               title={t("أرفق صور أو ملفات (أو اسحبها لهون، أو الصق صورة)")}
-              className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-40"
+              className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-40"
               style={{ color: "var(--color-ink-muted)" }}
             >
               <PaperclipIcon className="h-4 w-4" />
@@ -361,8 +361,8 @@ function ModelMenu({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
-        style={{ color: "var(--color-ink-muted)" }}
+        className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors hover:bg-[var(--color-surface-2)]"
+        style={{ color: "var(--color-ink-muted)", borderColor: "var(--color-border)" }}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -370,8 +370,8 @@ function ModelMenu({
         <span className="max-w-48 truncate" style={{ color: "var(--color-ink)" }}>
           {current?.name ?? t("اختار نموذج")}
         </span>
-        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          ▾
+        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }} className="flex">
+          <ChevronDownIcon className="h-3 w-3" />
         </motion.span>
       </button>
       <AnimatePresence>
@@ -382,7 +382,7 @@ function ModelMenu({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.12 } }}
             transition={{ duration: 0.2, ease: easeOutExpo }}
-            className="absolute bottom-full start-0 mb-2 w-64 origin-bottom overflow-hidden rounded-xl border p-1 shadow-lg"
+            className="absolute bottom-full start-0 mb-2 w-64 origin-bottom overflow-hidden rounded-2xl border p-1 shadow-lg"
             style={{ zIndex: "var(--z-index-dropdown)" as unknown as number, borderColor: "var(--color-border)", background: "var(--color-surface)" }}
           >
             {models.map((m, i) => (
@@ -433,11 +433,11 @@ function ModelMenu({
                   <span
                     className="flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
                     style={{
-                      background: searchOn ? "var(--color-accent)" : "var(--color-surface-2)",
+                      background: searchOn ? "var(--color-inverse)" : "var(--color-surface-2)",
                       justifyContent: searchOn ? "flex-end" : "flex-start",
                     }}
                   >
-                    <motion.span layout transition={snappy} className="h-4 w-4 rounded-full bg-white shadow-sm" />
+                    <motion.span layout transition={snappy} className="h-4 w-4 rounded-full shadow-sm" style={{ background: searchOn ? "var(--color-on-inverse)" : "#fff" }} />
                   </span>
                 </button>
               </li>

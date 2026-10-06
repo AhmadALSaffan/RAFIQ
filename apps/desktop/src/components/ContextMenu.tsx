@@ -186,7 +186,7 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
               exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.1 } }}
               transition={{ duration: 0.14, ease: easeOutExpo }}
               onMouseDown={(e) => e.stopPropagation()}
-              className="fixed min-w-44 max-w-72 overflow-hidden rounded-xl border p-1 shadow-2xl"
+              className="fixed min-w-44 max-w-72 overflow-hidden rounded-2xl border p-1 shadow-2xl"
               style={{
                 left: menu.x + offset.x,
                 top: menu.y + offset.y,

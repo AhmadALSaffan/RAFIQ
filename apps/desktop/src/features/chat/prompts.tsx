@@ -34,8 +34,8 @@ function Variables({ names }: { names: string[] }) {
       {names.map((n) => (
         <span
           key={n}
-          className="rounded-md px-1.5 py-0.5 font-mono text-[10.5px]"
-          style={{ background: "color-mix(in oklch, var(--color-accent) 14%, transparent)", color: "var(--color-accent)" }}
+          className="rounded-full border px-2 py-0.5 font-mono text-[10.5px]"
+          style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
           dir="auto"
         >
           {`{{${n}}}`}
@@ -205,7 +205,7 @@ export function PromptLibraryDialog({
         >
           {picked.variables.map((name, i) => (
             <label key={name} className="flex flex-col gap-1">
-              <span className="font-mono text-xs" style={{ color: "var(--color-accent)" }} dir="auto">
+              <span className="font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="auto">
                 {name}
               </span>
               <input

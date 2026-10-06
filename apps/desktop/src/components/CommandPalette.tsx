@@ -21,7 +21,6 @@ import { timeAgo } from "../lib/time";
 import { easeOutExpo } from "../lib/motion";
 import {
   ChatIcon,
-  CollapseIcon,
   InboxIcon,
   InfoIcon,
   LinkIcon,
@@ -128,15 +127,11 @@ export function CommandPalette({
   onClose,
   theme,
   onToggleTheme,
-  navCollapsed,
-  onToggleNav,
 }: {
   open: boolean;
   onClose: () => void;
   theme: "light" | "dark";
   onToggleTheme: () => void;
-  navCollapsed: boolean;
-  onToggleNav: () => void;
 }) {
   const navigate = useNavigate();
   const workspaceId = useCurrentWorkspaceId();
@@ -233,16 +228,6 @@ export function CommandPalette({
           onToggleTheme();
         },
       },
-      {
-        id: "c-nav",
-        label: navCollapsed ? t("وسّع الشريط الجانبي") : t("اطوِ الشريط الجانبي"),
-        Icon: CollapseIcon,
-        keywords: "sidebar collapse expand",
-        run: () => {
-          onClose();
-          onToggleNav();
-        },
-      },
     ];
     const chatItems: Item[] = chats.map((c) => ({
       id: `chat-${c.id}`,
@@ -315,9 +300,10 @@ export function CommandPalette({
       { title: t("البرومبتات"), items: rank(promptItems, q, 5) },
       { title: t("الرسائل المعلّمة"), items: rank(bookmarkItems, q, 5) },
     ].filter((g) => g.items.length);
-  }, [q, chats, tasks, designs, prompts, bookmarks, pathname, found, theme, navCollapsed, go, onClose, onToggleTheme, onToggleNav]);
+  }, [q, chats, tasks, designs, prompts, bookmarks, pathname, found, theme, go, onClose, onToggleTheme]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
+  const pointer = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     setActive((i) => Math.min(i, Math.max(0, flat.length - 1)));
@@ -364,7 +350,7 @@ export function CommandPalette({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.18, ease: easeOutExpo }}
-            className="flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border shadow-2xl"
+            className="flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border shadow-2xl"
             style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
             onKeyDown={onKeyDown}
           >
@@ -407,12 +393,18 @@ export function CommandPalette({
                         data-index={i}
                         role="option"
                         aria-selected={on}
-                        onMouseMove={() => active !== i && setActive(i)}
+                        onMouseMove={(e) => {
+                          // Only a real pointer move: rows sliding under a still cursor while
+                          // the keyboard scrolls the list must not take the selection back.
+                          const last = pointer.current;
+                          pointer.current = { x: e.screenX, y: e.screenY };
+                          if (last && (last.x !== e.screenX || last.y !== e.screenY) && active !== i) setActive(i);
+                        }}
                         onClick={item.run}
                         className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-start"
-                        style={{ background: on ? "color-mix(in oklch, var(--color-accent) 14%, transparent)" : undefined }}
+                        style={{ background: on ? "var(--color-surface-2)" : undefined }}
                       >
-                        <item.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: on ? "var(--color-accent)" : "var(--color-ink-muted)" }} />
+                        <item.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: on ? "var(--color-ink)" : "var(--color-ink-muted)" }} />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-baseline gap-2">
                             <span className="truncate text-sm" dir="auto" style={{ color: "var(--color-ink)" }}>

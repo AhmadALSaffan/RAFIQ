@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -27,7 +27,7 @@ from rafiq_agent.schemas.tasks import (
     TaskSummaryOut,
 )
 from rafiq_agent.storage.db import SessionLocal, get_session
-from rafiq_agent.storage.models import Task
+from rafiq_agent.storage.models import Task, UsageRecord
 
 router = APIRouter(prefix="/tasks", tags=["tasks"], dependencies=[Depends(require_token)])
 # Browsers can't set custom headers on a WebSocket handshake, so the stream route lives
@@ -64,7 +64,15 @@ async def get_task(task_id: str, session: AsyncSession = Depends(get_session)) -
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="task not found")
-    return _decorate(TaskDetailOut.model_validate(task), task)
+    out = _decorate(TaskDetailOut.model_validate(task), task)
+    spent = await session.execute(
+        select(
+            func.coalesce(func.sum(UsageRecord.cost_usd), 0.0),
+            func.coalesce(func.sum(UsageRecord.prompt_tokens + UsageRecord.completion_tokens), 0),
+        ).where(UsageRecord.scope == "task", UsageRecord.scope_id == task_id)
+    )
+    out.cost_usd, out.tokens = spent.one()
+    return out
 
 
 @router.post("", response_model=TaskDetailOut, status_code=201)

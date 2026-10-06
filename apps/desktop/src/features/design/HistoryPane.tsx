@@ -131,7 +131,7 @@ export function HistoryPane({
         variants={listContainer}
         initial="hidden"
         animate="show"
-        className="flex w-64 shrink-0 flex-col gap-1 overflow-y-auto border-e p-2"
+        className="flex w-64 shrink-0 flex-col gap-1 overflow-y-auto border-e p-2" data-pane="versions"
         style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
       >
         {versions.map((v) => {
@@ -149,7 +149,7 @@ export function HistoryPane({
                   <motion.span
                     layoutId="design-version"
                     className="absolute inset-0 rounded-lg"
-                    style={{ background: "color-mix(in oklch, var(--color-accent) 12%, transparent)", boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--color-accent) 40%, transparent)" }}
+                    style={{ background: "var(--color-surface-2)", boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--color-ink) 40%, transparent)" }}
                     transition={snappy}
                   />
                 )}
@@ -194,7 +194,7 @@ export function HistoryPane({
                 </option>
               ))}
           </select>
-          <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: "var(--color-surface-2)" }}>
+          <div className="flex items-center gap-0.5 rounded-full p-0.5" style={{ background: "var(--color-surface-2)" }}>
             {(["side", "changes"] as Mode[]).map((key) => (
               <button
                 key={key}
@@ -244,7 +244,7 @@ export function HistoryPane({
 
 function Frame({ title, html, muted = false }: { title: string; html: string | undefined; muted?: boolean }) {
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)" }}>
       <p className="border-b px-3 py-1.5 text-[11px] font-medium" style={{ borderColor: "var(--color-border)", color: muted ? "var(--color-ink-muted)" : "var(--color-ink)" }} dir="auto">
         {title}
       </p>
@@ -259,7 +259,7 @@ function Frame({ title, html, muted = false }: { title: string; html: string | u
 
 function DiffView({ diff }: { diff: DesignDiff }) {
   return (
-    <div className="overflow-hidden rounded-xl border font-mono text-[11.5px] leading-relaxed" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }} dir="ltr">
+    <div className="overflow-hidden rounded-2xl font-mono text-[11.5px] leading-relaxed" style={{ background: "var(--color-surface)" }} dir="ltr">
       <p className="flex items-center gap-3 border-b px-3 py-1.5 font-sans text-[11px]" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }} dir="auto">
         {t("من {0} لـ {1}", { 0: versionLabel(diff.a), 1: versionLabel(diff.b) })}
         <span dir="ltr" className="tabular-nums">

@@ -9,7 +9,6 @@ import { fieldDir } from "../lib/bidi";
 import { BrandMark } from "./BrandMark";
 import { TokenText } from "./TokenText";
 import { ArchiveIcon, CompressIcon, FolderIcon, PencilIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "./Icons";
-import { Button } from "./ui";
 import { useElementMenu } from "./ContextMenu";
 
 import { t } from "../i18n";
@@ -175,18 +174,27 @@ export function ChatList({
 
   return (
     <aside
-      className={`shrink-0 flex-col border-e ${className}`}
-      style={{ width: width ?? 240, borderColor: "var(--color-border)", background: "var(--color-bg)" }}
+      className={`shrink-0 flex-col overflow-hidden rounded-2xl ${className}`}
+      style={{ width: width ?? 240, background: "var(--color-surface)", margin: 8, marginInlineEnd: 0 }}
     >
-      <div className="flex flex-col gap-2 p-3">
-        <Button className="w-full" onClick={onNew}>
-          <PlusIcon className="h-4 w-4" />
-          {t("محادثة جديدة")}
-        </Button>
+      <div className="flex flex-col gap-2.5 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-[17px] font-extrabold">{t("المحادثات")}</h2>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={onNew}
+            aria-label={t("محادثة جديدة")}
+            title={t("محادثة جديدة")}
+            className="flex h-8 w-8 items-center justify-center rounded-full transition-[filter] hover:brightness-110"
+            style={{ background: "var(--color-inverse)", color: "var(--color-on-inverse)" }}
+          >
+            <PlusIcon className="h-4 w-4" />
+          </motion.button>
+        </div>
 
         <div
-          className="flex items-center gap-2 rounded-lg border px-2.5 transition-colors focus-within:border-[var(--color-accent)]"
-          style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+          className="flex items-center gap-2 rounded-[10px] px-2.5 transition-shadow focus-within:shadow-[0_0_0_1.5px_color-mix(in_oklch,var(--color-ink)_30%,transparent)]"
+          style={{ background: "var(--color-surface-2)" }}
         >
           <SearchIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
           <input
@@ -221,7 +229,7 @@ export function ChatList({
         {loading && chats.length === 0 && (
           <div className="flex flex-col gap-2 px-1">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="shimmer h-12 rounded-lg" />
+              <div key={i} className="shimmer h-12 rounded-[10px]" />
             ))}
           </div>
         )}
@@ -239,11 +247,11 @@ export function ChatList({
         {!deep && view === "archive" && (
           <section>
             <h3
-              className="sticky top-0 z-10 px-2 py-1.5 text-[11px] font-medium backdrop-blur"
-              style={{ color: "var(--color-ink-muted)", background: "color-mix(in oklch, var(--color-bg) 85%, transparent)" }}
+              className="sticky top-0 z-10 px-2 py-1.5 text-[11px] backdrop-blur"
+              style={{ color: "var(--color-ink-muted)", background: "color-mix(in oklch, var(--color-surface) 88%, transparent)" }}
             >
-              {t("الأرشيف")}
-              <span className="ms-1 tabular-nums opacity-60">{archived.length}</span>
+              ( {t("الأرشيف")} )
+              <span className="num ms-1 opacity-60">{archived.length}</span>
             </h3>
             <p className="px-2 pb-2 text-[11px] leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
               {t("مخفية عن القائمة بس البحث بيلاقيها. أي رسالة جديدة فيها بترجّعها.")}
@@ -257,11 +265,11 @@ export function ChatList({
         {!deep && view === "chats" && groups.map((group) => (
           <section key={group.name}>
             <h3
-              className="sticky top-0 z-10 px-2 py-1.5 text-[11px] font-medium backdrop-blur"
-              style={{ color: "var(--color-ink-muted)", background: "color-mix(in oklch, var(--color-bg) 85%, transparent)" }}
+              className="sticky top-0 z-10 px-2 py-1.5 text-[11px] backdrop-blur"
+              style={{ color: "var(--color-ink-muted)", background: "color-mix(in oklch, var(--color-surface) 88%, transparent)" }}
             >
-              {group.name}
-              <span className="ms-1 tabular-nums opacity-60">{group.items.length}</span>
+              ( {group.name} )
+              <span className="num ms-1 opacity-60">{group.items.length}</span>
             </h3>
             <ul>
               <AnimatePresence initial={false}>{group.items.map(row)}</AnimatePresence>
@@ -287,8 +295,8 @@ export function ChatList({
         <div className="border-t px-2 py-2" style={{ borderColor: "var(--color-border)" }}>
           <button
             onClick={() => setView(view === "archive" ? "chats" : "archive")}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface)]"
-            style={{ color: view === "archive" ? "var(--color-accent)" : "var(--color-ink-muted)" }}
+            className="flex w-full items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
+            style={{ color: view === "archive" ? "var(--color-ink)" : "var(--color-ink-muted)" }}
             aria-pressed={view === "archive"}
           >
             <ArchiveIcon className="h-3.5 w-3.5 shrink-0" />
@@ -318,7 +326,7 @@ function SearchResults({
   return (
     <section aria-live="polite">
       <h3
-        className="sticky top-0 z-10 flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-medium backdrop-blur"
+        className="sticky top-0 z-10 flex items-center gap-1.5 px-2 py-1.5 text-[11px] backdrop-blur"
         style={{ ...muted, background: "color-mix(in oklch, var(--color-bg) 85%, transparent)" }}
       >
         {t("نتائج البحث")}
@@ -337,7 +345,7 @@ function SearchResults({
       {results === null && searching && (
         <div className="flex flex-col gap-2 px-1 pt-1">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="shimmer h-14 rounded-lg" />
+            <div key={i} className="shimmer h-14 rounded-[10px]" />
           ))}
         </div>
       )}
@@ -360,11 +368,11 @@ function SearchResults({
             >
               <button
                 onClick={() => onOpen(r.chat_id, r.snippet?.message_id)}
-                className="flex w-full flex-col items-start gap-1 rounded-lg px-3 py-2 text-start transition-colors hover:bg-[var(--color-surface)]"
+                className="flex w-full flex-col items-start gap-1 rounded-[10px] px-3 py-2 text-start transition-colors hover:bg-[var(--color-surface-2)]"
                 style={r.chat_id === activeId ? { background: "var(--color-surface-2)" } : undefined}
               >
                 <span className="flex w-full items-center gap-1.5">
-                  {r.pinned && <PinIcon className="h-3 w-3 shrink-0" style={{ color: "var(--color-accent)" }} />}
+                  {r.pinned && <PinIcon className="h-3 w-3 shrink-0" style={{ color: "var(--color-ink-muted)" }} />}
                   <span className="min-w-0 flex-1 truncate text-sm" dir="auto">
                     <TokenText text={r.title} />
                   </span>
@@ -468,16 +476,16 @@ function Row({
       {active && (
         <motion.span
           layoutId="chat-active"
-          className="absolute inset-0 rounded-lg"
-          style={{ background: "var(--color-surface-2)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+          className="absolute inset-0 rounded-[10px]"
+          style={{ background: "var(--color-surface-2)" }}
           transition={snappy}
         />
       )}
       {active && (
         <motion.span
           layoutId="chat-active-bar"
-          className="absolute inset-y-2 end-0 w-0.5 rounded-full"
-          style={{ background: "var(--color-accent)" }}
+          className="absolute inset-y-2.5 start-0 w-[3px] rounded-full"
+          style={{ background: "var(--color-ink)" }}
           transition={snappy}
         />
       )}
@@ -492,18 +500,18 @@ function Row({
             if (e.key === "Enter") input.current?.blur();
             if (e.key === "Escape") onRename(chat.title);
           }}
-          className="relative w-full rounded-lg border px-3 py-2 text-sm outline-none"
-          style={{ borderColor: "var(--color-accent)", background: "var(--color-surface)", color: "var(--color-ink)" }}
+          className="relative w-full rounded-[10px] border px-3 py-2 text-sm outline-none"
+          style={{ borderColor: "var(--color-ink-muted)", background: "var(--color-surface)", color: "var(--color-ink)" }}
           dir="auto"
         />
       ) : (
         <button
           onClick={onOpen}
           onDoubleClick={onStartRename}
-          className="relative flex w-full flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-start transition-colors hover:bg-[var(--color-surface)]"
+          className="relative flex w-full flex-col items-start gap-0.5 rounded-[10px] px-3 py-2 text-start transition-colors hover:bg-[var(--color-surface-2)]"
         >
           <span className="flex w-full items-center gap-1.5">
-            {chat.pinned && <PinIcon className="h-3 w-3 shrink-0" style={{ color: "var(--color-accent)" }} />}
+            {chat.pinned && <PinIcon className="h-3 w-3 shrink-0" style={{ color: "var(--color-ink-muted)" }} />}
             <span className="min-w-0 flex-1 truncate text-sm" dir="auto" style={{ color: active ? "var(--color-ink)" : undefined }}>
               <TokenText text={chat.title} />
             </span>
@@ -546,7 +554,7 @@ function Row({
 
       {!renaming && (
         <span
-          className={`absolute end-1.5 top-1.5 flex items-center gap-0.5 rounded-md p-0.5 transition-opacity ${
+          className={`absolute end-1.5 top-1.5 flex items-center gap-0.5 rounded-full p-0.5 transition-opacity ${
             confirming ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
           }`}
           style={{ background: "var(--color-surface-2)" }}
@@ -595,7 +603,7 @@ function Action({
       title={label}
       className="rounded p-1 transition-colors hover:bg-[var(--color-surface)]"
       style={{
-        color: danger ? "white" : active ? "var(--color-accent)" : "var(--color-ink-muted)",
+        color: danger ? "white" : active ? "var(--color-ink)" : "var(--color-ink-muted)",
         background: danger ? "var(--color-danger)" : "transparent",
       }}
     >

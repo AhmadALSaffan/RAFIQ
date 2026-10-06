@@ -32,18 +32,18 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (v:
       <motion.div
         layout
         transition={{ duration: 0.25, ease: easeOutExpo }}
-        className="flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors"
-        style={{ borderColor: value ? "var(--color-accent)" : "var(--color-border)", background: "var(--color-bg)" }}
+        className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors"
+        style={{ background: "var(--color-surface-2)", boxShadow: value ? "inset 0 0 0 1.5px var(--color-ink)" : undefined }}
       >
         <motion.span
           key={value || "none"}
           initial={{ scale: 0.7, rotate: -8, opacity: 0 }}
           animate={{ scale: 1, rotate: 0, opacity: 1 }}
           transition={{ duration: 0.3, ease: easeOutExpo }}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
           style={{
-            background: value ? "color-mix(in oklch, var(--color-accent) 16%, transparent)" : "var(--color-surface-2)",
-            color: value ? "var(--color-accent)" : "var(--color-ink-muted)",
+            background: value ? "var(--color-inverse)" : "var(--color-surface)",
+            color: value ? "var(--color-on-inverse)" : "var(--color-ink-muted)",
           }}
         >
           <FolderIcon className="h-5 w-5" />
@@ -164,14 +164,14 @@ export function FolderChip({
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
         style={{
-          borderColor: value ? "color-mix(in oklch, var(--color-accent) 55%, transparent)" : "var(--color-border)",
-          background: value ? "color-mix(in oklch, var(--color-accent) 10%, transparent)" : "transparent",
+          borderColor: value ? "var(--color-ink-muted)" : "var(--color-border)",
+          background: value ? "var(--color-surface)" : "transparent",
           color: value ? "var(--color-ink)" : "var(--color-ink-muted)",
         }}
         title={value ?? t("حدد مجلد عشان رفيق يقدر يعدّل ملفاته من المحادثة")}
         aria-expanded={open}
       >
-        <FolderIcon className="h-3.5 w-3.5" style={{ color: value ? "var(--color-accent)" : undefined }} />
+        <FolderIcon className="h-3.5 w-3.5" />
         <AnimatePresence mode="wait" initial={false}>
           <motion.span
             key={value ?? "none"}
@@ -193,7 +193,7 @@ export function FolderChip({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98, transition: { duration: 0.12 } }}
             transition={{ duration: 0.2, ease: easeOutExpo }}
-            className="absolute end-0 top-full mt-2 w-80 origin-top rounded-xl border p-3 shadow-lg"
+            className="absolute end-0 top-full mt-2 w-80 origin-top rounded-2xl border p-3 shadow-lg"
             style={{ zIndex: "var(--z-index-dropdown)" as unknown as number, borderColor: "var(--color-border)", background: "var(--color-surface)" }}
           >
             <p className="text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>

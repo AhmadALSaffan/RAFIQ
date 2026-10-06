@@ -125,7 +125,7 @@ export function McpToolPermissions({
         style={{ color: "var(--color-ink-muted)" }}
         aria-expanded={open}
       >
-        <ShieldIcon className="h-3.5 w-3.5 shrink-0" style={{ color: custom ? "var(--color-accent)" : undefined }} />
+        <ShieldIcon className="h-3.5 w-3.5 shrink-0" style={{ color: custom ? "var(--color-ink)" : undefined }} />
         <span className="font-medium" style={{ color: "var(--color-ink)" }}>
           {t("الصلاحيات")}
         </span>
@@ -173,7 +173,7 @@ export function McpToolPermissions({
           </div>
 
           {tools.length > 0 ? (
-            <div className="mt-1 flex max-h-80 flex-col overflow-y-auto rounded-lg border" style={{ borderColor: "var(--color-border)" }}>
+            <div className="mt-1 flex max-h-80 flex-col overflow-y-auto rounded-xl" style={{ background: "var(--color-surface-2)" }}>
               <p className="sticky top-0 border-b px-3 py-1.5 text-[11px] font-medium" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-ink-muted)" }}>
                 {t("كل أداة لحالها")}
               </p>

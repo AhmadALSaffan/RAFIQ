@@ -199,7 +199,7 @@ function MenuShell({ children }: { children: React.ReactNode }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.12 } }}
       transition={{ duration: 0.2, ease: easeOutExpo }}
-      className="absolute bottom-full start-0 end-0 mb-2 origin-bottom overflow-hidden rounded-xl border shadow-lg"
+      className="absolute bottom-full start-0 end-0 mb-2 origin-bottom overflow-hidden rounded-2xl border shadow-lg"
       style={{ zIndex: "var(--z-index-dropdown)" as unknown as number, borderColor: "var(--color-border)", background: "var(--color-surface)" }}
     >
       {children}
@@ -226,6 +226,9 @@ function Rows<T>({
   // The mouse moves the selection to a row that is already under the cursor, so only
   // keyboard moves should scroll the list.
   const cameFromMouse = useRef(false);
+  // Where the pointer last really was: scrolling slides rows under a still cursor and the
+  // browser reports that as the mouse entering them, which must not steal the selection.
+  const pointer = useRef<{ x: number; y: number } | null>(null);
   const highlight = useId();
 
   useEffect(() => {
@@ -235,8 +238,19 @@ function Rows<T>({
       cameFromMouse.current = false;
       return;
     }
+    // Scroll the list itself, never its ancestors: scrollIntoView also moved the chat and
+    // the page behind the menu, which in LTR layouts read as the list jumping back up.
+    const list = row.parentElement;
+    if (!list) return;
+    const top = row.offsetTop;
+    const bottom = top + row.offsetHeight;
+    const pad = 6;
+    let next: number | null = null;
+    if (top - pad < list.scrollTop) next = top - pad;
+    else if (bottom + pad > list.scrollTop + list.clientHeight) next = bottom + pad - list.clientHeight;
+    if (next === null) return;
     const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    row.scrollIntoView({ block: "nearest", behavior: smooth ? "smooth" : "auto" });
+    list.scrollTo({ top: Math.max(0, next), behavior: smooth ? "smooth" : "auto" });
   }, [active, items.length]);
 
   if (!items.length) {
@@ -247,14 +261,17 @@ function Rows<T>({
     );
   }
   return (
-    <motion.ul layoutScroll className="max-h-72 overflow-y-auto overscroll-contain p-1.5" role="listbox">
+    <motion.ul layoutScroll className="relative max-h-72 overflow-y-auto overscroll-contain p-1.5" role="listbox">
       {items.map((item, i) => (
         <li key={i} ref={i === active ? activeRef : undefined}>
           <button
             type="button"
             role="option"
             aria-selected={i === active}
-            onMouseEnter={() => {
+            onMouseMove={(e) => {
+              const last = pointer.current;
+              pointer.current = { x: e.screenX, y: e.screenY };
+              if (!last || (last.x === e.screenX && last.y === e.screenY) || i === active) return;
               cameFromMouse.current = true;
               onHover(i);
             }}
@@ -266,8 +283,8 @@ function Rows<T>({
                 layoutId={highlight}
                 className="absolute inset-0 rounded-lg"
                 style={{
-                  background: "color-mix(in oklch, var(--color-accent) 16%, transparent)",
-                  boxShadow: "inset 0 0 0 1px var(--color-accent)",
+                  background: "var(--color-surface-2)",
+                  boxShadow: "inset 0 0 0 1px var(--color-border)",
                 }}
                 transition={{ type: "spring", stiffness: 620, damping: 44, mass: 0.7 }}
               />
@@ -313,7 +330,7 @@ export function CommandMenu({
         empty={t("ما في أمر بهالاسم")}
         render={(cmd) => (
           <span className="flex items-center gap-2.5">
-            <cmd.Icon className="h-4 w-4 shrink-0" style={{ color: "var(--color-accent)" }} />
+            <cmd.Icon className="h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
             <span className="min-w-0">
               <span className="block text-sm">{cmd.label}</span>
               <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
@@ -623,7 +640,7 @@ export function DoneDialog({
                     key={`${issue.integration_id}-${issue.key}`}
                     onClick={() => setSelected(issue)}
                     className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-start transition-colors"
-                    style={{ background: active ? "color-mix(in oklch, var(--color-accent) 14%, transparent)" : "transparent" }}
+                    style={{ background: active ? "var(--color-surface-2)" : "transparent" }}
                   >
                     <BrandMark provider={issue.provider} className="h-3.5 w-3.5 shrink-0" />
                     <span className="min-w-0 flex-1 truncate text-xs" dir="auto">
@@ -655,7 +672,7 @@ export function DoneDialog({
         </label>
 
         <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input type="checkbox" checked={markDone} onChange={(e) => setMarkDone(e.target.checked)} className="h-4 w-4 accent-[var(--color-accent)]" />
+          <input type="checkbox" checked={markDone} onChange={(e) => setMarkDone(e.target.checked)} className="h-4 w-4 accent-[var(--color-ink)]" />
           {t("علّمها مكتملة كمان")}
         </label>
 

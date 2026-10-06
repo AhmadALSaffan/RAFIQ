@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Illustration } from "../../components/Illustration";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { createTask, listIntegrations, listIssues, listModels } from "../../lib/api";
@@ -18,7 +19,7 @@ import { queueChatMessage } from "../../lib/handoff";
 import { fieldDir } from "../../lib/bidi";
 import { BrandMark } from "../../components/BrandMark";
 import { usePageMenu } from "../../components/ContextMenu";
-import { AlertIcon, RefreshIcon, SearchIcon, TasksIcon, XIcon } from "../../components/Icons";
+import { AlertIcon, RefreshIcon, SearchIcon, XIcon } from "../../components/Icons";
 import { Button, EmptyState } from "../../components/ui";
 import { IssuePanel } from "./IssuePanel";
 import { CATEGORY_LABEL, FilterChip, IssueRow, isOverdue, issueId } from "./pieces";
@@ -186,9 +187,9 @@ export function WorkPage() {
   if (!loading && connected.length === 0) {
     return (
       <div className="mx-auto max-w-3xl px-8 py-10">
-        <h1 className="mb-8 text-xl font-semibold">{t("شغلي")}</h1>
+        <h1 className="mb-8 text-[28px] font-extrabold">{t("شغلي")}</h1>
         <EmptyState
-          icon={<TasksIcon className="h-8 w-8" />}
+          scene="work"
           text={t("اربط حساب Jira أو Linear أو GitHub أو GitLab، وهون بتشوف كل المهام المسندة إلك بتفاصيلها.")}
           action={<Button onClick={() => navigate("/integrations")}>{t("روح لصفحة الربط")}</Button>}
         />
@@ -199,10 +200,12 @@ export function WorkPage() {
   return (
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-col gap-3 border-b px-6 py-4" style={{ borderColor: "var(--color-border)" }}>
+        <header className="flex flex-col gap-3 px-6 pb-3 pt-6">
           <div className="flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-semibold">{t("شغلي")}</h1>
+            <div className="flex items-end gap-3">
+              <Illustration scene="work" size={84} className="-mb-2 hidden shrink-0 sm:block" />
+              <div>
+              <h1 className="text-[28px] font-extrabold leading-tight">{t("شغلي")}</h1>
               <p className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
                 <span>{t("{0} مهمة", { 0: filtered.length })}</span>
                 {overdueCount > 0 && (
@@ -210,6 +213,7 @@ export function WorkPage() {
                 )}
                 {fetchedAt && <span>{t("· آخر تحديث")} {timeAgo(fetchedAt.toISOString())}</span>}
               </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <label className="flex cursor-pointer items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
@@ -217,7 +221,7 @@ export function WorkPage() {
                   type="checkbox"
                   checked={includeDone}
                   onChange={(e) => setIncludeDone(e.target.checked)}
-                  className="h-3.5 w-3.5 accent-[var(--color-accent)]"
+                  className="h-3.5 w-3.5 accent-[var(--color-ink)]"
                 />
                 {t("اعرض المكتملة")}
               </label>
@@ -226,7 +230,7 @@ export function WorkPage() {
                 onClick={() => void load(true)}
                 aria-label={t("تحديث")}
                 title={t("تحديث")}
-                className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
+                className="rounded-full p-2 transition-colors hover:bg-[var(--color-surface-2)]"
                 style={{ color: "var(--color-ink-muted)" }}
               >
                 <motion.span
@@ -242,8 +246,8 @@ export function WorkPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <div
-              className="flex min-w-48 flex-1 items-center gap-2 rounded-lg border px-3"
-              style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}
+              className="flex min-w-48 flex-1 items-center gap-2 rounded-[10px] px-3"
+              style={{ background: "var(--color-surface-2)" }}
             >
               <SearchIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
               <input
@@ -302,7 +306,7 @@ export function WorkPage() {
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
           {error && (
             <p
-              className="mb-3 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm"
+              className="mb-3 flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm"
               style={{ borderColor: "var(--color-danger)", color: "var(--color-danger)" }}
             >
               <AlertIcon className="h-4 w-4" />
@@ -313,7 +317,7 @@ export function WorkPage() {
           {loading ? (
             <div className="flex flex-col gap-2">
               {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="shimmer h-16 rounded-lg border" style={{ borderColor: "var(--color-border)" }} />
+                <div key={i} className="shimmer h-16 rounded-2xl" />
               ))}
             </div>
           ) : filtered.length === 0 ? (
@@ -325,11 +329,11 @@ export function WorkPage() {
               {groups.map((group) => (
                 <section key={group.label}>
                   {groupBy !== "none" && (
-                    <h2 className="mb-2 text-xs font-medium" style={{ color: "var(--color-ink-muted)" }}>
+                    <h2 className="mb-2 px-1 text-[11px] font-normal" style={{ color: "var(--color-ink-muted)", fontFamily: "var(--font-sans)" }}>
                       {group.label}
                     </h2>
                   )}
-                  <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
+                  <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col divide-y overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)", borderColor: "var(--color-border)" }}>
                     <AnimatePresence initial={false}>
                       {group.items.map((issue) => (
                         <IssueRow

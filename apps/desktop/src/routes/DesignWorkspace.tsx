@@ -25,11 +25,12 @@ import { folderName, pickFolder } from "../lib/folders";
 import { openExternal } from "../lib/links";
 import { FolderChip } from "../components/FolderPicker";
 import { Markdown } from "../components/Markdown";
+import { Wireframe } from "../components/brand";
 import { Button, DrawnCheck } from "../components/ui";
 import { Resizer } from "../components/Resizer";
 import { usePageMenu } from "../components/ContextMenu";
 import { ChatPage } from "../features/chat";
-import { AlertIcon, ArrowDownIcon, ChatIcon, FileIcon, FolderIcon, PlusIcon, RefreshIcon, SparkIcon, TasksIcon, TrashIcon, XIcon } from "../components/Icons";
+import { AlertIcon, ArrowDownIcon, ChatIcon, FileIcon, FolderIcon, PlusIcon, RefreshIcon, TasksIcon, TrashIcon, XIcon } from "../components/Icons";
 
 import { t } from "../i18n";
 const DEVICES = [
@@ -145,10 +146,10 @@ export function DesignWorkspace() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center gap-3 border-b px-5 py-2.5" style={{ borderColor: "var(--color-border)" }}>
+      <header className="flex items-center gap-3 px-5 pb-1 pt-3">
         <button
           onClick={() => navigate("/designs")}
-          className="shrink-0 rounded-lg px-2 py-1 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
+          className="shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors hover:bg-[var(--color-surface)]"
           style={{ color: "var(--color-ink-muted)" }}
         >
           {t("التصاميم ›")}
@@ -164,34 +165,34 @@ export function DesignWorkspace() {
               if (title && title !== design.title) setDesign(await renameDesign(design.id, title));
             }}
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-            className="min-w-0 flex-1 rounded-lg border px-2 py-1 text-sm outline-none"
-            style={{ borderColor: "var(--color-accent)", background: "var(--color-surface)", color: "var(--color-ink)" }}
+            className="min-w-0 flex-1 rounded-[10px] border px-2 py-1 text-sm outline-none"
+            style={{ borderColor: "var(--color-ink-muted)", background: "var(--color-surface)", color: "var(--color-ink)" }}
             dir="auto"
           />
         ) : (
           <h1
             onDoubleClick={() => setRenaming(true)}
             title={t("دبل كليك لإعادة التسمية")}
-            className="min-w-0 flex-1 cursor-text truncate text-sm font-medium"
+            className="min-w-0 flex-1 cursor-text truncate text-[17px] font-bold"
             dir="auto"
           >
             {design.title}
           </h1>
         )}
 
-        <div className="flex shrink-0 items-center gap-1 rounded-lg p-0.5" style={{ background: "var(--color-surface-2)" }}>
+        <div className="flex shrink-0 items-center gap-1 rounded-full p-1" style={{ background: "var(--color-surface)" }}>
           {(["preview", "history", "spec", "skills"] as Tab[]).map((key) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className="relative rounded-md px-2.5 py-1 text-xs"
-              style={{ color: tab === key ? "var(--color-ink)" : "var(--color-ink-muted)" }}
+              className="relative rounded-full px-3 py-1 text-xs"
+              style={{ color: tab === key ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
             >
               {tab === key && (
                 <motion.span
                   layoutId="design-tab"
-                  className="absolute inset-0 rounded-md"
-                  style={{ background: "var(--color-surface)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+                  className="absolute inset-0 rounded-full"
+                  style={{ background: "var(--color-inverse)" }}
                   transition={snappy}
                 />
               )}
@@ -205,7 +206,7 @@ export function DesignWorkspace() {
           onChange={async (path) => setDesign(await setDesignFolder(design.id, path))}
         />
 
-        <Button onClick={() => setHandoffOpen(true)} disabled={!design.preview_html && !design.spec}>
+        <Button variant="accent" onClick={() => setHandoffOpen(true)} disabled={!design.preview_html && !design.spec}>
           <TasksIcon className="h-4 w-4" />
           {t("بدء البرمجة")}
         </Button>
@@ -217,8 +218,8 @@ export function DesignWorkspace() {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="flex items-center gap-2 border-b px-5 py-2 text-xs"
-            style={{ borderColor: "var(--color-border)", color: "var(--color-success)" }}
+            className="flex items-center gap-2 px-5 py-2 text-xs"
+            style={{ color: "var(--color-success)" }}
           >
             <DrawnCheck className="h-3.5 w-3.5" />
             {note}
@@ -228,7 +229,7 @@ export function DesignWorkspace() {
 
       <div className="flex min-h-0 flex-1">
         {/* The design conversation — the same chat surface as everywhere else. */}
-        <div className="flex min-h-0 shrink-0 flex-col border-e" style={{ width: chatWidth, borderColor: "var(--color-border)" }}>
+        <div className="flex min-h-0 shrink-0 flex-col" style={{ width: chatWidth }}>
           {/* The kickoff is sent only while that chat is still empty, so a reload is safe. */}
           <ChatPage chatId={design.chat_id} embedded autoSend={design.kickoff} onReplyDone={refresh} />
         </div>
@@ -241,7 +242,7 @@ export function DesignWorkspace() {
           label={t("عرض الشات")}
         />
 
-        <div className="flex min-h-0 flex-1 flex-col" style={{ background: "var(--color-surface-2)" }}>
+        <div className="m-2 ms-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)" }}>
           {tab === "preview" && (
             <PreviewPane
               documents={documents}
@@ -372,14 +373,14 @@ function PreviewPane({
                 key={documentKey(doc)}
                 onClick={() => onPick(doc)}
                 title={doc.path ?? doc.name}
-                className="relative shrink-0 rounded-md px-2.5 py-1 text-xs transition-colors"
+                className="relative shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors"
                 style={{ color: on ? "var(--color-ink)" : "var(--color-ink-muted)" }}
               >
                 {on && (
                   <motion.span
                     layoutId="design-file"
-                    className="absolute inset-0 rounded-md"
-                    style={{ background: "var(--color-surface)", boxShadow: "inset 0 0 0 1px var(--color-border)" }}
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: "var(--color-surface-2)" }}
                     transition={snappy}
                   />
                 )}
@@ -396,14 +397,14 @@ function PreviewPane({
       )}
 
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2" style={{ borderColor: "var(--color-border)" }}>
-        <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: "var(--color-surface)" }}>
+        <div className="flex items-center gap-1 rounded-full p-0.5" style={{ background: "var(--color-surface-2)" }}>
           {DEVICES.map((d) => (
             <button
               key={d.id}
               onClick={() => onDevice(d.id)}
-              className="rounded-md px-2.5 py-1 text-xs transition-colors"
+              className="rounded-full px-2.5 py-1 text-xs transition-colors"
               style={{
-                background: device === d.id ? "var(--color-surface-2)" : "transparent",
+                background: device === d.id ? "var(--color-surface)" : "transparent",
                 color: device === d.id ? "var(--color-ink)" : "var(--color-ink-muted)",
               }}
             >
@@ -419,7 +420,7 @@ function PreviewPane({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 className="me-1 flex min-w-0 items-center gap-1 truncate text-[11px]"
-                style={{ color: "var(--color-accent)" }}
+                style={{ color: "var(--color-pending)" }}
                 role="status"
               >
                 <AlertIcon className="h-3 w-3 shrink-0" />
@@ -454,11 +455,11 @@ function PreviewPane({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div className="min-h-0 flex-1 overflow-auto p-4" style={{ background: "var(--color-surface-2)" }}>
         {html ? (
           <div
-            className="mx-auto h-full overflow-hidden rounded-xl border shadow-sm"
-            style={{ width: width ? `${width}px` : "100%", maxWidth: "100%", borderColor: "var(--color-border)", background: "white" }}
+            className="mx-auto h-full overflow-hidden rounded-xl"
+            style={{ width: width ? `${width}px` : "100%", maxWidth: "100%", background: "white" }}
           >
             <iframe
               ref={frameRef}
@@ -472,7 +473,7 @@ function PreviewPane({
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <SparkIcon className="h-6 w-6" style={{ color: "var(--color-accent)" }} />
+            <Wireframe size={120} className="mb-2 opacity-60" />
             <p className="text-sm font-medium">{t("المعاينة بتطلع هون")}</p>
             <p className="max-w-xs text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
               {t("أول ما النموذج يرجّع أول نسخة من الواجهة رح تشوفها حيّة، وتقدر تناقشه بالشات على اليمين وتشوف التعديل مباشرة.")}
@@ -502,7 +503,7 @@ function IconButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-surface)] disabled:opacity-40"
+      className="rounded-full p-1.5 transition-colors hover:bg-[var(--color-surface)] disabled:opacity-40"
       style={{ color: "var(--color-ink-muted)" }}
     >
       {children}
@@ -585,10 +586,10 @@ function SkillsPane() {
         </p>
         <ul className="flex flex-col gap-2">
           {skills.map((skill) => (
-            <li key={skill.name} className="rounded-lg border" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+            <li key={skill.name} className="rounded-2xl" style={{ background: "var(--color-surface)" }}>
               <button onClick={() => show(skill.name)} className="w-full px-4 py-3 text-start">
                 <span className="flex items-center gap-2">
-                  <span className="font-mono text-xs" dir="ltr" style={{ color: "var(--color-accent)" }}>
+                  <span className="font-mono text-xs" dir="ltr" style={{ color: "var(--color-ink-muted)" }}>
                     {skill.name}
                   </span>
                   {skill.source === "user" && (
@@ -851,8 +852,8 @@ function HandoffDialog({ design, onClose, onDone }: { design: Design; onClose: (
               onClick={() => setTarget(option.id)}
               className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-start transition-colors"
               style={{
-                borderColor: target === option.id ? "var(--color-accent)" : "var(--color-border)",
-                background: target === option.id ? "color-mix(in oklch, var(--color-accent) 10%, transparent)" : "transparent",
+                borderColor: target === option.id ? "var(--color-ink)" : "var(--color-border)",
+                background: target === option.id ? "var(--color-surface-2)" : "transparent",
               }}
             >
               {option.id === "task" ? <TasksIcon className="mt-0.5 h-4 w-4 shrink-0" /> : <ChatIcon className="mt-0.5 h-4 w-4 shrink-0" />}

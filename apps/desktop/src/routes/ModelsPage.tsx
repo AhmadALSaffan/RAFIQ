@@ -4,6 +4,7 @@ import {
   createModel,
   deleteModel,
   discoverModels,
+  getUsage,
   listAccounts,
   listModels,
   providerLabel,
@@ -13,13 +14,14 @@ import {
 } from "../lib/api";
 import { GROUP_LABEL, PROVIDERS, providerMeta } from "../lib/providers";
 import type { ProviderGroup } from "../lib/providers";
-import type { AuthAccount, DiscoveredModel, LlmModel, Provider } from "../lib/types";
+import type { AuthAccount, DiscoveredModel, LlmModel, Provider, UsageByModel } from "../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../lib/motion";
 import { timeAgo } from "../lib/time";
 import { useElementMenu, usePageMenu } from "../components/ContextMenu";
-import { PageHeader, RefreshButton, StatusStripe } from "../components/Page";
+import { PageHeader, RefreshButton } from "../components/Page";
+import { BracketLabel } from "../components/brand";
 import { ActionProgress } from "../components/Feedback";
-import { AlertIcon, ModelsIcon, PlusIcon, RefreshIcon, SearchIcon, SpinnerIcon, TrashIcon } from "../components/Icons";
+import { AlertIcon, PlusIcon, RefreshIcon, SearchIcon, SpinnerIcon, TrashIcon } from "../components/Icons";
 import { Button, DrawnCheck, EmptyState, ErrorText, Field, Reveal } from "../components/ui";
 import { BrandMark } from "../components/BrandMark";
 import { fieldDir } from "../lib/bidi";
@@ -34,13 +36,20 @@ export function ModelsPage() {
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [accounts, setAccounts] = useState<AuthAccount[]>([]);
+  // What each agent has cost over the last 30 days, by its id.
+  const [spend, setSpend] = useState<Map<string, UsageByModel>>(new Map());
 
   async function refresh() {
     setRefreshing(true);
     try {
-      const [m, a] = await Promise.all([listModels(), listAccounts().catch(() => [] as AuthAccount[])]);
+      const [m, a, usage] = await Promise.all([
+        listModels(),
+        listAccounts().catch(() => [] as AuthAccount[]),
+        getUsage(30).catch(() => null),
+      ]);
       setModels(m);
       setAccounts(a);
+      setSpend(new Map((usage?.by_model ?? []).filter((u) => u.model_ref).map((u) => [u.model_ref as string, u])));
     } catch {
       // Keep what's on screen; the next visit tries again.
     } finally {
@@ -64,15 +73,16 @@ export function ModelsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-10">
+    <div className="mx-auto max-w-4xl px-6 py-8">
       <PageHeader
         title={t("النماذج")}
+        scene="models"
         description={t("اختار المزوّد، حط مفتاحك، وبنجيبلك الموديلات المتاحة إلك مباشرة من عنده.")}
         actions={
           <>
             <RefreshButton spinning={refreshing} onClick={() => void refresh()} />
             {!formOpen && (
-              <Button onClick={() => setFormOpen(true)}>
+              <Button variant="accent" onClick={() => setFormOpen(true)}>
                 <PlusIcon className="h-4 w-4" />
                 {t("إضافة نموذج")}
               </Button>
@@ -96,17 +106,18 @@ export function ModelsPage() {
         <ListSkeleton />
       ) : models.length === 0 && !formOpen ? (
         <EmptyState
-          icon={<ModelsIcon className="h-8 w-8" />}
+          scene="models"
           text={t("ما في نماذج مضافة بعد. أضف أول نموذج عشان تقدر تبلّش مهمة.")}
           action={<Button onClick={() => setFormOpen(true)}>{t("إضافة نموذج")}</Button>}
         />
       ) : (
-        <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
+        <motion.ul variants={listContainer} initial="hidden" animate="show" className="grid grid-cols-1 gap-2 md:grid-cols-2">
           <AnimatePresence initial={false}>
             {models.map((m) => (
               <ModelRow
                 key={m.id}
                 model={m}
+                usage={spend.get(m.id)}
                 highlight={m.id === justAdded}
                 accounts={accounts.filter((a) => a.provider === m.provider && a.status === "connected")}
                 others={models.filter((x) => x.id !== m.id)}
@@ -127,8 +138,8 @@ function ListSkeleton() {
       {[0, 1].map((i) => (
         <div
           key={i}
-          className="shimmer h-[66px] rounded-lg border"
-          style={{ borderColor: "var(--color-border)", animationDelay: `${i * 120}ms` }}
+          className="shimmer h-[120px] rounded-2xl"
+          style={{ animationDelay: `${i * 120}ms` }}
         />
       ))}
     </div>
@@ -137,6 +148,7 @@ function ListSkeleton() {
 
 function ModelRow({
   model,
+  usage,
   highlight,
   accounts,
   others,
@@ -144,6 +156,8 @@ function ModelRow({
   onUpdated,
 }: {
   model: LlmModel;
+  /** Its last 30 days, when it has been used. */
+  usage?: UsageByModel;
   highlight: boolean;
   /** Connected accounts this agent could sign in with (same provider). */
   accounts: AuthAccount[];
@@ -156,7 +170,7 @@ function ModelRow({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const menu = useElementMenu();
   const stripe = testing
-    ? "var(--color-accent)"
+    ? "var(--color-ink-muted)"
     : model.verify_ok === true
       ? "var(--color-success)"
       : model.verify_ok === false
@@ -177,8 +191,8 @@ function ModelRow({
       layout
       variants={listItem}
       exit="exit"
-      className={`relative overflow-hidden rounded-lg border px-4 py-3 ${highlight ? "flash-accent" : ""}`}
-      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      className={`relative flex flex-col overflow-hidden rounded-2xl p-4 ${highlight ? "flash-accent" : ""}`}
+      style={{ background: "var(--color-surface)" }}
       onContextMenu={menu(() => [
         { id: "verify", label: t("افحص من جديد"), onSelect: () => void retest(), disabled: testing },
         { id: "copy-id", label: t("انسخ اسم الموديل"), onSelect: () => void navigator.clipboard.writeText(model.model_id) },
@@ -186,17 +200,20 @@ function ModelRow({
       ])}
     >
       <ActionProgress active={testing} />
-      <StatusStripe color={stripe} />
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <BrandMark provider={model.provider} className="h-4 w-4 shrink-0" />
-            <span className="text-sm font-medium">{model.name}</span>
-            <span
-              className="rounded-full px-2 py-0.5 text-xs"
-              style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
-            >
-              {providerLabel(model.provider)}
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "var(--color-surface-2)" }}>
+              <BrandMark provider={model.provider} className="h-[18px] w-[18px]" />
+              <span className="absolute -bottom-0.5 -end-0.5 h-2.5 w-2.5 rounded-full" style={{ background: stripe, boxShadow: "0 0 0 2px var(--color-surface)" }} aria-hidden />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[15px] font-bold" style={{ fontFamily: "var(--font-display)" }}>
+                {model.name}
+              </span>
+              <span className="block text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+                {providerLabel(model.provider)}
+              </span>
             </span>
           </div>
           <p className="mt-1 truncate font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
@@ -222,7 +239,7 @@ function ModelRow({
               <select
                 value={model.fallback_model_id ?? ""}
                 onChange={async (e) => onUpdated(await setModelFallback(model.id, e.currentTarget.value || null))}
-                className="input h-7 min-w-0 max-w-56 py-0 text-xs"
+                className="input h-8 min-w-32 max-w-56 py-0 text-xs"
                 title={t("إذا المزوّد ضل يرفض أو وقع، الطلب بيروح للنموذج الاحتياطي تلقائياً.")}
               >
                 <option value="">{t("بلا")}</option>
@@ -236,7 +253,8 @@ function ModelRow({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <div className="flex items-center gap-1">
           <VerifyStatus model={model} testing={testing} />
           <RefreshButton spinning={testing} onClick={() => void retest()} label={t("افحص إذا الموديل شغّال")} />
           <AnimatePresence mode="wait" initial={false}>
@@ -265,14 +283,28 @@ function ModelRow({
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setConfirmDelete(true)}
                 aria-label={t("حذف")}
-                className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
+                className="rounded-full p-2 transition-colors hover:bg-[var(--color-surface-2)]"
                 style={{ color: "var(--color-ink-muted)" }}
               >
                 <TrashIcon className="h-4 w-4" />
               </motion.button>
             )}
           </AnimatePresence>
+          </div>
         </div>
+      </div>
+
+      {/* What it has cost, set large: the number this page is for. */}
+      <div className="mt-4 flex items-end justify-between gap-3 border-t pt-3" style={{ borderColor: "var(--color-border)" }}>
+        <div>
+          <BracketLabel>{t("آخر 30 يوم")}</BracketLabel>
+          <p className="num mt-1.5 text-[26px] font-bold leading-none">${(usage?.cost_usd ?? 0).toFixed((usage?.cost_usd ?? 0) < 1 ? 3 : 2)}</p>
+        </div>
+        <p className="num text-end text-[11px] leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
+          {t("{0} طلب", { 0: (usage?.calls ?? 0).toLocaleString("en") })}
+          <br />
+          {t("{0} توكن", { 0: ((usage?.prompt_tokens ?? 0) + (usage?.completion_tokens ?? 0)).toLocaleString("en") })}
+        </p>
       </div>
 
       <AnimatePresence>
@@ -521,8 +553,8 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 flex flex-col gap-5 rounded-xl border p-5"
-      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      className="mb-6 flex flex-col gap-5 rounded-2xl p-5"
+      style={{ background: "var(--color-surface)" }}
     >
       <div className="flex flex-col gap-2">
         <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
@@ -554,14 +586,14 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
                         className="relative rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
                         style={{
                           borderColor: active ? "transparent" : "var(--color-border)",
-                          color: active ? "var(--color-accent-ink)" : "var(--color-ink)",
+                          color: active ? "var(--color-on-inverse)" : "var(--color-ink)",
                         }}
                       >
                         {active && (
                           <motion.span
                             layoutId="provider-pill"
                             className="absolute inset-0 rounded-full"
-                            style={{ background: "var(--color-accent)" }}
+                            style={{ background: "var(--color-inverse)" }}
                             transition={snappy}
                           />
                         )}
@@ -610,9 +642,9 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
               }}
               className="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
               style={{
-                borderColor: useAccount === option.value ? "var(--color-accent)" : "var(--color-border)",
-                background:
-                  useAccount === option.value ? "color-mix(in oklch, var(--color-accent) 12%, transparent)" : "transparent",
+                borderColor: useAccount === option.value ? "var(--color-inverse)" : "var(--color-border)",
+                background: useAccount === option.value ? "var(--color-inverse)" : "transparent",
+                color: useAccount === option.value ? "var(--color-on-inverse)" : "var(--color-ink)",
               }}
             >
               {option.label}
@@ -646,9 +678,9 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
                   }}
                   className="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
                   style={{
-                    borderColor: a.id === accountId ? "var(--color-accent)" : "var(--color-border)",
-                    background:
-                      a.id === accountId ? "color-mix(in oklch, var(--color-accent) 12%, transparent)" : "transparent",
+                    borderColor: a.id === accountId ? "var(--color-inverse)" : "var(--color-border)",
+                    background: a.id === accountId ? "var(--color-inverse)" : "transparent",
+                    color: a.id === accountId ? "var(--color-on-inverse)" : "var(--color-ink)",
                   }}
                 >
                   <bdi dir="ltr">{accountLabel(a.provider, a.label)}</bdi>
@@ -819,7 +851,7 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
       <ErrorText message={error} />
 
       <div className="flex items-center justify-start gap-2">
-        <Button type="submit" disabled={saving || !modelId}>
+        <Button type="submit" variant="accent" disabled={saving || !modelId}>
           {saving ? (
             <>
               <SpinnerIcon className="h-4 w-4" />
@@ -965,7 +997,7 @@ function ModelChooser({
                   <motion.span
                     layoutId="model-pick"
                     className="absolute inset-0 rounded-md"
-                    style={{ background: "color-mix(in oklch, var(--color-accent) 16%, transparent)", border: "1px solid var(--color-accent)" }}
+                    style={{ background: "var(--color-surface-2)", border: "1.5px solid var(--color-ink)" }}
                     transition={snappy}
                   />
                 )}
@@ -980,7 +1012,7 @@ function ModelChooser({
                   )}
                 </span>
                 {active && (
-                  <span className="relative" style={{ color: "var(--color-accent)" }}>
+                  <span className="relative" style={{ color: "var(--color-ink)" }}>
                     <DrawnCheck />
                   </span>
                 )}

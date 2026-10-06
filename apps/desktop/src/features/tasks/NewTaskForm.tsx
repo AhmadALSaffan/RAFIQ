@@ -101,8 +101,8 @@ export function NewTaskForm({
     <DropZone onFiles={uploads.add} className="mb-6">
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-5 rounded-xl border p-5"
-        style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+        className="flex flex-col gap-5 rounded-2xl p-5"
+        style={{ background: "var(--color-surface)" }}
       >
         <Field label={t("شو بدك رفيق يعمل؟")}>
           <textarea
@@ -171,18 +171,15 @@ export function NewTaskForm({
                   disabled={broken}
                   onClick={() => setModelId(m.id)}
                   whileTap={broken ? undefined : { scale: 0.98 }}
-                  className="relative rounded-lg border px-3 py-2.5 text-start disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}
+                  className="relative rounded-[10px] px-3 py-2.5 text-start disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ background: "var(--color-surface-2)" }}
                   title={broken ? (m.verify_error ?? t("ما اشتغل بآخر فحص")) : undefined}
                 >
                   {active && (
                     <motion.span
                       layoutId="task-model"
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        border: "1.5px solid var(--color-accent)",
-                        background: "color-mix(in oklch, var(--color-accent) 10%, transparent)",
-                      }}
+                      className="absolute inset-0 rounded-[10px]"
+                      style={{ border: "1.5px solid var(--color-ink)" }}
                       transition={snappy}
                     />
                   )}
@@ -215,19 +212,19 @@ export function NewTaskForm({
                   key={m.id}
                   onClick={() => setMode(m.id)}
                   whileTap={{ scale: 0.98 }}
-                  className="relative rounded-lg border px-3 py-2.5 text-start"
-                  style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}
+                  className="relative rounded-[10px] px-3 py-2.5 text-start"
+                  style={{ background: "var(--color-surface-2)" }}
                 >
                   {active && (
                     <motion.span
                       layoutId="task-mode"
-                      className="absolute inset-0 rounded-lg"
-                      style={{ border: "1.5px solid var(--color-accent)", background: "color-mix(in oklch, var(--color-accent) 10%, transparent)" }}
+                      className="absolute inset-0 rounded-[10px]"
+                      style={{ border: "1.5px solid var(--color-ink)" }}
                       transition={snappy}
                     />
                   )}
                   <span className="relative flex items-center gap-2 text-sm font-medium">
-                    <m.Icon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-accent)" }} />
+                    <m.Icon className="h-3.5 w-3.5 shrink-0" />
                     {m.label}
                   </span>
                   <span className="relative mt-0.5 block text-xs" style={{ color: "var(--color-ink-muted)" }}>
@@ -254,6 +251,7 @@ export function NewTaskForm({
         <div className="flex justify-start gap-2">
           <Button
             type="submit"
+            variant="accent"
             disabled={saving || uploads.busy || !prompt.trim() || !modelId || unfilled.length > 0}
             title={unfilled.length ? t("عبّي: {0}", { 0: unfilled.map((n) => `{{${n}}}`).join(" · ") }) : undefined}
           >

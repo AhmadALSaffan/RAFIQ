@@ -106,8 +106,8 @@ export function ConnectAccount({
 
   return (
     <div
-      className="relative overflow-hidden rounded-lg border px-4 py-4"
-      style={{ borderColor: "var(--color-accent)", background: "color-mix(in oklch, var(--color-accent) 5%, var(--color-surface))" }}
+      className="relative overflow-hidden rounded-2xl px-4 py-4"
+      style={{ background: "var(--color-surface-2)" }}
     >
       <ActionProgress active={waiting} />
       <AnimatePresence mode="wait" initial={false}>
@@ -142,8 +142,8 @@ export function ConnectAccount({
             {phase.flow.kind === "device" && (
             <div className="flex flex-wrap items-center gap-2">
               <span
-                className="rounded-lg border px-4 py-2 font-mono text-2xl font-semibold tracking-[0.25em]"
-                style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}
+                className="rounded-[10px] px-4 py-2 font-mono text-2xl font-semibold tracking-[0.25em]"
+                style={{ background: "var(--color-surface-2)" }}
                 dir="ltr"
               >
                 {phase.flow.user_code}

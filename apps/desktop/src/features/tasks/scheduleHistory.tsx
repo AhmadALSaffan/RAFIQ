@@ -16,7 +16,7 @@ const TONE: Record<string, string> = {
   completed: "var(--color-success)",
   failed: "var(--color-danger)",
   not_started: "var(--color-danger)",
-  running: "var(--color-accent)",
+  running: "var(--color-ink)",
   queued: "var(--color-ink-muted)",
   pending: "var(--color-ink-muted)",
   planned: "var(--color-pending)",

@@ -7,7 +7,7 @@ import { t } from "../../i18n";
 export const STATUS_COLOR: Record<TaskStatus, string> = {
   queued: "var(--color-ink-muted)",
   pending: "var(--color-ink-muted)",
-  running: "var(--color-accent)",
+  running: "var(--color-ink)",
   planned: "var(--color-pending)",
   completed: "var(--color-success)",
   failed: "var(--color-danger)",

@@ -21,8 +21,6 @@ import { usePageMenu } from "../components/ContextMenu";
 import {
   LIST_MAX,
   LIST_MIN,
-  NAV_MAX,
-  NAV_MIN,
   READING_LABELS,
   resetLayout,
   setLayout,
@@ -68,8 +66,8 @@ function StorageSection() {
 
   return (
     <section className="mb-8">
-      <h2 className="mb-3 text-sm font-medium">{t("مكان الملفات")}</h2>
-      <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+      <h2 className="mb-3 text-[17px] font-bold">{t("مكان الملفات")}</h2>
+      <div className="rounded-2xl px-4 py-3" style={{ background: "var(--color-surface)" }}>
         <p className="text-sm font-medium">{t("مجلد رفيق")}</p>
         <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
           {t("أي مهمة أو تصميم ما حددت إله مجلد، رفيق بيعطيه مجلد خاص فيه هون باسم الجلسة — فما بتضيع ملفاتك ولا بتنرمي بمجلد المستخدم.")}
@@ -104,9 +102,9 @@ function LanguageSection() {
   const current = locale();
   return (
     <section className="mb-8">
-      <h2 className="mb-3 text-sm font-medium">{t("اللغة")}</h2>
-      <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
-        <div className="flex rounded-lg p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("اللغة")}>
+      <h2 className="mb-3 text-[17px] font-bold">{t("اللغة")}</h2>
+      <div className="rounded-2xl px-4 py-3" style={{ background: "var(--color-surface)" }}>
+        <div className="flex rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("اللغة")}>
           {LOCALES.map((option) => {
             const active = option.id === current;
             return (
@@ -117,14 +115,14 @@ function LanguageSection() {
                 lang={option.id}
                 dir={option.dir}
                 onClick={() => setLocale(option.id)}
-                className="relative flex-1 rounded-md px-3 py-1.5 text-sm transition-colors"
-                style={{ color: active ? "var(--color-accent-ink)" : "var(--color-ink)" }}
+                className="relative flex-1 rounded-full px-3 py-1.5 text-sm transition-colors"
+                style={{ color: active ? "var(--color-on-inverse)" : "var(--color-ink)" }}
               >
                 {active && (
                   <motion.span
                     layoutId="locale-pill"
-                    className="absolute inset-0 rounded-md"
-                    style={{ background: "var(--color-accent)" }}
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: "var(--color-inverse)" }}
                     transition={snappy}
                   />
                 )}
@@ -143,39 +141,38 @@ function LanguageSection() {
 
 function LayoutSection() {
   const layout = useLayout();
-  const widths: { key: keyof Pick<LayoutPrefs, "nav" | "list">; label: string; min: number; max: number }[] = [
-    { key: "nav", label: t("عرض الشريط الجانبي"), min: NAV_MIN, max: NAV_MAX },
+  const widths: { key: keyof Pick<LayoutPrefs, "list">; label: string; min: number; max: number }[] = [
     { key: "list", label: t("عرض قائمة المحادثات"), min: LIST_MIN, max: LIST_MAX },
   ];
 
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-medium">{t("الشكل")}</h2>
+        <h2 className="text-[17px] font-bold">{t("الشكل")}</h2>
         <button onClick={resetLayout} className="text-xs underline underline-offset-2" style={{ color: "var(--color-ink-muted)" }}>
           {t("رجّع الافتراضي")}
         </button>
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+        <div className="rounded-2xl px-4 py-3" style={{ background: "var(--color-surface)" }}>
           <p className="text-sm font-medium">{t("عرض المحادثة")}</p>
           <p className="mb-2.5 mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
             {t("قدّيش بدك يكون عرض النص والرد بصفحة المحادثة.")}
           </p>
-          <div className="flex gap-1 rounded-xl p-1" style={{ background: "var(--color-surface-2)" }}>
+          <div className="flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }}>
             {(Object.keys(READING_LABELS) as ReadingWidth[]).map((key) => (
               <button
                 key={key}
                 onClick={() => setLayout({ reading: key })}
-                className="relative flex-1 rounded-lg px-3 py-1.5 text-xs"
-                style={{ color: key === layout.reading ? "var(--color-bg)" : "var(--color-ink-muted)" }}
+                className="relative flex-1 rounded-full px-3 py-1.5 text-xs"
+                style={{ color: key === layout.reading ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
               >
                 {key === layout.reading && (
                   <motion.span
                     layoutId="reading-width"
-                    className="absolute inset-0 rounded-lg"
-                    style={{ background: "var(--color-accent)" }}
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: "var(--color-inverse)" }}
                     transition={snappy}
                   />
                 )}
@@ -188,8 +185,8 @@ function LayoutSection() {
         {widths.map((row) => (
           <div
             key={row.key}
-            className="rounded-lg border px-4 py-3"
-            style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+            className="rounded-2xl px-4 py-3"
+            style={{ background: "var(--color-surface)" }}
           >
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">{row.label}</p>
@@ -205,7 +202,7 @@ function LayoutSection() {
               step={4}
               value={layout[row.key]}
               onChange={(e) => setLayout({ [row.key]: Number(e.currentTarget.value) })}
-              className="mt-2 w-full accent-[var(--color-accent)]"
+              className="mt-2 w-full accent-[var(--color-ink)]"
             />
             <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
               {t("أو اسحب الحد بين الأعمدة مباشرة (دبل كليك بيرجّعه للافتراضي).")}
@@ -213,12 +210,6 @@ function LayoutSection() {
           </div>
         ))}
 
-        <ToggleRow
-          label={t("اطوِ الشريط الجانبي")}
-          hint={t("بيصير أيقونات بس، فبتاخد مساحة أقل.")}
-          checked={layout.navCollapsed}
-          onChange={(navCollapsed) => setLayout({ navCollapsed })}
-        />
         <ToggleRow
           label={t("أخفِ قائمة المحادثات")}
           hint={t("بتقدر تفتحها وقت ما بدك من زر «المحادثات» فوق.")}
@@ -301,10 +292,11 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="relative mx-auto max-w-5xl px-8 py-10">
+    <div className="relative mx-auto max-w-5xl px-6 py-8">
       <ActionProgress active={saving} className="fixed inset-x-0 top-0" />
       <PageHeader
         title={t("الإعدادات")}
+        scene="settings"
         description={t("تحكّم بشو يقدر رفيق يعمله لحاله، وشو لازم ياخد إذنك عليه.")}
         actions={<SavedNote at={savedAt} />}
       />
@@ -313,7 +305,7 @@ export function SettingsPage() {
           between sections never means scrolling back to the top. Narrow windows get a row. */}
       <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
         <nav
-          className="-mx-2 flex gap-1 overflow-x-auto px-2 pb-1 lg:sticky lg:top-6 lg:mx-0 lg:h-fit lg:w-56 lg:shrink-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0"
+          className="no-scrollbar -mx-2 flex gap-1 overflow-x-auto px-2 pb-1 lg:sticky lg:top-6 lg:mx-0 lg:h-fit lg:w-56 lg:shrink-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0"
           role="tablist"
           aria-label={t("أقسام الإعدادات")}
         >
@@ -326,21 +318,18 @@ export function SettingsPage() {
                 role="tab"
                 aria-selected={active}
                 title={item.hint}
-                className="relative flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-start transition-colors md:w-full"
+                className="relative flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2.5 text-start transition-colors md:w-full"
                 style={{ color: active ? "var(--color-ink)" : "var(--color-ink-muted)" }}
               >
                 {active && (
                   <motion.span
                     layoutId="settings-tab"
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: "color-mix(in oklch, var(--color-accent) 14%, transparent)",
-                      boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--color-accent) 45%, transparent)",
-                    }}
+                    className="absolute inset-0 rounded-xl"
+                    style={{ background: "var(--color-surface)" }}
                     transition={snappy}
                   />
                 )}
-                <item.Icon className="relative h-4 w-4 shrink-0" style={{ color: active ? "var(--color-accent)" : undefined }} />
+                <item.Icon className="relative h-4 w-4 shrink-0" style={{ color: active ? "var(--color-ink)" : undefined }} />
                 <span className="relative min-w-0">
                   <span className="block text-sm font-medium">{item.label}</span>
                   <span className="mt-0.5 hidden text-[11px] leading-snug lg:block" style={{ color: "var(--color-ink-muted)" }}>
@@ -380,14 +369,14 @@ export function SettingsPage() {
               {tab === "permissions" && (
                 <>
                   <section className="mb-8">
-                    <h2 className="mb-3 text-sm font-medium">{t("سياسة الصلاحيات")}</h2>
+                    <h2 className="mb-3 text-[17px] font-bold">{t("سياسة الصلاحيات")}</h2>
                     <motion.div variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
                       {permissionRows.map((row) => (
                         <motion.div
                           variants={listItem}
                           key={row.key}
-                          className="relative flex items-center justify-between overflow-hidden rounded-lg border px-4 py-3"
-                          style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+                          className="relative flex items-center justify-between overflow-hidden rounded-2xl px-4 py-3"
+                          style={{ background: "var(--color-surface)" }}
                         >
                           <StatusStripe color={MODE_COLOR[settings.permissions[row.key]]} />
                           <div>
@@ -414,9 +403,9 @@ export function SettingsPage() {
                   </section>
 
                   <section
-                    className="rounded-lg border px-4 py-4"
+                    className="rounded-2xl border px-4 py-4"
                     style={{
-                      borderColor: settings.desktop_control_enabled ? "var(--color-danger)" : "var(--color-border)",
+                      borderColor: settings.desktop_control_enabled ? "var(--color-danger)" : "transparent",
                       background: "var(--color-surface)",
                     }}
                   >

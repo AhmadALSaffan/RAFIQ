@@ -6,26 +6,31 @@
 import { motion } from "motion/react";
 import { easeOutExpo } from "../lib/motion";
 import { RefreshIcon } from "./Icons";
+import { Illustration, type Scene } from "./Illustration";
 
 import { t } from "../i18n";
 export function PageHeader({
   title,
   description,
   actions,
+  scene,
 }: {
   title: string;
   description?: React.ReactNode;
   actions?: React.ReactNode;
+  /** A hand-drawn figure beside the title, to give the page some life. */
+  scene?: Scene;
 }) {
   return (
     <motion.header
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: easeOutExpo }}
-      className="mb-6 flex items-start justify-between gap-4"
+      className="mb-6 flex items-end justify-between gap-4"
     >
-      <div className="min-w-0">
-        <h1 className="text-xl font-semibold">{title}</h1>
+      {scene && <Illustration scene={scene} size={96} className="-mb-2 hidden shrink-0 sm:block" />}
+      <div className="min-w-0 flex-1">
+        <h1 className="text-[28px] font-extrabold leading-tight">{title}</h1>
         {description && (
           <p className="mt-1 max-w-xl text-sm leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
             {description}
@@ -54,7 +59,7 @@ export function RefreshButton({
       disabled={spinning}
       aria-label={label}
       title={label}
-      className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)] disabled:cursor-default"
+      className="rounded-full p-2 transition-colors hover:bg-[var(--color-surface-2)] disabled:cursor-default"
       style={{ color: "var(--color-ink-muted)" }}
     >
       <motion.span

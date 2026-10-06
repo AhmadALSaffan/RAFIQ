@@ -13,6 +13,7 @@ import { easeOutExpo, listContainer, listItem, snappy } from "../lib/motion";
 import { openExternal } from "../lib/links";
 import { usePageMenu } from "../components/ContextMenu";
 import { Logo } from "../components/Logo";
+import { Wireframe } from "../components/brand";
 import { BrandMark } from "../components/BrandMark";
 import {
   ChatIcon,
@@ -92,21 +93,22 @@ export function AboutPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-12">
-      {/* Hero — the mark, the name, one sentence. */}
-      <section className="flex flex-col items-center text-center">
+    <div className="mx-auto max-w-3xl px-6 py-10">
+      {/* Hero — the mark, the name, one sentence, over a wireframe globe. */}
+      <section className="relative flex flex-col items-center overflow-hidden rounded-2xl px-6 py-10 text-center" style={{ background: "var(--color-surface)" }}>
+        <Wireframe size={260} className="pointer-events-none absolute -bottom-24 -end-16 opacity-25" />
         <motion.div
           initial={{ opacity: 0, scale: 0.8, rotate: -8 }}
           animate={{ opacity: 1, scale: 1, rotate: 0 }}
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
         >
-          <Logo className="h-20 w-20 shadow-[0_18px_40px_-18px_var(--color-accent)]" />
+          <Logo className="h-20 w-20" />
         </motion.div>
         <motion.h1
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: easeOutExpo, delay: 0.08 }}
-          className="mt-5 text-3xl font-bold"
+          className="mt-5 text-[34px] font-extrabold"
         >
           {t("رفيق")}
         </motion.h1>
@@ -159,15 +161,12 @@ export function AboutPage() {
                 whileTap={{ scale: 0.99 }}
                 transition={snappy}
                 onClick={() => navigate(to)}
-                className="group flex h-full w-full items-start gap-3 rounded-xl border px-4 py-3.5 text-start transition-colors hover:bg-[var(--color-surface-2)]"
-                style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+                className="group flex h-full w-full items-start gap-3 rounded-2xl px-4 py-3.5 text-start transition-colors hover:bg-[var(--color-surface-2)]"
+                style={{ background: "var(--color-surface)" }}
               >
                 <span
-                  className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors"
-                  style={{
-                    background: "color-mix(in oklch, var(--color-accent) 12%, transparent)",
-                    color: "var(--color-accent)",
-                  }}
+                  className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors"
+                  style={{ background: "var(--color-inverse)", color: "var(--color-on-inverse)" }}
                 >
                   <Icon className="h-4 w-4" />
                 </span>
@@ -207,14 +206,9 @@ export function AboutPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: easeOutExpo, delay: 0.1 }}
-          className="relative flex items-start gap-4 overflow-hidden rounded-2xl border p-5"
-          style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+          className="relative flex items-start gap-4 overflow-hidden rounded-2xl p-5"
+          style={{ background: "var(--color-surface)" }}
         >
-          <span
-            className="pointer-events-none absolute -end-16 -top-16 h-44 w-44 rounded-full opacity-60 blur-3xl"
-            style={{ background: "color-mix(in oklch, var(--color-accent) 22%, transparent)" }}
-            aria-hidden
-          />
           <Avatar />
           <div className="relative min-w-0 flex-1">
             <p className="text-lg font-semibold" style={{ textWrap: "balance" }}>
@@ -282,9 +276,9 @@ function Avatar() {
     <span
       className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full text-2xl font-bold ring-2"
       style={{
-        background: "color-mix(in oklch, var(--color-accent) 16%, transparent)",
-        color: "var(--color-accent)",
-        ["--tw-ring-color" as string]: "color-mix(in oklch, var(--color-accent) 35%, transparent)",
+        background: "var(--color-surface-2)",
+        color: "var(--color-ink)",
+        ["--tw-ring-color" as string]: "var(--color-border)",
       }}
     >
       {failed ? (

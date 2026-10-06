@@ -61,9 +61,10 @@ export function IntegrationsPage() {
   const connected = useMemo(() => new Set(accounts.map((a) => a.provider)), [accounts]);
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-10">
+    <div className="mx-auto max-w-4xl px-6 py-8">
       <PageHeader
         title={t("الربط")}
+        scene="connect"
         description={
           <>
             {t("اربط حساب تتبّع المهام تبعك، وبتقدر تشاور على مهامك بالمحادثة بـ")} <code className="md-inline">/</code> {t("ورفيق يكتب التعليق ويعلّمها مكتملة لما تخلص.")}
@@ -75,7 +76,7 @@ export function IntegrationsPage() {
       {loading ? (
         <div className="flex flex-col gap-2">
           {[0, 1].map((i) => (
-            <div key={i} className="shimmer h-[72px] rounded-xl border" style={{ borderColor: "var(--color-border)" }} />
+            <div key={i} className="shimmer h-[72px] rounded-2xl" />
           ))}
         </div>
       ) : (
@@ -99,10 +100,10 @@ export function IntegrationsPage() {
             )}
           </AnimatePresence>
 
-          <h2 className="mb-3 text-sm font-medium" style={{ color: "var(--color-ink-muted)" }}>
-            {accounts.length ? t("اربط حساب ثاني") : t("اختار المنصّة")}
+          <h2 className="mb-3 text-[11px] font-normal" style={{ color: "var(--color-ink-muted)", fontFamily: "var(--font-sans)" }}>
+            ( {accounts.length ? t("اربط حساب ثاني") : t("اختار المنصّة")} )
           </h2>
-          <motion.div variants={listContainer} initial="hidden" animate="show" className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+          <motion.div variants={listContainer} initial="hidden" animate="show" className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
             {providers.map((provider) => (
               <motion.button
                 key={provider.id}
@@ -111,15 +112,17 @@ export function IntegrationsPage() {
                 whileTap={{ scale: 0.98 }}
                 transition={snappy}
                 onClick={() => setConnecting(connecting?.id === provider.id ? null : provider)}
-                className="flex items-start gap-3 rounded-xl border px-4 py-3 text-start transition-colors hover:bg-[var(--color-surface-2)]"
+                className="flex flex-col items-start gap-3 rounded-2xl p-4 text-start transition-colors hover:bg-[var(--color-surface-2)]"
                 style={{
-                  borderColor: connecting?.id === provider.id ? "var(--color-accent)" : "var(--color-border)",
                   background: "var(--color-surface)",
+                  boxShadow: connecting?.id === provider.id ? "inset 0 0 0 1.5px var(--color-ink)" : undefined,
                 }}
               >
-                <BrandMark provider={provider.id} className="mt-0.5 h-5 w-5" />
+                <span className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "var(--color-surface-2)" }}>
+                  <BrandMark provider={provider.id} className="h-5 w-5" />
+                </span>
                 <span className="min-w-0">
-                  <span className="flex items-center gap-2 text-sm font-medium">
+                  <span className="flex items-center gap-2 text-[15px] font-bold" style={{ fontFamily: "var(--font-display)" }}>
                     {provider.name}
                     {connected.has(provider.id) && (
                       <span className="text-xs" style={{ color: "var(--color-success)" }}>
@@ -163,8 +166,8 @@ export function IntegrationsPage() {
                     <motion.li
                       key={`${issue.integration_id}-${issue.key}`}
                       variants={listItem}
-                      className="relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border px-4 py-2.5"
-                      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+                      className="relative flex items-center justify-between gap-3 overflow-hidden rounded-2xl px-4 py-2.5"
+                      style={{ background: "var(--color-surface)" }}
                     >
                       <StatusStripe color={ISSUE_COLOR[issue.status_category ?? "todo"]} />
                       <span className="flex min-w-0 items-center gap-2.5">
@@ -223,8 +226,8 @@ function AccountRow({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: easeOutExpo }}
-      className="relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border px-4 py-3"
-      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      className="relative flex items-center justify-between gap-3 overflow-hidden rounded-2xl px-4 py-3"
+      style={{ background: "var(--color-surface)" }}
       onMouseLeave={() => setConfirming(false)}
       onContextMenu={menu(() => [
         { id: "verify", label: t("افحص الربط"), onSelect: () => void reverify(), disabled: busy },
@@ -233,7 +236,7 @@ function AccountRow({
     >
       <ActionProgress active={busy} />
       <StatusStripe
-        color={busy ? "var(--color-accent)" : account.verify_ok === false ? "var(--color-danger)" : "var(--color-success)"}
+        color={busy ? "var(--color-ink-muted)" : account.verify_ok === false ? "var(--color-danger)" : "var(--color-success)"}
       />
       <div className="flex min-w-0 items-center gap-3">
         <BrandMark provider={account.provider} className="h-6 w-6 shrink-0" />
@@ -265,7 +268,7 @@ function AccountRow({
             href={provider.docs_url}
             target="_blank"
             rel="noreferrer"
-            className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
+            className="rounded-full p-2 transition-colors hover:bg-[var(--color-surface-2)]"
             style={{ color: "var(--color-ink-muted)" }}
             title={t("إدارة المفاتيح عند المزوّد")}
           >
@@ -299,7 +302,7 @@ function AccountRow({
               whileTap={{ scale: 0.9 }}
               onClick={() => setConfirming(true)}
               aria-label={t("فصل الحساب")}
-              className="rounded-md p-2 transition-colors hover:bg-[var(--color-surface-2)]"
+              className="rounded-full p-2 transition-colors hover:bg-[var(--color-surface-2)]"
               style={{ color: "var(--color-ink-muted)" }}
             >
               <TrashIcon className="h-4 w-4" />
@@ -349,13 +352,13 @@ function ConnectForm({
   return (
     <form
       onSubmit={submit}
-      className="mt-4 flex flex-col gap-4 rounded-xl border p-5"
-      style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+      className="mt-4 flex flex-col gap-4 rounded-2xl p-5"
+      style={{ background: "var(--color-surface)" }}
     >
       <div className="flex items-center gap-2">
         <BrandMark provider={provider.id} className="h-5 w-5" />
         <span className="text-sm font-medium">{t("ربط")} {provider.name}</span>
-        <a href={provider.docs_url} target="_blank" rel="noreferrer" className="ms-auto text-xs underline-offset-2 hover:underline" style={{ color: "var(--color-accent)" }}>
+        <a href={provider.docs_url} target="_blank" rel="noreferrer" className="ms-auto text-xs underline underline-offset-2" style={{ color: "var(--color-ink-muted)" }}>
           {t("من وين أجيب المفتاح؟")}
         </a>
       </div>
