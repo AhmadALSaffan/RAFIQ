@@ -28,6 +28,7 @@ import {
   type LayoutPrefs,
   type ReadingWidth,
 } from "../lib/layout";
+import { TEXT_SCALE, TEXT_SIZES, TEXT_SIZE_LABELS, setTextSize, useTextSize } from "../lib/textSize";
 
 import { LOCALES, locale, setLocale, t } from "../i18n";
 const permissionRows: { key: PermissionKey; label: string; hint: string }[] = [
@@ -141,6 +142,7 @@ function LanguageSection() {
 
 function LayoutSection() {
   const layout = useLayout();
+  const size = useTextSize();
   const widths: { key: keyof Pick<LayoutPrefs, "list">; label: string; min: number; max: number }[] = [
     { key: "list", label: t("عرض قائمة المحادثات"), min: LIST_MIN, max: LIST_MAX },
   ];
@@ -149,12 +151,49 @@ function LayoutSection() {
     <section className="mb-8">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[17px] font-bold">{t("الشكل")}</h2>
-        <button onClick={resetLayout} className="text-xs underline underline-offset-2" style={{ color: "var(--color-ink-muted)" }}>
+        <button
+          onClick={() => {
+            resetLayout();
+            setTextSize("default");
+          }}
+          className="text-xs underline underline-offset-2" style={{ color: "var(--color-ink-muted)" }}>
           {t("رجّع الافتراضي")}
         </button>
       </div>
 
       <div className="flex flex-col gap-2">
+        <div className="rounded-2xl px-4 py-3" style={{ background: "var(--color-surface)" }}>
+          <p className="text-sm font-medium">{t("حجم النص")}</p>
+          <p className="mb-2.5 mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+            {t("بيكبّر النص والواجهة سوا. أو استخدم Ctrl مع + و −، وCtrl مع 0 بيرجّعه.")}
+          </p>
+          <div className="flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("حجم النص")}>
+            {TEXT_SIZES.map((key) => (
+              <button
+                key={key}
+                role="radio"
+                aria-checked={key === size}
+                onClick={() => setTextSize(key)}
+                className="relative flex-1 rounded-full px-3 py-1.5"
+                style={{ color: key === size ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
+              >
+                {key === size && (
+                  <motion.span
+                    layoutId="text-size"
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: "var(--color-inverse)" }}
+                    transition={snappy}
+                  />
+                )}
+                {/* each label is drawn at its own size, so the choice previews itself */}
+                <span className="relative" style={{ fontSize: `${(12 * TEXT_SCALE[key]).toFixed(1)}px` }}>
+                  {TEXT_SIZE_LABELS[key]}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="rounded-2xl px-4 py-3" style={{ background: "var(--color-surface)" }}>
           <p className="text-sm font-medium">{t("عرض المحادثة")}</p>
           <p className="mb-2.5 mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
