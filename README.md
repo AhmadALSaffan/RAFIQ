@@ -76,6 +76,39 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 | <img src="docs/screenshots/models.webp" width="100%"> | <img src="docs/screenshots/cost.webp" width="100%"> |
 | Every model you connected, cloud or local, with its status, its fallback and what it cost over the last 30 days. | Today, this month and the tokens behind them, daily and monthly limits, and the spend of each model. |
 
+| Schedules | All your designs |
+|:---:|:---:|
+| <img src="docs/screenshots/schedules.webp" width="100%"> | <img src="docs/screenshots/designs.webp" width="100%"> |
+| Tasks that start on their own, every day, on chosen weekdays or every few hours, with the next run set large. | Every design as a live thumbnail, the skills the model designs with, and one click to install more. |
+
+| Connections | Ctrl+K opens everything |
+|:---:|:---:|
+| <img src="docs/screenshots/integrations.webp" width="100%"> | <img src="docs/screenshots/palette.webp" width="100%"> |
+| Jira, Linear, GitHub and GitLab issues, connected once and brought into any chat with `#`. | Every page, command, chat, task and design in one box, from anywhere in the app. |
+
+| Settings | About |
+|:---:|:---:|
+| <img src="docs/screenshots/settings.webp" width="100%"> | <img src="docs/screenshots/about.webp" width="100%"> |
+| Language, layout, where your files live, backups, and every permission, each section saying what's inside it. | What Rafiq is, what it can do, and who made it. |
+
+### Dark mode
+
+| Home | Chat |
+|:---:|:---:|
+| <img src="docs/screenshots/home-dark.webp" width="100%"> | <img src="docs/screenshots/chat-dark.webp" width="100%"> |
+
+| Tasks | One task |
+|:---:|:---:|
+| <img src="docs/screenshots/tasks-dark.webp" width="100%"> | <img src="docs/screenshots/task-dark.webp" width="100%"> |
+
+| Designs | Skill editor |
+|:---:|:---:|
+| <img src="docs/screenshots/design-dark.webp" width="100%"> | <img src="docs/screenshots/skills-dark.webp" width="100%"> |
+
+| Models | Schedules |
+|:---:|:---:|
+| <img src="docs/screenshots/models-dark.webp" width="100%"> | <img src="docs/screenshots/schedules-dark.webp" width="100%"> |
+
 </div>
 
 ---
