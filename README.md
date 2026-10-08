@@ -23,24 +23,13 @@
 ---
 </div>
 
-<!-- App demo — replace the src with the uploaded video/GIF link, then remove this comment wrapper.
 <div align="center">
-  <table>
-    <tr>
-      <td align="center" style="background:#1a1a1a; border-radius:24px; padding:12px; border: 2px solid #333;">
-        <img
-          src="DEMO-GIF-URL"
-          alt="Rafiq app demo"
-          width="780"
-          style="border-radius:16px; display:block;"
-        />
-      </td>
-    </tr>
-  </table>
+
+https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
+
 </div>
 
 ---
--->
 
 ## Overview
 
