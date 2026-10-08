@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "title": "قهوة مختصة — ريل",
+  "composition": { "width": 1080, "height": 1920, "fps": 30, "duration": 12, "background": "brand.surface", "safeArea": "reels", "direction": "rtl" },
+  "brand": "workspace",
+  "assets": {},
+  "layers": [
+    {
+      "id": "glow", "type": "shape", "shape": "circle", "start": 0, "end": 12,
+      "fill": "brand.surface2", "layout": { "anchor": "center", "width": 96, "height": 96, "y": -20 },
+      "animate": [ { "preset": "scaleIn", "at": 0, "duration": 1.2 }, { "preset": "float", "at": 1.2 } ]
+    },
+    {
+      "id": "hook", "type": "text", "text": "قهوتك", "style": "display", "start": 0.3, "end": 3.2,
+      "layout": { "anchor": "center", "y": -14 },
+      "animate": [ { "preset": "pop", "at": 0.3, "duration": 0.6 }, { "preset": "fadeOut", "at": 2.85, "duration": 0.35 } ]
+    },
+    {
+      "id": "hookSub", "type": "text", "text": "بتستاهل أحسن من هيك", "style": "headline", "color": "brand.muted", "start": 0.9, "end": 3.2,
+      "layout": { "below": "hook", "gap": 3 },
+      "animate": [ { "preset": "fadeUp", "at": 0.9, "duration": 0.5 }, { "preset": "fadeOut", "at": 2.85, "duration": 0.35 } ]
+    },
+    {
+      "id": "price", "type": "text", "text": "{count} ريال", "style": "display", "color": "brand.primary", "start": 3.4, "end": 7.2,
+      "layout": { "anchor": "center", "y": -12 },
+      "animate": [ { "preset": "fadeIn", "at": 3.4, "duration": 0.4 }, { "preset": "countUp", "at": 3.4, "duration": 1.2, "to": 25 }, { "preset": "fadeOut", "at": 6.85, "duration": 0.35 } ]
+    },
+    {
+      "id": "priceNote", "type": "text", "text": "كوب مختص بسعر قهوة عادية", "style": "title", "start": 4.0, "end": 7.2,
+      "layout": { "below": "price", "gap": 4 },
+      "animate": [ { "preset": "fadeUp", "at": 4.0, "duration": 0.5 }, { "preset": "fadeOut", "at": 6.85, "duration": 0.35 } ]
+    },
+    {
+      "id": "icons", "type": "group", "start": 4.6, "end": 7.2,
+      "layout": { "anchor": "center", "width": 72, "height": 14, "y": 22 },
+      "animate": [ { "preset": "fadeIn", "at": 4.6, "duration": 0.4 }, { "preset": "fadeOut", "at": 6.85, "duration": 0.35 } ],
+      "children": [
+        { "id": "i1", "type": "icon", "icon": "tabler:coffee", "start": 4.6, "end": 7.2, "color": "brand.onSurface", "layout": { "anchor": "start", "width": 12, "height": 12, "x": 4 }, "animate": [ { "preset": "pop", "at": 4.6, "duration": 0.5 } ] },
+        { "id": "i2", "type": "icon", "icon": "tabler:leaf", "start": 4.6, "end": 7.2, "color": "brand.onSurface", "layout": { "anchor": "center", "width": 12, "height": 12 }, "animate": [ { "preset": "pop", "at": 4.75, "duration": 0.5 } ] },
+        { "id": "i3", "type": "icon", "icon": "tabler:heart", "start": 4.6, "end": 7.2, "color": "brand.primary", "layout": { "anchor": "end", "width": 12, "height": 12, "x": 4 }, "animate": [ { "preset": "pop", "at": 4.9, "duration": 0.5 } ] }
+      ]
+    },
+    {
+      "id": "cta", "type": "text", "text": "اطلب اليوم", "style": "headline", "color": "brand.onPrimary", "start": 7.6, "end": 12,
+      "background": { "color": "brand.primary", "padding": 3, "radius": 3 },
+      "layout": { "anchor": "center", "y": -4 },
+      "animate": [ { "preset": "scaleIn", "at": 7.6, "duration": 0.5, "ease": "outBack" }, { "preset": "zoomPunch", "at": 9.2 } ]
+    },
+    {
+      "id": "ctaNote", "type": "text", "text": "التوصيل مجاني لأول طلب", "style": "body", "color": "brand.muted", "start": 8.1, "end": 12,
+      "layout": { "below": "cta", "gap": 4 },
+      "animate": [ { "preset": "fadeUp", "at": 8.1, "duration": 0.5 } ]
+    }
+  ],
+  "audio": [
+    { "id": "music", "source": "procedural", "pattern": "warm-lofi", "tempo": 92, "key": "Am", "gain": -18, "fadeIn": 0.5, "fadeOut": 1.5 },
+    { "id": "s1", "source": "sfx", "kind": "pop", "at": 0.3, "gain": -12 },
+    { "id": "s2", "source": "sfx", "kind": "whoosh", "at": 3.3, "gain": -12 },
+    { "id": "s3", "source": "sfx", "kind": "ding", "at": 7.6, "gain": -12 }
+  ]
+}

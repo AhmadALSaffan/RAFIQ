@@ -13,6 +13,10 @@ PermissionKey = Literal[
     "issue_write",
     "mcp",
     "memory",
+    # Changing a motion scene: every change is a version that can be restored.
+    "motion",
+    # Outside services for media: text to speech, speech to text, stock images, image generation.
+    "media",
 ]
 
 DEFAULT_PERMISSIONS: dict[PermissionKey, PermissionMode] = {
@@ -24,6 +28,8 @@ DEFAULT_PERMISSIONS: dict[PermissionKey, PermissionMode] = {
     "issue_write": "ask",
     "mcp": "ask",
     "memory": "ask",
+    "motion": "auto",
+    "media": "ask",
 }
 
 WebSearchProvider = Literal["none", "brave", "tavily", "searxng"]
@@ -68,6 +74,15 @@ class AppSettings(BaseModel):
     # The global shortcut that opens the quick-ask box from anywhere in Windows (a Tauri
     # accelerator, e.g. "Ctrl+Shift+Space"). None switches it off.
     quick_ask_shortcut: str | None = "Ctrl+Shift+Space"
+    # The brand kit for motion and design work outside any workspace (motion/brand.py).
+    # None = the dark template.
+    brand_kit: dict | None = None
+    # A model that can see images, asked to describe motion frames for a model that can't
+    # (the "vision helper"). None = none set; the text report is used alone.
+    vision_model_id: str | None = None
+    # Voice-overs: which provider speaks (keys stay in the keychain) and with which voice.
+    tts_provider: str = "none"  # none | openai | azure | elevenlabs | local
+    tts_voice: str | None = None
 
     def model_post_init(self, __context: object) -> None:
         # Settings saved before a permission existed get its default, not a validation error.

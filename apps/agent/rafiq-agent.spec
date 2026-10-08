@@ -63,8 +63,23 @@ try:
 except ImportError:
     pass
 
+# Motion: the scene schema is checked with jsonschema (its meta-schemas are data files), and
+# text becomes Lottie outlines through HarfBuzz and fontTools (WOFF2 needs brotli).
+for package in ("jsonschema", "jsonschema_specifications", "uharfbuzz", "fontTools"):
+    package_datas, package_binaries, package_hidden = collect_all(package)
+    datas += package_datas
+    binaries += package_binaries
+    hiddenimports += package_hidden
+hiddenimports += ["brotli"]
+# motion modules imported inside functions (FFmpeg, local models, outlines)
+hiddenimports += collect_submodules("rafiq_agent.motion")
+
 # The skills ship with the app: they're markdown next to the package, not importable code.
-datas += collect_data_files("rafiq_agent", includes=["skills/bundled/**/*", "data/*.json"])
+# Motion brings its fonts (OFL, with their licences) and the icon names the checks know.
+datas += collect_data_files(
+    "rafiq_agent",
+    includes=["skills/bundled/**/*", "data/*.json", "motion/fonts/*", "motion/icon_names.txt"],
+)
 
 analysis = Analysis(
     ["run_agent.py"],

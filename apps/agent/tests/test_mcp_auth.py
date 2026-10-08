@@ -117,6 +117,23 @@ async def test_pending_flow_delivers_the_code_to_the_waiting_connection():
     mcp_oauth.end("srv-flow")
 
 
+async def test_a_stale_tab_does_not_spoil_the_retry():
+    # Two servers signing in at once: each code goes to the flow whose page carried its state.
+    figma = mcp_oauth.begin("srv-figma")
+    notion = mcp_oauth.begin("srv-notion")
+    figma.url.set_result("https://www.figma.com/oauth/mcp?client_id=x&state=fresh-figma")
+    notion.url.set_result("https://mcp.notion.com/authorize?state=fresh-notion")
+    # A tab left over from an earlier attempt: nobody is waiting for its state.
+    assert mcp_oauth.deliver("old-code", "replaced-long-ago") is False
+    assert not figma.code.done() and not notion.code.done()
+    assert mcp_oauth.deliver("n-code", "fresh-notion") is True
+    assert mcp_oauth.deliver("f-code", "fresh-figma") is True
+    assert figma.code.result()[0] == "f-code"
+    assert notion.code.result()[0] == "n-code"
+    mcp_oauth.end("srv-figma")
+    mcp_oauth.end("srv-notion")
+
+
 async def test_preset_and_auth_are_stored_and_reported(client):
     body = {
         "name": "Notion",
@@ -219,3 +236,52 @@ async def test_a_timeout_keeps_its_message_instead_of_cancellederror():
         conn.error = "الخادم ما رد خلال وقت كافي."
         await conn.stop()
     assert conn.error == "الخادم ما رد خلال وقت كافي."
+
+
+async def test_a_restart_refreshes_quietly_instead_of_signing_in_again(monkeypatch):
+    """After a restart the stored access token has expired: the provider must use the refresh
+    token at the server's real token endpoint — not send the dead token and open a browser."""
+    import time
+
+    import httpx2
+    from mcp.shared.auth import OAuthClientInformationFull, OAuthMetadata, OAuthToken
+
+    monkeypatch.setenv("RAFIQ_PORT", "8765")
+    server = "https://mcp.example.com/mcp"
+    token_endpoint = "https://auth.example.com/oauth/token"
+    mcp_oauth.forget("srv-refresh")
+    storage = KeyringTokenStorage("srv-refresh")
+    await storage.set_client_info(OAuthClientInformationFull(client_id="c1", redirect_uris=[mcp_oauth.redirect_uri()]))
+    # what an earlier run saved: an expired token, its refresh token and the server's metadata
+    data = storage._load()
+    data["tokens"] = OAuthToken(access_token="old", token_type="Bearer", refresh_token="rt-1", expires_in=3600).model_dump(mode="json", exclude_none=True)
+    data["expires_at"] = time.time() - 10
+    data["metadata"] = OAuthMetadata(
+        issuer="https://auth.example.com",
+        authorization_endpoint="https://auth.example.com/oauth/authorize",
+        token_endpoint=token_endpoint,
+    ).model_dump(mode="json", exclude_none=True)
+    storage._save(data)
+
+    seen: list[str] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        seen.append(f"{request.method} {request.url}")
+        if str(request.url) == token_endpoint:
+            assert b"refresh_token=rt-1" in request.content
+            return httpx2.Response(200, json={"access_token": "new", "token_type": "Bearer", "expires_in": 3600, "refresh_token": "rt-2"})
+        if request.headers.get("Authorization") == "Bearer new":
+            return httpx2.Response(200, json={"ok": True})
+        return httpx2.Response(401)
+
+    oauth = mcp_oauth.provider("srv-refresh", server)
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler), auth=oauth) as http:
+        response = await http.get(server)
+    assert response.status_code == 200
+    assert seen[0] == f"POST {token_endpoint}"  # refreshed first, at the real endpoint
+    saved = storage._load()
+    assert saved["tokens"]["access_token"] == "new" and saved["tokens"]["refresh_token"] == "rt-2"
+    assert saved["expires_at"] > time.time() + 3000  # the new expiry is kept for the next restart
+    assert not mcp_oauth.pending_for("srv-refresh").url.done()  # no browser sign-in was started
+    mcp_oauth.end("srv-refresh")
+    mcp_oauth.forget("srv-refresh")

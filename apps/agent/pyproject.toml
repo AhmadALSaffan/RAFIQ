@@ -26,6 +26,11 @@ dependencies = [
   "markdown-it-py>=3.0",
   # Skill installs from URLs and the community template catalog.
   "httpx>=0.27",
+  # Motion: validating scenes against RMS v1, and text → outlines for Lottie export
+  # (HarfBuzz shaping from the kit's own WOFF2 fonts).
+  "jsonschema>=4.23",
+  "uharfbuzz>=0.50",
+  "fonttools[woff]>=4.55",
 ]
 
 [project.optional-dependencies]

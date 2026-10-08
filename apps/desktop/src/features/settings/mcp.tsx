@@ -98,7 +98,10 @@ function paramOf(preset: McpPreset, server: McpServer): string {
 // ── Catalogue ───────────────────────────────────────────────────────────────────────────
 
 function PresetPicker({ requirements, installed, onPick, onClose }: { requirements: McpRequirements | null; installed: Set<string>; onPick: (preset: McpPreset | null) => void; onClose: () => void }) {
-  const groups = (Object.keys(MCP_CATEGORY_LABEL) as McpPreset["category"][]).map((c) => ({ c, items: MCP_PRESETS.filter((p) => p.category === c) })).filter((g) => g.items.length);
+  const [query, setQuery] = useState("");
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = (p: McpPreset) => words.every((w) => `${p.id} ${p.name} ${p.blurb} ${MCP_CATEGORY_LABEL[p.category]}`.toLowerCase().includes(w));
+  const groups = (Object.keys(MCP_CATEGORY_LABEL) as McpPreset["category"][]).map((c) => ({ c, items: MCP_PRESETS.filter((p) => p.category === c && matches(p)) })).filter((g) => g.items.length);
   const missing = requirements ? (Object.keys(REQUIREMENT_LABEL) as (keyof McpRequirements)[]).filter((k) => k !== "python" && k !== "node" && !requirements[k]) : [];
   return (
     <Card>
@@ -126,7 +129,19 @@ function PresetPicker({ requirements, installed, onPick, onClose }: { requiremen
           {t("— الخوادم اللي بتحتاجه معلّمة تحت.")}
         </p>
       )}
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.currentTarget.value)}
+        placeholder={t("دوّر على خادم… (Figma، قاعدة بيانات، مهام)")}
+        className="input mb-3 w-full text-sm"
+        autoFocus
+      />
       <div className="flex flex-col gap-4">
+        {groups.length === 0 && (
+          <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+            {t("ما في خادم جاهز بهالاسم — فيك تضيفه بإيدك من «مخصص» تحت.")}
+          </p>
+        )}
         {groups.map(({ c, items }) => (
           <div key={c}>
             <p className="mb-1.5 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
@@ -228,7 +243,10 @@ function PresetConnect({
     for (let i = 0; i < 200 && alive.current; i++) {
       await new Promise((r) => setTimeout(r, 1500));
       const server = (await listMcpServers().catch(() => [])).find((s) => s.id === id);
-      if (!server) return;
+      if (!server) {
+        setStage("form");
+        return;
+      }
       if (server.status.connected) {
         setTools(server.status.tools.length);
         setStage("done");
@@ -246,7 +264,10 @@ function PresetConnect({
     setStage("saving");
     setError(null);
     try {
-      const saved = await saveMcpServer(presetInput(preset, values, param, existing?.enabled ?? true), existing?.id);
+      // The server this panel was opened for may be gone by now (deleted from its card, or
+      // a retry after the list changed): look it up again, and add it afresh if it isn't there.
+      const current = (await listMcpServers().catch(() => [] as McpServer[])).find((s) => (existing ? s.id === existing.id : s.preset === preset.id));
+      const saved = await saveMcpServer(presetInput(preset, values, param, current?.enabled ?? existing?.enabled ?? true), current?.id);
       if (preset.auth === "oauth") {
         const res = await connectMcpServer(saved.id);
         if (res.authorize_url) {
@@ -460,6 +481,7 @@ export function McpSettings() {
 
   async function remove(id: string) {
     setServers((list) => list.filter((s) => s.id !== id));
+    setConnecting((open) => (open?.existing?.id === id ? null : open));
     await deleteMcpServer(id).catch(() => load());
   }
 

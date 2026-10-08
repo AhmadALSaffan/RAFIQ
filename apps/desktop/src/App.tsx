@@ -10,6 +10,8 @@ import { IntegrationsPage } from "./routes/IntegrationsPage";
 import { WorkPage } from "./features/work";
 import { DesignsPage } from "./routes/DesignsPage";
 import { DesignWorkspace } from "./routes/DesignWorkspace";
+import { MotionPage } from "./routes/MotionPage";
+import { MotionWorkspace } from "./routes/MotionWorkspace";
 import { TasksPage } from "./features/tasks/TasksPage";
 import { TaskDetailPage } from "./features/tasks/TaskDetailPage";
 import { SettingsPage } from "./routes/SettingsPage";
@@ -38,6 +40,8 @@ export function App() {
             <Route path="/work" element={<WorkPage />} />
             <Route path="/designs" element={<DesignsPage />} />
             <Route path="/designs/:id" element={<DesignWorkspace />} />
+            <Route path="/motion" element={<MotionPage />} />
+            <Route path="/motion/:id" element={<MotionWorkspace />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/about" element={<AboutPage />} />

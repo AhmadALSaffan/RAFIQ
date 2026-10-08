@@ -13,13 +13,15 @@ import {
   SearchIcon,
   SettingsIcon,
   SparkIcon,
+  MovieIcon,
   SunIcon,
   TasksIcon,
   XIcon,
 } from "./Icons";
 import { CommandPalette, usePaletteShortcut } from "./CommandPalette";
 import { useTheme } from "../lib/theme";
-import { getSettings, listChats, listDesigns, listTasks } from "../lib/api";
+import { useMotionEngineHost } from "../features/motion/host";
+import { getSettings, listChats, listDesigns, listMotionProjects, listTasks } from "../lib/api";
 import { closeTab, neighbourAfterClose, openTab, pruneTabs, tabFor, useTabs, type AppTab } from "../lib/tabs";
 import { notify, syncBackground } from "../lib/background";
 import { syncQuickAsk } from "../lib/quickAsk";
@@ -35,6 +37,7 @@ const navItems = [
   { to: "/chat", label: t("المحادثات"), Icon: ChatIcon },
   { to: "/tasks", label: t("المهام"), Icon: TasksIcon },
   { to: "/designs", label: t("التصاميم"), Icon: SparkIcon },
+  { to: "/motion", label: t("موشن"), Icon: MovieIcon },
   { to: "/work", label: t("شغلي"), Icon: InboxIcon },
   { to: "/models", label: t("النماذج"), Icon: ModelsIcon },
   { to: "/integrations", label: t("الربط"), Icon: LinkIcon },
@@ -56,16 +59,18 @@ function useTabTitles(tabs: AppTab[]): Map<string, string> {
       listChats(undefined, true).catch(() => null),
       listTasks().catch(() => null),
       listDesigns().catch(() => null),
-    ]).then(([chats, tasks, designs]) => {
+      listMotionProjects().catch(() => null),
+    ]).then(([chats, tasks, designs, motions]) => {
       if (!alive) return;
       const map = new Map<string, string>();
       chats?.forEach((c) => map.set(`/chat/${c.id}`, c.title));
       tasks?.forEach((x) => map.set(`/tasks/${x.id}`, x.title));
       designs?.forEach((d) => map.set(`/designs/${d.id}`, d.title));
+      motions?.forEach((m) => map.set(`/motion/${m.id}`, m.title));
       setTitles(map);
       // A tab whose chat/task/design was deleted goes away (only once its list loaded).
       pruneTabs((tab) => {
-        const list = tab.kind === "chat" ? chats : tab.kind === "task" ? tasks : designs;
+        const list = tab.kind === "chat" ? chats : tab.kind === "task" ? tasks : tab.kind === "motion" ? motions : designs;
         return list === null || map.has(tab.path);
       });
     });
@@ -171,6 +176,8 @@ function useTaskWatcher(currentPath: string, navigate: (to: string) => void) {
 
 export function Shell() {
   const { theme, toggle } = useTheme();
+  // The motion engine answers the agent from here, whichever page is open.
+  useMotionEngineHost();
   const location = useLocation();
   const navigate = useNavigate();
   const { running, queued, approvals, toasts, dismiss } = useTaskWatcher(location.pathname, navigate);
@@ -199,7 +206,7 @@ export function Shell() {
   }, [navigate]);
   const section = "/" + (location.pathname.split("/")[1] ?? "");
   // Chat and the design workspace fill the window and scroll their own panes.
-  const fullHeight = section === "/chat" || /^\/designs\/.+/.test(location.pathname);
+  const fullHeight = section === "/chat" || /^\/(designs|motion)\/.+/.test(location.pathname);
 
   // Every chat, task or design the user opens gets a tab along the top.
   const tabs = useTabs();
@@ -254,8 +261,8 @@ export function Shell() {
             <AnimatePresence initial={false}>
               {tabs.map((tab) => {
                 const active = tab.path === activeTab;
-                const title = titles.get(tab.path) ?? (tab.kind === "chat" ? t("محادثة") : tab.kind === "task" ? t("مهمة") : t("تصميم"));
-                const Icon = tab.kind === "chat" ? ChatIcon : tab.kind === "task" ? TasksIcon : SparkIcon;
+                const title = titles.get(tab.path) ?? (tab.kind === "chat" ? t("محادثة") : tab.kind === "task" ? t("مهمة") : tab.kind === "motion" ? t("موشن") : t("تصميم"));
+                const Icon = tab.kind === "chat" ? ChatIcon : tab.kind === "task" ? TasksIcon : tab.kind === "motion" ? MovieIcon : SparkIcon;
                 return (
                   <motion.div
                     key={tab.path}

@@ -218,6 +218,9 @@ class Workspace(Base):
     color: Mapped[str | None] = mapped_column(String, nullable=True)
     # What this workspace may spend on models in a day (USD); None means no limit of its own.
     daily_budget_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # The workspace's identity (motion/brand.py): colours, fonts, sizes — shared by motion
+    # projects and design sessions. None = the app's default kit.
+    brand_kit: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -369,3 +372,82 @@ class SettingsRow(Base):
 
     key: Mapped[str] = mapped_column(String, primary_key=True)
     value: Mapped[dict] = mapped_column(JSON)
+
+
+class MotionProject(Base):
+    """A motion project: its scene (the single truth — docs/MOTION-ENGINE.md), the chat the
+    model works in, and where its files live."""
+
+    __tablename__ = "motion_projects"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    title: Mapped[str] = mapped_column(String)
+    workspace_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    chat_id: Mapped[str] = mapped_column(String)
+    model_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # The project's folder: assets/, proxies/, renders/ and a readable scene.json.
+    folder: Mapped[str] = mapped_column(String)
+    scene: Mapped[dict] = mapped_column(JSON)
+    # The version number `scene` is at (motion_versions.number).
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    last_render_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class MotionVersion(Base):
+    """Every change to a scene, by the model or by the user, as a version you can go back to."""
+
+    __tablename__ = "motion_versions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    project_id: Mapped[str] = mapped_column(String, index=True)
+    number: Mapped[int] = mapped_column(Integer)
+    scene: Mapped[dict] = mapped_column(JSON)
+    # The JSON Patch that made it from the previous version (None for the first, or a restore).
+    patch: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    author: Mapped[str] = mapped_column(String, default="model")  # model | user | restore
+    summary: Mapped[str] = mapped_column(String, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class MotionAsset(Base):
+    """A file a scene can use: uploaded, from stock, generated, or a voice-over."""
+
+    __tablename__ = "motion_assets"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    project_id: Mapped[str] = mapped_column(String, index=True)
+    kind: Mapped[str] = mapped_column(String)  # image | svg | video | audio | lottie
+    name: Mapped[str] = mapped_column(String)
+    mime: Mapped[str] = mapped_column(String)
+    path: Mapped[str] = mapped_column(String)
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    source: Mapped[str] = mapped_column(String, default="upload")  # upload | stock | generated | tts | proxy
+    # Who made it and under what terms — shown in the credits for stock images.
+    credit: Mapped[str | None] = mapped_column(String, nullable=True)
+    license: Mapped[str | None] = mapped_column(String, nullable=True)
+    duration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    meta: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class MotionRender(Base):
+    """One export: its settings, the file, which encoder made it, and the check of the result."""
+
+    __tablename__ = "motion_renders"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    project_id: Mapped[str] = mapped_column(String, index=True)
+    settings: Mapped[dict] = mapped_column(JSON)
+    path: Mapped[str] = mapped_column(String)
+    encoder: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="running")  # running | done | failed | canceled
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    # What reading the file back found: duration, frames, fps, audio.
+    report: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

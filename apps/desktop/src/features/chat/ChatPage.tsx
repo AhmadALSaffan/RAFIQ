@@ -70,12 +70,15 @@ export function ChatPage({
   embedded = false,
   autoSend,
   onReplyDone,
+  sendRequest,
 }: {
   chatId?: string;
   embedded?: boolean;
   /** Sent once, automatically, when the chat opens empty — the design kickoff. */
   autoSend?: string;
   onReplyDone?: () => void;
+  /** A message the host page sends on the user's behalf (a button press); a new `id` sends again. */
+  sendRequest?: { id: number; text: string } | null;
 } = {}) {
   const params = useParams<{ id: string }>();
   const routeId = chatId ?? params.id;
@@ -261,6 +264,15 @@ export function ChatPage({
     // send is stable enough for this one-shot kickoff
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSend, routeId, modelId, loadingChat, messages.length, streaming]);
+
+  const lastRequest = useRef<number | null>(null);
+  useEffect(() => {
+    if (!sendRequest || lastRequest.current === sendRequest.id || !routeId || !modelId || loadingChat || streaming) return;
+    lastRequest.current = sendRequest.id;
+    void send(sendRequest.text, []);
+    // send is stable enough for a one-shot request
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sendRequest, routeId, modelId, loadingChat, streaming]);
 
   // Following the reply as it grows. Only the *user* decides whether we follow: scrolling up
   // (wheel, keys, dragging) stops it at once, reaching the very bottom again resumes it. Our

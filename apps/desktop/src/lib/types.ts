@@ -375,7 +375,9 @@ export type PermissionKey =
   | "desktop_control"
   | "issue_write"
   | "mcp"
-  | "memory";
+  | "memory"
+  | "motion"
+  | "media";
 
 export type WebSearchProvider = "none" | "brave" | "tavily" | "searxng";
 
@@ -409,6 +411,13 @@ export interface AppSettings {
   token_saver: boolean;
   /** The global shortcut for the quick-ask box ("Ctrl+Shift+Space"); null = off. */
   quick_ask_shortcut: string | null;
+  /** The app's brand kit — read only here; it's saved through /motion/kit, which checks it. */
+  brand_kit?: Record<string, unknown> | null;
+  /** A model that can see, to describe frames for chat models that can't (null = none). */
+  vision_model_id: string | null;
+  /** Who reads the voice-overs in motion projects. */
+  tts_provider: "none" | "openai" | "elevenlabs" | "azure" | "local";
+  tts_voice: string | null;
 }
 
 /** What a backup holds, read from its manifest (see agent core/backup.py). */

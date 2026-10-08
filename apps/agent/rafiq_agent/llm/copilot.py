@@ -24,6 +24,7 @@ import contextlib
 import hashlib
 import importlib.util
 import json
+import time
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -45,7 +46,18 @@ def sdk_available() -> bool:
 
 _clients: dict[str, Any] = {}
 _client_keys: dict[str, str] = {}
+_client_born: dict[str, float] = {}
 _lock = asyncio.Lock()
+
+# The GitHub token (gho_…) doesn't expire, but the Copilot runtime trades it for short-lived
+# Copilot tokens and, left running for a day, can lose them ("Not authenticated"). A fresh
+# runtime with the same GitHub token is all it takes — so a client is renewed after a few
+# hours, and whenever it says it isn't signed in, instead of asking the user to reconnect.
+MAX_CLIENT_AGE = 3 * 3600
+
+
+class StaleRuntime(RuntimeError):
+    """The runtime refused a request as unauthenticated; a fresh one may well accept it."""
 
 
 def _home(account_id: str) -> str:
@@ -77,7 +89,8 @@ async def client_for(account_id: str, token: str) -> Any:
     key = hashlib.sha256(token.encode()).hexdigest()
     async with _lock:
         current = _clients.get(account_id)
-        if current is not None and _client_keys.get(account_id) == key:
+        fresh = time.monotonic() - _client_born.get(account_id, 0) < MAX_CLIENT_AGE
+        if current is not None and _client_keys.get(account_id) == key and fresh:
             return current
         if current is not None:
             with contextlib.suppress(Exception):
@@ -85,13 +98,56 @@ async def client_for(account_id: str, token: str) -> Any:
         client = await _new_client(token, _home(account_id))
         _clients[account_id] = client
         _client_keys[account_id] = key
+        _client_born[account_id] = time.monotonic()
         return client
+
+
+async def token_revoked(token: str) -> bool:
+    """Whether GitHub itself refuses the token (revoked, or the app's access removed). Only
+    then does the user have to reconnect; anything else is the runtime's own state."""
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as http:
+            resp = await http.get("https://api.github.com/user", headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+    except httpx.HTTPError:
+        return False  # offline: not a reason to sign the user out
+    return resp.status_code == 401
+
+
+async def healthy_client(account_id: str, token: str) -> Any:
+    """The account's client, signed in: a runtime that lost its Copilot session is replaced
+    by a fresh one with the same token before anything is asked of it."""
+    client = await client_for(account_id, token)
+    if not hasattr(client, "get_auth_status"):
+        return client
+    try:
+        status = await client.get_auth_status()
+        if getattr(status, "isAuthenticated", True):
+            return client
+    except Exception as exc:  # noqa: BLE001 - a dead runtime process is replaced the same way
+        if not _is_auth_failure(str(exc)) and "closed" not in str(exc).lower() and "not running" not in str(exc).lower():
+            raise
+    await drop_client(account_id)
+    client = await client_for(account_id, token)
+    status = await client.get_auth_status()
+    if getattr(status, "isAuthenticated", True):
+        return client
+    await drop_client(account_id)
+    raise await signed_out_error(token)
+
+
+async def signed_out_error(token: str) -> Exception:
+    if await token_revoked(token):
+        return AuthError(tr("انتهت صلاحية دخولك لـ GitHub — اربط الحساب من جديد من الإعدادات ← الحسابات المتصلة."))
+    return RuntimeError(tr("Copilot ما ردّ هالمرة — جرّب كمان مرة بعد لحظة."))
 
 
 async def drop_client(account_id: str) -> None:
     async with _lock:
         client = _clients.pop(account_id, None)
         _client_keys.pop(account_id, None)
+        _client_born.pop(account_id, None)
     if client is not None:
         with contextlib.suppress(Exception):
             await client.stop()
@@ -135,8 +191,16 @@ async def check_token(token: str) -> None:
 
 
 async def list_models(account_id: str, token: str) -> list[tuple[str, str]]:
-    client = await client_for(account_id, token)
-    models = await client.list_models()
+    client = await healthy_client(account_id, token)
+    try:
+        models = await client.list_models()
+    except Exception as exc:  # noqa: BLE001
+        if not _is_auth_failure(str(exc)):
+            raise
+        # the runtime lost its session between the check and the call: once more, fresh
+        await drop_client(account_id)
+        client = await healthy_client(account_id, token)
+        models = await client.list_models()
     return [(m.id, m.name or m.id) for m in models]
 
 
@@ -266,7 +330,7 @@ class CopilotProvider:
 
         self._loop = asyncio.get_running_loop()
         self._events = asyncio.Queue()
-        client = await client_for(self._account_id, self._token)
+        client = await healthy_client(self._account_id, self._token)
 
         # Tools Copilot has of its own. Rafiq normally leaves those to it, but the user can
         # switch its own search back on for a chat — and then ours has to say it replaces
@@ -316,7 +380,12 @@ class CopilotProvider:
         }
         if self._reasoning in ("low", "medium", "high"):
             options["reasoning_effort"] = self._reasoning
-        self._session = await client.create_session(**options)
+        try:
+            self._session = await client.create_session(**options)
+        except Exception as exc:  # noqa: BLE001
+            if not _is_auth_failure(str(exc)):
+                raise
+            raise StaleRuntime(redact(str(exc))) from exc
 
     async def _drain(self) -> AsyncIterator[StreamEvent]:
         """Streams deltas until Copilot either goes idle or asks for tools."""
@@ -349,12 +418,11 @@ class CopilotProvider:
                     yield StreamEvent(reasoning_delta=data.delta_content)
             elif isinstance(data, SessionErrorData):
                 message = data.message or "Copilot error"
-                # A token that GitHub has since revoked or expired comes back as a 401
-                # buried in a runtime error. Say what actually has to happen instead.
+                # A 401 here is usually the runtime's own Copilot session gone stale, not
+                # the GitHub token: the caller restarts the runtime and tries again, and only
+                # a token GitHub itself refuses asks the user to reconnect.
                 if _is_auth_failure(message):
-                    raise AuthError(
-                        tr("انتهت صلاحية دخولك لـ GitHub — اربط الحساب من جديد من الإعدادات ← الحسابات المتصلة.")
-                    )
+                    raise StaleRuntime(redact(message))
                 raise RuntimeError(redact(message))
             elif isinstance(data, SessionIdleData):
                 if calls:
@@ -368,8 +436,22 @@ class CopilotProvider:
     ) -> AsyncIterator[StreamEvent]:
         if self._session is None:
             system, prompt = split_messages(messages)
-            await self._open(system, tools)
-            await self._session.send(prompt or "أكمل.")
+            for attempt in (1, 2):
+                started = False
+                try:
+                    await self._open(system, tools)
+                    await self._session.send(prompt or "أكمل.")
+                    async for event in self._drain():
+                        started = True
+                        yield event
+                    return
+                except StaleRuntime:
+                    # Nothing reached the user yet: a fresh runtime, same token, same turn.
+                    await self.aclose()
+                    await drop_client(self._account_id)
+                    if started or attempt == 2:
+                        raise await signed_out_error(self._token) from None
+            return
         else:
             # A continuation: hand back the results the loop just produced, in order…
             answered = False
@@ -384,8 +466,13 @@ class CopilotProvider:
             if not answered and messages and messages[-1].get("role") == "user":
                 await self._session.send(_text_of(messages[-1].get("content")) or "أكمل.")
 
-        async for event in self._drain():
-            yield event
+        try:
+            async for event in self._drain():
+                yield event
+        except StaleRuntime:
+            # mid-turn: the session can't be resumed; the next turn gets a fresh runtime
+            await drop_client(self._account_id)
+            raise await signed_out_error(self._token) from None
 
     async def complete(self, messages: list[dict[str, Any]], max_tokens: int | None = None) -> str:
         """One-shot, no tools — used for summarising a chat."""

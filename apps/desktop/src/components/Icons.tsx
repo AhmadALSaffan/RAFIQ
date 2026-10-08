@@ -6,6 +6,21 @@
 import type { Icon as TablerIcon } from "@tabler/icons-react";
 import {
   IconAlertTriangle,
+  IconEye,
+  IconEyeOff,
+  IconLock,
+  IconLockOpen,
+  IconTypography,
+  IconShape,
+  IconMusic,
+  IconArrowUp,
+  IconArrowsMaximize,
+  IconGripVertical,
+  IconChartBar,
+  IconIcons,
+  IconAdjustmentsHorizontal,
+  IconBolt,
+
   IconArchive,
   IconArrowDown,
   IconArrowsDiagonalMinimize2,
@@ -33,6 +48,12 @@ import {
   IconMessageCircle,
   IconMicrophone,
   IconMoon,
+  IconMovie,
+  IconPlayerPlay,
+  IconPlayerPause,
+  IconVolume,
+  IconLayersSubtract,
+  IconPhoto,
   IconPaperclip,
   IconPencil,
   IconPin,
@@ -111,6 +132,12 @@ export const ListIcon = make(IconList);
 export const GlobeIcon = make(IconWorld);
 export const WandIcon = make(IconWand);
 export const PlugIcon = make(IconPlug);
+export const MovieIcon = make(IconMovie);
+export const PlayIcon = make(IconPlayerPlay);
+export const PauseIcon = make(IconPlayerPause);
+export const VolumeIcon = make(IconVolume);
+export const LayersIcon = make(IconLayersSubtract);
+export const PhotoIcon = make(IconPhoto);
 export const WalletIcon = make(IconWallet);
 
 export function SpinnerIcon({ className, style }: IconProps) {
@@ -121,3 +148,17 @@ export function StarIcon({ className, style, filled = false }: IconProps & { fil
   const Glyph = filled ? IconStarFilled : IconStar;
   return <Glyph size={20} stroke={1.75} className={className} style={style} aria-hidden />;
 }
+export const EyeIcon = make(IconEye);
+export const EyeOffIcon = make(IconEyeOff);
+export const LockIcon = make(IconLock);
+export const UnlockIcon = make(IconLockOpen);
+export const TextIcon = make(IconTypography);
+export const ShapeIcon = make(IconShape);
+export const MusicIcon = make(IconMusic);
+export const ArrowUpIcon = make(IconArrowUp);
+export const MaximizeIcon = make(IconArrowsMaximize);
+export const GripIcon = make(IconGripVertical);
+export const ChartIcon = make(IconChartBar);
+export const IconsIcon = make(IconIcons);
+export const AdjustIcon = make(IconAdjustmentsHorizontal);
+export const BoltIcon = make(IconBolt);

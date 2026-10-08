@@ -30,6 +30,9 @@ async def get_settings(session: AsyncSession = Depends(get_session)) -> AppSetti
 @router.put("", response_model=AppSettings)
 async def update_settings(body: AppSettings, session: AsyncSession = Depends(get_session)) -> AppSettings:
     row = await session.get(SettingsRow, SETTINGS_KEY)
+    # The brand kit is saved (and checked) through /motion/kit only; a settings page holding
+    # an older copy mustn't put it back.
+    body.brand_kit = (row.value or {}).get("brand_kit") if row else None
     if row:
         row.value = body.model_dump()
     else:

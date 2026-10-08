@@ -5,7 +5,7 @@ import { getSettings, getWorkspace, updateSettings } from "../lib/api";
 import { revealPath } from "../lib/folders";
 import { Button, DrawnCheck } from "../components/ui";
 import { PageHeader, StatusStripe } from "../components/Page";
-import { GlobeIcon, LinkIcon, PinIcon, PlugIcon, SettingsIcon, ShieldIcon, TasksIcon, TerminalIcon, WalletIcon } from "../components/Icons";
+import { GlobeIcon, LinkIcon, MovieIcon, PinIcon, PlugIcon, SettingsIcon, ShieldIcon, TasksIcon, TerminalIcon, WalletIcon } from "../components/Icons";
 import { ActionProgress } from "../components/Feedback";
 import { ConnectedAccountsSection } from "../features/accounts/ConnectedAccountsSection";
 import { ToggleRow } from "../features/settings/controls";
@@ -15,6 +15,7 @@ import { MemorySettings } from "../features/settings/memory";
 import { UsageSettings } from "../features/settings/usage";
 import { BackupSection } from "../features/settings/backup";
 import { LogsSettings } from "../features/settings/logs";
+import { MotionSettings } from "../features/settings/motion";
 import { listContainer, listItem, snappy } from "../lib/motion";
 import type { AppSettings, PermissionKey, PermissionMode } from "../lib/types";
 import { usePageMenu } from "../components/ContextMenu";
@@ -40,6 +41,8 @@ const permissionRows: { key: PermissionKey; label: string; hint: string }[] = [
   { key: "issue_write", label: t("التعديل على مهام Jira وغيرها"), hint: t("كتابة تعليق أو تعليم مهمة كمكتملة") },
   { key: "mcp", label: t("أدوات MCP"), hint: t("استدعاء أدوات خوادم MCP اللي ربطتها") },
   { key: "memory", label: t("الذاكرة"), hint: t("حفظ شي يتذكّره رفيق بالمحادثات الجاية") },
+  { key: "motion", label: t("تعديل الفيديوهات"), hint: t("تعديل مشهد الفيديو، فحصه، ورسم إطاراته — كله داخل المشروع") },
+  { key: "media", label: t("الصوت والصور"), hint: t("تعليق صوتي، تفريغ كلام، صور من Unsplash/Pexels، توليد صور — بيروح لخدمة برّا") },
 ];
 
 const modeLabel: Record<PermissionMode, string> = {
@@ -267,7 +270,7 @@ const MODE_COLOR: Record<PermissionMode, string> = {
   deny: "var(--color-danger)",
 };
 
-type TabId = "general" | "accounts" | "agent" | "permissions" | "memory" | "web" | "mcp" | "usage" | "logs";
+type TabId = "general" | "accounts" | "agent" | "permissions" | "memory" | "web" | "motion" | "mcp" | "usage" | "logs";
 
 /** The side list. Each line says what's inside, so nobody has to open a tab to find out. */
 const TABS: { id: TabId; label: string; hint: string; Icon: typeof SettingsIcon }[] = [
@@ -277,6 +280,7 @@ const TABS: { id: TabId; label: string; hint: string; Icon: typeof SettingsIcon 
   { id: "permissions", label: t("الصلاحيات"), hint: t("شو بيعمله لحاله وشو بيستأذن عليه"), Icon: ShieldIcon },
   { id: "memory", label: t("الذاكرة"), hint: t("اللي بيتذكّره رفيق بين المحادثات"), Icon: PinIcon },
   { id: "web", label: t("الويب والمتصفح"), hint: t("مزوّد البحث ومفتاحه، ونافذة المتصفح"), Icon: GlobeIcon },
+  { id: "motion", label: t("الفيديو"), hint: t("هوية الفيديوهات، الصوت، المفاتيح، FFmpeg"), Icon: MovieIcon },
   { id: "mcp", label: "MCP", hint: t("اربط GitHub وNotion وقواعد بياناتك"), Icon: PlugIcon },
   { id: "usage", label: t("التكلفة"), hint: t("الصرف اليومي والشهري وحدوده"), Icon: WalletIcon },
   { id: "logs", label: t("السجلات"), hint: t("شو كتب رفيق وخوادم MCP — لما شي ما يشتغل"), Icon: TerminalIcon },
@@ -402,6 +406,7 @@ export function SettingsPage() {
               {tab === "agent" && <TasksSettings settings={settings} persist={persist} />}
               {tab === "memory" && <MemorySettings settings={settings} persist={persist} />}
               {tab === "web" && <WebSettings settings={settings} persist={persist} />}
+              {tab === "motion" && <MotionSettings settings={settings} persist={persist} />}
               {tab === "mcp" && <McpSettings />}
               {tab === "usage" && <UsageSettings settings={settings} persist={persist} />}
               {tab === "logs" && <LogsSettings />}

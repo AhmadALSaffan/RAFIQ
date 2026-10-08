@@ -439,3 +439,158 @@ async def test_openrouter_connect_through_the_api_and_use_it_for_an_agent(
     agent = created.json()
     assert agent["auth_method"] == "oauth" and agent["account_label"] == "OpenRouter …1234"
     assert credentials_for(await _load(agent["id"])).api_key == "sk-or-v1-issued-key-abcd1234"
+
+
+async def test_a_stale_copilot_runtime_is_replaced_without_signing_out(monkeypatch):
+    """A day-old runtime says 401 — the GitHub token is fine. Rafiq starts a fresh runtime
+    with the same token and the turn goes through; the user isn't asked to reconnect."""
+    pytest.importorskip("copilot")
+    from copilot.session_events import AssistantMessageDeltaData, SessionIdleData
+
+    from rafiq_agent.llm import copilot as bridge
+
+    class Event:
+        def __init__(self, data):
+            self.data = data
+
+    class Session:
+        def __init__(self, options):
+            self.options = options
+
+        async def send(self, prompt):
+            async def run():
+                self.options["on_event"](Event(AssistantMessageDeltaData.from_dict({"deltaContent": "أهلا", "messageId": "m"})))
+                self.options["on_event"](Event(SessionIdleData.from_dict({})))
+
+            asyncio.get_running_loop().create_task(run())
+
+        async def disconnect(self):
+            pass
+
+    made: list[str] = []
+
+    class StaleClient:
+        async def create_session(self, **options):
+            raise RuntimeError('Request session.create failed: {"status":401} Unauthorized')
+
+    class FreshClient:
+        async def create_session(self, **options):
+            return Session(options)
+
+    async def client_for(account_id, token):
+        made.append("stale" if not made else "fresh")
+        return StaleClient() if len(made) == 1 else FreshClient()
+
+    dropped: list[str] = []
+
+    async def drop_client(account_id):
+        dropped.append(account_id)
+
+    async def revoked(token):
+        raise AssertionError("a token that works must not be checked as revoked")
+
+    monkeypatch.setattr(bridge, "client_for", client_for)
+    monkeypatch.setattr(bridge, "drop_client", drop_client)
+    monkeypatch.setattr(bridge, "token_revoked", revoked)
+    provider = bridge.CopilotProvider(account_id="acc", token="gho_x", model_id="gpt-5")
+    text = ""
+    async for event in provider.stream_chat([{"role": "user", "content": "مرحبا"}], []):
+        text += event.text_delta or ""
+    assert text == "أهلا"
+    assert made == ["stale", "fresh"] and dropped == ["acc"]
+
+
+async def test_only_a_token_github_refuses_asks_to_reconnect(monkeypatch):
+    pytest.importorskip("copilot")
+    from rafiq_agent.auth.base import AuthError
+    from rafiq_agent.llm import copilot as bridge
+
+    class StaleClient:
+        async def create_session(self, **options):
+            raise RuntimeError("401 Unauthorized")
+
+    async def client_for(account_id, token):
+        return StaleClient()
+
+    async def drop_client(account_id):
+        return None
+
+    monkeypatch.setattr(bridge, "client_for", client_for)
+    monkeypatch.setattr(bridge, "drop_client", drop_client)
+
+    async def revoked(token):
+        return True
+
+    monkeypatch.setattr(bridge, "token_revoked", revoked)
+    provider = bridge.CopilotProvider(account_id="acc", token="gho_x", model_id="gpt-5")
+    with pytest.raises(AuthError):
+        async for _ in provider.stream_chat([{"role": "user", "content": "مرحبا"}], []):
+            pass
+
+    async def fine(token):
+        return False
+
+    monkeypatch.setattr(bridge, "token_revoked", fine)
+    provider = bridge.CopilotProvider(account_id="acc", token="gho_x", model_id="gpt-5")
+    with pytest.raises(RuntimeError) as caught:
+        async for _ in provider.stream_chat([{"role": "user", "content": "مرحبا"}], []):
+            pass
+    assert not isinstance(caught.value, AuthError)  # a hiccup, not "sign in again"
+
+
+async def test_check_now_skips_the_interval_and_a_late_401_is_retried(monkeypatch):
+    transport = _github(
+        {
+            "/login/device/code": [{"device_code": "dc", "user_code": "Z", "interval": 60, "expires_in": 900}],
+            "/login/oauth/access_token": [
+                {"error": "authorization_pending"},
+                {"access_token": "gho_issued_token_abcdef123456", "token_type": "bearer"},
+            ],
+            "/user": [{"id": 7, "login": "octo"}],
+        }
+    )
+    adapter = GitHubCopilotAdapter("cid", transport=transport)
+    checks: list[int] = []
+
+    async def flaky(token: str) -> None:
+        checks.append(1)
+        if len(checks) == 1:
+            raise AuthError("GitHub رفض التوكن — 401")  # a fresh token, not yet known to Copilot
+
+    async def no_wait(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(adapter, "check", flaky)
+    monkeypatch.setattr("rafiq_agent.auth.github_copilot.asyncio.sleep", no_wait)
+    start = await adapter.start()
+    assert (await adapter.poll(start.flow_id)).status == "pending"  # first automatic poll
+    # the next automatic poll would wait a minute; «check now» asks straight away
+    assert (await adapter.poll(start.flow_id)).status == "pending"
+    done = await adapter.poll(start.flow_id, now_please=True)
+    assert done.status == "complete" and done.identity.label == "octo"
+    assert len(checks) == 2  # the first refusal was retried, not reported
+
+
+async def test_two_polls_at_once_spend_the_code_once(client, monkeypatch):
+    from rafiq_agent.api import accounts as api
+
+    calls: list[bool] = []
+
+    class Slow:
+        method = "oauth"
+
+        async def poll(self, flow_id: str, now_please: bool = False):
+            from rafiq_agent.auth.base import PollOutcome
+
+            calls.append(now_please)
+            await asyncio.sleep(0.2)
+            return PollOutcome("pending")
+
+    monkeypatch.setitem(api._flows, "flow-x", "github_copilot")
+    monkeypatch.setattr(api, "adapter_for", lambda provider: Slow())
+    first, second = await asyncio.gather(
+        client.post("/accounts/connect/flow-x/poll", headers=AUTH),
+        client.post("/accounts/connect/flow-x/poll?now=true", headers=AUTH),
+    )
+    assert first.json()["status"] == second.json()["status"] == "pending"
+    assert len(calls) == 1

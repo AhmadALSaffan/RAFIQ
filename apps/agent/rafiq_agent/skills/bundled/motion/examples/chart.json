@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "title": "نمو المستخدمين",
+  "composition": { "width": 1080, "height": 1080, "fps": 30, "duration": 8, "background": "brand.surface", "safeArea": "square", "direction": "rtl" },
+  "brand": "workspace",
+  "assets": {},
+  "layers": [
+    {
+      "id": "title", "type": "text", "text": "المستخدمين بالشهر", "style": "headline", "start": 0.2, "end": 8,
+      "layout": { "anchor": "topStart", "y": 2 },
+      "animate": [ { "preset": "fadeUp", "at": 0.2, "duration": 0.5 } ]
+    },
+    {
+      "id": "total", "type": "text", "text": "{count}", "style": "display", "color": "brand.primary", "start": 0.6, "end": 8,
+      "format": { "group": true },
+      "layout": { "below": "title", "gap": 2, "align": "start" },
+      "animate": [ { "preset": "fadeIn", "at": 0.6, "duration": 0.3 }, { "preset": "countUp", "at": 0.6, "duration": 1.6, "to": 12400 } ]
+    },
+    {
+      "id": "bars", "type": "chart", "chart": "bar", "start": 1.2, "end": 8, "color": "brand.primary",
+      "data": { "labels": ["يناير", "فبراير", "مارس", "أبريل", "مايو"], "values": [2100, 3400, 5200, 8100, 12400] },
+      "layout": { "anchor": "bottom", "width": 108, "height": 64, "y": -2 },
+      "animate": [ { "preset": "drawOn", "at": 1.2, "duration": 1.4 } ]
+    },
+    {
+      "id": "source", "type": "text", "text": "المصدر: لوحة التحكم", "style": "caption", "color": "brand.muted", "start": 2.8, "end": 8,
+      "layout": { "anchor": "topEnd", "y": 3 },
+      "animate": [ { "preset": "fadeIn", "at": 2.8, "duration": 0.5 } ]
+    }
+  ],
+  "audio": [
+    { "id": "music", "source": "procedural", "pattern": "corporate", "tempo": 104, "gain": -18 },
+    { "id": "t", "source": "sfx", "kind": "tick", "at": 1.2, "gain": -14 }
+  ]
+}

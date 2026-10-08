@@ -19,3 +19,4 @@ export * from "./insights";
 export * from "./memory";
 export * from "./workspaces";
 export * from "./backup";
+export * from "./motion";

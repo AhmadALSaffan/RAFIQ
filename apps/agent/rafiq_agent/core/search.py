@@ -272,7 +272,7 @@ async def search(
     words = [form for forms in groups for form in forms]
     await sync(session)
 
-    scope = "COALESCE(c.mode, 'chat') != 'design'" + (" AND c.workspace_id = :ws" if workspace_id else "")
+    scope = "COALESCE(c.mode, 'chat') NOT IN ('design', 'motion')" + (" AND c.workspace_id = :ws" if workspace_id else "")
     params: dict[str, Any] = {"ws": workspace_id} if workspace_id else {}
 
     hits = (

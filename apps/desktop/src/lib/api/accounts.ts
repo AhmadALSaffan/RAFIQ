@@ -31,8 +31,9 @@ export async function saveAuthAIConfig(input: {
   return request<AuthAIConfig>("/accounts/authai/config", { method: "PUT", body: JSON.stringify(input) });
 }
 
-export async function pollConnect(flowId: string): Promise<ConnectPoll> {
-  return request<ConnectPoll>(`/accounts/connect/${flowId}/poll`, { method: "POST" });
+/** `now`: the user says they've approved — ask the provider straight away. */
+export async function pollConnect(flowId: string, now = false): Promise<ConnectPoll> {
+  return request<ConnectPoll>(`/accounts/connect/${flowId}/poll${now ? "?now=true" : ""}`, { method: "POST" });
 }
 
 export async function disconnectAccount(id: string): Promise<void> {

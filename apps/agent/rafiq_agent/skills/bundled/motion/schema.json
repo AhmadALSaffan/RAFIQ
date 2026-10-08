@@ -1,0 +1,986 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rafiq.app/schemas/rms-v1.json",
+  "title": "Rafiq Motion Scene (RMS v1)",
+  "description": "One JSON document per motion project. Positions and sizes are in grid units (8px on a 1080px short side); colours are brand tokens; time is in seconds.",
+  "type": "object",
+  "required": [
+    "version",
+    "composition",
+    "layers"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "composition": {
+      "$ref": "#/$defs/composition"
+    },
+    "brand": {
+      "type": "string",
+      "description": "\"workspace\" (default) or a template id such as \"dark\", \"light\", \"neon\", \"warm\"."
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/asset"
+      },
+      "propertyNames": {
+        "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,39}$"
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/layer"
+      },
+      "maxItems": 400
+    },
+    "audio": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/audio"
+      },
+      "maxItems": 100
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,39}$"
+    },
+    "color": {
+      "type": "string",
+      "description": "Any colour: a brand token (brand.primary, brand.accent, brand.onSurface, brand.muted, brand.surface, brand.surface2, brand.onPrimary), a hex colour (#rgb, #rrggbb, #rrggbbaa with alpha), or \"transparent\". Tokens keep a video on brand; hex is fine when the design needs it — the contrast check still applies.",
+      "pattern": "^(brand\\.[A-Za-z0-9]+|transparent|#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8}))$"
+    },
+    "ease": {
+      "description": "linear | inOut | outExpo | outBack | spring | spring(stiffness,damping) | brand",
+      "type": "string",
+      "pattern": "^(linear|inOut|in|out|outExpo|outBack|spring|spring\\(\\s*\\d+(\\.\\d+)?\\s*,\\s*\\d+(\\.\\d+)?\\s*\\)|brand)$"
+    },
+    "composition": {
+      "type": "object",
+      "required": [
+        "width",
+        "height",
+        "fps",
+        "duration"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 3840
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 3840
+        },
+        "fps": {
+          "enum": [
+            24,
+            25,
+            30,
+            50,
+            60,
+            120
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 7200
+        },
+        "background": {
+          "$ref": "#/$defs/paint"
+        },
+        "safeArea": {
+          "enum": [
+            "reels",
+            "youtube",
+            "square",
+            "none"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "rtl",
+            "ltr"
+          ],
+          "description": "Which way start/end point. Defaults to rtl."
+        },
+        "margin": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 40,
+          "description": "Distance of start/end/top/bottom anchors from the edge, in units. Default 8."
+        },
+        "digits": {
+          "enum": [
+            "latin",
+            "arabic"
+          ],
+          "description": "Digits for {count}. Default latin."
+        }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "required": [
+        "type",
+        "src"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "image",
+            "svg",
+            "video",
+            "audio",
+            "lottie"
+          ]
+        },
+        "src": {
+          "type": "string",
+          "pattern": "^asset://[A-Za-z0-9_-]+$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "credit": {
+          "type": "string",
+          "description": "Source and author, for stock images."
+        },
+        "license": {
+          "type": "string"
+        },
+        "duration": {
+          "type": "number"
+        },
+        "width": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "enum": [
+            "center",
+            "top",
+            "bottom",
+            "start",
+            "end",
+            "topStart",
+            "topEnd",
+            "bottomStart",
+            "bottomEnd"
+          ]
+        },
+        "x": {
+          "type": "number",
+          "description": "Offset in units toward the reading end (flips with direction)."
+        },
+        "y": {
+          "type": "number",
+          "description": "Offset in units downwards."
+        },
+        "width": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Box width in units (text wraps inside it)."
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0
+        },
+        "below": {
+          "$ref": "#/$defs/id"
+        },
+        "above": {
+          "$ref": "#/$defs/id"
+        },
+        "beside": {
+          "$ref": "#/$defs/id"
+        },
+        "gap": {
+          "type": "number",
+          "minimum": 0
+        },
+        "align": {
+          "enum": [
+            "start",
+            "center",
+            "end"
+          ]
+        }
+      }
+    },
+    "animation": {
+      "type": "object",
+      "required": [
+        "preset",
+        "at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "preset": {
+          "enum": [
+            "fadeIn",
+            "fadeOut",
+            "fadeUp",
+            "fadeDown",
+            "slideIn",
+            "slideOut",
+            "scaleIn",
+            "scaleOut",
+            "pop",
+            "typewriter",
+            "wordPop",
+            "lineReveal",
+            "maskReveal",
+            "countUp",
+            "drawOn",
+            "kenBurns",
+            "wipe",
+            "zoomPunch",
+            "shake",
+            "float",
+            "blurIn",
+            "bounceIn",
+            "rotateIn",
+            "spin",
+            "pulse"
+          ]
+        },
+        "at": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "ease": {
+          "$ref": "#/$defs/ease"
+        },
+        "dir": {
+          "enum": [
+            "start",
+            "end",
+            "up",
+            "down"
+          ]
+        },
+        "amount": {
+          "type": "number"
+        },
+        "to": {
+          "type": "number",
+          "description": "countUp: the number to count to."
+        },
+        "stagger": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "key": {
+      "type": "object",
+      "required": [
+        "t",
+        "v"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "t": {
+          "type": "number",
+          "minimum": 0
+        },
+        "v": {
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "ease": {
+          "$ref": "#/$defs/ease"
+        }
+      }
+    },
+    "keyframes": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(x|y|scale|rotation|opacity|blur|trim|color|count|cornerRadius)$": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/key"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "layerBase": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "start",
+        "end"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "shape",
+            "image",
+            "icon",
+            "video",
+            "lottie",
+            "chart",
+            "captions",
+            "group"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "start": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "layout": {
+          "$ref": "#/$defs/layout"
+        },
+        "animate": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/animation"
+          },
+          "maxItems": 24
+        },
+        "keyframes": {
+          "$ref": "#/$defs/keyframes"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "blend": {
+          "enum": [
+            "normal",
+            "multiply",
+            "screen",
+            "overlay"
+          ]
+        },
+        "shadow": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/shadow"
+            }
+          ],
+          "description": "true for a soft shadow under the layer (helps text over video), or a shadow you shape: colour, blur, offset, opacity."
+        },
+        "important": {
+          "type": "boolean",
+          "description": "Kept inside the safe area and never overlapped. Text is important unless set to false."
+        },
+        "hidden": {
+          "type": "boolean"
+        },
+        "glow": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "A coloured glow around the layer (neon, highlights).",
+          "properties": {
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "size": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 30
+            }
+          }
+        },
+        "locked": {
+          "type": "boolean",
+          "description": "Editor only: the user locked it so it isn't picked or dragged on the stage. Leave it as it is."
+        }
+      }
+    },
+    "layer": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/layerBase"
+        }
+      ],
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "style": {
+          "enum": [
+            "display",
+            "headline",
+            "title",
+            "body",
+            "caption"
+          ]
+        },
+        "color": {
+          "$ref": "#/$defs/paint"
+        },
+        "weight": {
+          "enum": [
+            400,
+            500,
+            600,
+            700,
+            800
+          ]
+        },
+        "align": {
+          "enum": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "font": {
+          "enum": [
+            "display",
+            "body",
+            "latin",
+            "mono"
+          ]
+        },
+        "background": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "$ref": "#/$defs/paint"
+            },
+            "padding": {
+              "type": "number",
+              "minimum": 0
+            },
+            "radius": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            }
+          }
+        },
+        "format": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "decimals": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "group": {
+              "type": "boolean"
+            }
+          }
+        },
+        "shape": {
+          "enum": [
+            "rect",
+            "circle",
+            "line",
+            "path",
+            "star",
+            "triangle",
+            "polygon",
+            "arrow",
+            "ring",
+            "arc",
+            "heart"
+          ]
+        },
+        "fill": {
+          "$ref": "#/$defs/paint"
+        },
+        "stroke": {
+          "$ref": "#/$defs/color"
+        },
+        "strokeWidth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "radius": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "Index into the kit's radius scale (3 = full pill)."
+        },
+        "path": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "SVG path data in units, 0,0 = the box's top-left."
+        },
+        "points": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 24,
+          "description": "Star points, or polygon sides."
+        },
+        "asset": {
+          "$ref": "#/$defs/id"
+        },
+        "icon": {
+          "type": "string",
+          "pattern": "^(tabler|si|ph|lucide|mdi|ri|iconoir|heroicons|fluent-emoji-flat|logos|circle-flags):[a-z0-9_-]+$",
+          "description": "set:name — find names with motion_assets action=icons. One-colour sets take the layer's `color`: tabler, ph (Phosphor; -bold, -fill, -duotone, -light, -thin variants), lucide, mdi, ri (-line / -fill), iconoir, heroicons, si (brand marks). Colour sets keep their own colours and can't go to Lottie: fluent-emoji-flat (emoji), logos (brand logos in colour), circle-flags (country flags by ISO code, e.g. circle-flags:sa)."
+        },
+        "fit": {
+          "enum": [
+            "cover",
+            "contain"
+          ]
+        },
+        "in": {
+          "type": "number",
+          "minimum": 0
+        },
+        "out": {
+          "type": "number",
+          "minimum": 0
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 16
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "crop": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "w": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1
+            },
+            "h": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "filters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "brightness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3
+            },
+            "contrast": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3
+            },
+            "saturation": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3
+            },
+            "warmth": {
+              "type": "number",
+              "minimum": -1,
+              "maximum": 1
+            },
+            "vignette": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "chart": {
+          "enum": [
+            "bar",
+            "line",
+            "pie",
+            "number"
+          ]
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "values"
+          ],
+          "properties": {
+            "labels": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 40
+            },
+            "values": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 1,
+              "maxItems": 40
+            },
+            "unit": {
+              "type": "string",
+              "maxLength": 12
+            }
+          }
+        },
+        "source": {
+          "$ref": "#/$defs/id",
+          "description": "captions: the audio or video asset the words come from."
+        },
+        "words": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "object",
+            "required": [
+              "w",
+              "t0",
+              "t1"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "w": {
+                "type": "string"
+              },
+              "t0": {
+                "type": "number"
+              },
+              "t1": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "captionStyle": {
+          "enum": [
+            "pop",
+            "highlight",
+            "karaoke"
+          ]
+        },
+        "maxWords": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/layer"
+          },
+          "maxItems": 100
+        },
+        "outline": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "An outline around text letters.",
+          "properties": {
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "width": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 4
+            }
+          }
+        },
+        "dash": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 20
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "A dashed outline: [dash, gap] in grid units."
+        },
+        "thickness": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 60,
+          "description": "Band width of a ring or an arc, in grid units."
+        },
+        "arc": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "from",
+            "to"
+          ],
+          "description": "An arc's span in degrees, 0 = top, clockwise (a progress ring: from 0 to 270).",
+          "properties": {
+            "from": {
+              "type": "number",
+              "minimum": -360,
+              "maximum": 720
+            },
+            "to": {
+              "type": "number",
+              "minimum": -360,
+              "maximum": 720
+            }
+          }
+        },
+        "pointing": {
+          "enum": [
+            "start",
+            "end"
+          ],
+          "description": "Which way an arrow points; end = the way the line reads."
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "audio": {
+      "type": "object",
+      "required": [
+        "id",
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "source": {
+          "enum": [
+            "procedural",
+            "sfx",
+            "asset",
+            "tts"
+          ]
+        },
+        "pattern": {
+          "type": "string",
+          "description": "procedural music: warm-lofi | upbeat | cinematic | minimal | corporate"
+        },
+        "tempo": {
+          "type": "number",
+          "minimum": 60,
+          "maximum": 180
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[A-G](#|b)?(m)?$"
+        },
+        "kind": {
+          "enum": [
+            "whoosh",
+            "pop",
+            "click",
+            "riser",
+            "impact",
+            "swoosh",
+            "tick",
+            "ding",
+            "typing"
+          ]
+        },
+        "asset": {
+          "$ref": "#/$defs/id"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 4000,
+          "description": "tts: what to say (needs a voice provider)."
+        },
+        "voice": {
+          "type": "string"
+        },
+        "at": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end": {
+          "type": "number",
+          "minimum": 0
+        },
+        "in": {
+          "type": "number",
+          "minimum": 0
+        },
+        "gain": {
+          "type": "number",
+          "minimum": -60,
+          "maximum": 12,
+          "description": "dB"
+        },
+        "pan": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "fadeIn": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fadeOut": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duck": {
+          "$ref": "#/$defs/id",
+          "description": "Lower this other track while this one plays."
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "gradient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "stops"
+      ],
+      "description": "A gradient fill. Linear runs along `angle` degrees (0 = start→end across, 90 = top→bottom); radial from the centre out.",
+      "properties": {
+        "type": {
+          "enum": [
+            "linear",
+            "radial"
+          ]
+        },
+        "angle": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "stops": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "at",
+              "color"
+            ],
+            "properties": {
+              "at": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "color": {
+                "$ref": "#/$defs/color"
+              }
+            }
+          }
+        }
+      }
+    },
+    "paint": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/color"
+        },
+        {
+          "$ref": "#/$defs/gradient"
+        }
+      ],
+      "description": "A colour or a gradient."
+    },
+    "shadow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "blur": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 40,
+          "description": "Softness, in grid units."
+        },
+        "x": {
+          "type": "number",
+          "minimum": -20,
+          "maximum": 20
+        },
+        "y": {
+          "type": "number",
+          "minimum": -20,
+          "maximum": 20
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  }
+}

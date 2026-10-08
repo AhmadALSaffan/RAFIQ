@@ -8,6 +8,7 @@ device code stays in this process — only the user code goes to the UI.
 Docs: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
 """
 
+import asyncio
 import time
 import uuid
 from dataclasses import dataclass
@@ -92,7 +93,9 @@ class GitHubCopilotAdapter:
             interval=interval,
         )
 
-    async def poll(self, flow_id: str) -> PollOutcome:
+    async def poll(self, flow_id: str, now_please: bool = False) -> PollOutcome:
+        """`now_please`: the user says they've approved — ask GitHub straight away instead of
+        waiting out the polling interval."""
         flow = self._flows.get(flow_id)
         if flow is None:
             return PollOutcome("expired", message=tr("انتهت محاولة الدخول — ابدأ من جديد."))
@@ -101,7 +104,7 @@ class GitHubCopilotAdapter:
             self._flows.pop(flow_id, None)
             return PollOutcome("expired", message=tr("انتهت صلاحية الرمز — ابدأ من جديد."))
         # GitHub rate-limits polling; asking early just earns a slow_down.
-        if now < flow.next_poll:
+        if now < flow.next_poll and not now_please:
             return PollOutcome("pending")
         flow.next_poll = now + flow.interval
 
@@ -140,9 +143,18 @@ class GitHubCopilotAdapter:
         token = body["access_token"]
         try:
             identity = await self._identity(token)
-            await self.check(token)
         except AuthError as exc:
             return PollOutcome("error", message=str(exc))
+        # A token minted a second ago is sometimes refused by Copilot for a few seconds (a 401
+        # while it propagates). Give it a moment before calling the sign-in a failure.
+        for attempt in range(3):
+            try:
+                await self.check(token)
+                break
+            except AuthError as exc:
+                if attempt == 2:
+                    return PollOutcome("error", message=str(exc))
+                await asyncio.sleep(2 + 2 * attempt)
         return PollOutcome("complete", identity=identity)
 
     async def _identity(self, token: str) -> ConnectedIdentity:

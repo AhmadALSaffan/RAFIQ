@@ -16,9 +16,10 @@ import asyncio
 import contextlib
 import json
 import os
+import time
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from rafiq_agent.storage.secrets import delete_named_secret, get_named_secret, set_named_secret
 
@@ -61,10 +62,19 @@ def forget(server_id: str) -> None:
 class KeyringTokenStorage:
     """The SDK's TokenStorage, backed by one keychain entry per server. The registered
     client carries the redirect URI (and so the agent's port); if the port changed since,
-    the client is dropped and registered again."""
+    the client is dropped and registered again.
+
+    Next to the tokens it keeps what the SDK otherwise only holds in memory: when the access
+    token expires (as a clock time, not "in N seconds") and the authorization server's
+    metadata (its token endpoint). Without them, after a restart the SDK sends an expired
+    token, gets a 401 and starts a whole new browser sign-in — instead of quietly using the
+    refresh token it has. With them, a connection stays signed in for as long as the
+    service's refresh token lives."""
 
     def __init__(self, server_id: str) -> None:
         self.server_id = server_id
+        # set by RafiqOAuthProvider: the SDK's live state, read when tokens are saved
+        self.context: Any = None
 
     def _load(self) -> dict[str, Any]:
         try:
@@ -84,7 +94,41 @@ class KeyringTokenStorage:
     async def set_tokens(self, tokens) -> None:  # noqa: ANN001
         data = self._load()
         data["tokens"] = tokens.model_dump(mode="json", exclude_none=True)
+        data["expires_at"] = time.time() + tokens.expires_in if tokens.expires_in else None
+        context = self.context
+        if context is not None:
+            if getattr(context, "oauth_metadata", None) is not None:
+                data["metadata"] = context.oauth_metadata.model_dump(mode="json", exclude_none=True)
+            if getattr(context, "protected_resource_metadata", None) is not None:
+                data["resource_metadata"] = context.protected_resource_metadata.model_dump(
+                    mode="json", exclude_none=True
+                )
+            if getattr(context, "auth_server_url", None):
+                data["auth_server_url"] = context.auth_server_url
         self._save(data)
+
+    def restore(self, context) -> None:  # noqa: ANN001 - the SDK's OAuthContext
+        """Puts back what a restart lost: the expiry, and where to refresh."""
+        data = self._load()
+        if not data.get("tokens"):
+            return
+        expires_at = data.get("expires_at")
+        if expires_at:
+            context.token_expiry_time = float(expires_at) - 60  # refresh a minute early
+        elif data["tokens"].get("refresh_token"):
+            # Saved before the expiry was kept: refresh once on first use rather than guess.
+            context.token_expiry_time = 1.0
+        with contextlib.suppress(Exception):
+            from mcp.shared.auth import OAuthMetadata, ProtectedResourceMetadata
+
+            if data.get("metadata"):
+                context.oauth_metadata = OAuthMetadata.model_validate(data["metadata"])
+            if data.get("resource_metadata"):
+                context.protected_resource_metadata = ProtectedResourceMetadata.model_validate(
+                    data["resource_metadata"]
+                )
+            if data.get("auth_server_url"):
+                context.auth_server_url = data["auth_server_url"]
 
     async def get_client_info(self):  # noqa: ANN201
         from mcp.shared.auth import OAuthClientInformationFull
@@ -151,14 +195,27 @@ def end(server_id: str) -> None:
     _pending.pop(server_id, None)
 
 
+def _state_of(flow: Pending) -> str | None:
+    if not flow.url.done() or flow.url.cancelled() or flow.url.exception() is not None:
+        return None
+    return (parse_qs(urlparse(flow.url.result()).query).get("state") or [None])[0]
+
+
 def deliver(code: str, state: str | None, iss: str | None = None) -> bool:
-    """The browser came back with a code. Any flow still waiting gets it — the SDK checks
-    the state itself, so a stale tab can't complete someone else's flow."""
-    for flow in list(_pending.values()):
-        if not flow.code.done():
-            flow.code.set_result((code, state or "", iss or ""))
-            return True
-    return False
+    """The browser came back with a code. It goes to the flow whose authorization page
+    carried that state; a tab left over from an earlier attempt (its flow replaced by a
+    retry) is turned away instead of failing the new one with «State parameter mismatch»."""
+    waiting = [flow for flow in _pending.values() if not flow.code.done()]
+    known = [(flow, _state_of(flow)) for flow in waiting]
+    match = next((flow for flow, s in known if s and s == state), None)
+    if match is None:
+        # A flow whose page we never saw (no state to compare) can still take it; the SDK
+        # checks the state itself.
+        match = next((flow for flow, s in known if s is None), None)
+    if match is None:
+        return False
+    match.code.set_result((code, state or "", iss or ""))
+    return True
 
 
 # Figma's MCP server only registers clients whose name is on a list it keeps (Claude Code,
@@ -178,8 +235,22 @@ def client_name_for(server_url: str, preset: str | None = None) -> str:
     return FIGMA_CLIENT_NAME if _is_figma(server_url, preset) else CLIENT_NAME
 
 
-def provider(server_id: str, server_url: str, preset: str | None = None):  # noqa: ANN201 - httpx.Auth from the SDK
+def _provider_class():  # noqa: ANN202
     from mcp.client.auth import OAuthClientProvider
+
+    class RafiqOAuthProvider(OAuthClientProvider):
+        """The SDK's provider, with the stored expiry and metadata put back on load."""
+
+        async def _initialize(self) -> None:
+            await super()._initialize()
+            storage = self.context.storage
+            if isinstance(storage, KeyringTokenStorage):
+                storage.restore(self.context)
+
+    return RafiqOAuthProvider
+
+
+def provider(server_id: str, server_url: str, preset: str | None = None):  # noqa: ANN201 - httpx.Auth from the SDK
     from mcp.shared.auth import OAuthClientMetadata
 
     flow = pending_for(server_id) or begin(server_id)
@@ -194,7 +265,8 @@ def provider(server_id: str, server_url: str, preset: str | None = None):  # noq
         code, state, iss = await asyncio.wait_for(flow.code, AUTHORIZE_TIMEOUT)
         return AuthorizationCodeResult(code=code, state=state or None, iss=iss or None)
 
-    return OAuthClientProvider(
+    storage = KeyringTokenStorage(server_id)
+    oauth = _provider_class()(
         server_url=server_url,
         client_metadata=OAuthClientMetadata(
             client_name=client_name_for(server_url, preset),
@@ -204,10 +276,12 @@ def provider(server_id: str, server_url: str, preset: str | None = None):  # noq
             response_types=["code"],
             token_endpoint_auth_method="none",
         ),
-        storage=KeyringTokenStorage(server_id),
+        storage=storage,
         redirect_handler=redirect_handler,
         callback_handler=callback_handler,
     )
+    storage.context = oauth.context
+    return oauth
 
 
 def describe_status(status: int) -> str | None:
@@ -228,20 +302,39 @@ def describe_status(status: int) -> str | None:
 GENERIC_HTTP_ERRORS = ("Server returned an error response", "Not Found", "Session terminated")
 
 
-def describe_error(exc: BaseException) -> str:
-    """The reason a connection failed, in one line a person can act on. The SDK raises
-    exception groups ("unhandled errors in a TaskGroup"), so dig for the real one."""
-    from rafiq_agent.i18n import tr
-
+def _leaf(exc: BaseException) -> BaseException:
+    """The SDK raises exception groups ("unhandled errors in a TaskGroup"): the real error."""
     leaf: BaseException = exc
     seen = 0
     while isinstance(leaf, BaseExceptionGroup) and leaf.exceptions and seen < 10:
         leaf = leaf.exceptions[0]
         seen += 1
+    return leaf
+
+
+def is_transient(exc: BaseException) -> bool:
+    """A network hiccup worth one more try (a dropped connection, a TLS handshake a VPN
+    interfered with) — not a refusal from the server."""
+    leaf = _leaf(exc)
+    name = type(leaf).__name__
+    return getattr(getattr(leaf, "response", None), "status_code", None) is None and (
+        "Connect" in name or "Timeout" in name or "ReadError" in name or "RemoteProtocol" in name
+    )
+
+
+def describe_error(exc: BaseException) -> str:
+    """The reason a connection failed, in one line a person can act on."""
+    from rafiq_agent.i18n import tr
+
+    leaf = _leaf(exc)
     name = type(leaf).__name__
     status = getattr(getattr(leaf, "response", None), "status_code", None)
     if status is not None and (explained := describe_status(status)):
         return explained
+    if "CERTIFICATE_VERIFY_FAILED" in str(leaf):
+        return tr(
+            "شهادة أمان الخادم ما انقبلت. غالباً VPN أو برنامج حماية عم يفحص الاتصالات — طفّيه أو جرّب كمان مرة."
+        )
     if "Connect" in name or "Timeout" in name or "ConnectionRefused" in name:
         return tr("ما قدرت أوصل للخادم — تأكد من الإنترنت أو من الرابط/الأمر.")
     if name in ("FileNotFoundError",):

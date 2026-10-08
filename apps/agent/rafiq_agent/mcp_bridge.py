@@ -239,6 +239,8 @@ class Connection:
     tools: list[Any] = field(default_factory=list)
     error: str | None = None
     failed_at: float = 0.0
+    # The last attempt died of a network hiccup (not a refusal): worth one quiet retry.
+    transient: bool = False
     _task: asyncio.Task | None = None
     _ready: asyncio.Event = field(default_factory=asyncio.Event)
     _stop: asyncio.Event = field(default_factory=asyncio.Event)
@@ -264,12 +266,20 @@ class Connection:
         async with self._lock:
             if self.connected:
                 return
-            self._ready, self._stop, self.error = asyncio.Event(), asyncio.Event(), None
-            self._task = asyncio.create_task(self._run())
             budget = self._budget()
-            try:
-                await asyncio.wait_for(self._ready.wait(), budget)
-            except TimeoutError:
+            for attempt in range(2):
+                self._ready, self._stop, self.error, self.transient = asyncio.Event(), asyncio.Event(), None, False
+                self._task = asyncio.create_task(self._run())
+                try:
+                    await asyncio.wait_for(self._ready.wait(), budget)
+                except TimeoutError:
+                    break
+                # A remote server whose connection dropped or whose TLS handshake failed once
+                # (a VPN, a flaky network) usually answers the second time.
+                if self.connected or not self.transient or self.config.transport != "http" or attempt:
+                    break
+                await asyncio.sleep(1)
+            if not self._ready.is_set():
                 from rafiq_agent.i18n import tr
 
                 self.error = (
@@ -332,12 +342,18 @@ class Connection:
                 self._ready.set()
                 await self._stop.wait()
         except BaseException as exc:  # noqa: BLE001 - reported to the user as the server's status
-            from rafiq_agent.mcp_oauth import GENERIC_HTTP_ERRORS, describe_error, describe_status
+            from rafiq_agent.mcp_oauth import (
+                GENERIC_HTTP_ERRORS,
+                describe_error,
+                describe_status,
+                is_transient,
+            )
 
             # start() may have already explained this (a timeout cancels the task, and
             # "CancelledError" would say nothing) — the first explanation is the true one.
             if self.error is None:
                 self.error = describe_error(exc)
+                self.transient = is_transient(exc)
             if isinstance(exc, asyncio.CancelledError):
                 raise
             if self.config.transport == "http" and self.config.auth != "oauth" and any(g in self.error for g in GENERIC_HTTP_ERRORS):

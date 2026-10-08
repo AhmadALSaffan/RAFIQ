@@ -6,7 +6,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export type TabKind = "chat" | "task" | "design";
+export type TabKind = "chat" | "task" | "design" | "motion";
 
 export interface AppTab {
   path: string;
@@ -19,9 +19,9 @@ const MAX = 12;
 
 /** The tab a route belongs to, if it's one that opens in a tab. */
 export function tabFor(pathname: string): AppTab | null {
-  const m = /^\/(chat|tasks|designs)\/([^/?#]+)/.exec(pathname);
+  const m = /^\/(chat|tasks|designs|motion)\/([^/?#]+)/.exec(pathname);
   if (!m) return null;
-  const kind: TabKind = m[1] === "chat" ? "chat" : m[1] === "tasks" ? "task" : "design";
+  const kind: TabKind = m[1] === "chat" ? "chat" : m[1] === "tasks" ? "task" : m[1] === "motion" ? "motion" : "design";
   return { path: `/${m[1]}/${m[2]}`, kind, id: decodeURIComponent(m[2]) };
 }
 

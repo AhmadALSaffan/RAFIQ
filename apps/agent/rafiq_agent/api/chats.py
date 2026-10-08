@@ -87,8 +87,9 @@ async def list_chats(
     rows = await session.execute(
         select(Chat, func.coalesce(counts.c.n, 0))
         .outerjoin(counts, counts.c.chat_id == Chat.id)
-        # Design sessions live on the designs page; they'd only be noise here.
-        .where(func.coalesce(Chat.mode, "chat") != "design")
+        # Design sessions live on the designs page and motion chats inside their project;
+        # they'd only be noise here.
+        .where(func.coalesce(Chat.mode, "chat").not_in(("design", "motion")))
         .where(Chat.workspace_id == workspace_id if workspace_id else True)
         .where(True if include_archived else Chat.archived_at.is_(None))
         .order_by(Chat.pinned.desc(), Chat.updated_at.desc())

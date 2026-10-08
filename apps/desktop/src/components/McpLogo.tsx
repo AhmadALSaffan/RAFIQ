@@ -1,20 +1,40 @@
 import {
+  siAirtable,
   siAtlassian,
   siBrave,
+  siClickup,
   siCloudflare,
+  siCloudflareworkers,
   siDocker,
   siFigma,
   siFirebase,
+  siGit,
   siGithub,
+  siGitlab,
+  siGooglechrome,
+  siHuggingface,
+  siIntercom,
   siLinear,
+  siMiro,
   siModelcontextprotocol,
+  siNeon,
+  siNetlify,
   siNotion,
+  siPaypal,
   siPostgresql,
+  siPosthog,
+  siPrisma,
   siSentry,
   siSqlite,
+  siSquare,
   siStripe,
   siSupabase,
+  siTodoist,
   siUpstash,
+  siVercel,
+  siWebflow,
+  siWix,
+  siZapier,
   type SimpleIcon,
 } from "simple-icons";
 import { FolderIcon, GlobeIcon, ListIcon, ModelsIcon } from "./Icons";
@@ -37,12 +57,43 @@ const ICONS: Record<string, SimpleIcon> = {
   "cloudflare-docs": siCloudflare,
   docker: siDocker,
   context7: siUpstash,
+  gitlab: siGitlab,
+  vercel: siVercel,
+  netlify: siNetlify,
+  "cloudflare-workers": siCloudflareworkers,
+  "cloudflare-observability": siCloudflare,
+  posthog: siPosthog,
+  neon: siNeon,
+  prisma: siPrisma,
+  airtable: siAirtable,
+  todoist: siTodoist,
+  clickup: siClickup,
+  intercom: siIntercom,
+  zapier: siZapier,
+  miro: siMiro,
+  webflow: siWebflow,
+  wix: siWix,
+  paypal: siPaypal,
+  square: siSquare,
+  huggingface: siHuggingface,
+  "chrome-devtools": siGooglechrome,
+  git: siGit,
 };
 
 /** Brands simple-icons doesn't carry: a monogram badge in the brand colour. */
 const MONOGRAMS: Record<string, { text: string; color: string }> = {
   playwright: { text: "PW", color: "#2EAD33" },
   slack: { text: "S", color: "#4A154B" },
+  semgrep: { text: "Sg", color: "#1B7A5A" },
+  jam: { text: "J", color: "#E04A88" },
+  monday: { text: "m", color: "#6161FF" },
+  close: { text: "C", color: "#1463FF" },
+  granola: { text: "G", color: "#5F7A3A" },
+  canva: { text: "C", color: "#00A3C4" },
+  "microsoft-learn": { text: "ML", color: "#0F6CBD" },
+  deepwiki: { text: "DW", color: "#2F5BEA" },
+  "aws-knowledge": { text: "AWS", color: "#232F3E" },
+  exa: { text: "Ex", color: "#1F40ED" },
 };
 
 const GLYPHS: Record<string, typeof FolderIcon> = {
@@ -60,6 +111,11 @@ function isDark(hex: string): boolean {
 /** Near-black marks (GitHub, Notion) follow the ink colour so they survive the dark theme. */
 function safeColor(hex: string): string {
   return isDark(hex) ? "var(--color-ink)" : `#${hex}`;
+}
+
+/** Whether a catalogue id has its own mark (else it falls back to the MCP logo). */
+export function hasMcpLogo(preset: string): boolean {
+  return preset in ICONS || preset in MONOGRAMS || preset in GLYPHS;
 }
 
 export function McpLogo({ preset, className = "h-5 w-5" }: { preset: string | null | undefined; className?: string }) {

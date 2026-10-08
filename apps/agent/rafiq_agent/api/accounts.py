@@ -4,6 +4,8 @@ Tokens go straight from the provider into the OS keychain; the database keeps on
 reference and a display label, and no response here ever includes a credential.
 """
 
+import asyncio
+import inspect
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,7 +18,7 @@ from rafiq_agent.auth.base import AuthError
 from rafiq_agent.auth.registry import ADAPTERS, adapter_for
 from rafiq_agent.i18n import current_locale, tr
 from rafiq_agent.schemas.accounts import AccountOut, AccountProviderOut, ConnectPollOut, ConnectStartOut
-from rafiq_agent.storage.db import get_session
+from rafiq_agent.storage.db import SessionLocal, get_session
 from rafiq_agent.storage.models import AuthAccount, LlmModel
 from rafiq_agent.storage.secrets import delete_api_key, get_api_key, store_api_key
 
@@ -86,14 +88,35 @@ async def start_connect(provider: str, request: Request, target: str | None = No
     return ConnectStartOut(**started.__dict__)
 
 
+# One poll of a flow at a time: the timer and the «check now» button can ask together, and
+# two requests for one device code would spend it twice.
+_polling: dict[str, asyncio.Task[ConnectPollOut]] = {}
+
+
 @router.post("/connect/{flow_id}/poll", response_model=ConnectPollOut)
-async def poll_connect(flow_id: str, session: AsyncSession = Depends(get_session)) -> ConnectPollOut:
+async def poll_connect(flow_id: str, now: bool = False) -> ConnectPollOut:
+    """`now=true`: the user pressed «I've signed in — check» — ask the provider right away."""
+    running = _polling.get(flow_id)
+    if running is None or running.done():
+        running = asyncio.create_task(_poll_once(flow_id, now))
+        _polling[flow_id] = running
+        running.add_done_callback(lambda _t, fid=flow_id: _polling.pop(fid, None) if _polling.get(fid) is _t else None)
+    return await asyncio.shield(running)
+
+
+async def _poll_once(flow_id: str, now: bool) -> ConnectPollOut:
+    async with SessionLocal() as session:
+        return await _poll(flow_id, now, session)
+
+
+async def _poll(flow_id: str, now: bool, session: AsyncSession) -> ConnectPollOut:
     provider = _flows.get(flow_id)
     adapter = adapter_for(provider) if provider else None
     if adapter is None:
         return ConnectPollOut(status="expired", message=tr("انتهت محاولة الدخول — ابدأ من جديد."))
 
-    outcome = await adapter.poll(flow_id)
+    accepts_now = "now_please" in inspect.signature(adapter.poll).parameters
+    outcome = await (adapter.poll(flow_id, now_please=True) if now and accepts_now else adapter.poll(flow_id))
     if outcome.status != "complete" or outcome.identity is None:
         if outcome.status != "pending":
             _flows.pop(flow_id, None)

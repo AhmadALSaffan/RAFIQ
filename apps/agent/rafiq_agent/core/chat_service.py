@@ -74,6 +74,8 @@ from rafiq_agent.tools.tasks import CreateTasksTool, WaitForTasksTool
 # Steps per reply. Waiting on tasks is one step however long it takes, and a whole batch of
 # tasks is created in one call.
 MAX_TURN_ITERATIONS = 25
+# Building a scene is many small steps (read, patch, check, look, fix).
+MOTION_TURN_ITERATIONS = 45
 TASK_TOOLS = frozenset({"create_tasks", "create_task"})  # create_task: transcripts from before batching
 
 # Approvals waiting on the user, keyed by request id (and grouped per chat so stopping a
@@ -195,11 +197,42 @@ async def summarize(chat: Chat, messages: list[ChatMessage], llm: LlmProvider, k
     }
 
 
-def provider_for(model: LlmModel, reply: ReplySettings, fallback: LlmModel | None = None) -> LlmProvider:
+def work_max_tokens(model: LlmModel) -> int | None:
+    """Output room for a turn whose work is in its tool calls (a motion chat writes scenes as
+    JSON patches): the model's own output limit, not the reply-length cap — a reasoning
+    model at 1,500 tokens thinks, starts the patch, and is cut off before the call is whole."""
+    import litellm
+
+    from rafiq_agent.llm.base import litellm_model_string
+
+    try:
+        info = litellm.get_model_info(model=litellm_model_string(model.provider, model.model_id))
+        limit = info.get("max_output_tokens") or info.get("max_tokens")
+    except Exception:  # noqa: BLE001 - unknown to litellm: the provider's own default applies
+        return None
+    return min(int(limit), 32_000) if limit else None
+
+
+def _tools_done(parts: list[dict[str, Any]] | None) -> str:
+    """A motion turn's tool steps in a few lines: which tool, on what, and how it went."""
+    steps = [p for p in parts or [] if p.get("kind") == "tool"]
+    if not steps:
+        return ""
+    lines = []
+    for p in steps[-30:]:
+        args = json.dumps(p.get("args") or {}, ensure_ascii=False)
+        if len(args) > 160:
+            args = args[:160] + "…"
+        out = str(p.get("output") or "").strip().replace("\n", " ")
+        lines.append(f"- {p.get('tool')} {args} → {'ok' if p.get('ok', True) else 'failed'}: {out[:200]}")
+    return "(what I did last turn)\n" + "\n".join(lines)
+
+
+def provider_for(model: LlmModel, reply: ReplySettings, fallback: LlmModel | None = None, *, work: bool = False) -> LlmProvider:
     return llm_for(
         model,
         temperature=reply.temperature,
-        max_tokens=LENGTH_MAX_TOKENS.get(reply.length),
+        max_tokens=work_max_tokens(model) if work else LENGTH_MAX_TOKENS.get(reply.length),
         reasoning_effort="none" if not reply.reasoning else reply.reasoning_effort,
         fallback=fallback,
     )
@@ -331,7 +364,7 @@ class ChatTurn:
                 raise ChatError("model not found", status=404)
 
             self.reply = settings_of(chat)
-            self.llm = provider_for(model, self.reply, await fallback_of(session, model))
+            self.llm = provider_for(model, self.reply, await fallback_of(session, model), work=chat.mode == "motion")
 
             past = list(chat.messages)
             heavy = approx_tokens(transcript_of(past)) > AUTO_SUMMARIZE_TOKENS
@@ -371,6 +404,7 @@ class ChatTurn:
             # Tools this model already has of its own — Rafiq won't offer a second one.
             self.native_tools = native_tools(model.provider, model.model_id)
             self.design_mode = chat.mode == "design"
+            self.motion_mode = chat.mode == "motion"
 
     async def _fold(self) -> None:
         """Fold the older turns into the chat's summary, if this turn owes one. A failed
@@ -409,12 +443,21 @@ class ChatTurn:
             if m.role == "user":
                 files = [by_id[a["id"]] for a in (m.attachments or []) if a["id"] in by_id]
                 history.append({"role": "user", "content": build_user_content(m.content, files, vision)})
+            elif getattr(self, "motion_mode", False) and (done := _tools_done(m.parts)):
+                # The scene itself is in the project note; this is what the model already
+                # looked up and changed, so a «continue» picks up instead of starting over.
+                history.append({"role": "assistant", "content": f"{m.content}\n\n{done}".strip()})
             elif m.content:
                 history.append({"role": "assistant", "content": m.content})
         return history
 
     def _system_prompt(self) -> str:
-        system = DESIGN_SYSTEM_PROMPT if self.design_mode else CHAT_SYSTEM_PROMPT
+        if getattr(self, "motion_mode", False):
+            from rafiq_agent.core.motion import MOTION_SYSTEM_PROMPT
+
+            system = MOTION_SYSTEM_PROMPT
+        else:
+            system = DESIGN_SYSTEM_PROMPT if self.design_mode else CHAT_SYSTEM_PROMPT
         for note in (LENGTH_NOTES.get(self.reply.length, ""), LANGUAGE_NOTES.get(self.reply.language, "")):
             if note:
                 system += f" {note}"
@@ -440,6 +483,8 @@ class ChatTurn:
         """The tools this turn gets, plus the notes that explain them to the model."""
         if self.working_dir and (notes := project_instructions(self.working_dir)):
             system += f"\n\n{notes}"
+        if getattr(self, "motion_mode", False):
+            return await self._motion_tools(system)
         if self.reply.economy:
             return ToolRegistry(), f"{system}\n\n{ECONOMY_NOTE}"
         if self.supports_tools is False or not self.reply.tools:
@@ -489,6 +534,39 @@ class ChatTurn:
             notes.append(MEMORY_NOTE)
         return registry, system + "".join(f"\n\n{n}" for n in notes)
 
+    async def _motion_tools(self, system: str) -> tuple[ToolRegistry, str]:
+        """A motion chat always gets its project's tools and the skill that explains them —
+        without them the model can't touch the scene, whatever the chat's tool switches say."""
+        from rafiq_agent.core import motion as motion_service
+        from rafiq_agent.storage.models import MotionProject
+        from rafiq_agent.tools.motion import motion_tools
+
+        groups = frozenset(self._groups() | {"skills"})
+        registry = await build_registry(None, self.settings, frozenset(self.native_tools), groups & {"skills", "web"})
+        async with SessionLocal() as session:
+            from sqlalchemy import select
+
+            project = (
+                await session.execute(select(MotionProject).where(MotionProject.chat_id == self.chat_id))
+            ).scalar_one_or_none()
+            if project is None:
+                return registry, system
+            kit = await motion_service.kit_for(session, project)
+            note = motion_service.project_note(project, kit)
+            project_id = project.id
+
+        async def changed(number: int) -> None:
+            self._emit({"type": "motion_changed", "project_id": project_id, "version": number})
+
+        for tool in motion_tools(project_id, changed, getattr(self.llm, "model", None)):
+            registry.register(tool)
+        # The motion skill comes with the prompt, so a turn starts working instead of reading
+        # files — and a «continue» doesn't read them all again.
+        notes = [motion_service.skill_note(), note]
+        if "web_fetch" in registry.names() or "web_search" in registry.names():
+            notes.append(WEB_NOTE)
+        return registry, system + "".join(f"\n\n{n}" for n in notes)
+
     async def _task_model(self) -> str:
         """Who carries out the tasks this chat creates: the model set for tasks in Settings
         (if it still exists and works), otherwise the chat's own."""
@@ -510,6 +588,20 @@ class ChatTurn:
 
             if note := await workspace_note(self.workspace_id):
                 notes.append(note)
+        if self.design_mode:
+            # The same identity for screens and videos: the workspace's brand kit, if it has one.
+            from rafiq_agent.motion.brand import design_note, normalize
+
+            kit = None
+            if getattr(self, "workspace_id", None):
+                from rafiq_agent.storage.models import Workspace
+
+                async with SessionLocal() as session:
+                    ws = await session.get(Workspace, self.workspace_id)
+                    kit = ws.brand_kit if ws else None
+            kit = kit or self.settings.brand_kit
+            if kit:
+                notes.append(design_note(normalize(kit)))
         return "".join(f"\n\n{n}" for n in notes)
 
     async def _build_context(self) -> tuple[list[dict[str, Any]], ToolRegistry]:
@@ -630,7 +722,7 @@ class ChatTurn:
                     on_tool_call=self._on_tool_call,
                     on_tool_result=self._on_tool_result,
                 ),
-                max_iterations=MAX_TURN_ITERATIONS,
+                max_iterations=MOTION_TURN_ITERATIONS if getattr(self, "motion_mode", False) else MAX_TURN_ITERATIONS,
             )
             if result.status == "empty":
                 # The model ended its turn without writing anything — say so instead of

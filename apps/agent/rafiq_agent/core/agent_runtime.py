@@ -45,8 +45,12 @@ PERMISSION_KEY_BY_TOOL = {
     "web_fetch": "browser_navigate",
     "web_search": "browser_navigate",
     "memory_save": "memory",
+    "motion_tts": "media",
+    "motion_transcribe": "media",
+    "motion_stock": "media",
+    "motion_image": "media",
 }
-PERMISSION_KEY_BY_PREFIX = {"browser_": "browser_navigate", "desktop_": "desktop_control", "mcp__": "mcp"}
+PERMISSION_KEY_BY_PREFIX = {"browser_": "browser_navigate", "desktop_": "desktop_control", "mcp__": "mcp", "motion_": "motion"}
 
 SYSTEM_PROMPT = (
     "أنت رفيق، مساعد ذكاء اصطناعي ينفّذ مهام حقيقية على جهاز المستخدم عبر أدوات "

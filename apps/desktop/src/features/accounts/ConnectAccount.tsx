@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { pollConnect, startConnect } from "../../lib/api";
-import type { AuthAccount, ConnectStart, Provider } from "../../lib/types";
+import type { AuthAccount, ConnectPoll, ConnectStart, Provider } from "../../lib/types";
 import { openExternal } from "../../lib/links";
 import { easeOutExpo } from "../../lib/motion";
 import { ActionProgress } from "../../components/Feedback";
@@ -47,28 +47,40 @@ export function ConnectAccount({
   const [phase, setPhase] = useState<Phase>({ kind: "starting" });
   const [copied, setCopied] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [checking, setChecking] = useState(false);
+  const [notYet, setNotYet] = useState(false);
   const done = useRef(onConnected);
   done.current = onConnected;
+  // the result handler of the running flow, shared by the timer and the «check now» button
+  const settle = useRef<(result: ConnectPoll) => boolean>(() => false);
 
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     setPhase({ kind: "starting" });
 
+    /** True when the flow is over (signed in, or failed). */
+    settle.current = (result: ConnectPoll) => {
+      if (!alive) return true;
+      if (result.status === "complete" && result.account) {
+        if (timer) clearTimeout(timer);
+        setPhase({ kind: "done", account: result.account });
+        timer = setTimeout(() => done.current(result.account!), 900);
+        return true;
+      }
+      if (result.status !== "pending") {
+        if (timer) clearTimeout(timer);
+        setPhase({ kind: "error", message: result.message ?? t("ما زبط تسجيل الدخول.") });
+        return true;
+      }
+      return false;
+    };
+
     async function poll(flow: ConnectStart) {
       if (!alive) return;
       try {
         const result = await pollConnect(flow.flow_id);
-        if (!alive) return;
-        if (result.status === "complete" && result.account) {
-          setPhase({ kind: "done", account: result.account });
-          timer = setTimeout(() => done.current(result.account!), 900);
-          return;
-        }
-        if (result.status !== "pending") {
-          setPhase({ kind: "error", message: result.message ?? t("ما زبط تسجيل الدخول.") });
-          return;
-        }
+        if (settle.current(result)) return;
       } catch {
         // A dropped request is not a failed sign-in — keep waiting.
       }
@@ -100,6 +112,20 @@ export function ConnectAccount({
     if (flow.kind === "device") copyCode(flow.user_code);
     void openExternal(flow.verification_uri);
     setPhase({ kind: "verifying", flow });
+  }
+
+  /** «I've signed in»: ask right now instead of waiting for the next automatic check. */
+  async function checkNow(flow: ConnectStart) {
+    setChecking(true);
+    setNotYet(false);
+    try {
+      const result = await pollConnect(flow.flow_id, true);
+      if (!settle.current(result)) setNotYet(true);
+    } catch {
+      setNotYet(true);
+    } finally {
+      setChecking(false);
+    }
   }
 
   const waiting = phase.kind === "waiting" || phase.kind === "verifying" || phase.kind === "starting";
@@ -155,17 +181,28 @@ export function ConnectAccount({
             </div>
             )}
             <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => openProvider(phase.flow)}>
+              <Button variant={phase.kind === "verifying" ? "soft" : "primary"} onClick={() => openProvider(phase.flow)}>
                 <ExternalIcon className="h-4 w-4" />
                 {phase.flow.kind === "device" ? t("انسخ الرمز وافتح {0}", { 0: providerName }) : t("افتح {0}", { 0: providerName })}
               </Button>
+              {phase.kind === "verifying" && (
+                <Button variant="accent" onClick={() => void checkNow(phase.flow)} disabled={checking}>
+                  {checking ? <SpinnerIcon className="h-4 w-4" /> : <DrawnCheck className="h-4 w-4" />}
+                  {checking ? t("عم شيك…") : t("سجّلت — شيك هلأ")}
+                </Button>
+              )}
               <Button variant="ghost" onClick={onCancel}>
                 {t("إلغاء")}
               </Button>
             </div>
+            {notYet && !checking && (
+              <p className="text-xs" style={{ color: "var(--color-pending)" }}>
+                {t("{0} لسا ما وصله موافقتك. تأكد إنك حطيت الرمز وضغطت «Authorize»، وبعدين شيك كمان مرة.", { 0: providerName })}
+              </p>
+            )}
             <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
               {phase.kind === "verifying"
-                ? t("بستنى موافقتك على {0}… بس توافق بيتربط الحساب لحاله.", { 0: providerName })
+                ? t("بستنى موافقتك على {0}… بيتربط لحاله بس توافق، أو اضغط «شيك هلأ» لتخلص فوراً.", { 0: providerName })
                 : phase.flow.kind === "device"
                   ? t("الرمز صالح لربع ساعة.")
                   : t("الموافقة صالحة لعشر دقايق.")}

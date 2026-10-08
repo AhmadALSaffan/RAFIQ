@@ -12,7 +12,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { easeOutExpo, snappy } from "../../lib/motion";
 import { BigNumber, BracketLabel, LedBar } from "../../components/brand";
 import { Button } from "../../components/ui";
-import { AlertIcon, CheckCircleIcon, XIcon } from "../../components/Icons";
+import { AlertIcon, CheckCircleIcon, EyeIcon, EyeOffIcon, LockIcon, MusicIcon, XIcon } from "../../components/Icons";
+import { LayerTypeIcon } from "./LayersPanel";
+
+/** Sound has its own colour, on the timeline and in the lists. */
+const AUDIO_CLIP = "linear-gradient(180deg, #2f9e8f, #23786d)";
+const AUDIO_TINT_LINE = "#2f9e8f";
 import { t } from "../../i18n";
 
 // ── Time ─────────────────────────────────────────────────────────────────────────────────
@@ -55,6 +60,11 @@ export interface MotionTrack {
   id: string;
   name: string;
   kind: "layer" | "video" | "audio";
+  /** The layer type (text, shape…) or the audio source, for the row's mark. */
+  type?: string;
+  hidden?: boolean;
+  locked?: boolean;
+  depth?: number;
   clips: MotionClip[];
   /** Keyframes as seconds from the start of the track's first clip, so they travel with it. */
   keyframes?: number[];
@@ -76,6 +86,7 @@ export function Timeline({
   onClipChange,
   zoom,
   onZoom,
+  onToggleHidden,
 }: {
   tracks: MotionTrack[];
   duration: number;
@@ -87,12 +98,15 @@ export function Timeline({
   /** Pixels per second. */
   zoom: number;
   onZoom: (pxPerSecond: number) => void;
+  onToggleHidden?: (trackId: string) => void;
 }) {
   const [drag, setDrag] = useState<Drag | null>(null);
   const area = useRef<HTMLDivElement>(null);
   const width = Math.max(1, duration * zoom);
   const step = rulerStep(zoom);
   const ticks = useMemo(() => Array.from({ length: Math.floor(duration / step) + 1 }, (_, i) => i * step), [duration, step]);
+  const picture = tracks.filter((tr) => tr.kind !== "audio");
+  const sound = tracks.filter((tr) => tr.kind === "audio");
 
   useEffect(() => {
     if (!drag) return;
@@ -124,56 +138,140 @@ export function Timeline({
     onSeek(Math.min(duration, Math.max(0, (clientX - box.left) / zoom)));
   }
 
+  const NAME_W = 168;
+  const row = (track: MotionTrack) => {
+    const audio = track.kind === "audio";
+    const tint = audio ? AUDIO_CLIP : track.kind === "video" ? "var(--color-border)" : "var(--color-surface)";
+    return (
+      <div key={track.id} className="flex h-9 border-t" style={{ borderColor: "var(--color-border)", opacity: track.hidden ? 0.45 : 1 }}>
+        {/* the name column stays put while the time scrolls under it */}
+        <div
+          className="sticky z-10 flex shrink-0 items-center gap-1.5 px-2 text-[11px]"
+          style={{ left: 0, width: NAME_W, paddingLeft: 8 + (track.depth ?? 0) * 12, background: "var(--color-surface-2)", color: selected === track.id ? "var(--color-ink)" : "var(--color-ink-muted)" }}
+          dir="auto"
+        >
+          <span className="shrink-0" style={{ color: audio ? AUDIO_TINT_LINE : undefined }}>
+            <LayerTypeIcon type={audio ? "audio" : (track.type ?? "shape")} />
+          </span>
+          <button type="button" onClick={() => onSelect(track.id)} className="min-w-0 flex-1 truncate text-start" title={track.name}>
+            {track.name}
+          </button>
+          {track.locked && <LockIcon className="h-3 w-3 shrink-0" />}
+          {!audio && onToggleHidden && (
+            <button type="button" onClick={() => onToggleHidden(track.id)} className="shrink-0 rounded p-0.5 hover:bg-[var(--color-surface)]" aria-label={track.hidden ? t("أظهر") : t("أخفِ")} title={track.hidden ? t("أظهر") : t("أخفِ")}>
+              {track.hidden ? <EyeOffIcon className="h-3 w-3" /> : <EyeIcon className="h-3 w-3" />}
+            </button>
+          )}
+        </div>
+        <div className="relative" style={{ width: width + 24 }}>
+          {track.clips.map((clip) => {
+            const on = selected === clip.id;
+            return (
+              <div
+                key={clip.id}
+                role="button"
+                tabIndex={0}
+                aria-pressed={on}
+                aria-label={clip.label ?? track.name}
+                onPointerDown={(e) => {
+                  if ((e.target as HTMLElement).dataset.edge) return;
+                  e.preventDefault();
+                  onSelect(clip.id);
+                  if (!track.locked) setDrag({ clip: clip.id, track: track.id, mode: "move", x: e.clientX, start: clip.start, end: clip.end });
+                }}
+                onKeyDown={(e) => {
+                  const by = e.shiftKey ? 1 : 0.1;
+                  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                    e.preventDefault();
+                    const d = e.key === "ArrowRight" ? by : -by;
+                    onClipChange(track.id, { ...clip, ...clampClip(snap(clip.start + d), snap(clip.end + d), duration) });
+                  }
+                }}
+                className={`group absolute top-1 flex h-7 items-center overflow-hidden rounded-lg text-[11px] ${track.locked ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
+                style={{
+                  left: clip.start * zoom,
+                  width: Math.max(8, (clip.end - clip.start) * zoom),
+                  background: tint,
+                  color: audio ? "#fff" : undefined,
+                  boxShadow: on ? "inset 0 0 0 2px var(--color-accent)" : `inset 0 0 0 1px ${audio ? "transparent" : "var(--color-border)"}`,
+                }}
+              >
+                {audio && track.wave && <Wave values={track.wave} />}
+                <span className="relative truncate px-2" dir="auto">
+                  {clip.label}
+                </span>
+                {!track.locked &&
+                  (["start", "end"] as const).map((edge) => (
+                    <span
+                      key={edge}
+                      data-edge={edge}
+                      aria-hidden
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSelect(clip.id);
+                        setDrag({ clip: clip.id, track: track.id, mode: edge, x: e.clientX, start: clip.start, end: clip.end });
+                      }}
+                      className={`absolute inset-y-0 w-1.5 cursor-ew-resize opacity-0 transition-opacity group-hover:opacity-100 ${edge === "start" ? "left-0" : "right-0"}`}
+                      style={{ background: audio ? "rgba(255,255,255,.8)" : "var(--color-ink-muted)" }}
+                    />
+                  ))}
+              </div>
+            );
+          })}
+          {track.keyframes?.map((k) => (
+            <span
+              key={k}
+              className="pointer-events-none absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45"
+              style={{ left: ((track.clips[0]?.start ?? 0) + k) * zoom, background: "var(--color-ink)" }}
+              aria-hidden
+            />
+          ))}
+          {track.beats?.map((b) => (
+            <span key={b} className="pointer-events-none absolute inset-y-1 w-px" style={{ left: b * zoom, background: "rgba(255,255,255,.6)" }} aria-hidden />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl" style={{ background: "var(--color-surface-2)" }}>
-      <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ background: "var(--color-surface-2)" }}>
+      <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-1.5">
         <BracketLabel>{t("الزمن")}</BracketLabel>
+        <span className="text-[10px]" style={{ color: "var(--color-ink-muted)" }}>
+          {t("{n} طبقة · {a} صوت", { n: picture.length, a: sound.length })}
+        </span>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => onZoom(Math.max(20, zoom / 1.5))}
-            aria-label={t("صغّر الزمن")}
-            title={t("صغّر الزمن")}
-            className="flex h-6 w-6 items-center justify-center rounded-full text-sm transition-colors hover:bg-[var(--color-surface)]"
-          >
+          <button onClick={() => onZoom(Math.max(10, zoom / 1.5))} aria-label={t("صغّر الزمن")} title={t("صغّر الزمن")} className="flex h-6 w-6 items-center justify-center rounded-full text-sm transition-colors hover:bg-[var(--color-surface)]">
             −
           </button>
           <span className="num w-12 text-center text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
             {Math.round(zoom)}px/s
           </span>
-          <button
-            onClick={() => onZoom(Math.min(600, zoom * 1.5))}
-            aria-label={t("كبّر الزمن")}
-            title={t("كبّر الزمن")}
-            className="flex h-6 w-6 items-center justify-center rounded-full text-sm transition-colors hover:bg-[var(--color-surface)]"
-          >
+          <button onClick={() => onZoom(Math.min(600, zoom * 1.5))} aria-label={t("كبّر الزمن")} title={t("كبّر الزمن")} className="flex h-6 w-6 items-center justify-center rounded-full text-sm transition-colors hover:bg-[var(--color-surface)]">
             +
           </button>
         </div>
       </div>
 
-      <div className="flex min-h-0">
-        {/* Track names follow the page direction; the time area doesn't. */}
-        <div className="w-24 shrink-0 pt-6">
-          {tracks.map((track) => (
-            <div key={track.id} className="flex h-10 items-center truncate px-3 text-xs" style={{ color: "var(--color-ink-muted)" }} dir="auto">
-              {track.name}
-            </div>
-          ))}
-        </div>
-
-        <div
-          className="min-w-0 flex-1 overflow-x-auto pb-2"
-          dir="ltr"
-          onWheel={(e) => {
-            if (!e.ctrlKey) return;
-            e.preventDefault();
-            onZoom(Math.min(600, Math.max(20, zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15))));
-          }}
-        >
-          <div ref={area} className="relative" style={{ width: width + 24 }}>
-            {/* Ruler: click or drag to move the playhead. */}
+      {/* One scroller for both axes: the ruler sticks to the top, the names to the side. */}
+      <div
+        className="relative min-h-0 flex-1 overflow-auto"
+        dir="ltr"
+        onWheel={(e) => {
+          if (!e.ctrlKey) return;
+          e.preventDefault();
+          onZoom(Math.min(600, Math.max(10, zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15))));
+        }}
+      >
+        <div className="relative" style={{ width: NAME_W + width + 24, minHeight: "100%" }}>
+          <div className="sticky top-0 z-20 flex h-6" style={{ background: "var(--color-surface-2)" }}>
+            <div className="sticky z-30 shrink-0" style={{ left: 0, width: NAME_W, background: "var(--color-surface-2)" }} />
             <div
-              className="relative h-6 cursor-pointer select-none"
+              ref={area}
+              className="relative cursor-pointer select-none"
+              style={{ width: width + 24 }}
               onPointerDown={(e) => {
                 seekAt(e.clientX);
                 const move = (ev: PointerEvent) => seekAt(ev.clientX);
@@ -188,86 +286,22 @@ export function Timeline({
                 </span>
               ))}
             </div>
+          </div>
 
-            {tracks.map((track) => (
-              <div key={track.id} className="relative h-10 border-t" style={{ borderColor: "var(--color-border)" }}>
-                {track.clips.map((clip) => {
-                  const on = selected === clip.id;
-                  return (
-                    <div
-                      key={clip.id}
-                      role="button"
-                      tabIndex={0}
-                      aria-pressed={on}
-                      aria-label={clip.label ?? track.name}
-                      onPointerDown={(e) => {
-                        if ((e.target as HTMLElement).dataset.edge) return;
-                        e.preventDefault();
-                        onSelect(clip.id);
-                        setDrag({ clip: clip.id, track: track.id, mode: "move", x: e.clientX, start: clip.start, end: clip.end });
-                      }}
-                      onKeyDown={(e) => {
-                        const by = e.shiftKey ? 1 : 0.1;
-                        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                          e.preventDefault();
-                          const d = e.key === "ArrowRight" ? by : -by;
-                          onClipChange(track.id, { ...clip, ...clampClip(snap(clip.start + d), snap(clip.end + d), duration) });
-                        }
-                      }}
-                      className="group absolute top-1.5 flex h-7 cursor-grab items-center overflow-hidden rounded-lg text-[11px] active:cursor-grabbing"
-                      style={{
-                        left: clip.start * zoom,
-                        width: Math.max(8, (clip.end - clip.start) * zoom),
-                        background: track.kind === "video" ? "var(--color-border)" : "var(--color-surface)",
-                        boxShadow: on ? "inset 0 0 0 2px var(--color-accent)" : "inset 0 0 0 1px var(--color-border)",
-                      }}
-                    >
-                      {track.kind === "audio" && track.wave && <Wave values={track.wave} />}
-                      <span className="relative truncate px-2" dir="auto">
-                        {clip.label}
-                      </span>
-                      {(["start", "end"] as const).map((edge) => (
-                        <span
-                          key={edge}
-                          data-edge={edge}
-                          aria-hidden
-                          onPointerDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onSelect(clip.id);
-                            setDrag({ clip: clip.id, track: track.id, mode: edge, x: e.clientX, start: clip.start, end: clip.end });
-                          }}
-                          className={`absolute inset-y-0 w-1.5 cursor-ew-resize opacity-0 transition-opacity group-hover:opacity-100 ${edge === "start" ? "left-0" : "right-0"}`}
-                          style={{ background: "var(--color-ink-muted)" }}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-                {track.keyframes?.map((k) => (
-                  <span
-                    key={k}
-                    className="pointer-events-none absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45"
-                    style={{ left: ((track.clips[0]?.start ?? 0) + k) * zoom, background: "var(--color-ink)" }}
-                    aria-hidden
-                  />
-                ))}
-                {track.beats?.map((b) => (
-                  <span key={b} className="pointer-events-none absolute inset-y-1 w-px" style={{ left: b * zoom, background: "var(--color-ink-muted)", opacity: 0.5 }} aria-hidden />
-                ))}
-              </div>
-            ))}
+          {picture.map(row)}
+          {sound.length > 0 && (
+            <div className="sticky z-10 flex h-6 items-center gap-1.5 border-t px-2 text-[10px] font-semibold" style={{ left: 0, width: NAME_W, borderColor: "var(--color-border)", color: AUDIO_TINT_LINE }}>
+              <MusicIcon className="h-3 w-3" />
+              {t("الصوت")}
+            </div>
+          )}
+          {sound.map(row)}
 
-            {/* Playhead: the one orange line. */}
-            <motion.span
-              className="pointer-events-none absolute bottom-0 top-0 w-0.5"
-              style={{ background: "var(--color-accent)" }}
-              animate={{ left: time * zoom }}
-              transition={{ duration: 0 }}
-              aria-hidden
-            >
+          {/* Playhead: the one orange line. */}
+          <div className="pointer-events-none absolute bottom-0 left-0 top-0" style={{ width: NAME_W + width + 24 }}>
+            <span className="absolute bottom-0 top-0 z-20 w-0.5" style={{ left: NAME_W + time * zoom, background: "var(--color-accent)" }} aria-hidden>
               <span className="absolute -left-1 top-0 h-2.5 w-2.5 rounded-full" style={{ background: "var(--color-accent)" }} />
-            </motion.span>
+            </span>
           </div>
         </div>
       </div>
@@ -275,12 +309,13 @@ export function Timeline({
   );
 }
 
+
 function Wave({ values }: { values: number[] }) {
   const points = values.map((v, i) => `${(i / Math.max(1, values.length - 1)) * 100},${50 - v * 45} `).join("");
   const lower = values.map((v, i) => `${(i / Math.max(1, values.length - 1)) * 100},${50 + v * 45} `).reverse().join("");
   return (
     <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-      <polygon points={points + lower} style={{ fill: "var(--color-ink-muted)", opacity: 0.35 }} />
+      <polygon points={points + lower} style={{ fill: "#ffffff", opacity: 0.35 }} />
     </svg>
   );
 }
