@@ -30,7 +30,7 @@ import { Button, DrawnCheck } from "../components/ui";
 import { Resizer } from "../components/Resizer";
 import { usePageMenu } from "../components/ContextMenu";
 import { ChatPage } from "../features/chat";
-import { AlertIcon, ArrowDownIcon, ChatIcon, FileIcon, FolderIcon, PlusIcon, RefreshIcon, TasksIcon, TrashIcon, XIcon } from "../components/Icons";
+import { AlertIcon, ArrowDownIcon, ChatIcon, FileIcon, FolderIcon, PlusIcon, RefreshIcon, TasksIcon, TrashIcon, XIcon, PencilIcon } from "../components/Icons";
 
 import { t } from "../i18n";
 const DEVICES = [
@@ -161,23 +161,39 @@ export function DesignWorkspace() {
             defaultValue={design.title}
             onBlur={async (e) => {
               const title = e.currentTarget.value.trim();
+              const cancelled = e.currentTarget.dataset.cancel === "1";
               setRenaming(false);
-              if (title && title !== design.title) setDesign(await renameDesign(design.id, title));
+              if (!cancelled && title && title !== design.title) setDesign(await renameDesign(design.id, title));
             }}
-            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") e.currentTarget.dataset.cancel = "1"; // leave it as it was
+              if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
+            }}
             className="min-w-0 flex-1 rounded-[10px] border px-2 py-1 text-sm outline-none"
             style={{ borderColor: "var(--color-ink-muted)", background: "var(--color-surface)", color: "var(--color-ink)" }}
             dir="auto"
           />
         ) : (
-          <h1
-            onDoubleClick={() => setRenaming(true)}
-            title={t("دبل كليك لإعادة التسمية")}
-            className="min-w-0 flex-1 cursor-text truncate text-[17px] font-bold"
-            dir="auto"
-          >
-            {design.title}
-          </h1>
+          <div className="group/title flex min-w-0 flex-1 items-center gap-1">
+            <h1
+              onDoubleClick={() => setRenaming(true)}
+              title={t("دبل كليك لإعادة التسمية")}
+              className="min-w-0 cursor-text truncate text-[17px] font-bold"
+              dir="auto"
+            >
+              {design.title}
+            </h1>
+            <button
+              type="button"
+              onClick={() => setRenaming(true)}
+              aria-label={t("إعادة تسمية")}
+              title={t("إعادة تسمية")}
+              className="shrink-0 rounded-full p-1.5 opacity-0 transition-opacity hover:bg-[var(--color-surface)] focus-visible:opacity-100 group-hover/title:opacity-100"
+              style={{ color: "var(--color-ink-muted)" }}
+            >
+              <PencilIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
 
         <div className="flex shrink-0 items-center gap-1 rounded-full p-1" style={{ background: "var(--color-surface)" }}>

@@ -13,6 +13,7 @@ import type { AppSettings, LlmModel, WebSearchKeys, WebSearchProvider } from "..
 import { Button } from "../../components/ui";
 import { Card, Hint, Section, SelectRow, SliderRow, ToggleRow } from "./controls";
 import { t } from "../../i18n";
+import { roving } from "../../lib/keyboard";
 
 type Persist = (next: AppSettings) => void;
 
@@ -109,7 +110,7 @@ export function WebSettings({ settings, persist }: { settings: AppSettings; pers
       <Card>
         <p className="text-sm font-medium">{t("البحث على الويب")}</p>
         <Hint>{t("قراءة الصفحات (web_fetch) شغّالة دايماً. للبحث اختار خدمة رسمية وحط مفتاحها — المفتاح بينحفظ بـ Windows Credential Manager.")}</Hint>
-        <div className="mt-3 flex flex-wrap gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup">
+        <div className="mt-3 flex flex-wrap gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("البحث على الويب")} ref={roving}>
           {SEARCH.map((option) => {
             const active = option.id === provider;
             return (

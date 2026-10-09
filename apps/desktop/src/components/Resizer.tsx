@@ -42,7 +42,10 @@ export function Resizer({
     setDragging(false);
   }
 
+  // A focusable separator is a widget in WAI-ARIA (it has a value and moves with the arrows);
+  // the lint rule only knows the static kind.
   return (
+    /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
     <div
       role="separator"
       aria-orientation="vertical"
@@ -68,6 +71,7 @@ export function Resizer({
       className="group relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize touch-none"
       style={{ cursor: "col-resize" }}
     >
+      {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
       <span
         className="pointer-events-none absolute inset-y-0 start-1/2 w-px -translate-x-1/2 transition-colors duration-150 group-hover:bg-[var(--color-accent)] group-focus-visible:bg-[var(--color-accent)]"
         style={{ background: dragging ? "var(--color-accent)" : "transparent" }}

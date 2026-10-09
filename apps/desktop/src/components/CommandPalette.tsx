@@ -366,6 +366,10 @@ export function CommandPalette({
                 }}
                 placeholder={t("ابحث بكل شي…")}
                 aria-label={t("ابحث بكل شي…")}
+                role="combobox"
+                aria-expanded="true"
+                aria-controls="command-results"
+                aria-autocomplete="list"
                 aria-activedescendant={flat[active] ? `cmd-${flat[active].id}` : undefined}
                 className="w-full bg-transparent py-3.5 text-sm outline-none"
                 style={{ color: "var(--color-ink)" }}
@@ -376,10 +380,10 @@ export function CommandPalette({
               </kbd>
             </div>
 
-            <div ref={list} className="min-h-0 flex-1 overflow-y-auto p-1.5" role="listbox">
+            <div ref={list} id="command-results" className="min-h-0 flex-1 overflow-y-auto p-1.5" role="listbox" aria-label={t("النتائج")}>
               {groups.map((group) => (
-                <section key={group.title} className="mb-1">
-                  <h3 className="px-2.5 pb-1 pt-2 text-[11px] font-medium" style={{ color: "var(--color-ink-muted)" }}>
+                <section key={group.title} className="mb-1" role="group" aria-label={group.title}>
+                  <h3 aria-hidden="true" className="px-2.5 pb-1 pt-2 text-[11px] font-medium" style={{ color: "var(--color-ink-muted)" }}>
                     {group.title}
                   </h3>
                   {group.items.map((item) => {

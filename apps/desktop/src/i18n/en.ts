@@ -1911,4 +1911,12 @@ export const en: Dictionary = {
   "مدفوعات": "Payments",
   "دوّر على خادم… (Figma، قاعدة بيانات، مهام)": "Search servers… (Figma, database, tasks)",
   "ما في خادم جاهز بهالاسم — فيك تضيفه بإيدك من «مخصص» تحت.": "No ready-made server by that name — add it yourself under “Custom” below.",
+  "النتائج": "Results",
+  "المحادثة": "Conversation",
+  "اكتب رسالتك": "Write your message",
+  "كود اللون": "Colour code",
+  "الفيديو المصدَّر": "Exported video",
+  "دبل كليك أو F2 لإعادة التسمية": "Double-click or F2 to rename",
+  "أدوات الطبقة": "Layer tools",
+  "مكان التشغيل": "Playback position",
 };

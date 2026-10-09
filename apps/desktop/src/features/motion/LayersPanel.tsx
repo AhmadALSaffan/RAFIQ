@@ -2,6 +2,8 @@
  * Every layer in drawing order — the top row is drawn on top, like any editor's layer list.
  * Drag a row (or use the arrows) to change the order; the eye hides, the lock keeps a layer
  * from being picked or dragged on the stage; double-click renames. Sound is listed apart.
+ * By keyboard: ↑/↓ (Home/End) walk the list, Enter picks, F2 renames, and Tab reaches each
+ * row's buttons.
  */
 
 import { useRef, useState } from "react";
@@ -60,6 +62,21 @@ export function LayersPanel({
     );
 
   const small = "rounded p-1 hover:bg-[var(--color-surface)]";
+  // One row is in the Tab order (the selected one, else the first); arrows move between them.
+  const rowRefs = useRef(new Map<string, HTMLButtonElement>());
+  const focusable = rows.some((r) => r.layer.id === selected) ? selected : rows[0]?.layer.id;
+  const walk = (e: React.KeyboardEvent<HTMLButtonElement>, index: number, id: string) => {
+    const to = e.key === "ArrowDown" ? index + 1 : e.key === "ArrowUp" ? index - 1 : e.key === "Home" ? 0 : e.key === "End" ? rows.length - 1 : null;
+    if (to !== null) {
+      e.preventDefault();
+      const next = rows[Math.max(0, Math.min(rows.length - 1, to))].layer.id;
+      onSelect(next);
+      rowRefs.current.get(next)?.focus();
+    } else if (e.key === "F2") {
+      e.preventDefault();
+      setRenaming(id);
+    }
+  };
   return (
     <div className="flex h-full flex-col overflow-y-auto p-3">
       <div className="mb-2 flex items-center justify-between">
@@ -73,15 +90,13 @@ export function LayersPanel({
           {t("ما في طبقات لسا — ضيف من تبويب «إضافة» أو احكي للموديل.")}
         </p>
       )}
-      <ul className="flex flex-col gap-0.5" role="listbox" aria-label={t("الطبقات")}>
-        {rows.map(({ layer, depth, index, count }) => {
+      <ul className="flex flex-col gap-0.5" aria-label={t("الطبقات")}>
+        {rows.map(({ layer, depth, index, count }, position) => {
           const on = selected === layer.id;
           const label = layer.name ?? layerLabel(layer);
           return (
             <li
               key={layer.id}
-              role="option"
-              aria-selected={on}
               draggable={renaming !== layer.id}
               onDragStart={(e) => {
                 dragRef.current = layer.id;
@@ -107,8 +122,7 @@ export function LayersPanel({
                 setDragging(null);
                 setOver(null);
               }}
-              onClick={() => onSelect(layer.id)}
-              className="group flex cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs"
+              className="group flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs"
               style={{
                 paddingInlineStart: 6 + depth * 14,
                 background: on ? "var(--color-surface-2)" : undefined,
@@ -117,36 +131,57 @@ export function LayersPanel({
               }}
             >
               <GripIcon className="h-3.5 w-3.5 shrink-0 cursor-grab opacity-40 group-hover:opacity-100" />
-              <span style={{ color: "var(--color-ink-muted)" }}>
-                <LayerTypeIcon type={layer.type} />
-              </span>
               {renaming === layer.id ? (
-                <input
-                  autoFocus
-                  defaultValue={layer.name ?? ""}
-                  placeholder={layerLabel(layer)}
-                  onClick={(e) => e.stopPropagation()}
-                  onBlur={(e) => {
-                    const v = e.currentTarget.value.trim();
-                    setRenaming(null);
-                    if (v !== (layer.name ?? "")) onChange(setField(scene, layer.id, "name", v || undefined), t("سمّيت {id}", { id: layer.id }));
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") e.currentTarget.blur();
-                    if (e.key === "Escape") setRenaming(null);
-                  }}
-                  className="min-w-0 flex-1 rounded border px-1 py-0.5 text-xs outline-none"
-                  style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-ink)" }}
-                />
-              ) : (
-                <span className="min-w-0 flex-1 truncate" dir={fieldDir(label)} onDoubleClick={() => setRenaming(layer.id)} title={t("دبل كليك لإعادة التسمية")}>
-                  {label}
+                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <span style={{ color: "var(--color-ink-muted)" }}>
+                    <LayerTypeIcon type={layer.type} />
+                  </span>
+                  <input
+                    autoFocus
+                    defaultValue={layer.name ?? ""}
+                    placeholder={layerLabel(layer)}
+                    aria-label={t("اسم الطبقة")}
+                    onBlur={(e) => {
+                      const v = e.currentTarget.value.trim();
+                      setRenaming(null);
+                      if (v !== (layer.name ?? "")) onChange(setField(scene, layer.id, "name", v || undefined), t("سمّيت {id}", { id: layer.id }));
+                      rowRefs.current.get(layer.id)?.focus();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      if (e.key === "Escape") setRenaming(null);
+                    }}
+                    className="min-w-0 flex-1 rounded border px-1 py-0.5 text-xs outline-none"
+                    style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-ink)" }}
+                  />
                 </span>
+              ) : (
+                <button
+                  type="button"
+                  aria-pressed={on}
+                  tabIndex={layer.id === focusable ? 0 : -1}
+                  ref={(el) => {
+                    if (el) rowRefs.current.set(layer.id, el);
+                    else rowRefs.current.delete(layer.id);
+                  }}
+                  onClick={() => onSelect(layer.id)}
+                  onDoubleClick={() => setRenaming(layer.id)}
+                  onKeyDown={(e) => walk(e, position, layer.id)}
+                  title={t("دبل كليك أو F2 لإعادة التسمية")}
+                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded text-start"
+                >
+                  <span style={{ color: "var(--color-ink-muted)" }}>
+                    <LayerTypeIcon type={layer.type} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate" dir={fieldDir(label)}>
+                    {label}
+                  </span>
+                  <span className="num shrink-0 text-[10px]" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
+                    {layer.start}–{layer.end}s
+                  </span>
+                </button>
               )}
-              <span className="num shrink-0 text-[10px]" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
-                {layer.start}–{layer.end}s
-              </span>
-              <div className={`flex shrink-0 items-center ${on ? "" : "opacity-0 group-hover:opacity-100"}`} onClick={(e) => e.stopPropagation()}>
+              <div role="group" aria-label={t("أدوات الطبقة")} className={`flex shrink-0 items-center ${on ? "" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"}`}>
                 <button type="button" className={small} disabled={index === count - 1} title={t("لقدّام")} aria-label={t("لقدّام")} onClick={() => onChange(moveLayerOps(scene, layer.id, "up"), t("قدّمت {id}", { id: layer.id }))}>
                   <ArrowUpIcon className="h-3 w-3" />
                 </button>
@@ -182,10 +217,10 @@ export function LayersPanel({
                   <TrashIcon className="h-3 w-3" />
                 </button>
               </div>
-              <button type="button" className={small} title={layer.locked ? t("فك القفل") : t("اقفل")} aria-label={layer.locked ? t("فك القفل") : t("اقفل")} onClick={(e) => (e.stopPropagation(), toggle(layer, "locked"))} style={{ opacity: layer.locked ? 1 : 0.4 }}>
+              <button type="button" className={small} title={layer.locked ? t("فك القفل") : t("اقفل")} aria-label={layer.locked ? t("فك القفل") : t("اقفل")} aria-pressed={!!layer.locked} onClick={() => toggle(layer, "locked")} style={{ opacity: layer.locked ? 1 : 0.4 }}>
                 {layer.locked ? <LockIcon className="h-3.5 w-3.5" /> : <UnlockIcon className="h-3.5 w-3.5" />}
               </button>
-              <button type="button" className={small} title={layer.hidden ? t("أظهر") : t("أخفِ")} aria-label={layer.hidden ? t("أظهر") : t("أخفِ")} onClick={(e) => (e.stopPropagation(), toggle(layer, "hidden"))}>
+              <button type="button" className={small} title={layer.hidden ? t("أظهر") : t("أخفِ")} aria-label={layer.hidden ? t("أظهر") : t("أخفِ")} onClick={() => toggle(layer, "hidden")}>
                 {layer.hidden ? <EyeOffIcon className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
               </button>
             </li>
@@ -203,10 +238,12 @@ export function LayersPanel({
             {scene.audio!.map((track) => {
               const key = `audio:${track.id}`;
               return (
-                <li
-                  key={track.id}
+                <li key={track.id}>
+                  <button
+                  type="button"
+                  aria-pressed={selected === key}
                   onClick={() => onSelect(key)}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs"
+                  className="flex w-full cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-start text-xs"
                   style={{ background: selected === key ? "var(--color-surface-2)" : undefined, boxShadow: selected === key ? `inset 0 0 0 1px ${AUDIO_TINT}` : undefined }}
                 >
                   <span style={{ color: AUDIO_TINT }}>
@@ -218,6 +255,7 @@ export function LayersPanel({
                   <span className="text-[10px]" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
                     {track.pattern ?? track.kind ?? track.source}
                   </span>
+                  </button>
                 </li>
               );
             })}

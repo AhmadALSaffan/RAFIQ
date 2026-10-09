@@ -29,6 +29,7 @@ import { ConnectAccount } from "../features/accounts/ConnectAccount";
 import { accountLabel } from "../features/accounts/labels";
 
 import { t } from "../i18n";
+import { roving } from "../lib/keyboard";
 export function ModelsPage() {
   const [models, setModels] = useState<LlmModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -617,7 +618,7 @@ function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
       </div>
 
       {meta.accountOptional && (
-        <div className="flex gap-1.5" role="radiogroup" aria-label={t("طريقة الدخول")}>
+        <div ref={roving} className="flex gap-1.5" role="radiogroup" aria-label={t("طريقة الدخول")}>
           {[
             { value: false, label: t("مفتاح API") },
             { value: true, label: t("حساب {0}", { 0: meta.label }) },

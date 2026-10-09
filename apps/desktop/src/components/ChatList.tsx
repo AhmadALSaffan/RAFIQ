@@ -251,7 +251,7 @@ export function ChatList({
               style={{ color: "var(--color-ink-muted)", background: "color-mix(in oklch, var(--color-surface) 88%, transparent)" }}
             >
               ( {t("الأرشيف")} )
-              <span className="num ms-1 opacity-60">{archived.length}</span>
+              <span className="num ms-1">{archived.length}</span>
             </h3>
             <p className="px-2 pb-2 text-[11px] leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
               {t("مخفية عن القائمة بس البحث بيلاقيها. أي رسالة جديدة فيها بترجّعها.")}
@@ -269,7 +269,7 @@ export function ChatList({
               style={{ color: "var(--color-ink-muted)", background: "color-mix(in oklch, var(--color-surface) 88%, transparent)" }}
             >
               ( {group.name} )
-              <span className="num ms-1 opacity-60">{group.items.length}</span>
+              <span className="num ms-1">{group.items.length}</span>
             </h3>
             <ul>
               <AnimatePresence initial={false}>{group.items.map(row)}</AnimatePresence>
@@ -389,19 +389,19 @@ function SearchResults({
                   <span>{timeAgo(r.updated_at)}</span>
                   {r.matches > 0 && (
                     <>
-                      <span className="opacity-50">·</span>
+                      <span className="opacity-50" aria-hidden="true">·</span>
                       <span className="tabular-nums">{t("{0} نتيجة", { 0: r.matches })}</span>
                     </>
                   )}
                   {r.title_match && (
                     <>
-                      <span className="opacity-50">·</span>
+                      <span className="opacity-50" aria-hidden="true">·</span>
                       <span>{t("بالعنوان")}</span>
                     </>
                   )}
                   {r.archived && (
                     <>
-                      <span className="opacity-50">·</span>
+                      <span className="opacity-50" aria-hidden="true">·</span>
                       <span className="flex items-center gap-1">
                         <ArchiveIcon className="h-3 w-3" />
                         {t("مؤرشفة")}
@@ -531,7 +531,7 @@ function Row({
             <span className="shrink-0">{timeAgo(chat.updated_at)}</span>
             {chat.message_count > 0 && (
               <>
-                <span className="opacity-50">·</span>
+                <span className="opacity-50" aria-hidden="true">·</span>
                 <span className="shrink-0 tabular-nums">{t("{0} رسالة", { 0: chat.message_count })}</span>
               </>
             )}

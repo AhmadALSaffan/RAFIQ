@@ -201,6 +201,7 @@ export function ReplyConfigDialog({
             dir="ltr"
             value={draft.temperature ?? 0.7}
             onChange={(e) => set({ temperature: Number(e.currentTarget.value) })}
+            aria-label={t("الحرارة (دقيق ↔ مبدع)")}
             className="w-full accent-[var(--color-ink)]"
           />
           {draft.temperature !== null && (

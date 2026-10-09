@@ -6,7 +6,7 @@ import { snappy } from "../lib/motion";
 import { Button } from "../components/ui";
 import { Resizer } from "../components/Resizer";
 import { usePageMenu } from "../components/ContextMenu";
-import { AlertIcon, MaximizeIcon, MovieIcon, PauseIcon, PlayIcon, VolumeIcon } from "../components/Icons";
+import { AlertIcon, MaximizeIcon, MovieIcon, PauseIcon, PlayIcon, VolumeIcon, PencilIcon } from "../components/Icons";
 import { ChatPage } from "../features/chat";
 import { ScenePlayer, type ScenePlayerHandle } from "../features/motion/ScenePlayer";
 import { VersionsPane } from "../features/motion/VersionsPane";
@@ -20,6 +20,7 @@ import { applyOps, clipPatch, duplicateLayerOps, findLayer, removeLayerOps, revi
 import type { Scene } from "../features/motion/engine/types";
 
 import { t } from "../i18n";
+import { ownsKey } from "../lib/keyboard";
 
 type View = "stage" | "versions";
 
@@ -32,13 +33,6 @@ function takeKickoff(id: string): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-/** Typing somewhere: the editor's shortcuts stay out of the way. */
-function typing(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  return el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
 }
 
 export function MotionWorkspace() {
@@ -148,7 +142,7 @@ export function MotionWorkspace() {
   // Keyboard: Space plays, Delete removes, Ctrl+D duplicates, arrows nudge a unit (Shift: 4), F opens the full preview.
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (!scene || typing(e.target) || fullOpen || exportOpen) return;
+      if (!scene || ownsKey(e.target, e.key) || fullOpen || exportOpen) return;
       if (e.key === " ") {
         e.preventDefault();
         setPlaying((p) => !p);
@@ -252,21 +246,37 @@ export function MotionWorkspace() {
             defaultValue={project.title}
             onBlur={async (e) => {
               const title = e.currentTarget.value.trim();
+              const cancelled = e.currentTarget.dataset.cancel === "1";
               setRenaming(false);
-              if (title && title !== project.title) setProject(await renameMotionProject(project.id, title));
+              if (!cancelled && title && title !== project.title) setProject(await renameMotionProject(project.id, title));
             }}
-            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") e.currentTarget.dataset.cancel = "1"; // leave it as it was
+              if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
+            }}
             className="min-w-0 flex-1 rounded-[10px] border px-2 py-1 text-sm outline-none"
             style={{ borderColor: "var(--color-ink-muted)", background: "var(--color-surface)", color: "var(--color-ink)" }}
             dir="auto"
           />
         ) : (
-          <h1 onDoubleClick={() => setRenaming(true)} title={t("دبل كليك لإعادة التسمية")} className="min-w-0 flex-1 cursor-text truncate text-[17px] font-bold" dir="auto">
-            {project.title}
-            <span className="num ms-2 text-xs font-normal" style={{ color: "var(--color-ink-muted)" }}>
-              v{project.version}
-            </span>
-          </h1>
+          <div className="group/title flex min-w-0 flex-1 items-center gap-1">
+            <h1 onDoubleClick={() => setRenaming(true)} title={t("دبل كليك لإعادة التسمية")} className="min-w-0 cursor-text truncate text-[17px] font-bold" dir="auto">
+              {project.title}
+              <span className="num ms-2 text-xs font-normal" style={{ color: "var(--color-ink-muted)" }}>
+                v{project.version}
+              </span>
+            </h1>
+            <button
+              type="button"
+              onClick={() => setRenaming(true)}
+              aria-label={t("إعادة تسمية")}
+              title={t("إعادة تسمية")}
+              className="shrink-0 rounded-full p-1.5 opacity-0 transition-opacity hover:bg-[var(--color-surface)] focus-visible:opacity-100 group-hover/title:opacity-100"
+              style={{ color: "var(--color-ink-muted)" }}
+            >
+              <PencilIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
         <div className="flex shrink-0 items-center gap-1 rounded-full p-1" style={{ background: "var(--color-surface)" }}>
           {(["stage", "versions"] as View[]).map((key) => (

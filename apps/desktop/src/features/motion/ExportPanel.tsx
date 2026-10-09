@@ -308,7 +308,9 @@ export function ExportPanel({
             )}
             {job.result?.status === "done" && (
               <div className="flex flex-col gap-2">
-                {url && <video src={url} controls className="max-h-56 w-full rounded-xl" style={{ background: "#000" }} />}
+                {/* The user's own export: any captions it has are drawn into the picture. */}
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                {url && <video src={url} controls aria-label={t("الفيديو المصدَّر")} className="max-h-56 w-full rounded-xl" style={{ background: "#000" }} />}
                 <p className="num text-[11px]" style={{ color: "var(--color-success)" }} dir="ltr">
                   ✓ {(job.result.report as { video?: { width: number; height: number; frames: number; fps: number } } | null)?.video?.width}×
                   {(job.result.report as { video?: { height: number } } | null)?.video?.height} · {(job.result.report as { video?: { frames: number } } | null)?.video?.frames} frames · {(job.result.report as { video?: { fps: number } } | null)?.video?.fps}fps

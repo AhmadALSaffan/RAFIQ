@@ -905,12 +905,17 @@ export function ChatPage({
         )}
 
         <div className="relative flex min-h-0 flex-1 flex-col">
+        {/* A scrolling area has to take focus for the arrow keys to scroll it (WCAG 2.1.1). */}
+        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
         <div
           ref={scrollRef}
           onScroll={(e) => onChatScroll(e.currentTarget)}
           onWheel={(e) => e.deltaY < 0 && unstick()}
           onKeyDown={(e) => ["ArrowUp", "PageUp", "Home"].includes(e.key) && unstick()}
-          className="min-h-0 flex-1 overflow-y-auto"
+          role="region"
+          aria-label={t("المحادثة")}
+          tabIndex={0}
+          className="min-h-0 flex-1 overflow-y-auto focus-visible:outline-offset-[-2px]"
           style={{ overflowAnchor: "none" }}
         >
           <div ref={contentRef} className="mx-auto flex w-full flex-col gap-6 px-6 py-8" style={{ maxWidth: reading }}>

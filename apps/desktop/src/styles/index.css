@@ -44,7 +44,7 @@
   --accent: #e68835;
   --accent-ink: #1f1306;
   --danger: #c2412d;
-  --success: #2e7d4f;
+  --success: #256b43; /* AA as text on every light surface */
   --pending: #a95a17; /* the brand orange, darkened to pass AA as text on white */
 }
 
@@ -133,7 +133,7 @@ h3 {
 }
 
 /* Keyboard focus is always visible (mouse clicks don't draw it). */
-:where(button, a, [role="button"], [role="tab"], [role="switch"], [role="radio"], [role="option"], summary, select, textarea, input):focus-visible {
+:where(button, a, [role="button"], [role="tab"], [role="switch"], [role="radio"], [role="option"], summary, select, textarea, input, [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: 2px solid color-mix(in oklch, var(--color-ink) 70%, transparent);
   outline-offset: 2px;
 }

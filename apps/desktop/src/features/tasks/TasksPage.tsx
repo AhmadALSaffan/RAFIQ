@@ -38,6 +38,7 @@ import { STATUS_COLOR, statusFilterLabel } from "./pieces";
 
 import { BigNumber, Block, BracketLabel, LedBar } from "../../components/brand";
 import { t } from "../../i18n";
+import { roving } from "../../lib/keyboard";
 type Filter = "all" | "active" | "planned" | "queued" | "completed" | "failed";
 type View = "tasks" | "schedules" | "templates";
 
@@ -49,7 +50,7 @@ function ViewTabs({ value, onChange }: { value: View; onChange: (v: View) => voi
     { id: "templates", label: t("القوالب") },
   ];
   return (
-    <div className="mb-5 inline-flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface)" }} role="tablist">
+    <div ref={roving} className="mb-5 inline-flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface)" }} role="tablist" aria-label={t("عرض")}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -299,7 +300,7 @@ export function TasksPage() {
               }}
             >
               {statusFilterLabel(f)}
-              <span className="num opacity-70">{counts[f]}</span>
+              <span className="num">{counts[f]}</span>
             </button>
           ))}
 

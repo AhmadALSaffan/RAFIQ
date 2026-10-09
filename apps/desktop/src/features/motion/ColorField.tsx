@@ -62,6 +62,7 @@ export function SolidPicker({ kit, value, onPick, allowTransparent = false }: { 
           onChange={(e) => setHex(e.target.value.trim())}
           onBlur={() => HEX.test(hex) && hex !== value && onPick(hex.toLowerCase())}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          aria-label={t("كود اللون")}
           className="w-24 rounded-lg border px-2 py-1 font-mono text-xs outline-none"
           style={{ ...inputStyle, borderColor: HEX.test(hex) ? "var(--color-border)" : "var(--color-danger)" }}
           dir="ltr"
@@ -142,6 +143,7 @@ export function ColorField({ kit, value, onCommit, allowTransparent = false }: {
                   step={15}
                   defaultValue={gradient.angle ?? 0}
                   onPointerUp={(e) => onCommit({ ...gradient, angle: Number((e.target as HTMLInputElement).value) })}
+                  onKeyUp={(e) => onCommit({ ...gradient, angle: Number((e.target as HTMLInputElement).value) })}
                   className="accent-[var(--color-ink)]"
                   dir="ltr"
                 />
@@ -188,6 +190,7 @@ export function ColorField({ kit, value, onCommit, allowTransparent = false }: {
                 key={`${stop}-${gradient.stops[stop]?.at}`}
                 defaultValue={gradient.stops[stop]?.at ?? 0}
                 onPointerUp={(e) => onCommit({ ...gradient, stops: gradient.stops.map((s, i) => (i === stop ? { ...s, at: Number((e.target as HTMLInputElement).value) } : s)) })}
+                onKeyUp={(e) => onCommit({ ...gradient, stops: gradient.stops.map((s, i) => (i === stop ? { ...s, at: Number((e.target as HTMLInputElement).value) } : s)) })}
                 className="w-20 accent-[var(--color-ink)]"
                 dir="ltr"
               />

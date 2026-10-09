@@ -205,6 +205,7 @@ export function Composer({
           </div>
         <textarea
           ref={ref}
+          aria-label={t("اكتب رسالتك")}
           value={text}
           onChange={(e) => sync(e.currentTarget)}
           onClick={(e) => sync(e.currentTarget)}

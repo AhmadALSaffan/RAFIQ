@@ -88,7 +88,7 @@ export function VersionsPane({ project, onRestored }: { project: MotionProject; 
               <button onClick={() => setPlaying((p) => !p)} aria-label={playing ? t("إيقاف") : t("تشغيل")} className="rounded-full p-2" style={{ background: "var(--color-inverse)", color: "var(--color-on-inverse)" }}>
                 {playing ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
               </button>
-              <input type="range" min={0} max={duration} step={0.01} value={time} onChange={(e) => setTime(Number(e.target.value))} className="flex-1 accent-[var(--color-ink)]" dir="ltr" />
+              <input type="range" min={0} max={duration} step={0.01} value={time} onChange={(e) => setTime(Number(e.target.value))} aria-label={t("مكان التشغيل")} className="flex-1 accent-[var(--color-ink)]" dir="ltr" />
               <span className="num w-16 text-xs">{formatTime(time)}</span>
               <Button
                 variant="accent"

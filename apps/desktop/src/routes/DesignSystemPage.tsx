@@ -131,8 +131,8 @@ export function DesignSystemPage() {
 
       <Section name="Inputs">
         <Block className="flex flex-col gap-2">
-          <input className="input" placeholder={t("اكتب شو بدك، ورفيق بيبلّش محادثة…")} />
-          <textarea className="input" rows={2} defaultValue={`Latin + ${t("المحادثات")}`} dir="auto" />
+          <input className="input" placeholder={t("اكتب شو بدك، ورفيق بيبلّش محادثة…")} aria-label="Input" />
+          <textarea className="input" rows={2} defaultValue={`Latin + ${t("المحادثات")}`} dir="auto" aria-label="Textarea" />
         </Block>
       </Section>
 

@@ -16,6 +16,7 @@ import { Button } from "../../components/ui";
 import { CopyIcon, FolderIcon, RefreshIcon, SearchIcon } from "../../components/Icons";
 import { Hint, Section, Switch } from "./controls";
 import { locale, t } from "../../i18n";
+import { roving } from "../../lib/keyboard";
 
 const SHORT = 500;
 const LONG = 5000;
@@ -157,7 +158,7 @@ export function LogsSettings() {
 
       {list && list.length > 0 && (
         <>
-          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("السجلات")}>
+          <div ref={roving} className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("السجلات")}>
             {list.map((item) => {
               const on = item.id === active;
               return (

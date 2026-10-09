@@ -33,6 +33,7 @@ import { ScenePlayer } from "../motion/ScenePlayer";
 import { Button } from "../../components/ui";
 import { Card, Hint, Section, SelectRow } from "./controls";
 import { t } from "../../i18n";
+import { roving } from "../../lib/keyboard";
 
 type Persist = (next: AppSettings) => void;
 
@@ -287,7 +288,7 @@ function BrandKitEditor() {
           </div>
 
           <p className="mb-1.5 mt-4 text-sm font-medium">{t("طبع الحركة")}</p>
-          <div className="flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("طبع الحركة")}>
+          <div className="flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("طبع الحركة")} ref={roving}>
             {PERSONALITIES.map((p) => {
               const active = kit.motion.personality === p.id;
               return (
@@ -431,7 +432,7 @@ function VoiceAndMedia({ settings, persist, models, localVoice }: { settings: Ap
       <Card>
         <p className="text-sm font-medium">{t("مين بيقرأ التعليق الصوتي")}</p>
         <Hint>{t("لما تطلب من رفيق تعليق صوتي لفيديو. كل طلب بيستأذنك قبل ما يروح للخدمة (صلاحية «الصوت والصور»).")}</Hint>
-        <div className="mt-3 flex flex-wrap gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("مين بيقرأ التعليق الصوتي")}>
+        <div className="mt-3 flex flex-wrap gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("مين بيقرأ التعليق الصوتي")} ref={roving}>
           {TTS.map((option) => {
             const active = option.id === provider;
             const unavailable = option.id === "local" && !localVoice && !active;

@@ -32,6 +32,7 @@ import {
 import { TEXT_SCALE, TEXT_SIZES, TEXT_SIZE_LABELS, setTextSize, useTextSize } from "../lib/textSize";
 
 import { LOCALES, locale, setLocale, t } from "../i18n";
+import { roving } from "../lib/keyboard";
 const permissionRows: { key: PermissionKey; label: string; hint: string }[] = [
   { key: "filesystem_write", label: t("الكتابة على الملفات"), hint: t("إنشاء/تعديل/حذف ملفات") },
   { key: "shell", label: t("أوامر Shell"), hint: t("تنفيذ أوامر على الجهاز") },
@@ -108,7 +109,7 @@ function LanguageSection() {
     <section className="mb-8">
       <h2 className="mb-3 text-[17px] font-bold">{t("اللغة")}</h2>
       <div className="rounded-2xl px-4 py-3" style={{ background: "var(--color-surface)" }}>
-        <div className="flex rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("اللغة")}>
+        <div className="flex rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("اللغة")} ref={roving}>
           {LOCALES.map((option) => {
             const active = option.id === current;
             return (
@@ -170,7 +171,7 @@ function LayoutSection() {
           <p className="mb-2.5 mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
             {t("بيكبّر النص والواجهة سوا. أو استخدم Ctrl مع + و −، وCtrl مع 0 بيرجّعه.")}
           </p>
-          <div className="flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("حجم النص")}>
+          <div className="flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup" aria-label={t("حجم النص")} ref={roving}>
             {TEXT_SIZES.map((key) => (
               <button
                 key={key}
@@ -244,6 +245,7 @@ function LayoutSection() {
               step={4}
               value={layout[row.key]}
               onChange={(e) => setLayout({ [row.key]: Number(e.currentTarget.value) })}
+              aria-label={row.label}
               className="mt-2 w-full accent-[var(--color-ink)]"
             />
             <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
@@ -347,7 +349,8 @@ export function SettingsPage() {
       {/* The list sits on the start side (right in Arabic) and follows the page, so moving
           between sections never means scrolling back to the top. Narrow windows get a row. */}
       <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
-        <nav
+        <div
+          ref={roving}
           className="no-scrollbar -mx-2 flex gap-1 overflow-x-auto px-2 pb-1 lg:sticky lg:top-6 lg:mx-0 lg:h-fit lg:w-56 lg:shrink-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0"
           role="tablist"
           aria-label={t("أقسام الإعدادات")}
@@ -382,7 +385,7 @@ export function SettingsPage() {
               </button>
             );
           })}
-        </nav>
+        </div>
 
         <div className="min-w-0 flex-1">
           <AnimatePresence mode="wait" initial={false}>
@@ -432,6 +435,7 @@ export function SettingsPage() {
                           <select
                             value={settings.permissions[row.key]}
                             onChange={(e) => setPermission(row.key, e.target.value as PermissionMode)}
+                            aria-label={row.label}
                             className="input w-36"
                             disabled={row.key === "desktop_control" && !settings.desktop_control_enabled}
                           >
@@ -463,6 +467,7 @@ export function SettingsPage() {
                       <button
                         role="switch"
                         aria-checked={settings.desktop_control_enabled}
+                        aria-label={t("تفعيل التحكم الكامل بسطح المكتب")}
                         onClick={() => persist({ ...settings, desktop_control_enabled: !settings.desktop_control_enabled })}
                         className="flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
                         style={{

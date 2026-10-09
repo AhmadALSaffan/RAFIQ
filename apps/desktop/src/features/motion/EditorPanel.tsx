@@ -19,6 +19,7 @@ import { AnimationList, Inspector, PRESET_GROUPS } from "./Inspector";
 import { AUDIO_TINT, LayersPanel } from "./LayersPanel";
 import { SolidPicker } from "./ColorField";
 import { addAudioOps, addLayerOps, newLayer, setField, uniqueId, type Op } from "./sceneEdit";
+import { roving } from "../../lib/keyboard";
 
 export type PanelTab = "add" | "icons" | "media" | "audio" | "motion" | "layers" | "props";
 
@@ -413,7 +414,7 @@ function AudioSlider({ label, value, min, max, step, onCommit }: { label: string
           {v}
         </span>
       </span>
-      <input type="range" min={min} max={max} step={step} value={v} onChange={(e) => setV(Number(e.target.value))} onPointerUp={() => v !== value && onCommit(v)} className="accent-[var(--color-ink)]" dir="ltr" />
+      <input type="range" min={min} max={max} step={step} value={v} onChange={(e) => setV(Number(e.target.value))} onPointerUp={() => v !== value && onCommit(v)} onKeyUp={() => v !== value && onCommit(v)} className="accent-[var(--color-ink)]" dir="ltr" />
     </label>
   );
 }
@@ -479,7 +480,7 @@ export function EditorPanel({ tab, onTab, ...props }: PanelProps & { tab: PanelT
 
   return (
     <div className="flex h-full min-h-0">
-      <nav className="flex w-14 shrink-0 flex-col items-center gap-1 border-e py-2" style={{ borderColor: "var(--color-border)" }} role="tablist" aria-label={t("أدوات")}>
+      <div ref={roving} className="flex w-14 shrink-0 flex-col items-center gap-1 border-e py-2" style={{ borderColor: "var(--color-border)" }} role="tablist" aria-label={t("أدوات")} aria-orientation="vertical">
         {TABS.map(({ id, label, Icon }) => {
           const on = tab === id;
           return (
@@ -498,7 +499,7 @@ export function EditorPanel({ tab, onTab, ...props }: PanelProps & { tab: PanelT
             </button>
           );
         })}
-      </nav>
+      </div>
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         {tab === "add" && <AddTab {...props} />}
         {tab === "icons" && <IconsTab {...props} />}

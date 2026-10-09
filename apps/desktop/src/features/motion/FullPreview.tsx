@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { t } from "../../i18n";
+import { ownsKey } from "../../lib/keyboard";
 import { PauseIcon, PlayIcon, VolumeIcon, XIcon } from "../../components/Icons";
 import { ScenePlayer } from "./ScenePlayer";
 import { formatTime } from "./pieces";
@@ -23,10 +24,14 @@ export function FullPreview({ scene, kit, start = 0, onClose }: { scene: Scene; 
   const timer = useRef<number | null>(null);
   const timeRef = useRef(time);
   timeRef.current = time;
+  // Focus moves into the preview when it opens, so the keyboard and a screen reader are in it.
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => box.current?.focus(), []);
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose(timeRef.current);
+      else if (ownsKey(e.target, e.key)) return;
       else if (e.key === " ") {
         e.preventDefault();
         setPlaying((p) => !p);
@@ -62,10 +67,14 @@ export function FullPreview({ scene, kit, start = 0, onClose }: { scene: Scene; 
       className="fixed inset-0 z-50 flex flex-col"
       style={{ background: "#000", cursor: hide ? "none" : undefined }}
       onPointerMove={wake}
+      ref={box}
+      tabIndex={-1}
       role="dialog"
+      aria-modal="true"
       aria-label={t("معاينة كاملة")}
     >
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-auto" onClick={() => setPlaying((p) => !p)}>
+      {/* A click on the picture plays and pauses — the same as Space, so it's no extra stop for the keyboard. */}
+      <div role="presentation" className="relative flex min-h-0 flex-1 items-center justify-center overflow-auto" onClick={() => setPlaying((p) => !p)}>
         <div
           style={
             actual

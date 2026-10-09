@@ -194,6 +194,14 @@ export function AssetsPane({ projectId, scene, time, onChange }: { projectId: st
           void upload(e.dataTransfer.files);
         }}
         onClick={() => input.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            input.current?.click();
+          }
+        }}
+        role="button"
+        tabIndex={0}
         className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-6 text-center text-sm transition-colors"
         style={{ borderColor: drag ? "var(--color-accent)" : "var(--color-border)", color: "var(--color-ink-muted)" }}
       >

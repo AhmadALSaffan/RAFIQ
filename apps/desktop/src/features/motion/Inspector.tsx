@@ -15,6 +15,7 @@ import { IconPreview } from "./IconPreview";
 import type { Animation, BrandKit, Layer, PresetName, Scene, ShadowSpec } from "./engine/types";
 import { ColorField, SolidPicker } from "./ColorField";
 import { duplicateLayerOps, layerLabel, moveLayerOps, removeLayerOps, setField, type Op } from "./sceneEdit";
+import { roving } from "../../lib/keyboard";
 
 export const PRESET_GROUPS: { label: string; presets: PresetName[] }[] = [
   { label: t("دخول"), presets: ["fadeIn", "fadeUp", "fadeDown", "slideIn", "scaleIn", "pop", "bounceIn", "blurIn", "rotateIn", "maskReveal", "wipe", "drawOn"] },
@@ -547,7 +548,7 @@ export function Inspector({
 
       <Section title={t("المكان")}>
         <div className="flex gap-3">
-          <div className="grid shrink-0 grid-cols-3 gap-1" role="radiogroup" aria-label={t("المرساة")}>
+          <div ref={roving} className="grid shrink-0 grid-cols-3 gap-1" role="radiogroup" aria-label={t("المرساة")}>
             {ANCHORS.flat().map((a) => {
               const on = (layout.anchor ?? "center") === a && !layout.below && !layout.above && !layout.beside;
               return (
