@@ -32,7 +32,8 @@ import {
 } from "../../components/Icons";
 import { Button, DrawnCheck } from "../../components/ui";
 import { Markdown } from "../../components/Markdown";
-import { PermissionCard, ThinkingDots, ToolCard } from "../../components/steps";
+import { PermissionCard, ToolCard } from "../../components/steps";
+import { WorkStatus } from "../chat/WorkStatus";
 import { AttachmentGallery } from "../../components/Attachments";
 import { canResume, finishedSteps, formatDuration } from "./pieces";
 import { fieldDir } from "../../lib/bidi";
@@ -439,7 +440,7 @@ export function TaskDetailPage() {
             transition={{ duration: 0.28, ease: easeOutExpo }}
             className="mt-4"
           >
-            <ThinkingDots />
+            <WorkStatus parts={[]} />
           </motion.div>
         )}
       </AnimatePresence>

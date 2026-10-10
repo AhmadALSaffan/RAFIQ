@@ -5,6 +5,7 @@ import {
   ChatIcon,
   HomeIcon,
   InboxIcon,
+  HelpIcon,
   InfoIcon,
   LinkIcon,
   ModelsIcon,
@@ -394,6 +395,7 @@ export function Shell() {
               </motion.button>
               {[
                 { to: "/settings", label: t("الإعدادات"), Icon: SettingsIcon },
+                { to: "/guide", label: t("كيف بيشتغل رفيق"), Icon: HelpIcon },
                 { to: "/about", label: t("من نحن"), Icon: InfoIcon },
               ].map(({ to, label, Icon }) => {
                 const active = section === to;

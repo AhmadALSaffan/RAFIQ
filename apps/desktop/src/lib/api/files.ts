@@ -1,6 +1,7 @@
 /** Files inside a session's folder, and where unhomed sessions keep theirs. */
 
 import { request } from "./client";
+import { getApiConfig } from "../config";
 import type {
   WorkspaceFile,
 } from "../types";
@@ -20,4 +21,24 @@ export async function gitInfo(dir: string): Promise<{ repo: boolean; branch: str
 export async function getWorkspace(): Promise<string> {
   const out = await request<{ path: string }>("/workspace");
   return out.path;
+}
+
+export interface FilePreview {
+  path: string;
+  name: string;
+  size: number;
+  kind: "text" | "markdown" | "html" | "image" | "pdf" | "binary";
+  text?: string;
+  truncated?: boolean;
+}
+
+/** A file the model wrote, ready to show: text as text, everything else by its raw URL. */
+export async function previewFile(dir: string, path: string): Promise<FilePreview> {
+  return request<FilePreview>(`/files/preview?${new URLSearchParams({ dir, path })}`);
+}
+
+/** The file itself, for an <img> or <iframe> (they can't send the Authorization header). */
+export async function rawFileUrl(dir: string, path: string, version = ""): Promise<string> {
+  const { baseUrl, token } = await getApiConfig();
+  return `${baseUrl}/files/raw?${new URLSearchParams({ dir, path, token, v: version })}`;
 }

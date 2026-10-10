@@ -3,7 +3,9 @@ import { useRef, useState } from "react";
 import { t } from "../i18n";
 /**
  * The drag handle between two columns. The app is RTL, so a drag to the left has to make a
- * right-hand column *wider* — hence the direction factor read off the document.
+ * right-hand column *wider* — hence the direction factor read off the document. `side` says
+ * which column the width belongs to: the one before the handle (start, the default) or the
+ * one after it (end), which grows the other way.
  */
 export function Resizer({
   value,
@@ -12,7 +14,9 @@ export function Resizer({
   onChange,
   label,
   onDoubleClick,
+  side = "start",
 }: {
+  side?: "start" | "end";
   value: number;
   min: number;
   max: number;
@@ -33,7 +37,7 @@ export function Resizer({
   function move(e: React.PointerEvent<HTMLDivElement>) {
     if (!dragging) return;
     const rtl = getComputedStyle(document.documentElement).direction === "rtl";
-    const delta = (e.clientX - start.current.x) * (rtl ? -1 : 1);
+    const delta = (e.clientX - start.current.x) * (rtl ? -1 : 1) * (side === "end" ? -1 : 1);
     onChange(Math.min(max, Math.max(min, start.current.width + delta)));
   }
 
@@ -62,8 +66,9 @@ export function Resizer({
       onKeyDown={(e) => {
         // In RTL, ArrowLeft grows the column that sits to the handle's right.
         const step = e.shiftKey ? 32 : 8;
-        if (e.key === "ArrowLeft") onChange(Math.min(max, value + step));
-        else if (e.key === "ArrowRight") onChange(Math.max(min, value - step));
+        const grow = side === "end" ? -step : step;
+        if (e.key === "ArrowLeft") onChange(Math.min(max, Math.max(min, value + grow)));
+        else if (e.key === "ArrowRight") onChange(Math.min(max, Math.max(min, value - grow)));
         else return;
         e.preventDefault();
       }}

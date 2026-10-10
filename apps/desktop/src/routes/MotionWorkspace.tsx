@@ -471,7 +471,7 @@ export function MotionWorkspace() {
                   />
                 </div>
               </div>
-              <Resizer value={panelWidth} min={300} max={560} onChange={(w) => setPanelWidth(w)} onDoubleClick={() => setPanelWidth(380)} label={t("عرض لوحة الأدوات")} />
+              <Resizer side="end" value={panelWidth} min={300} max={560} onChange={(w) => setPanelWidth(w)} onDoubleClick={() => setPanelWidth(380)} label={t("عرض لوحة الأدوات")} />
               <aside className="flex min-h-0 shrink-0 flex-col border-s" style={{ width: panelWidth, borderColor: "var(--color-border)" }}>
                 <EditorPanel
                   tab={panel}

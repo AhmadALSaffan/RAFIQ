@@ -211,8 +211,9 @@ export function AboutPage() {
         >
           <Avatar />
           <div className="relative min-w-0 flex-1">
-            <p className="text-lg font-semibold" style={{ textWrap: "balance" }}>
+            <p className="flex flex-wrap items-center gap-2 text-lg font-semibold" style={{ textWrap: "balance" }}>
               {DEVELOPER.name}
+              <SyrianFlag />
             </p>
             <p className="mt-0.5 text-sm" style={{ color: "var(--color-ink-muted)" }}>
               {locale() === "ar" ? <bdi dir="ltr">{DEVELOPER.nameEn}</bdi> : <bdi dir="rtl">{DEVELOPER.nameAr}</bdi>}
@@ -293,5 +294,20 @@ function Avatar() {
         />
       )}
     </span>
+  );
+}
+
+/** The green Syrian flag: green, white and black, three red stars. */
+function SyrianFlag() {
+  return (
+    <svg viewBox="0 0 900 600" className="h-[0.95em] w-auto shrink-0 rounded-[3px] shadow-sm" role="img" aria-label={t("علم سوريا")}>
+      <title>{t("علم سوريا")}</title>
+      <rect width="900" height="200" fill="#007a3d" />
+      <rect y="200" width="900" height="200" fill="#ffffff" />
+      <rect y="400" width="900" height="200" fill="#000000" />
+      <polygon points="250.0,234.0 264.8,279.6 312.8,279.6 274.0,307.8 288.8,353.4 250.0,325.2 211.2,353.4 226.0,307.8 187.2,279.6 235.2,279.6" fill="#ce1126" />
+      <polygon points="450.0,234.0 464.8,279.6 512.8,279.6 474.0,307.8 488.8,353.4 450.0,325.2 411.2,353.4 426.0,307.8 387.2,279.6 435.2,279.6" fill="#ce1126" />
+      <polygon points="650.0,234.0 664.8,279.6 712.8,279.6 674.0,307.8 688.8,353.4 650.0,325.2 611.2,353.4 626.0,307.8 587.2,279.6 635.2,279.6" fill="#ce1126" />
+    </svg>
   );
 }

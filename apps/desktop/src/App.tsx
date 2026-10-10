@@ -16,6 +16,7 @@ import { TasksPage } from "./features/tasks/TasksPage";
 import { TaskDetailPage } from "./features/tasks/TaskDetailPage";
 import { SettingsPage } from "./routes/SettingsPage";
 import { AboutPage } from "./routes/AboutPage";
+import { GuidePage } from "./routes/GuidePage";
 import { QuickAsk } from "./routes/QuickAsk";
 import { HomePage } from "./routes/HomePage";
 
@@ -45,6 +46,7 @@ export function App() {
             <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/guide" element={<GuidePage />} />
             {DesignSystemPage && (
               <Route
                 path="/design-system"

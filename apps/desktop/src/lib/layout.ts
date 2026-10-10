@@ -13,6 +13,8 @@ export interface LayoutPrefs {
   listHidden: boolean;
   /** How wide the reading column gets. */
   reading: ReadingWidth;
+  /** Width of the side panel with the model's files and commands. */
+  activity: number;
 }
 
 export type ReadingWidth = "narrow" | "medium" | "wide" | "full";
@@ -21,10 +23,13 @@ export const DEFAULT_LAYOUT: LayoutPrefs = {
   list: 240,
   listHidden: false,
   reading: "medium",
+  activity: 440,
 };
 
 export const LIST_MIN = 190;
 export const LIST_MAX = 460;
+export const ACTIVITY_MIN = 300;
+export const ACTIVITY_MAX = 900;
 
 export const READING_WIDTHS: Record<ReadingWidth, string> = {
   narrow: "40rem",
@@ -56,6 +61,7 @@ function load(): LayoutPrefs {
       list: clamp(saved.list ?? DEFAULT_LAYOUT.list, LIST_MIN, LIST_MAX),
       listHidden: saved.listHidden ?? DEFAULT_LAYOUT.listHidden,
       reading: saved.reading ?? DEFAULT_LAYOUT.reading,
+      activity: clamp(saved.activity ?? DEFAULT_LAYOUT.activity, ACTIVITY_MIN, ACTIVITY_MAX),
     };
   } catch {
     return DEFAULT_LAYOUT;
@@ -73,6 +79,7 @@ function subscribe(fn: () => void): () => void {
 export function setLayout(patch: Partial<LayoutPrefs>): void {
   const next = { ...current, ...patch };
   next.list = clamp(next.list, LIST_MIN, LIST_MAX);
+  next.activity = clamp(next.activity, ACTIVITY_MIN, ACTIVITY_MAX);
   current = next;
   try {
     localStorage.setItem(KEY, JSON.stringify(next));

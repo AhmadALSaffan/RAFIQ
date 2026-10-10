@@ -22,6 +22,7 @@ import { easeOutExpo } from "../lib/motion";
 import {
   ChatIcon,
   InboxIcon,
+  HelpIcon,
   InfoIcon,
   LinkIcon,
   ModelsIcon,
@@ -198,6 +199,7 @@ export function CommandPalette({
       { id: "p-models", label: t("النماذج"), Icon: ModelsIcon, keywords: "models model agents keys api", run: go("/models") },
       { id: "p-integrations", label: t("الربط"), Icon: LinkIcon, keywords: "integrations connect jira linear github", run: go("/integrations") },
       { id: "p-settings", label: t("الإعدادات"), Icon: SettingsIcon, keywords: "settings preferences options", run: go("/settings") },
+      { id: "p-guide", label: t("كيف بيشتغل رفيق"), Icon: HelpIcon, keywords: "guide help how start tutorial", run: go("/guide") },
       { id: "p-about", label: t("من نحن"), Icon: InfoIcon, keywords: "about version updates", run: go("/about") },
     ];
     const settings = t("الإعدادات");

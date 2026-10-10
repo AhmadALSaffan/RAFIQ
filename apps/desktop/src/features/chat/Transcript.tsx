@@ -14,7 +14,8 @@ import { useElementMenu } from "../../components/ContextMenu";
 import { Markdown } from "../../components/Markdown";
 import { TokenText } from "../../components/TokenText";
 import { AttachmentGallery } from "../../components/Attachments";
-import { PermissionCard, ThinkingDots, ToolCard } from "../../components/steps";
+import { PermissionCard, ToolCard } from "../../components/steps";
+import { WorkStatus } from "./WorkStatus";
 import { CompressIcon, ForkIcon, ModelsIcon, TasksIcon } from "../../components/Icons";
 import { Button } from "../../components/ui";
 import { Logo } from "../../components/Logo";
@@ -26,6 +27,7 @@ import { isGone, useTaskSummaries } from "./taskStatus";
 import { SUGGESTIONS } from "./constants";
 import { StarButton } from "./bookmarks";
 
+import { Link } from "react-router-dom";
 import { t } from "../../i18n";
 /** First screen of an empty chat: what رفيق can do, in one glance. */
 export function Welcome({ hasModels, onPick, onModels }: { hasModels: boolean; onPick: (text: string) => void; onModels: () => void }) {
@@ -49,6 +51,9 @@ export function Welcome({ hasModels, onPick, onModels }: { hasModels: boolean; o
           ? t("اسألني أي شي، ابعتلي صور أو ملفات، حدد مجلد من فوق لأعدّل ملفاته، أو ابعت خطة وأنا بحوّلها لمهام.")
           : t("أضف نموذج شغّال أولاً عشان نقدر نحكي.")}
       </p>
+      <Link to="/guide" className="mt-2 text-xs underline underline-offset-2" style={{ color: "var(--color-ink-muted)" }}>
+        {t("أول مرة؟ شوف كيف بيشتغل رفيق")}
+      </Link>
 
       {hasModels ? (
         <motion.div variants={listContainer} initial="hidden" animate="show" className="mt-7 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
@@ -304,10 +309,6 @@ export function AssistantBlock({
   // and let the ordinary "thinking" state cover the wait.
   const visible = parts.filter((p) => !(p.kind === "tool" && SILENT_TOOLS.has(p.tool)));
   const text = textOf(visible);
-  const last = visible[visible.length - 1];
-  const waiting = visible.some((p) => p.kind === "permission" && p.resolution === "pending");
-  const toolRunning = last?.kind === "tool" && last.ok === undefined;
-  const thinking = live && !waiting && !toolRunning && last?.kind !== "text";
 
   return (
     <motion.div
@@ -369,7 +370,8 @@ export function AssistantBlock({
             ) : null}
           </motion.div>
         ))}
-        {thinking && <ThinkingDots label={visible.length ? t("عم يكمّل…") : t("عم يفكّر…")} />}
+        {/* Until the reply is done: what it's doing now, and for how long. */}
+        {live && <WorkStatus parts={visible} />}
         {usage && <UsageLine usage={usage} />}
         {!live && (text || onBookmark) && (
           <div className="-mt-1 flex items-center gap-0.5 self-start">
@@ -547,7 +549,7 @@ function Reasoning({ text, live }: { text: string; live: boolean }) {
   return (
     <div>
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-        {live ? <ThinkingDots label={t("عم يفكّر…")} /> : <span>{expanded ? t("إخفاء التفكير ▴") : t("عرض التفكير ▾")}</span>}
+        {live ? <span>{t("تفكيره")}</span> : <span>{expanded ? t("إخفاء التفكير ▴") : t("عرض التفكير ▾")}</span>}
       </button>
       <AnimatePresence initial={false}>
         {expanded && (

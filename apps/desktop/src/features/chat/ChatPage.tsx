@@ -40,7 +40,7 @@ import {
 } from "../../lib/api";
 import type { Attachment, ChatMessage, ChatSummary, LlmModel, ReplySettings, TrackerIssue } from "../../lib/types";
 import { canPickNatively, pickFolder } from "../../lib/folders";
-import { DEFAULT_LAYOUT, LIST_MAX, LIST_MIN, READING_WIDTHS, setLayout, useLayout } from "../../lib/layout";
+import { ACTIVITY_MAX, ACTIVITY_MIN, DEFAULT_LAYOUT, LIST_MAX, LIST_MIN, READING_WIDTHS, setLayout, useLayout } from "../../lib/layout";
 import { RAIL, TOPBAR } from "../../components/Shell";
 import { takeChatSend } from "../../lib/handoff";
 import { easeOutExpo, snappy } from "../../lib/motion";
@@ -56,9 +56,10 @@ import { SparkIcon } from "../../components/Icons";
 import { DropZone, useUploads } from "../../components/Attachments";
 import { DrawnCheck } from "../../components/ui";
 import { FolderChip } from "../../components/FolderPicker";
-import { AlertIcon, ArchiveIcon, ArrowDownIcon, ChatIcon, CompressIcon } from "../../components/Icons";
+import { AlertIcon, ArchiveIcon, ArrowDownIcon, ChatIcon, CompressIcon, TerminalIcon } from "../../components/Icons";
 import { TokenText } from "../../components/TokenText";
 import { Composer } from "./Composer";
+import { ActivityPanel, collectActivity, type ActivityTab } from "./ActivityPanel";
 import { AssistantBlock, startsNewDay, TranscriptRow, Welcome, type RowActions } from "./Transcript";
 import { earlierStart, firstStart, NEAR_TOP, startIncluding } from "./transcriptWindow";
 import { applyEvent, textOf, type Draft } from "./draft";
@@ -138,6 +139,38 @@ export function ChatPage({
   const usable = models.filter((m) => m.verify_ok !== false);
   const current = chats.find((c) => c.id === routeId);
   const folder = routeId ? current?.working_dir ?? null : newChatFolder;
+
+  // The side panel: files the model wrote and commands it ran, in this chat.
+  const activity = useMemo(
+    () => collectActivity([...messages.flatMap((m) => (m.role === "assistant" ? m.parts ?? [] : [])), ...(draft?.parts ?? [])]),
+    [messages, draft],
+  );
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelTab, setPanelTab] = useState<ActivityTab>("files");
+  // It opens by itself the first time something lands in a chat — until the user closes it.
+  const panelClosedByUser = useRef(false);
+  const seenActivity = useRef({ files: 0, commands: 0, chat: routeId });
+  useEffect(() => {
+    const seen = seenActivity.current;
+    if (seen.chat !== routeId) {
+      seenActivity.current = { files: activity.files.length, commands: activity.commands.length, chat: routeId };
+      panelClosedByUser.current = false;
+      setPanelOpen(false);
+      return;
+    }
+    if (!streaming) {
+      seenActivity.current = { ...seen, files: activity.files.length, commands: activity.commands.length };
+      return;
+    }
+    const newFile = activity.files.length > seen.files;
+    const newCommand = activity.commands.length > seen.commands;
+    if ((newFile || newCommand) && !panelClosedByUser.current) {
+      setPanelTab(newFile ? "files" : "commands");
+      setPanelOpen(true);
+    }
+    seenActivity.current = { ...seen, files: activity.files.length, commands: activity.commands.length };
+  }, [activity, streaming, routeId]);
+  const hasActivity = activity.files.length + activity.commands.length > 0;
 
   useEffect(() => {
     listIntegrations()
@@ -899,6 +932,23 @@ export function ChatPage({
               <TokenText text={current?.title ?? t("محادثة جديدة")} />
             </motion.h2>
           </AnimatePresence>
+          {hasActivity && (
+            <button
+              type="button"
+              onClick={() => {
+                panelClosedByUser.current = panelOpen;
+                setPanelOpen((v) => !v);
+              }}
+              aria-pressed={panelOpen}
+              title={t("الملفات والأوامر اللي عملها الموديل")}
+              className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
+              style={{ color: panelOpen ? "var(--color-ink)" : "var(--color-ink-muted)", background: panelOpen ? "var(--color-surface)" : undefined }}
+            >
+              <TerminalIcon className="h-4 w-4" />
+              {t("شغله")}
+              <span className="num">{activity.files.length + activity.commands.length}</span>
+            </button>
+          )}
           <BookmarksMenu messages={messages} onJump={jumpToMessage} onRemove={(m) => void bookmark(m, false)} />
           <FolderChip value={folder} onChange={changeFolder} />
         </header>
@@ -1119,6 +1169,38 @@ export function ChatPage({
           }
         />
       </DropZone>
+
+      {!embedded && panelOpen && (
+        <>
+          <Resizer
+            side="end"
+            value={layout.activity}
+            min={ACTIVITY_MIN}
+            max={ACTIVITY_MAX}
+            onChange={(activity) => setLayout({ activity })}
+            onDoubleClick={() => setLayout({ activity: DEFAULT_LAYOUT.activity })}
+            label={t("عرض لوحة الشغل")}
+          />
+          <motion.div
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.28, ease: easeOutExpo }}
+            className="flex h-full shrink-0 py-2 pe-2"
+            style={{ width: layout.activity }}
+          >
+            <ActivityPanel
+              activity={activity}
+              folder={folder}
+              tab={panelTab}
+              onTab={setPanelTab}
+              onClose={() => {
+                panelClosedByUser.current = true;
+                setPanelOpen(false);
+              }}
+            />
+          </motion.div>
+        </>
+      )}
 
       <AnimatePresence>
         {doneOpen && (

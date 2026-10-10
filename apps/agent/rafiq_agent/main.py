@@ -14,6 +14,7 @@ from rafiq_agent.api.automation import router as automation_router
 from rafiq_agent.api.backup import router as backup_router
 from rafiq_agent.api.chats import router as chats_router
 from rafiq_agent.api.designs import router as designs_router
+from rafiq_agent.api.files import raw_router as files_raw_router
 from rafiq_agent.api.files import router as files_router
 from rafiq_agent.api.insights import router as insights_router
 from rafiq_agent.api.integrations import router as integrations_router
@@ -156,6 +157,7 @@ app.include_router(chats_router)
 app.include_router(attachments_router)
 app.include_router(integrations_router)
 app.include_router(files_router)
+app.include_router(files_raw_router)
 app.include_router(designs_router)
 app.include_router(motion_router)
 app.include_router(motion_files_router)

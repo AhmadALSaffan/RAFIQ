@@ -26,7 +26,9 @@ export function FullPreview({ scene, kit, start = 0, onClose }: { scene: Scene; 
   timeRef.current = time;
   // Focus moves into the preview when it opens, so the keyboard and a screen reader are in it.
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => box.current?.focus(), []);
+  useEffect(() => {
+    box.current?.focus();
+  }, []);
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
