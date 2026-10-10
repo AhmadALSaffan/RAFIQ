@@ -37,7 +37,8 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     "tools/browser.py": "*",
     "tools/desktop.py": "*",
     "tools/os_adapters/windows.py": "*",
-    "core/attachments.py": {"_pdf_text", "_truncate", "build_user_content"},
+    "core/attachments.py": {"pdf_text", "truncate", "build_user_content"},
+    "core/vision.py": "*",  # what the vision model is told, and how its words reach the chat model
     "core/chat_service.py": {"transcript_of", "summarize", "_system_prompt"},
     "core/designs.py": {"QUESTIONS", "DESIGN_SYSTEM_PROMPT", "skills_note", "_SLUG_BAD"},
     "llm/copilot.py": {"_text_of", "split_messages", "stream_chat", "aclose"},

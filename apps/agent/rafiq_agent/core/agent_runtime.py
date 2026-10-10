@@ -14,6 +14,7 @@ from rafiq_agent.core.prompts import PLAN_APPROVED, PLAN_PROMPT, STEP_NOTE
 from rafiq_agent.core.resume import is_resume, resume_message
 from rafiq_agent.core.task_git import prepare as prepare_git
 from rafiq_agent.core.task_git import settle as settle_git
+from rafiq_agent.core.vision import describe_attachments
 from rafiq_agent.core.workspace import session_dir
 from rafiq_agent.i18n import tr
 from rafiq_agent.integrations.tools import issue_tools
@@ -190,7 +191,9 @@ async def _plan_task(
     try:
         llm = llm_for(model, fallback=fallback)
         attachments = await load_attachments(attachment_ids)
-        user_content = build_user_content(prompt, attachments, supports_vision(llm.model))
+        vision = supports_vision(llm.model)
+        described = await describe_attachments(attachments) if vision is False else {}
+        user_content = build_user_content(prompt, attachments, vision, described)
         system = "\n\n".join([SYSTEM_PROMPT, working_dir_system_note(working_dir), PLAN_PROMPT])
         if project := project_instructions(working_dir):
             system += f"\n\n{project}"
@@ -281,7 +284,9 @@ async def run_task(task_id: str) -> None:
         effective, git_info = await prepare_git(task_id, title, working_dir, paths, planned, resume=resumed)
         llm = llm_for(model, fallback=fallback)
         attachments = await load_attachments(attachment_ids)
-        user_content = build_user_content(prompt, attachments, supports_vision(llm.model))
+        vision = supports_vision(llm.model)
+        described = await describe_attachments(attachments) if vision is False else {}
+        user_content = build_user_content(prompt, attachments, vision, described)
         notes = [SYSTEM_PROMPT, working_dir_system_note(effective)]
         if git_info and git_info.get("mode") == "worktree":
             notes.append(WORKTREE_NOTE)

@@ -53,6 +53,7 @@ from rafiq_agent.core.prompts import (
     TASKS_NOTE,
     WEB_NOTE,
 )
+from rafiq_agent.core.vision import describe_attachments
 from rafiq_agent.i18n import all_translations, tr
 from rafiq_agent.llm import usage
 from rafiq_agent.llm.base import LlmProvider
@@ -438,11 +439,12 @@ class ChatTurn:
         except AttachmentError:
             by_id = {}
 
+        described = await describe_attachments(list(by_id.values())) if vision is False else {}
         history: list[dict[str, Any]] = []
         for m in self.past:
             if m.role == "user":
                 files = [by_id[a["id"]] for a in (m.attachments or []) if a["id"] in by_id]
-                history.append({"role": "user", "content": build_user_content(m.content, files, vision)})
+                history.append({"role": "user", "content": build_user_content(m.content, files, vision, described)})
             elif getattr(self, "motion_mode", False) and (done := _tools_done(m.parts)):
                 # The scene itself is in the project note; this is what the model already
                 # looked up and changed, so a «continue» picks up instead of starting over.
@@ -609,10 +611,11 @@ class ChatTurn:
         system = self._system_prompt() + await self._standing_notes()
         registry, system = await self._tools(system)
         vision = supports_vision(self.llm.model)
+        described = await describe_attachments(self.new_attachments) if vision is False else {}
         messages = [
             {"role": "system", "content": system},
             *history,
-            {"role": "user", "content": build_user_content(self.content, self.new_attachments, vision)},
+            {"role": "user", "content": build_user_content(self.content, self.new_attachments, vision, described)},
         ]
         return messages, registry
 

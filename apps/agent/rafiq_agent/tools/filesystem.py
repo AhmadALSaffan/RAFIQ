@@ -48,12 +48,23 @@ class FilesystemListTool(Tool):
             return ToolResult(ok=False, output=str(e))
 
 
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff", ".ico"}
+
+
+def _looks_binary(target: Path) -> bool:
+    with target.open("rb") as f:
+        head = f.read(4096)
+    return b"\x00" in head
+
+
 class FilesystemReadTool(Tool):
     name = "filesystem_read"
     category = "read_only"
     description = (
-        f"Read a text file, relative to the task's working directory. Returns at most "
-        f"{READ_CHARS} characters; pass `offset` to continue where the last read stopped."
+        f"Read a file, relative to the task's working directory. Text comes back as text (at "
+        f"most {READ_CHARS} characters; pass `offset` to continue where the last read stopped). "
+        "A picture (png, jpg, webp, gif…) comes back as the image itself, so you can look at "
+        "it — no Python or other program needed. A PDF comes back as its text."
     )
     parameters = {
         "type": "object",
@@ -72,6 +83,16 @@ class FilesystemReadTool(Tool):
             target = _resolve(self.working_dir, args["path"])
             if not target.is_file():
                 return ToolResult(ok=False, output=f"file not found: {target}")
+            suffix = target.suffix.lower()
+            if suffix in IMAGE_SUFFIXES:
+                return _read_image(target)
+            if suffix == ".pdf":
+                from rafiq_agent.core.attachments import pdf_text, truncate
+
+                return ToolResult(ok=True, output=truncate(pdf_text(str(target))))
+            if _looks_binary(target):
+                size = target.stat().st_size
+                return ToolResult(ok=False, output=f"{target.name} is a binary file ({size} bytes), not text — it can't be read as text.")
             content = target.read_text(encoding="utf-8", errors="replace")
             try:
                 offset = max(0, int(args.get("offset") or 0))
@@ -84,6 +105,21 @@ class FilesystemReadTool(Tool):
             return ToolResult(ok=True, output=page)
         except PathEscapeError as e:
             return ToolResult(ok=False, output=str(e))
+
+
+def _read_image(target: Path) -> ToolResult:
+    """The picture itself, sized down the same way an attachment is."""
+    from rafiq_agent.core.attachments import image_data_url
+
+    try:
+        url = image_data_url(str(target))
+    except Exception as exc:  # noqa: BLE001 - a broken or unusual image file
+        return ToolResult(ok=False, output=f"couldn't open the image {target.name}: {exc}")
+    from PIL import Image
+
+    with Image.open(target) as img:
+        width, height = img.size
+    return ToolResult(ok=True, output=f"The image {target.name} ({width}×{height}) is shown below.", images=[url])
 
 
 class FilesystemWriteTool(Tool):

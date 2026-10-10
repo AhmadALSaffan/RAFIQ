@@ -139,26 +139,9 @@ VISION_PROMPT = (
 async def describe_frames(images: list[str], times: list[float]) -> str:
     """The vision helper: a model that can see describes the frames in words, for a chat model
     that can't. Raises LookupError when none is set in Settings."""
-    from rafiq_agent.auth.resolve import llm_for
-    from rafiq_agent.storage.db import SessionLocal
-    from rafiq_agent.storage.models import LlmModel
+    from rafiq_agent.core.vision import describe_images
 
-    chosen = (await load_settings()).vision_model_id
-    if not chosen:
-        raise LookupError("no vision model")
-    async with SessionLocal() as session:
-        model = await session.get(LlmModel, chosen)
-    if model is None or model.verify_ok is False:
-        raise LookupError("the vision model is gone or not working")
-    parts: list[dict[str, Any]] = []
-    for t, url in zip(times, images, strict=False):
-        parts.append({"type": "text", "text": f"الفريم عند {t:.2f}s:"})
-        parts.append({"type": "image_url", "image_url": {"url": url}})
-    llm = llm_for(model)
-    try:
-        return (await llm.complete([{"role": "system", "content": VISION_PROMPT}, {"role": "user", "content": parts}], max_tokens=1200)).strip()
-    finally:
-        await llm.aclose()
+    return await describe_images(images, [f"الفريم عند {t:.2f}s:" for t in times], VISION_PROMPT)
 
 
 def format_issues(issues: list[dict[str, Any]], limit: int = 25) -> str:

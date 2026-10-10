@@ -217,7 +217,7 @@ async def test_copilot_tool_calls_run_through_rafiqs_loop(monkeypatch):
         def emit(self, data):
             self.options["on_event"](Event(data))
 
-        async def send(self, prompt: str) -> str:
+        async def send(self, prompt: str, attachments=None) -> str:
             self.sent.append(prompt)
 
             async def run():
@@ -457,7 +457,7 @@ async def test_a_stale_copilot_runtime_is_replaced_without_signing_out(monkeypat
         def __init__(self, options):
             self.options = options
 
-        async def send(self, prompt):
+        async def send(self, prompt, attachments=None):
             async def run():
                 self.options["on_event"](Event(AssistantMessageDeltaData.from_dict({"deltaContent": "أهلا", "messageId": "m"})))
                 self.options["on_event"](Event(SessionIdleData.from_dict({})))

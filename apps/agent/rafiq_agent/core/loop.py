@@ -131,6 +131,7 @@ async def _run(
         messages.append(assistant_turn)
 
         images: list[str] = []
+        shown: list[str] = []
         for tc in tool_calls:
             try:
                 args = json.loads(tc.arguments_json or "{}")
@@ -146,13 +147,21 @@ async def _run(
                 await cb.on_tool_call(tc.id, tool.name, tool.category, args)
                 result = await tool.run(args)
                 ok, output = result.ok, result.output
-                images += result.images or []
+                shown = result.images or []
 
             await cb.on_tool_result(tc.id, tc.name, ok, output)
-            messages.append({"role": "tool", "tool_call_id": tc.id, "content": output})
+            tool_message: dict[str, Any] = {"role": "tool", "tool_call_id": tc.id, "content": output}
+            if tool is not None and shown and getattr(llm, "tool_images_inline", False):
+                # Copilot takes a tool's pictures with its result; a separate user message
+                # would land while the tool call is still waiting for its answer.
+                tool_message["images"] = shown
+            elif tool is not None:
+                images += shown
+            shown = []
+            messages.append(tool_message)
 
         if images:
-            _show_images(llm, messages, images)
+            await _show_images(llm, messages, images)
 
     return LoopResult("max_iterations", all_text, all_reasoning)
 
@@ -160,7 +169,7 @@ async def _run(
 IMAGES_NOTE = "الصور اللي رجعت من الأدوات:"
 
 
-def _show_images(llm: LlmProvider, messages: list[dict[str, Any]], images: list[str]) -> None:
+async def _show_images(llm: LlmProvider, messages: list[dict[str, Any]], images: list[str]) -> None:
     """Tool results are text-only on most APIs, so screenshots follow as a user message.
     Only the latest set stays in the context — older ones become a one-line placeholder,
     or a few screenshots in, every request would carry megabytes of old images."""
@@ -168,7 +177,20 @@ def _show_images(llm: LlmProvider, messages: list[dict[str, Any]], images: list[
 
     # Unknown (None) counts as able, the same as for attachments.
     if supports_vision(getattr(llm, "model", "")) is False:
-        messages.append({"role": "user", "content": "(الأداة رجّعت صورة، بس هالنموذج ما بيقرأ الصور.)"})
+        from rafiq_agent.core.vision import describe_images
+
+        try:
+            words = await describe_images(images[-4:])
+        except Exception:  # noqa: BLE001 - no vision model set, or it failed
+            messages.append(
+                {
+                    "role": "user",
+                    "content": "(الأداة رجّعت صورة، بس هالنموذج ما بيقرأ الصور وما في موديل رؤية بالإعدادات. "
+                    "ما تحاول تفتحها ببايثون أو أي أداة تانية — قول للمستخدم.)",
+                }
+            )
+            return
+        messages.append({"role": "user", "content": f"(هالنموذج ما بيشوف صور، فموديل الرؤية وصف الصور اللي رجعت من الأدوات:)\n{words}"})
         return
     for message in messages:
         content = message.get("content")

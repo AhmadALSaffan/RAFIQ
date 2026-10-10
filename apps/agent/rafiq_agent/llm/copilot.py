@@ -209,14 +209,36 @@ async def list_models(account_id: str, token: str) -> list[tuple[str, str]]:
 
 def _text_of(content: Any) -> str:
     if isinstance(content, list):
-        pieces = []
-        for part in content:
-            if part.get("type") == "text":
-                pieces.append(part.get("text", ""))
-            elif part.get("type") == "image_url":
-                pieces.append("[صورة مرفقة — ما بتوصل للنموذج عن طريق Copilot]")
-        return "\n".join(pieces)
+        return "\n".join(part.get("text", "") for part in content if part.get("type") == "text")
     return content or ""
+
+
+def _blob(url: str, name: str) -> dict[str, str] | None:
+    """A data: URL as a Copilot attachment (the SDK's inline "blob")."""
+    if not url.startswith("data:") or ";base64," not in url:
+        return None
+    head, data = url[5:].split(";base64,", 1)
+    return {"type": "blob", "data": data, "mimeType": head or "image/png", "displayName": name}
+
+
+MAX_ATTACHED_IMAGES = 4
+
+
+def images_of(messages: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """The pictures the user attached, newest last — each run is a fresh Copilot session,
+    so the recent ones travel with the message (the text history is folded into the prompt)."""
+    found: list[dict[str, str]] = []
+    for message in messages:
+        content = message.get("content")
+        if message.get("role") != "user" or not isinstance(content, list):
+            continue
+        for part in content:
+            if part.get("type") == "image_url":
+                url = (part.get("image_url") or {}).get("url", "")
+                blob = _blob(url, f"image-{len(found) + 1}")
+                if blob:
+                    found.append(blob)
+    return found[-MAX_ATTACHED_IMAGES:]
 
 
 def split_messages(messages: list[dict[str, Any]]) -> tuple[str, str]:
@@ -251,6 +273,9 @@ def split_messages(messages: list[dict[str, Any]]) -> tuple[str, str]:
 class CopilotProvider:
     """Same surface as `LlmProvider`: `model`, `complete`, `stream_chat`, `aclose`."""
 
+    # Pictures a tool returns (a screenshot, an image file) ride on the tool result itself.
+    tool_images_inline = True
+
     def __init__(
         self,
         account_id: str,
@@ -283,15 +308,22 @@ class CopilotProvider:
             from copilot.tools import ToolResult
 
             call_id = invocation.tool_call_id or f"call_{len(self._pending)}"
-            future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
+            future: asyncio.Future[tuple[str, list[str]]] = asyncio.get_running_loop().create_future()
             self._pending[call_id] = future
             args = invocation.arguments if isinstance(invocation.arguments, dict) else {}
             assert self._events is not None
             await self._events.put(
                 ("tool", ToolCallDelta(id=call_id, name=name, arguments_json=json.dumps(args)))
             )
-            output = await future
-            return ToolResult(text_result_for_llm=output)
+            output, images = await future
+            binary = []
+            for i, url in enumerate(images):
+                blob = _blob(url, f"{name}-{i + 1}")
+                if blob:
+                    from copilot.tools import ToolBinaryResult
+
+                    binary.append(ToolBinaryResult(data=blob["data"], mime_type=blob["mimeType"], type="image", description=blob["displayName"]))
+            return ToolResult(text_result_for_llm=output, binary_results_for_llm=binary or None)
 
         return handler
 
@@ -440,7 +472,7 @@ class CopilotProvider:
                 started = False
                 try:
                     await self._open(system, tools)
-                    await self._session.send(prompt or "أكمل.")
+                    await self._session.send(prompt or "أكمل.", attachments=images_of(messages) or None)
                     async for event in self._drain():
                         started = True
                         yield event
@@ -460,11 +492,11 @@ class CopilotProvider:
                     break
                 future = self._pending.pop(message.get("tool_call_id", ""), None)
                 if future is not None and not future.done():
-                    future.set_result(str(message.get("content", "")))
+                    future.set_result((str(message.get("content", "")), list(message.get("images") or [])))
                     answered = True
             # …or, if the loop nudged with a fresh user line, send that.
             if not answered and messages and messages[-1].get("role") == "user":
-                await self._session.send(_text_of(messages[-1].get("content")) or "أكمل.")
+                await self._session.send(_text_of(messages[-1].get("content")) or "أكمل.", attachments=images_of(messages[-1:]) or None)
 
         try:
             async for event in self._drain():

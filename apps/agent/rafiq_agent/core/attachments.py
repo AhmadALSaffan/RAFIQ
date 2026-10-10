@@ -88,7 +88,7 @@ def meta(a: Attachment) -> dict[str, Any]:
     return {"id": a.id, "name": a.name, "mime": a.mime, "kind": a.kind, "size": a.size}
 
 
-def _image_data_url(path: str) -> str:
+def image_data_url(path: str) -> str:
     with Image.open(path) as img:
         img.load()
         if max(img.size) > MAX_IMAGE_EDGE:
@@ -104,7 +104,7 @@ def _image_data_url(path: str) -> str:
     return f"data:{mime};base64,{base64.b64encode(buffer.getvalue()).decode()}"
 
 
-def _pdf_text(path: str) -> str:
+def pdf_text(path: str) -> str:
     reader = PdfReader(path)
     pages = []
     for i, page in enumerate(reader.pages, start=1):
@@ -114,12 +114,12 @@ def _pdf_text(path: str) -> str:
     return "\n".join(pages)
 
 
-def _truncate(text: str) -> str:
+def truncate(text: str) -> str:
     return text if len(text) <= MAX_TEXT_CHARS else text[:MAX_TEXT_CHARS] + "\n… (مقطوع — الملف أطول من هيك)"
 
 
 def build_user_content(
-    text: str, attachments: list[Attachment], vision: bool | None
+    text: str, attachments: list[Attachment], vision: bool | None, descriptions: dict[str, str] | None = None
 ) -> str | list[dict[str, Any]]:
     """Turns a user message + attachments into an OpenAI-style content value (litellm maps it per provider)."""
     if not attachments:
@@ -130,16 +130,21 @@ def build_user_content(
     for a in attachments:
         try:
             if a.kind == "image":
-                if vision is False:
-                    notes.append(f"[صورة مرفقة «{a.name}» — هالموديل ما بيقدر يشوف الصور]")
+                if vision is False and descriptions and a.id in descriptions:
+                    notes.append(f"[صورة مرفقة «{a.name}» — هالموديل ما بيشوف صور، فموديل الرؤية وصفها:]\n{descriptions[a.id]}")
+                elif vision is False:
+                    notes.append(
+                        f"[صورة مرفقة «{a.name}» — هالموديل ما بيقدر يشوف الصور. قول للمستخدم يختار موديل "
+                        "بيشوف صور، أو «موديل الرؤية» من الإعدادات ← الفيديو. ما تحاول تفتحها ببايثون أو أي أداة.]"
+                    )
                 else:
-                    parts.append({"type": "image_url", "image_url": {"url": _image_data_url(a.path)}})
+                    parts.append({"type": "image_url", "image_url": {"url": image_data_url(a.path)}})
                     notes.append(f"[صورة مرفقة: {a.name}]")
             elif a.kind == "pdf":
-                notes.append(f"📎 ملف PDF «{a.name}»:\n{_truncate(_pdf_text(a.path))}")
+                notes.append(f"📎 ملف PDF «{a.name}»:\n{truncate(pdf_text(a.path))}")
             elif a.kind == "text":
                 content = Path(a.path).read_text(encoding="utf-8", errors="replace")
-                notes.append(f"📎 ملف «{a.name}»:\n```\n{_truncate(content)}\n```")
+                notes.append(f"📎 ملف «{a.name}»:\n```\n{truncate(content)}\n```")
             else:
                 notes.append(f"[ملف مرفق «{a.name}» ({a.mime}, {a.size} بايت) — نوعه ما بينقرأ كنص]")
         except Exception as exc:  # noqa: BLE001 - one unreadable file shouldn't sink the message
