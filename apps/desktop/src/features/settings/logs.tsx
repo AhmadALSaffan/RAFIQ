@@ -12,7 +12,7 @@ import { listLogs, readLog } from "../../lib/api";
 import { canPickNatively, revealPath } from "../../lib/folders";
 import { snappy } from "../../lib/motion";
 import type { LogInfo, LogOut } from "../../lib/types";
-import { Button } from "../../components/ui";
+import { Button, EmptyState } from "../../components/ui";
 import { CopyIcon, FolderIcon, RefreshIcon, SearchIcon } from "../../components/Icons";
 import { Hint, Section, Switch } from "./controls";
 import { locale, t } from "../../i18n";
@@ -148,12 +148,7 @@ export function LogsSettings() {
       <Hint>{t("المفاتيح والتوكنات وكلمات السر بتنخفى قبل ما توصل هون، فالسجل آمن تنسخه وتبعته مع أي مشكلة.")}</Hint>
 
       {list !== null && list.length === 0 && (
-        <div className="rounded-2xl px-4 py-6 text-center" style={{ background: "var(--color-surface)" }}>
-          <p className="text-sm font-medium">{t("ما في سجلات لسا")}</p>
-          <p className="mt-1 text-xs leading-relaxed" style={muted}>
-            {t("سجل رفيق بينكتب بالنسخة المثبّتة من التطبيق، وكل خادم MCP محلي بيكتب سجله أول ما يشتغل.")}
-          </p>
-        </div>
+        <EmptyState compact scene="settings" title={t("ما في سجلات لسا")} text={t("سجل رفيق بينكتب بالنسخة المثبّتة من التطبيق، وكل خادم MCP محلي بيكتب سجله أول ما يشتغل.")} />
       )}
 
       {list && list.length > 0 && (

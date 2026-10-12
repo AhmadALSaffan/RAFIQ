@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { EmptyState } from "../components/ui";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { getUsage, listChats, listDesigns, listModels, listSchedules, listTasks } from "../lib/api";
@@ -180,9 +181,9 @@ export function HomePage() {
           {chats === null ? (
             <div className="shimmer mt-3 h-24 rounded-lg" />
           ) : chats.length === 0 ? (
-            <p className="mt-3 text-sm" style={{ color: "var(--color-ink-muted)" }}>
-              {t("ما في محادثات لسا. اكتب فوق وبلّش.")}
-            </p>
+            <div className="mt-3">
+              <EmptyState compact scene="chat" text={t("ما في محادثات لسا. اكتب فوق وبلّش.")} />
+            </div>
           ) : (
             <ul className="mt-2">
               {chats.slice(0, 5).map((c) => (

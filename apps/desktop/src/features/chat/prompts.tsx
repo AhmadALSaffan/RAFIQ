@@ -11,7 +11,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { createPrompt, deletePrompt, listPrompts, markPromptUsed, updatePrompt } from "../../lib/api";
 import type { SavedPrompt } from "../../lib/types";
 import { Dialog } from "../../components/ChatCommands";
-import { Button } from "../../components/ui";
+import { Button, EmptyState } from "../../components/ui";
 import { PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "../../components/Icons";
 import { fieldDir } from "../../lib/bidi";
 import { easeOutExpo } from "../../lib/motion";
@@ -259,9 +259,7 @@ export function PromptLibraryDialog({
       </div>
 
       {prompts && prompts.length === 0 && (
-        <p className="py-6 text-center text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-          {t("ما في برومبتات لسا. كليك يمين على أي رسالة بعتّها ← «احفظه كبرومبت»، أو اضغط «جديد».")}
-        </p>
+        <EmptyState compact scene="chat" text={t("ما في برومبتات لسا. كليك يمين على أي رسالة بعتّها ← «احفظه كبرومبت»، أو اضغط «جديد».")} />
       )}
       {prompts && prompts.length > 0 && shown.length === 0 && (
         <p className="py-6 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>

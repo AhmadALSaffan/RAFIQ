@@ -98,7 +98,10 @@ export function ChatPage({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
-  const [newChatFolder, setNewChatFolder] = useState<string | null>(null);
+  // Started from the home screen's box (or the first-run welcome): send it as soon as a
+  // model is ready, in the folder picked there.
+  const [handedOff] = useState(() => (embedded ? null : takeChatSend()));
+  const [newChatFolder, setNewChatFolder] = useState<string | null>(() => handedOff?.folder ?? null);
   const [listOpen, setListOpen] = useState(false);
   const [hasIntegrations, setHasIntegrations] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
@@ -271,8 +274,6 @@ export function ChatPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeId, navigate, embedded]);
 
-  // Started from the home screen's box: send it as soon as a model is ready.
-  const [handedOff] = useState(() => (embedded ? null : takeChatSend()));
   const handoffSent = useRef(false);
   // The model picked on the home screen wins over the remembered one.
   useEffect(() => {

@@ -4,6 +4,7 @@ import { Shell } from "./components/Shell";
 import { ContextMenuProvider } from "./components/ContextMenu";
 import { BootGate } from "./components/BootGate";
 import { TopProgress } from "./components/TopProgress";
+import { FirstRun } from "./components/FirstRun";
 import { ChatPage } from "./features/chat";
 import { ModelsPage } from "./routes/ModelsPage";
 import { IntegrationsPage } from "./routes/IntegrationsPage";
@@ -59,6 +60,7 @@ export function App() {
             )}
           </Route>
         </Routes>
+        <FirstRun />
       </BootGate>
     </ContextMenuProvider>
   );

@@ -15,12 +15,14 @@ export interface ChatSend {
   text: string;
   /** The model the user picked for it. */
   model: string | null;
+  /** The folder the chat works in (the first-run welcome asks for one). */
+  folder?: string | null;
 }
 
 /** A message to *send* as soon as the chat page opens (the home screen's box), on the model picked there. */
-export function queueChatSend(text: string, model: string | null = null): void {
+export function queueChatSend(text: string, model: string | null = null, folder: string | null = null): void {
   try {
-    sessionStorage.setItem(SEND_KEY, JSON.stringify({ text, model }));
+    sessionStorage.setItem(SEND_KEY, JSON.stringify({ text, model, folder }));
   } catch {
     // session storage unavailable — nothing to send
   }
@@ -32,7 +34,7 @@ export function takeChatSend(): ChatSend | null {
     if (!value) return null;
     sessionStorage.removeItem(SEND_KEY);
     const parsed = JSON.parse(value) as Partial<ChatSend>;
-    return typeof parsed.text === "string" && parsed.text ? { text: parsed.text, model: parsed.model ?? null } : null;
+    return typeof parsed.text === "string" && parsed.text ? { text: parsed.text, model: parsed.model ?? null, folder: parsed.folder ?? null } : null;
   } catch {
     return null;
   }

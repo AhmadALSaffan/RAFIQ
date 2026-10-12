@@ -10,7 +10,7 @@ import { MCP_CATEGORY_LABEL, MCP_PRESETS, presetById, REQUIREMENT_LABEL, REQUIRE
 import type { McpRequirements, McpServer, McpServerInput, PermissionMode } from "../../lib/types";
 import { openExternal } from "../../lib/links";
 import { easeOutExpo, listContainer, listItem, snappy } from "../../lib/motion";
-import { Button, Reveal } from "../../components/ui";
+import { Button, EmptyState, Reveal } from "../../components/ui";
 import { AlertIcon, ExternalIcon, PlusIcon, SpinnerIcon, TrashIcon, XIcon } from "../../components/Icons";
 import { McpLogo } from "../../components/McpLogo";
 import { FolderPicker } from "../../components/FolderPicker";
@@ -647,9 +647,12 @@ export function McpSettings() {
       </Reveal>
 
       {servers.length === 0 && !editing && (
-        <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-          {t("ما في خوادم بعد — اضغط «أضف خادم» واختار من القائمة.")}
-        </p>
+        <EmptyState
+          compact
+          scene="connect"
+          text={t("ما في خوادم بعد. الخوادم بتوصّل رفيق بخدماتك (GitHub، Notion، Figma…) ليشتغل فيها. اختار وحدة من القائمة وسجّل دخول بضغطة.")}
+          action={<Button onClick={() => setPicking(true)}>{t("أضف خادم")}</Button>}
+        />
       )}
 
       <motion.div variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">

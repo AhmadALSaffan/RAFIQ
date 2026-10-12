@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { deleteSkill, installSkillFromUrl, mcpRequirements } from "../../lib/api";
 import type { AgentSkill, SkillInstallResult } from "../../lib/types";
 import { easeOutExpo, listContainer, listItem } from "../../lib/motion";
-import { Button, ErrorText } from "../../components/ui";
+import { Button, EmptyState, ErrorText } from "../../components/ui";
 import { DownloadIcon, ExternalIcon, PencilIcon, PlusIcon, SpinnerIcon, TrashIcon, WandIcon, XIcon } from "../../components/Icons";
 import { SkillEditor, type SkillEditorMode } from "./SkillEditor";
 import { t } from "../../i18n";
@@ -107,9 +107,7 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
           </Button>
         </div>
         {own.length === 0 ? (
-          <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            {t("لسا ما عندك مهارات: اكتب وحدة هون، حط رابط تحت، أو اختار من القائمة.")}
-          </p>
+          <EmptyState compact scene="designs" text={t("لسا ما عندك مهارات: اكتب وحدة هون، حط رابط تحت، أو اختار من القائمة.")} />
         ) : (
           <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-1.5">
             <AnimatePresence initial={false}>

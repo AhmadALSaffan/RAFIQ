@@ -65,7 +65,10 @@ export function EmptyState({
   title,
   text,
   action,
+  compact = false,
 }: {
+  /** Smaller, for a section of a page or a side list. */
+  compact?: boolean;
   icon?: ReactNode;
   /** A hand-drawn figure instead of the icon. */
   scene?: Scene;
@@ -77,12 +80,12 @@ export function EmptyState({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0, transition: { duration: 0.4, ease: easeOutExpo } }}
-      className="relative flex flex-col items-center gap-3 overflow-hidden rounded-2xl px-6 py-14 text-center"
+      className={`relative flex flex-col items-center overflow-hidden rounded-2xl text-center ${compact ? "gap-2 px-4 py-6" : "gap-3 px-6 py-14"}`}
       style={{ background: "var(--color-surface-2)" }}
     >
       {scene ? (
         <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}>
-          <Illustration scene={scene} size={150} />
+          <Illustration scene={scene} size={compact ? 96 : 150} />
         </motion.div>
       ) : (
         <motion.div

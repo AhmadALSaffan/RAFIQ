@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { EmptyState } from "./ui";
 import { AnimatePresence, motion } from "motion/react";
 import type { ChatSearchResult, ChatSummary, LlmModel } from "../lib/types";
 import { searchChats } from "../lib/api";
@@ -278,11 +279,9 @@ export function ChatList({
         ))}
 
         {!deep && view === "chats" && !loading && active.length === 0 && (
-          <p className="px-3 py-8 text-center text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-            {t("محادثاتك رح تظهر هون.")}
-            <br />
-            {t("ابدأ وحدة واسأل رفيق أي شي.")}
-          </p>
+          <div className="px-1 py-2">
+            <EmptyState compact scene="chat" title={t("محادثاتك رح تظهر هون.")} text={t("ابدأ وحدة واسأل رفيق أي شي.")} />
+          </div>
         )}
         {!deep && view === "chats" && !loading && active.length > 0 && groups.length === 0 && (
           <p className="px-3 py-8 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>

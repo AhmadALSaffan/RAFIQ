@@ -383,6 +383,8 @@ export type WebSearchProvider = "none" | "brave" | "tavily" | "searxng";
 
 export interface AppSettings {
   permissions: Record<PermissionKey, PermissionMode>;
+  /** The first-run welcome was finished or skipped. */
+  onboarded?: boolean;
   desktop_control_enabled: boolean;
   /** How many tasks may run at once (1–100); tasks editing the same files still take turns. */
   max_parallel_tasks: number;

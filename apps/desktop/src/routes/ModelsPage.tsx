@@ -428,8 +428,18 @@ function AccountLine({
   );
 }
 
-function NewModelForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: (m: LlmModel) => void }) {
-  const [provider, setProvider] = useState<Provider>("anthropic");
+/** Adding an agent: provider, key or account, then the model. Also the first-run welcome's
+ *  model step, which opens it on the provider the user chose there. */
+export function NewModelForm({
+  onCancel,
+  onCreated,
+  initialProvider = "anthropic",
+}: {
+  onCancel: () => void;
+  onCreated: (m: LlmModel) => void;
+  initialProvider?: Provider;
+}) {
+  const [provider, setProvider] = useState<Provider>(initialProvider);
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });

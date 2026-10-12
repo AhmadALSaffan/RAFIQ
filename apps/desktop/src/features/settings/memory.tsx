@@ -9,7 +9,7 @@ import { addMemory, clearMemories, deleteMemory, listMemories, updateMemory } fr
 import type { AppSettings, Memory } from "../../lib/types";
 import { listItem, listContainer } from "../../lib/motion";
 import { fieldDir } from "../../lib/bidi";
-import { Button } from "../../components/ui";
+import { Button, EmptyState } from "../../components/ui";
 import { PlusIcon, TrashIcon } from "../../components/Icons";
 import { Hint, Section, Switch, ToggleRow } from "./controls";
 import { t } from "../../i18n";
@@ -79,9 +79,7 @@ export function MemorySettings({ settings, persist }: { settings: AppSettings; p
       {memories === null ? (
         <div className="shimmer h-16 rounded-lg" />
       ) : memories.length === 0 ? (
-        <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-          {t("ما في شي محفوظ بعد.")}
-        </p>
+        <EmptyState compact scene="thinking" text={t("ما في شي محفوظ بعد. بأي محادثة قله «تذكّر إنو…» وبيحفظها هون، وبيرجعلها بالمحادثات الجاية.")} />
       ) : (
         <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-1.5">
           <AnimatePresence initial={false}>
