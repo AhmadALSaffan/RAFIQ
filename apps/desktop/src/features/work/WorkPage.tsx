@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Illustration } from "../../components/Illustration";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { createTask, listIntegrations, listIssues, listModels } from "../../lib/api";
+import { createTask, listIntegrations, listIssues, listModels, quietly } from "../../lib/api";
 import type { IntegrationAccount, LlmModel, TrackerIssue } from "../../lib/types";
 import { listContainer } from "../../lib/motion";
 import { parseUtc, timeAgo } from "../../lib/time";
@@ -115,7 +115,7 @@ export function WorkPage() {
   useEffect(() => {
     setLoading(true);
     void load();
-    const id = setInterval(() => void load(), 60_000);
+    const id = setInterval(() => void quietly(() => load()), 60_000);
     return () => clearInterval(id);
   }, [load]);
 

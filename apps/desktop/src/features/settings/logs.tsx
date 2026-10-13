@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { listLogs, readLog } from "../../lib/api";
+import { listLogs, readLog, quietly } from "../../lib/api";
 import { canPickNatively, revealPath } from "../../lib/folders";
 import { snappy } from "../../lib/motion";
 import type { LogInfo, LogOut } from "../../lib/types";
@@ -92,8 +92,8 @@ export function LogsSettings() {
     if (!live) return;
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") {
-        void load();
-        void refreshList();
+        void quietly(() => load());
+        void quietly(() => refreshList());
       }
     }, POLL_MS);
     return () => window.clearInterval(timer);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { getMotionProject, patchMotionScene, renameMotionProject, type MotionProject } from "../lib/api";
+import { getMotionProject, patchMotionScene, renameMotionProject, type MotionProject, quietly } from "../lib/api";
 import { snappy } from "../lib/motion";
 import { Button } from "../components/ui";
 import { Resizer } from "../components/Resizer";
@@ -93,7 +93,7 @@ export function MotionWorkspace() {
   useEffect(() => {
     const timer = window.setInterval(async () => {
       if (document.hidden || pending.current) return;
-      const next = await getMotionProject(id).catch(() => null);
+      const next = await quietly(() => getMotionProject(id)).catch(() => null);
       if (next && project && next.version !== project.version) {
         setProject(next);
         setScene(next.scene);

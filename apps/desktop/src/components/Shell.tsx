@@ -22,7 +22,7 @@ import {
 import { CommandPalette, usePaletteShortcut } from "./CommandPalette";
 import { useTheme } from "../lib/theme";
 import { useMotionEngineHost } from "../features/motion/host";
-import { getSettings, listChats, listDesigns, listMotionProjects, listTasks } from "../lib/api";
+import { getSettings, listChats, listDesigns, listMotionProjects, listTasks, quietly } from "../lib/api";
 import { closeTab, neighbourAfterClose, openTab, pruneTabs, tabFor, useTabs, type AppTab } from "../lib/tabs";
 import { notify, syncBackground } from "../lib/background";
 import { syncQuickAsk } from "../lib/quickAsk";
@@ -100,7 +100,7 @@ function useTaskWatcher(currentPath: string, navigate: (to: string) => void) {
     const check = async () => {
       let list: TaskSummary[];
       try {
-        list = await listTasks();
+        list = await quietly(() => listTasks());
       } catch {
         return;
       }

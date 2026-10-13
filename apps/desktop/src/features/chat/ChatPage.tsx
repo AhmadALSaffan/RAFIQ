@@ -12,32 +12,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  attachChatStream,
-  createChat,
-  deleteChat,
-  deleteChatMessage,
-  exportChat as exportChatFile,
-  forkChat,
-  listSkills,
-  saveTemplate,
-  truncateChatFrom,
-  getChat,
-  listChats,
-  listIntegrations,
-  listModels,
-  renameChat,
-  resolveChatPermission,
-  sendChatMessage,
-  setBookmark,
-  setChatFolder,
-  setChatArchived,
-  setChatPinned,
-  stopChat,
-  summarizeChat,
-  updateChatSettings,
-  type ChatStreamEvent,
-} from "../../lib/api";
+import { attachChatStream, createChat, deleteChat, deleteChatMessage, exportChat as exportChatFile, forkChat, listSkills, saveTemplate, truncateChatFrom, getChat, listChats, listIntegrations, listModels, renameChat, resolveChatPermission, sendChatMessage, setBookmark, setChatFolder, setChatArchived, setChatPinned, stopChat, summarizeChat, updateChatSettings, type ChatStreamEvent, quietly } from "../../lib/api";
 import type { Attachment, ChatMessage, ChatSummary, LlmModel, ReplySettings, TrackerIssue } from "../../lib/types";
 import { canPickNatively, pickFolder } from "../../lib/folders";
 import { ACTIVITY_MAX, ACTIVITY_MIN, DEFAULT_LAYOUT, LIST_MAX, LIST_MIN, READING_WIDTHS, setLayout, useLayout } from "../../lib/layout";
@@ -232,7 +207,7 @@ export function ChatPage({
   useEffect(() => {
     if (!othersWriting) return;
     const timer = setInterval(() => {
-      listChats()
+      quietly(() => listChats())
         .then((fresh) => {
           const writing = new Map(fresh.map((c) => [c.id, c.streaming ?? false]));
           setChats((prev) => prev.map((c) => (c.id === routeRef.current ? c : { ...c, streaming: writing.get(c.id) ?? false })));

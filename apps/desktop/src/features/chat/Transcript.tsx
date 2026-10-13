@@ -4,7 +4,7 @@
  * summary marker. No data fetching lives here — it all arrives as props.
  */
 
-import { memo, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ChatMessage, ChatPart, LlmModel, TaskStatus, TurnUsage } from "../../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../../lib/motion";
@@ -543,9 +543,20 @@ function TaskGroup({ tasks, onOpen, fresh }: { tasks: TaskRef[]; onOpen: (id: st
   );
 }
 
+/**
+ * The model's thinking. While it thinks, a window of fixed height that follows the newest
+ * thoughts *inside itself* — so the conversation doesn't grow and slide down with every
+ * thought. Scroll up in it and it stays put. Folded away once the answer starts.
+ */
 function Reasoning({ text, live }: { text: string; live: boolean }) {
   const [open, setOpen] = useState(false);
   const expanded = live || open;
+  const box = useRef<HTMLParagraphElement>(null);
+  const follow = useRef(true);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (el && live && follow.current) el.scrollTop = el.scrollHeight;
+  }, [text, live]);
   return (
     <div>
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
@@ -561,8 +572,18 @@ function Reasoning({ text, live }: { text: string; live: boolean }) {
             className="overflow-hidden"
           >
             <p
-              className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl px-3.5 py-2.5 text-xs leading-relaxed"
-              style={{ background: "var(--color-surface)", color: "var(--color-ink-muted)" }}
+              ref={box}
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 16;
+              }}
+              className={`mt-1 overflow-y-auto whitespace-pre-wrap rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${live ? "h-28" : "max-h-48"}`}
+              style={{
+                background: "var(--color-surface)",
+                color: "var(--color-ink-muted)",
+                // the oldest thoughts fade out at the top while new ones come in below
+                maskImage: live ? "linear-gradient(to bottom, transparent, black 1.75rem)" : undefined,
+              }}
               dir="auto"
             >
               {text}

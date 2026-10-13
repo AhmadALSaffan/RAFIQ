@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { DiffView } from "./DiffView";
 import { AnimatePresence, motion } from "motion/react";
 import type { Resolution, ToolCall } from "../lib/types";
@@ -8,7 +8,6 @@ import { AlertIcon, ShieldIcon, SpinnerIcon, TerminalIcon } from "./Icons";
 import { Button, DrawnCheck } from "./ui";
 
 import { t } from "../i18n";
-const COLLAPSE_AT = 12;
 
 export function formatArgs(args: Record<string, unknown>): string {
   const entries = Object.entries(args);
@@ -30,6 +29,49 @@ export function ToolTitle({ name }: { name: string }) {
   );
 }
 
+/**
+ * Text that may be long (a whole scene as JSON, a file, a command's output), kept to a
+ * few lines until asked. Clamped by height, not by line count: one line of JSON can wrap
+ * into dozens. Without it a single tool card could add a thousand pixels to the chat at
+ * once, and the conversation would lurch down as it followed.
+ */
+function Clamped({ text, maxRem, className, style, dir }: { text: string; maxRem: number; className: string; style: React.CSSProperties; dir: "ltr" | "auto" }) {
+  const ref = useRef<HTMLPreElement>(null);
+  const [open, setOpen] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el && !open) setOverflows(el.scrollHeight > el.clientHeight + 2);
+  }, [text, open]);
+  return (
+    <>
+      <pre
+        ref={ref}
+        className={`${className} ${open ? "max-h-[32rem] overflow-auto" : "overflow-hidden"}`}
+        style={{
+          ...style,
+          maxHeight: open ? undefined : `${maxRem}rem`,
+          maskImage: !open && overflows ? "linear-gradient(to bottom, black 60%, transparent)" : undefined,
+        }}
+        dir={dir}
+      >
+        {text}
+      </pre>
+      {(overflows || open) && (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="w-full border-t px-4 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
+          style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
+        >
+          {open ? t("إخفاء") : t("عرض الكل ({0} سطر)", { 0: text.split("\n").length })}
+        </button>
+      )}
+    </>
+  );
+}
+
 /** One tool step: what was called, then its output sliding open when it lands. */
 export function ToolCard({
   tool,
@@ -40,10 +82,6 @@ export function ToolCard({
   args?: Record<string, unknown>;
   result?: { ok: boolean; output: string };
 }) {
-  const lines = result?.output.split("\n") ?? [];
-  const long = lines.length > COLLAPSE_AT;
-  const [expanded, setExpanded] = useState(false);
-  const shown = long && !expanded ? lines.slice(0, COLLAPSE_AT).join("\n") : result?.output;
   const state = !result ? "running" : result.ok ? "ok" : "fail";
 
   return (
@@ -68,9 +106,7 @@ export function ToolCard({
         </AnimatePresence>
       </div>
       {args && Object.keys(args).length > 0 && (
-        <pre className="whitespace-pre-wrap px-4 pb-2.5 font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
-          {formatArgs(args)}
-        </pre>
+        <Clamped text={formatArgs(args)} maxRem={4.5} className="whitespace-pre-wrap break-words px-4 pb-2.5 font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr" />
       )}
       <AnimatePresence initial={false}>
         {result && (
@@ -81,22 +117,7 @@ export function ToolCard({
             className="border-t"
             style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)" }}
           >
-            <pre
-              className="max-h-96 overflow-auto whitespace-pre-wrap px-4 py-3 font-mono text-xs"
-              style={{ color: result.ok ? "var(--color-ink)" : "var(--color-danger)" }}
-              dir="auto"
-            >
-              {shown}
-            </pre>
-            {long && (
-              <button
-                onClick={() => setExpanded((v) => !v)}
-                className="w-full border-t px-4 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
-                style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
-              >
-                {expanded ? t("إخفاء") : t("عرض الكل ({0} سطر)", { 0: lines.length })}
-              </button>
-            )}
+            <Clamped text={result.output} maxRem={8} className="whitespace-pre-wrap break-words px-4 py-3 font-mono text-xs" style={{ color: result.ok ? "var(--color-ink)" : "var(--color-danger)" }} dir="auto" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -110,9 +131,7 @@ export function ArgsPanel({ call }: { call: ToolCall }) {
       <div className="mb-1.5">
         <ToolTitle name={call.tool} />
       </div>
-      <pre className="whitespace-pre-wrap font-mono text-xs" style={{ color: "var(--color-ink)" }} dir="ltr">
-        {formatArgs(call.args)}
-      </pre>
+      <Clamped text={formatArgs(call.args)} maxRem={14} className="whitespace-pre-wrap break-words font-mono text-xs" style={{ color: "var(--color-ink)" }} dir="ltr" />
     </div>
   );
 }

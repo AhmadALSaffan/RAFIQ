@@ -7,11 +7,28 @@ import { onRequestCount } from "../lib/api";
  * 90% instead of pretending to know the real progress, then snaps to 100% and fades —
  * the honest version of a progress bar for requests with no length.
  */
+// A load shorter than this never shows the bar — it would only flash.
+const SHOW_AFTER_MS = 250;
+
 export function TopProgress() {
+  const [count, setCount] = useState(0);
   const [active, setActive] = useState(0);
   const [value, setValue] = useState(0);
 
-  useEffect(() => onRequestCount(setActive), []);
+  useEffect(() => onRequestCount(setCount), []);
+
+  useEffect(() => {
+    if (!count) {
+      setActive(0);
+      return;
+    }
+    if (active) {
+      setActive(count);
+      return;
+    }
+    const wait = setTimeout(() => setActive(count), SHOW_AFTER_MS);
+    return () => clearTimeout(wait);
+  }, [count, active]);
 
   useEffect(() => {
     if (!active) {

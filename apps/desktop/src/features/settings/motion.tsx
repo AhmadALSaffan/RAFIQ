@@ -8,24 +8,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  ffmpegStatus,
-  getMotionKit,
-  installFfmpeg,
-  installLocalModel,
-  listModels,
-  localModels,
-  listWorkspaces,
-  motionKitTemplates,
-  motionMediaKeys,
-  removeFfmpeg,
-  removeLocalModel,
-  saveMotionKit,
-  saveMotionMediaKey,
-  type FfmpegStatus,
-  type LocalPack,
-  type LocalPackName,
-} from "../../lib/api";
+import { ffmpegStatus, getMotionKit, installFfmpeg, installLocalModel, listModels, localModels, listWorkspaces, motionKitTemplates, motionMediaKeys, removeFfmpeg, removeLocalModel, saveMotionKit, saveMotionMediaKey, type FfmpegStatus, type LocalPack, type LocalPackName, quietly } from "../../lib/api";
 import type { AppSettings, LlmModel, Workspace } from "../../lib/types";
 import type { BrandKit, Scene } from "../motion/engine/types";
 import { contrastRatio, hexToRgb, relLuminance } from "../motion/engine/brand";
@@ -535,7 +518,7 @@ function LocalModelsSection({ onChange }: { onChange: (packs: Record<LocalPackNa
   useEffect(() => {
     if (!running) return;
     const timer = setInterval(() => {
-      localModels()
+      quietly(() => localModels())
         .then(setPacks)
         .catch(() => undefined);
     }, 700);
@@ -627,7 +610,7 @@ function FfmpegCard() {
   useEffect(() => {
     if (!running) return;
     const timer = setInterval(() => {
-      ffmpegStatus()
+      quietly(() => ffmpegStatus())
         .then(setStatus)
         .catch(() => undefined);
     }, 700);

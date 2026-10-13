@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useCurrentWorkspaceId } from "../../lib/workspace";
 import { AnimatePresence, motion } from "motion/react";
-import { createTask, deleteTask, getTask, listModels, listTasks } from "../../lib/api";
+import { createTask, deleteTask, getTask, listModels, listTasks, quietly } from "../../lib/api";
 import type { LlmModel, TaskStatus, TaskSummary } from "../../lib/types";
 import { listContainer, listItem, snappy } from "../../lib/motion";
 import { timeAgo } from "../../lib/time";
@@ -145,7 +145,7 @@ export function TasksPage() {
       .catch(() => setModels([]));
     void refresh();
     // Statuses move on their own: queued tasks start, chat-created tasks show up.
-    const id = setInterval(() => void refresh(), 3000);
+    const id = setInterval(() => void quietly(() => refresh()), 3000);
     return () => clearInterval(id);
   }, [refresh]);
 

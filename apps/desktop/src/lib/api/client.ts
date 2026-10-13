@@ -14,6 +14,8 @@ import { getApiConfig } from "../config";
 // can show that something is happening instead of an empty screen.
 
 let inFlight = 0;
+// Requests started inside quietly(): background polls nobody is waiting on.
+let quietDepth = 0;
 
 const watchers = new Set<(count: number) => void>();
 
@@ -25,6 +27,22 @@ export function onRequestCount(fn: (count: number) => void): () => void {
   watchers.add(fn);
   fn(inFlight);
   return () => watchers.delete(fn);
+}
+
+/**
+ * Runs `work` without lighting the progress bar: for the checks the app makes on its own
+ * every few seconds (a task finishing, a scene the model changed). The bar is for what the
+ * user is waiting on; a poll that flashes it every 3 seconds just looks like something's
+ * wrong. Requests are counted when they start, so only the ones `work` starts right away —
+ * every API helper does — are quiet.
+ */
+export function quietly<T>(work: () => Promise<T>): Promise<T> {
+  quietDepth += 1;
+  try {
+    return work();
+  } finally {
+    quietDepth -= 1;
+  }
 }
 
 /** Wraps any promise so it counts towards the progress bar (streams, uploads…). */
@@ -55,9 +73,13 @@ export async function waitForBackend(signal?: AbortSignal): Promise<void> {
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Read before the first await: quietly() only covers what starts synchronously inside it.
+  const counted = quietDepth === 0;
   const { baseUrl, token } = await getApiConfig();
-  inFlight += 1;
-  announce();
+  if (counted) {
+    inFlight += 1;
+    announce();
+  }
   try {
     const res = await fetch(`${baseUrl}${path}`, {
       ...init,
@@ -77,7 +99,9 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;
   } finally {
-    inFlight -= 1;
-    announce();
+    if (counted) {
+      inFlight -= 1;
+      announce();
+    }
   }
 }
