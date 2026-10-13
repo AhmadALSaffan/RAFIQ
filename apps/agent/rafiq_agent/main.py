@@ -73,6 +73,11 @@ async def lifespan(app: FastAPI):
     await manager.recover()
     manager.start(run_task, limit=parallel_limit)
     schedules = asyncio.create_task(run_schedules())
+    # Model prices: the last fetched table at once, a fresh one (once a day) in the background.
+    from rafiq_agent.llm import pricing
+
+    pricing.load_cached()
+    prices = asyncio.create_task(pricing.refresh())
     MCP.warm()  # connect the MCP servers while the user is still opening a chat
     write_discovery()
     # Optional experimental adapter: load its saved config, or skip it silently.
@@ -83,6 +88,7 @@ async def lifespan(app: FastAPI):
     yield
     remove_discovery()
     schedules.cancel()
+    prices.cancel()
     # Replies still being written are saved as far as they got.
     await stop_all_turns()
     await usage.drain()  # don't lose the last calls' cost

@@ -10,6 +10,7 @@ from rafiq_agent.auth.base import redact
 from rafiq_agent.i18n import tr
 from rafiq_agent.llm.discovery import DiscoveryError, VerifyResult, discover_models, verify_model
 from rafiq_agent.llm.presets import native_tools
+from rafiq_agent.llm.pricing import price_for
 from rafiq_agent.schemas.models import (
     DiscoveredModelOut,
     DiscoverRequest,
@@ -17,6 +18,7 @@ from rafiq_agent.schemas.models import (
     ModelCreate,
     ModelFallbackUpdate,
     ModelOut,
+    PriceOut,
 )
 from rafiq_agent.storage.db import get_session
 from rafiq_agent.storage.models import AuthAccount, LlmModel
@@ -46,6 +48,7 @@ def _to_out(model: LlmModel) -> ModelOut:
         fallback_model_id=model.fallback_model_id,
         options=dict(model.options or {}),
         native_tools=sorted(native_tools(model.provider, model.model_id)),
+        price=PriceOut(**price_for(model.provider, model.model_id).as_dict()),
     )
 
 
@@ -121,6 +124,25 @@ async def list_models(session: AsyncSession = Depends(get_session)) -> list[Mode
     return [_to_out(m) for m in result.scalars().all()]
 
 
+def _priced(provider: str, models: list[DiscoveredModelOut]) -> list[DiscoveredModelOut]:
+    """Each model with what it costs: the provider's own figure when it gave one, else the
+    price table's."""
+    from rafiq_agent.llm.pricing import price_for
+
+    for m in models:
+        if m.price is None:
+            m.price = PriceOut(**price_for(provider, m.id).as_dict())
+    return models
+
+
+@router.get("/pricing")
+async def pricing_status() -> dict[str, float | None]:
+    """When the price table was last fetched (epoch seconds; null = the built-in table)."""
+    from rafiq_agent.llm.pricing import updated_at
+
+    return {"updated_at": updated_at()}
+
+
 @router.post("/discover", response_model=list[DiscoveredModelOut])
 async def discover(
     body: DiscoverRequest, session: AsyncSession = Depends(get_session)
@@ -135,12 +157,17 @@ async def discover(
                 listed = await adapter.list_models(get_api_key(account.secret_ref) or "")
             except Exception as exc:  # noqa: BLE001
                 raise HTTPException(status_code=400, detail=redact(str(exc))[:300]) from exc
-            return [DiscoveredModelOut(id=model, display_name=name) for model, name in listed]
+            return _priced(
+                body.provider, [DiscoveredModelOut(id=model, display_name=name) for model, name in listed]
+            )
         try:
             found = await discover_models(body.provider, get_api_key(account.secret_ref), body.base_url)
         except DiscoveryError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return [DiscoveredModelOut(id=m.id, display_name=m.display_name) for m in found]
+        return _priced(
+            body.provider,
+            [DiscoveredModelOut(id=m.id, display_name=m.display_name, price=m.price) for m in found],
+        )
     if body.provider == "github_copilot":
         from rafiq_agent.llm import copilot
 
@@ -151,12 +178,17 @@ async def discover(
             raise HTTPException(
                 status_code=400, detail=tr("ما قدرت أجيب موديلات Copilot: {0}", redact(str(exc))[:200])
             ) from exc
-        return [DiscoveredModelOut(id=model, display_name=name) for model, name in found]
+        return _priced(
+            body.provider, [DiscoveredModelOut(id=model, display_name=name) for model, name in found]
+        )
     try:
         found = await discover_models(body.provider, body.api_key, body.base_url, body.options)
     except DiscoveryError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return [DiscoveredModelOut(id=m.id, display_name=m.display_name) for m in found]
+    return _priced(
+        body.provider,
+        [DiscoveredModelOut(id=m.id, display_name=m.display_name, price=m.price) for m in found],
+    )
 
 
 @router.post("", response_model=ModelOut, status_code=201)
@@ -251,7 +283,9 @@ async def delete_model(model_id: str, session: AsyncSession = Depends(get_sessio
         raise HTTPException(status_code=404, detail="model not found")
     delete_api_key(model.api_key_ref)
     # Agents that fell back to this one simply have no fallback now.
-    for other in (await session.execute(select(LlmModel).where(LlmModel.fallback_model_id == model_id))).scalars():
+    for other in (
+        await session.execute(select(LlmModel).where(LlmModel.fallback_model_id == model_id))
+    ).scalars():
         other.fallback_model_id = None
     await session.delete(model)
     await session.commit()

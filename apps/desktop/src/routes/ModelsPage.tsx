@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { PriceTag } from "../components/PriceTag";
+import { describePrice, priceRank } from "../lib/price";
 import { AnimatePresence, motion } from "motion/react";
 import {
   createModel,
@@ -217,8 +219,11 @@ function ModelRow({
               </span>
             </span>
           </div>
-          <p className="mt-1 truncate font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
-            {model.model_id}
+          <p className="mt-1 flex items-center justify-between gap-3 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+            <span className="min-w-0 truncate font-mono" dir="ltr">
+              {model.model_id}
+            </span>
+            <PriceTag price={model.price} />
           </p>
           {model.auth_method === "oauth" && (
             <AccountLine
@@ -917,6 +922,9 @@ function ModelChooser({
 }) {
   const box = "rounded-lg border";
   const boxStyle = { borderColor: "var(--color-border)", background: "var(--color-bg)" };
+  const [cheapFirst, setCheapFirst] = useState(false);
+  const priced = state.status === "done" && state.models.some((m) => describePrice(m.price));
+  const shown = cheapFirst ? [...filtered].sort((a, b) => priceRank(a.price) - priceRank(b.price)) : filtered;
 
   if (state.status === "idle") {
     return (
@@ -986,6 +994,14 @@ function ModelChooser({
           dir={fieldDir(query)}
         />
       </div>
+      {priced && (
+        <div className="flex items-center justify-between gap-3 border-b px-3 py-1.5 text-[11px]" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}>
+          <span>{t("السعر لكل مليون توكن: اللي بتبعته / اللي بيكتبه. المليون ≈ ٧٥٠ ألف كلمة بالإنجليزي، وأقل بالعربي.")}</span>
+          <button type="button" aria-pressed={cheapFirst} onClick={() => setCheapFirst((v) => !v)} className="shrink-0 rounded-full px-2 py-0.5 transition-colors" style={{ background: cheapFirst ? "var(--color-inverse)" : "var(--color-surface-2)", color: cheapFirst ? "var(--color-on-inverse)" : "var(--color-ink)" }}>
+            {t("الأرخص أول")}
+          </button>
+        </div>
+      )}
       <motion.ul
         variants={listContainer}
         initial="hidden"
@@ -993,7 +1009,7 @@ function ModelChooser({
         className="max-h-64 overflow-y-auto p-1.5"
         role="listbox"
       >
-        {filtered.slice(0, 120).map((m) => {
+        {shown.slice(0, 120).map((m) => {
           const active = picked?.id === m.id;
           return (
             <motion.li key={m.id} variants={listItem} layout="position">
@@ -1022,11 +1038,14 @@ function ModelChooser({
                     </span>
                   )}
                 </span>
-                {active && (
-                  <span className="relative" style={{ color: "var(--color-ink)" }}>
-                    <DrawnCheck />
-                  </span>
-                )}
+                <span className="relative flex shrink-0 items-center gap-2">
+                  <PriceTag price={m.price} />
+                  {active && (
+                    <span style={{ color: "var(--color-ink)" }}>
+                      <DrawnCheck />
+                    </span>
+                  )}
+                </span>
               </button>
             </motion.li>
           );

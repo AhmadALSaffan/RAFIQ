@@ -125,7 +125,7 @@ async def test_sign_in_use_with_an_agent_and_revoke(client, monkeypatch, memory_
             "/models/discover", headers=AUTH, json={"provider": "authai", "account_id": account_id}
         )
     ).json()
-    assert models == [{"id": "gpt-5-codex", "display_name": "gpt-5-codex"}]
+    assert [{k: m[k] for k in ("id", "display_name")} for m in models] == [{"id": "gpt-5-codex", "display_name": "gpt-5-codex"}]
 
     created = await client.post(
         "/models",

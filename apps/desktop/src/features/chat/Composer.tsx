@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { PriceTag } from "../../components/PriceTag";
 import { AnimatePresence, motion } from "motion/react";
 import { providerLabel } from "../../lib/api";
 import type { LlmModel, TrackerIssue } from "../../lib/types";
@@ -383,7 +384,7 @@ function ModelMenu({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.12 } }}
             transition={{ duration: 0.2, ease: easeOutExpo }}
-            className="absolute bottom-full start-0 mb-2 w-64 origin-bottom overflow-hidden rounded-2xl border p-1 shadow-lg"
+            className="absolute bottom-full start-0 mb-2 w-72 origin-bottom overflow-hidden rounded-2xl border p-1 shadow-lg"
             style={{ zIndex: "var(--z-index-dropdown)" as unknown as number, borderColor: "var(--color-border)", background: "var(--color-surface)" }}
           >
             {models.map((m, i) => (
@@ -399,11 +400,14 @@ function ModelMenu({
                   style={{ background: m.id === value ? "var(--color-surface-2)" : undefined }}
                 >
                   <BrandMark provider={m.provider} className="h-4 w-4 shrink-0" />
-                  <span className="min-w-0">
+                  <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm">{m.name}</span>
-                    <span className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                      {providerLabel(m.provider)}
-                      {m.supports_tools === false ? t(" · بدون أدوات") : ""}
+                    <span className="flex items-center justify-between gap-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                      <span className="truncate">
+                        {providerLabel(m.provider)}
+                        {m.supports_tools === false ? t(" · بدون أدوات") : ""}
+                      </span>
+                      <PriceTag price={m.price} />
                     </span>
                   </span>
                 </button>

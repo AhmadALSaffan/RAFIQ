@@ -62,6 +62,15 @@ class ModelFallbackUpdate(BaseModel):
     options: dict[str, str] = {}
 
 
+class PriceOut(BaseModel):
+    # "paid" (per-token prices below), "free" (runs locally), "subscription" (part of a plan
+    # the user already has), "unknown".
+    kind: str
+    input: float | None = None  # USD per million input tokens
+    output: float | None = None  # USD per million output tokens
+    cached_input: float | None = None
+
+
 class ModelOut(BaseModel):
     id: str
     name: str
@@ -84,6 +93,7 @@ class ModelOut(BaseModel):
     # Tools this model brings itself, so the UI knows Rafiq's aren't offered by default
     # (see llm/presets.py). Filled in by the route.
     native_tools: list[str] = []
+    price: PriceOut | None = None
 
 
 class DiscoverRequest(BaseModel):
@@ -97,3 +107,4 @@ class DiscoverRequest(BaseModel):
 class DiscoveredModelOut(BaseModel):
     id: str
     display_name: str
+    price: PriceOut | None = None

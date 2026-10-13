@@ -39,6 +39,8 @@ class DiscoveryError(Exception):
 class DiscoveredModel:
     id: str
     display_name: str
+    # What the provider itself says it costs (OpenRouter publishes it); else the price table.
+    price: dict | None = None
 
 
 def _raise_for_status(resp: httpx.Response) -> None:
@@ -49,13 +51,20 @@ def _raise_for_status(resp: httpx.Response) -> None:
 
 
 def _openai_style(data: list[dict], name_key: str | None = None) -> list[DiscoveredModel]:
+    from rafiq_agent.llm.pricing import from_openrouter
+
     models = []
     for m in data:
         model_id = m.get("id", "")
         if not model_id or any(marker in model_id.lower() for marker in _NON_CHAT_MARKERS):
             continue
+        listed = from_openrouter(m.get("pricing")) if isinstance(m.get("pricing"), dict) else None
         models.append(
-            DiscoveredModel(id=model_id, display_name=m.get(name_key, model_id) if name_key else model_id)
+            DiscoveredModel(
+                id=model_id,
+                display_name=m.get(name_key, model_id) if name_key else model_id,
+                price=listed.as_dict() if listed else None,
+            )
         )
     return models
 

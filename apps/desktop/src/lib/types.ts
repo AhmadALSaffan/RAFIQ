@@ -26,6 +26,8 @@ export interface LlmModel {
   id: string;
   name: string;
   provider: Provider;
+  /** What it costs per million tokens (from the provider or the public price table). */
+  price?: ModelPrice | null;
   model_id: string;
   base_url?: string | null;
   has_key: boolean;
@@ -96,9 +98,19 @@ export interface ConnectPoll {
   account: AuthAccount | null;
 }
 
+/** What a model costs, in US dollars per million tokens. */
+export interface ModelPrice {
+  /** "paid": per-token prices. "free": runs on this machine. "subscription": part of a plan. */
+  kind: "paid" | "free" | "subscription" | "unknown";
+  input: number | null;
+  output: number | null;
+  cached_input?: number | null;
+}
+
 export interface DiscoveredModel {
   id: string;
   display_name: string;
+  price?: ModelPrice | null;
 }
 
 export type TaskStatus = "queued" | "pending" | "running" | "planned" | "completed" | "failed" | "cancelled";

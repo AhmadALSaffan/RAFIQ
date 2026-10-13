@@ -2078,4 +2078,12 @@ export const en: Dictionary = {
   "من Anthropic أو OpenAI أو Google أو غيرهم. بتدفع على قد ما بتستعمل.": "From Anthropic, OpenAI, Google or others. You pay for what you use.",
   "وين بيشتغل؟": "Where does it work?",
   "يلا نبلّش": "Let's start",
+  " (المتكرر من المحادثة: {0})": " (repeated context: {0})",
+  "الأرخص أول": "Cheapest first",
+  "السعر لكل مليون توكن: اللي بتبعته / اللي بيكتبه. المليون ≈ ٧٥٠ ألف كلمة بالإنجليزي، وأقل بالعربي.": "Price per million tokens: what you send / what it writes. A million is about 750,000 English words, fewer in Arabic.",
+  "ضمن اشتراكك، بدون كلفة لكل توكن.": "Part of your subscription, no per-token cost.",
+  "ضمن الاشتراك": "In your plan",
+  "لكل مليون توكن: اللي بتبعته {0}{1}، واللي بيكتبه {2}.": "Per million tokens: what you send {0}{1}, what it writes {2}.",
+  "مجاني": "Free",
+  "مجاني — بيشتغل على جهازك.": "Free — it runs on your computer.",
 };
