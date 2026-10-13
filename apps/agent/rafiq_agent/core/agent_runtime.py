@@ -361,6 +361,12 @@ async def run_task(task_id: str) -> None:
             await manager.emit_event(
                 task_id, "error", {"message": tr("تجاوزت المهمة الحد الأقصى من الخطوات.")}
             )
+        elif result.status == "cut":
+            await manager.emit_event(
+                task_id,
+                "error",
+                {"message": tr("الموديل وصل لأقصى طول بيقدر يكتبه بمرة وحدة، حتى بعد ما طلبت منه يقسّم الشغل. اطلب منه أجزاء أصغر (صفحة صفحة مثلاً) أو جرّب موديل بيكتب ردود أطول.")},
+            )
         else:
             outcome = "completed"
 

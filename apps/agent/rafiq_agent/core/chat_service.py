@@ -365,7 +365,10 @@ class ChatTurn:
                 raise ChatError("model not found", status=404)
 
             self.reply = settings_of(chat)
-            self.llm = provider_for(model, self.reply, await fallback_of(session, model), work=chat.mode == "motion")
+            # The model's whole output room, in every chat: a reply-length cap of 1,500 tokens
+            # cut a reasoning model off mid-file (a multi-page design) and the turn came back
+            # empty. How long the *answer* should be is said in the instructions instead.
+            self.llm = provider_for(model, self.reply, await fallback_of(session, model), work=True)
 
             past = list(chat.messages)
             heavy = approx_tokens(transcript_of(past)) > AUTO_SUMMARIZE_TOKENS
@@ -727,6 +730,16 @@ class ChatTurn:
                 ),
                 max_iterations=MOTION_TURN_ITERATIONS if getattr(self, "motion_mode", False) else MAX_TURN_ITERATIONS,
             )
+            if result.status == "cut":
+                self._emit(
+                    {
+                        "type": "error",
+                        "message": tr(
+                            "الموديل وصل لأقصى طول بيقدر يكتبه بمرة وحدة، حتى بعد ما طلبت منه يقسّم الشغل. "
+                            "اطلب منه أجزاء أصغر (صفحة صفحة مثلاً) أو جرّب موديل بيكتب ردود أطول."
+                        ),
+                    }
+                )
             if result.status == "empty":
                 # The model ended its turn without writing anything — say so instead of
                 # leaving the UI on a spinner forever.

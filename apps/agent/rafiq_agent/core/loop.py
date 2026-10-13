@@ -29,6 +29,21 @@ class LoopCallbacks:
 
 NUDGE = "أكمل من وين وقفت، واكتب الرد كامل."
 
+# When the model's reply hits its output limit. A cut tool call is never run (its arguments
+# are half a file); the model is told why, and asked for smaller pieces.
+CUT_TOOL = (
+    "(رسالة من رفيق) ردّك الأخير انقطع لأنه وصل لأقصى طول بيقدر الموديل يكتبه بمرة وحدة، "
+    "قبل ما يكمل استدعاء {tools} — فما نفّذته. اللي بدك تكتبه أطول من هيك: قسّمه. "
+    "مثلاً كل صفحة بملف لحالها، أو اكتب الملف على أقسام أصغر بكذا استدعاء. وخلّي تفكيرك مختصر."
+)
+CUT_THINKING = (
+    "(رسالة من رفيق) انقطع ردّك وإنت عم تفكّر، قبل ما تبلّش بالشغل، لأنه وصل لأقصى طول. "
+    "اختصر التفكير وابدأ بالتنفيذ مباشرة، وقسّم الشغل الكبير على خطوات."
+)
+CUT_TEXT = "(رسالة من رفيق) انقطع ردّك لأنه طوّل. كمّل من الكلمة اللي وقفت عندها بالضبط، بدون ما تعيد شي."
+# How many times one turn is helped past the limit before it gives up and says so.
+MAX_CUTS = 3
+
 
 async def _preview(tool: Any, args: dict[str, Any]) -> str | None:
     """A tool's own account of what the call would change. Never lets a preview failure
@@ -45,7 +60,7 @@ def _last_was_tool(messages: list[dict[str, Any]]) -> bool:
 
 @dataclass
 class LoopResult:
-    status: str  # "completed" | "empty" | "max_iterations"
+    status: str  # "completed" | "empty" | "max_iterations" | "cut"
     text: str
     reasoning: str
 
@@ -82,10 +97,12 @@ async def _run(
     all_text, all_reasoning = "", ""
     schemas = registry.schemas()
     nudged = False
+    cuts = 0
 
     for _ in range(max_iterations):
         text, reasoning = "", ""
         tool_calls: list[Any] = []
+        truncated = False
 
         async for event in llm.stream_chat(messages, schemas):
             if event.text_delta:
@@ -96,11 +113,28 @@ async def _run(
                 await cb.on_reasoning_delta(event.reasoning_delta)
             if event.tool_calls:
                 tool_calls = event.tool_calls
+            if event.truncated:
+                truncated = True
 
         all_text += text
         all_reasoning += reasoning
         if text.strip():
             await cb.on_turn_text(text.strip())
+
+        if truncated:
+            if cuts >= MAX_CUTS:
+                return LoopResult("cut", all_text, all_reasoning)
+            cuts += 1
+            if text:
+                messages.append({"role": "assistant", "content": text})
+            if tool_calls:
+                names = ", ".join(sorted({tc.name for tc in tool_calls if tc.name})) or "the tool"
+                messages.append({"role": "user", "content": CUT_TOOL.format(tools=names)})
+            elif text.strip():
+                messages.append({"role": "user", "content": CUT_TEXT})
+            else:
+                messages.append({"role": "user", "content": CUT_THINKING})
+            continue
 
         if not tool_calls:
             # Some models go quiet right after a tool result: no text, no call, nothing.

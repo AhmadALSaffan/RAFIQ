@@ -151,3 +151,76 @@ async def test_two_silent_turns_are_reported_as_empty():
         LoopCallbacks(permit=Recorder([]).allow),
     )
     assert result.status == "empty"
+
+
+# ── Replies cut off by the model's output limit ─────────────────────────────────────────
+
+
+async def test_a_cut_tool_call_is_not_run_and_the_model_is_asked_to_split_it():
+    tool = EchoTool()
+    half = ToolCallDelta(id="c1", name="echo", arguments_json='{"path": "site.html", "content": "<html><body>…')
+    llm = FakeLlm(
+        [
+            [StreamEvent(tool_calls=[half], finish_reason="tool_calls", truncated=True)],
+            [StreamEvent(tool_calls=[ToolCallDelta(id="c2", name="echo", arguments_json="{}")], finish_reason="tool_calls")],
+            [StreamEvent(text_delta="كتبت الصفحات على ملفات."), StreamEvent(finish_reason="stop")],
+        ]
+    )
+    result = await run_agent_loop(llm, [{"role": "user", "content": "اعمل الموقع"}], registry_with(tool), LoopCallbacks(permit=Recorder([]).allow))
+    assert result.status == "completed"
+    assert tool.calls == 1  # only the whole call ran, never the half one
+    told = llm.seen[1][-1]["content"]
+    assert "انقطع" in told and "echo" in told and "قسّمه" in told
+
+
+async def test_a_reply_cut_while_thinking_is_asked_to_think_less():
+    llm = FakeLlm(
+        [
+            [StreamEvent(reasoning_delta="بفكّر وبفكّر…"), StreamEvent(finish_reason="length", truncated=True)],
+            [StreamEvent(text_delta="هاد الجواب."), StreamEvent(finish_reason="stop")],
+        ]
+    )
+    result = await run_agent_loop(llm, [{"role": "user", "content": "سؤال"}], ToolRegistry(), LoopCallbacks(permit=Recorder([]).allow))
+    assert result.status == "completed" and result.text == "هاد الجواب."
+    assert "اختصر التفكير" in llm.seen[1][-1]["content"]
+
+
+async def test_a_reply_cut_mid_sentence_carries_on_where_it_stopped():
+    llm = FakeLlm(
+        [
+            [StreamEvent(text_delta="أول نص "), StreamEvent(finish_reason="length", truncated=True)],
+            [StreamEvent(text_delta="وآخره."), StreamEvent(finish_reason="stop")],
+        ]
+    )
+    result = await run_agent_loop(llm, [{"role": "user", "content": "اكتب"}], ToolRegistry(), LoopCallbacks(permit=Recorder([]).allow))
+    assert result.text == "أول نص وآخره."
+    assert llm.seen[1][-2] == {"role": "assistant", "content": "أول نص "}
+
+
+async def test_a_model_that_keeps_hitting_the_limit_ends_with_cut_not_empty():
+    cut = [StreamEvent(reasoning_delta="…"), StreamEvent(finish_reason="length", truncated=True)]
+    llm = FakeLlm([list(cut) for _ in range(5)])
+    result = await run_agent_loop(llm, [{"role": "user", "content": "اعمل"}], ToolRegistry(), LoopCallbacks(permit=Recorder([]).allow))
+    assert result.status == "cut"
+
+
+async def test_the_provider_reports_a_reply_cut_by_the_output_limit(monkeypatch):
+    from types import SimpleNamespace as NS
+
+    from rafiq_agent.llm import base
+
+    async def fake_completion(**_kwargs):
+        async def stream():
+            call = NS(index=0, id="c1", function=NS(name="filesystem_write", arguments='{"path": "a.html", "content": "<ht'))
+            yield NS(usage=None, choices=[NS(delta=NS(content=None, reasoning_content=None, tool_calls=[call]), finish_reason=None)])
+            yield NS(usage=None, choices=[NS(delta=NS(content=None, reasoning_content=None, tool_calls=None), finish_reason="length")])
+
+        return stream()
+
+    monkeypatch.setattr(base.litellm, "acompletion", fake_completion)
+    from rafiq_agent.llm import usage
+
+    monkeypatch.setattr(usage, "record", lambda *a, **k: None)
+    llm = base.LlmProvider(provider="deepseek", model_id="deepseek-v4-flash", api_key="sk-test", base_url=None)
+    events = [e async for e in llm.stream_chat([{"role": "user", "content": "x"}], [])]
+    assert events[-1].tool_calls and events[-1].truncated

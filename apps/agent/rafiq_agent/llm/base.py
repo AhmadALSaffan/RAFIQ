@@ -23,6 +23,9 @@ class StreamEvent:
     reasoning_delta: str | None = None
     tool_calls: list[ToolCallDelta] = field(default_factory=list)
     finish_reason: str | None = None
+    # The reply hit the output limit (finish_reason "length") — whatever came is incomplete,
+    # tool calls included, even though they're reported as tool calls.
+    truncated: bool = False
 
 
 def litellm_model_string(provider: str, model_id: str) -> str:
@@ -169,6 +172,7 @@ class LlmProvider:
             ),
         )
 
+        truncated = finish_reason == "length"
         if pending_tool_calls:
             yield StreamEvent(
                 tool_calls=[
@@ -176,6 +180,7 @@ class LlmProvider:
                     for i, v in sorted(pending_tool_calls.items())
                 ],
                 finish_reason="tool_calls",
+                truncated=truncated,
             )
         else:
-            yield StreamEvent(finish_reason=finish_reason or "stop")
+            yield StreamEvent(finish_reason=finish_reason or "stop", truncated=truncated)
