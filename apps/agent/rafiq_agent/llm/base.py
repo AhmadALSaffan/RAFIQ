@@ -56,9 +56,14 @@ class LlmProvider:
         extra_headers: dict[str, str] | None = None,
         options: dict[str, Any] | None = None,
     ) -> None:
+        from rafiq_agent.core.context import window_for
         from rafiq_agent.llm.presets import call_kwargs
 
         self.model = litellm_model_string(provider, model_id)
+        # How many tokens one request may carry, the reply included (see core/context.py).
+        self.context_window = window_for(provider, model_id, options)
+        # Ollama reads a small window unless asked; Rafiq asks for the one it budgets for.
+        self.local_window = self.context_window if provider == "ollama" else None
         self.extra_headers = extra_headers or None
         # Endpoint and credentials, in the shape this provider takes them (see llm/presets.py).
         self.connection = call_kwargs(provider, api_key, base_url, options)
@@ -68,15 +73,24 @@ class LlmProvider:
         # understand the parameter simply have it dropped.
         self.reasoning_effort = reasoning_effort
 
-    def _tuning(self) -> dict[str, Any]:
+    def _room(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None, wanted: int | None) -> int | None:
+        """The output room to ask for: what was wanted, but never more than the window has
+        left once this request is in it — a provider rejects a request that asks for more."""
+        from rafiq_agent.core.context import output_room, total_tokens
+
+        return output_room(self.context_window, wanted, total_tokens(messages, tools))
+
+    def _tuning(self, messages: list[dict[str, Any]] | None = None, tools: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Only send knobs the user actually set — some providers reject nulls."""
         out: dict[str, Any] = {}
         if self.temperature is not None:
             out["temperature"] = self.temperature
         if self.max_tokens is not None:
-            out["max_tokens"] = self.max_tokens
+            out["max_tokens"] = self._room(messages or [], tools, self.max_tokens)
         if self.reasoning_effort is not None:
             out["reasoning_effort"] = self.reasoning_effort
+        if self.local_window:
+            out["num_ctx"] = self.local_window
         return out
 
     @property
@@ -99,12 +113,14 @@ class LlmProvider:
         """One-shot, no tools, no streaming — used for summarising a chat."""
         from rafiq_agent.llm import usage
 
+        extra = {"num_ctx": self.local_window} if self.local_window else {}
         response = await litellm.acompletion(
             model=self.model,
             messages=self._prepared(messages),
-            max_tokens=max_tokens,
+            max_tokens=self._room(messages, None, max_tokens),
             extra_headers=self.extra_headers,
             **self.connection,
+            **extra,
         )
         usage.record(self.model, getattr(response, "usage", None))
         return (response.choices[0].message.content or "").strip()
@@ -124,7 +140,7 @@ class LlmProvider:
             # counts the tokens itself.
             stream_options={"include_usage": True},
             **self.connection,
-            **self._tuning(),
+            **self._tuning(messages, tools),
         )
 
         # Accumulate partial tool-call argument strings by index; emit them once the stream ends,

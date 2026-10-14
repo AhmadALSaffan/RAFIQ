@@ -189,9 +189,20 @@ def extract_previews(text: str, fallback: str) -> list[dict[str, str]]:
     later block replaced it.
     """
     out: list[dict[str, str]] = []
-    blocks = _HTML_BLOCK.findall(text or "")
-    for index, (info, body) in enumerate(blocks):
-        html = body.strip()
+    for _, name, html in _named_blocks(text, fallback):
+        # Two blocks that ended up with the same name are two versions of one document:
+        # the later one wins, as it always did.
+        out = [f for f in out if f["name"] != name]
+        out.append({"name": name, "html": html})
+    return out
+
+
+def _named_blocks(text: str, fallback: str) -> list[tuple[re.Match[str], str, str]]:
+    """Each non-empty HTML block in a reply, with the document name it belongs to."""
+    out = []
+    blocks = list(_HTML_BLOCK.finditer(text or ""))
+    for index, match in enumerate(blocks):
+        info, html = match.group(1), match.group(2).strip()
         if not html:
             continue
         comment = _FILE_COMMENT.search(html[:400])
@@ -203,11 +214,65 @@ def extract_previews(text: str, fallback: str) -> list[dict[str, str]]:
             or (clean_name(fallback) if index == 0 else "")
             or f"{clean_name(fallback) or 'design'}-{index + 1}"
         )
-        # Two blocks that ended up with the same name are two versions of one document:
-        # the later one wins, as it always did.
-        out = [f for f in out if f["name"] != name]
-        out.append({"name": name, "html": html})
+        out.append((match, name, html))
     return out
+
+
+OLD_VERSION = "[نسخة أقدم من المستند «{0}» ({1} حرف) — النسخة الأحدث موجودة تحت]"
+
+
+def keep_newest_versions(replies: list[str], fallback: str) -> list[str]:
+    """A design chat's replies, with only the newest copy of each HTML document whole.
+
+    Every design reply carries its document in full, so ten rounds of edits used to send ten
+    copies of the page with every message — the bulk of the request, and the reason a long
+    design chat outgrew a small model. The newest copy is what the next edit starts from;
+    the older ones become a line saying they were there.
+    """
+    seen: set[str] = set()
+    out = list(replies)
+    for i in range(len(out) - 1, -1, -1):
+        blocks = _named_blocks(out[i], fallback)
+        if not blocks:
+            continue
+        text = out[i]
+        # Replace from the end so earlier match positions stay valid.
+        for match, name, html in reversed(blocks):
+            if name in seen:
+                text = text[: match.start()] + OLD_VERSION.format(name, len(html)) + text[match.end() :]
+            else:
+                seen.add(name)
+        out[i] = text
+    return out
+
+
+CURRENT_MENTION = "[المستند «{0}» — نسخته الحالية مرفقة بآخر رسالة]"
+
+
+def mention_documents(text: str, fallback: str) -> str:
+    """A design reply with each HTML document reduced to its name. The documents' current
+    versions travel once, with the newest message (`current_documents`)."""
+    blocks = _named_blocks(text, fallback)
+    for match, name, _ in reversed(blocks):
+        text = text[: match.start()] + CURRENT_MENTION.format(name) + text[match.end() :]
+    return text
+
+
+def current_documents(files: list[dict[str, Any]]) -> str:
+    """The design as it stands, for the newest message: what the next edit starts from."""
+    docs = [f for f in files if f.get("html")]
+    if not docs:
+        return ""
+    body = "\n\n".join(f"```html {f['name']}\n{f['html']}\n```" for f in docs)
+    return (
+        "(من رفيق) هاد التصميم بشكله الحالي. عدّل عليه هو، وأرسل بس المستندات اللي تغيّرت، "
+        f"كل مستند ببلوك ```html باسمه:\n\n{body}"
+    )
+
+
+def without_html(text: str) -> str:
+    """A reply with each HTML document reduced to a mention — for summaries."""
+    return _HTML_BLOCK.sub(lambda m: f"[مستند HTML، {len(m.group(2).strip())} حرف]", text or "")
 
 
 def strip_preview(text: str) -> str:

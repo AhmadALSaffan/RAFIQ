@@ -3,6 +3,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from rafiq_agent.core.context import fit, reply_room
 from rafiq_agent.llm.base import LlmProvider
 from rafiq_agent.tools.base import ToolRegistry
 
@@ -28,6 +29,8 @@ class LoopCallbacks:
 
 
 NUDGE = "أكمل من وين وقفت، واكتب الرد كامل."
+# A reasoning model that thought, then stopped without a word of answer.
+NUDGE_THOUGHT = "(رسالة من رفيق) فكّرت بس ما كتبت ولا كلمة من الرد. اكتب الرد هلأ مباشرة."
 
 # When the model's reply hits its output limit. A cut tool call is never run (its arguments
 # are half a file); the model is told why, and asked for smaller pieces.
@@ -98,13 +101,19 @@ async def _run(
     schemas = registry.schemas()
     nudged = False
     cuts = 0
+    # Each request is fitted to the model's window (core/context.py). The user's newest
+    # message is where this turn starts: before it is history, which may be left out.
+    head = len(messages) - 1
+    window = getattr(llm, "context_window", None)
+    budget = window - reply_room(window, getattr(llm, "max_tokens", None)) if isinstance(window, int) else None
 
     for _ in range(max_iterations):
         text, reasoning = "", ""
         tool_calls: list[Any] = []
         truncated = False
 
-        async for event in llm.stream_chat(messages, schemas):
+        sent = fit(messages, budget, head=head, tools=schemas) if budget else messages
+        async for event in llm.stream_chat(sent, schemas):
             if event.text_delta:
                 text += event.text_delta
                 await cb.on_text_delta(event.text_delta)
@@ -139,9 +148,10 @@ async def _run(
         if not tool_calls:
             # Some models go quiet right after a tool result: no text, no call, nothing.
             # Nudge once before giving up, so a long skill read doesn't dead-end the turn.
-            if not text.strip() and not all_text.strip() and not nudged and _last_was_tool(messages):
+            # A reasoning model can also think its whole budget through and stop there.
+            if not text.strip() and not all_text.strip() and not nudged and (_last_was_tool(messages) or reasoning.strip()):
                 nudged = True
-                messages.append({"role": "user", "content": NUDGE})
+                messages.append({"role": "user", "content": NUDGE if _last_was_tool(messages) else NUDGE_THOUGHT})
                 continue
             if not all_text.strip():
                 return LoopResult("empty", all_text, all_reasoning)

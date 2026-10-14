@@ -24,13 +24,19 @@ from rafiq_agent.core.agent_runtime import (
     working_dir_system_note,
 )
 from rafiq_agent.core.attachments import AttachmentError, build_user_content, load_attachments, meta
+from rafiq_agent.core.context import UNKNOWN_WINDOW, squeeze
+from rafiq_agent.core.context import tokens as context_tokens
 from rafiq_agent.core.designs import (
     DESIGN_SYSTEM_PROMPT,
+    current_documents,
     extract_previews,
+    keep_newest_versions,
+    mention_documents,
     merge_files,
     save_preview,
     skills_note,
     strip_preview,
+    without_html,
 )
 from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
 from rafiq_agent.core.memory import memory_note
@@ -158,42 +164,107 @@ def approx_tokens(text: str) -> int:
     return max(1, len(text) // 4)
 
 
-def transcript_of(messages: list[ChatMessage]) -> str:
+# A summary's output room. A reasoning model thinks before it writes, and at the old 700
+# tokens it thought the whole budget away and the summary came back empty. The prompt
+# keeps the summary itself short; this is room to get there.
+SUMMARY_ROOM = 8_000
+# One message in a transcript keeps at most this many characters from each end.
+SUMMARY_MESSAGE_CHARS = 2_000
+
+
+def _transcript_lines(messages: list[ChatMessage]) -> list[str]:
     lines = []
     for m in messages:
         who = "المستخدم" if m.role == "user" else "المساعد"
-        body = m.content or ""
+        # A design reply's HTML is the page, not the conversation: a mention is enough.
+        body = squeeze(without_html(m.content or ""), SUMMARY_MESSAGE_CHARS)
         for a in m.attachments or []:
             body += f"\n[مرفق: {a.get('name', '')}]"
         lines.append(f"{who}: {body}".strip())
-    return "\n\n".join(lines)
+    return lines
+
+
+def transcript_of(messages: list[ChatMessage]) -> str:
+    return "\n\n".join(_transcript_lines(messages))
+
+
+def unsummarized(chat: Chat, messages: list[ChatMessage]) -> list[ChatMessage]:
+    """The messages after the chat's summary — the ones it doesn't cover yet."""
+    if not chat.summary_until:
+        return list(messages)
+    cut = next((i for i, m in enumerate(messages) if m.id == chat.summary_until), -1)
+    return list(messages[cut + 1 :])
+
+
+async def _fold_into(llm: LlmProvider, summary: str, lines: list[str]) -> str:
+    """Folds the transcript into the running summary, a window-sized piece at a time, so a
+    model with a small window can summarise a chat far longer than it can read at once."""
+    window = getattr(llm, "context_window", None) or UNKNOWN_WINDOW
+    room = min(SUMMARY_ROOM, int(window * 0.4))
+    fixed = context_tokens(SUMMARY_PROMPT) + room + 200
+    pending = list(lines)
+    while pending:
+        budget = max(400, window - fixed - context_tokens(summary))
+        piece: list[str] = []
+        used = 0
+        while pending:
+            line = pending[0]
+            size = context_tokens(line)
+            if piece and used + size > budget:
+                break
+            if not piece and size > budget:
+                # One message bigger than the whole piece: its head and tail will do.
+                line = squeeze(line, max(200, budget))
+                size = context_tokens(line)
+            piece.append(line)
+            used += size
+            pending.pop(0)
+        body = "\n\n".join(piece)
+        if summary:
+            body = f"ملخص سابق للمحادثة:\n{summary}\n\nوبعدها صار:\n{body}"
+        summary = await llm.complete(
+            [{"role": "system", "content": SUMMARY_PROMPT}, {"role": "user", "content": body}],
+            max_tokens=room,
+        )
+        if not summary:
+            return ""
+    return summary
 
 
 async def summarize(chat: Chat, messages: list[ChatMessage], llm: LlmProvider, keep: int) -> dict[str, Any]:
-    """Folds everything except the last `keep` messages into chat.summary. Returns a report."""
-    older = messages[: max(0, len(messages) - keep)] if keep else messages
+    """Folds the messages the summary doesn't cover yet, except the last `keep`, into
+    chat.summary. Returns a report."""
+    fresh = unsummarized(chat, messages)
+    older = fresh[: max(0, len(fresh) - keep)] if keep else fresh
     if not older:
         raise ChatError(tr("المحادثة قصيرة، ما في شي يستاهل التلخيص."))
 
-    body = transcript_of(older)
-    if chat.summary:
-        body = f"ملخص سابق للمحادثة:\n{chat.summary}\n\nوبعدها صار:\n{body}"
+    lines = _transcript_lines(older)
     # Folding a chat is a chore, not a conversation: it runs on the helper model when the
     # user picked one, so a long history isn't summarised at the expensive model's price.
-    llm = await helper_llm(llm) or llm
-    summary = await llm.complete(
-        [{"role": "system", "content": SUMMARY_PROMPT}, {"role": "user", "content": body}],
-        max_tokens=700,
-    )
+    # If that one comes back with nothing, the chat's own model gets a go.
+    helper = await helper_llm(None)
+    summary, failure = "", None
+    for candidate in [m for m in (helper, llm) if m is not None]:
+        try:
+            summary = await _fold_into(candidate, chat.summary or "", lines)
+        except Exception as exc:  # noqa: BLE001 - try the next model; reported if all fail
+            failure = exc
+            continue
+        if summary:
+            break
     if not summary:
+        if failure is not None:
+            raise failure
         raise ChatError(tr("النموذج رجّع ملخص فاضي."), status=502)
 
+    before = approx_tokens("\n\n".join(lines)) + (approx_tokens(chat.summary) if chat.summary else 0)
     chat.summary = summary
     chat.summary_until = older[-1].id
     return {
         "summary": summary,
         "folded_messages": len(older),
-        "approx_tokens_before": approx_tokens(body),
+        "approx_tokens_before": before,
         "approx_tokens_after": approx_tokens(summary),
     }
 
@@ -211,7 +282,9 @@ def work_max_tokens(model: LlmModel) -> int | None:
         limit = info.get("max_output_tokens") or info.get("max_tokens")
     except Exception:  # noqa: BLE001 - unknown to litellm: the provider's own default applies
         return None
-    return min(int(limit), 32_000) if limit else None
+    # More than the window has left is never asked for: each request is trimmed to fit
+    # (core/context.py), so a big model can write a big design in one go.
+    return min(int(limit), 64_000) if limit else None
 
 
 def _tools_done(parts: list[dict[str, Any]] | None) -> str:
@@ -370,15 +443,26 @@ class ChatTurn:
             # empty. How long the *answer* should be is said in the instructions instead.
             self.llm = provider_for(model, self.reply, await fallback_of(session, model), work=True)
 
-            past = list(chat.messages)
-            heavy = approx_tokens(transcript_of(past)) > AUTO_SUMMARIZE_TOKENS
+            # Only what the summary doesn't cover yet: the summary stands in for the rest.
+            past = unsummarized(chat, chat.messages)
+            # A design chat's documents travel once, as they are now, with the newest message.
+            self.design_files: list[dict[str, Any]] = []
+            if chat.mode == "design":
+                row = (await session.execute(select(Design).where(Design.chat_id == chat.id))).scalar_one_or_none()
+                if row is not None:
+                    self.design_files = [f for f in row.files or [] if f.get("html")] or (
+                        [{"name": row.title, "html": row.preview_html}] if row.preview_html else []
+                    )
+            # A long stretch is folded sooner on a model that reads less at once — measured
+            # on what would actually be sent.
+            window = getattr(self.llm, "context_window", None)
+            limit = min(AUTO_SUMMARIZE_TOKENS, int(window * 0.4)) if isinstance(window, int) else AUTO_SUMMARIZE_TOKENS
+            sent = self._replies(past, chat.mode == "design")
+            heavy = sum(context_tokens(text) for text in sent) > limit
             # Whether this turn owes the chat a fold. The fold itself is a model call, so
             # it happens in the worker (`_fold`) — here it would hold up the reply before
             # the page even has a stream to watch.
             self.fold = bool(self.reply.auto_summarize and past and (len(past) > AUTO_SUMMARIZE_AFTER or heavy))
-            if chat.summary_until:
-                cut = next((i for i, m in enumerate(past) if m.id == chat.summary_until), -1)
-                past = past[cut + 1 :]
 
             if not past and chat.title in all_translations(DEFAULT_TITLE):
                 first_line = self.content.splitlines()[0] if self.content else self.new_attachments[0].name
@@ -431,8 +515,7 @@ class ChatTurn:
                 await summarize(chat, older, self.llm, AUTO_SUMMARIZE_KEEP)
                 await session.commit()
                 self.summary = chat.summary
-                cut = next((i for i, m in enumerate(older) if m.id == chat.summary_until), -1)
-                self.past = older[cut + 1 :]
+                self.past = unsummarized(chat, older)
 
     async def _history(self) -> list[dict[str, Any]]:
         vision = supports_vision(self.llm.model)
@@ -443,8 +526,9 @@ class ChatTurn:
             by_id = {}
 
         described = await describe_attachments(list(by_id.values())) if vision is False else {}
+        replies = self._replies(self.past, getattr(self, "design_mode", False))
         history: list[dict[str, Any]] = []
-        for m in self.past:
+        for m, reply in zip(self.past, replies, strict=True):
             if m.role == "user":
                 files = [by_id[a["id"]] for a in (m.attachments or []) if a["id"] in by_id]
                 history.append({"role": "user", "content": build_user_content(m.content, files, vision, described)})
@@ -452,9 +536,20 @@ class ChatTurn:
                 # The scene itself is in the project note; this is what the model already
                 # looked up and changed, so a «continue» picks up instead of starting over.
                 history.append({"role": "assistant", "content": f"{m.content}\n\n{done}".strip()})
-            elif m.content:
-                history.append({"role": "assistant", "content": m.content})
+            elif reply:
+                history.append({"role": "assistant", "content": reply})
         return history
+
+    def _replies(self, messages: list[ChatMessage], design: bool) -> list[str]:
+        """Each message's text as the model gets it. In a design chat, no reply carries its
+        HTML: the current documents go with the newest message instead (or, before the
+        design has any, each document's newest copy stays where it was written)."""
+        replies = [m.content or "" for m in messages]
+        if not design:
+            return replies
+        if getattr(self, "design_files", None):
+            return [mention_documents(r, "design") if m.role == "assistant" else r for m, r in zip(messages, replies, strict=True)]
+        return keep_newest_versions(replies, "design")
 
     def _system_prompt(self) -> str:
         if getattr(self, "motion_mode", False):
@@ -615,10 +710,15 @@ class ChatTurn:
         registry, system = await self._tools(system)
         vision = supports_vision(self.llm.model)
         described = await describe_attachments(self.new_attachments) if vision is False else {}
+        content = build_user_content(self.content, self.new_attachments, vision, described)
+        # The design as it stands rides with the newest message: last in the request, so
+        # everything before it stays the same from one turn to the next (and cached).
+        if getattr(self, "design_mode", False) and (design := current_documents(getattr(self, "design_files", []))):
+            content = f"{design}\n\n{content}" if isinstance(content, str) else [{"type": "text", "text": design}, *content]
         messages = [
             {"role": "system", "content": system},
             *history,
-            {"role": "user", "content": build_user_content(self.content, self.new_attachments, vision, described)},
+            {"role": "user", "content": content},
         ]
         return messages, registry
 

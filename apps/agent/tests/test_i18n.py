@@ -39,8 +39,10 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     "tools/os_adapters/windows.py": "*",
     "core/attachments.py": {"pdf_text", "truncate", "build_user_content"},
     "core/vision.py": "*",  # what the vision model is told, and how its words reach the chat model
-    "core/chat_service.py": {"transcript_of", "summarize", "_system_prompt"},
-    "core/designs.py": {"QUESTIONS", "DESIGN_SYSTEM_PROMPT", "skills_note", "_SLUG_BAD"},
+    "core/chat_service.py": {"transcript_of", "_transcript_lines", "_fold_into", "summarize", "_system_prompt"},
+    # What a request carries is fitted to the model; its notes are written to the model.
+    "core/context.py": "*",
+    "core/designs.py": {"QUESTIONS", "DESIGN_SYSTEM_PROMPT", "skills_note", "_SLUG_BAD", "OLD_VERSION", "CURRENT_MENTION", "current_documents", "without_html"},
     "llm/copilot.py": {"_text_of", "split_messages", "stream_chat", "aclose"},
     "integrations/tools.py": {"description", "parameters"},
     "integrations/providers.py": {"spec"},
