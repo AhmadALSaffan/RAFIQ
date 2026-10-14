@@ -2086,4 +2086,15 @@ export const en: Dictionary = {
   "لكل مليون توكن: اللي بتبعته {0}{1}، واللي بيكتبه {2}.": "Per million tokens: what you send {0}{1}, what it writes {2}.",
   "مجاني": "Free",
   "مجاني — بيشتغل على جهازك.": "Free — it runs on your computer.",
+  // Usage export
+  "صدّر الاستهلاك": "Export usage",
+  "ملف CSV فيه كل طلب لحاله: الوقت، النموذج، المحادثة أو المهمة، التوكنات والكلفة. بيفتح بـ Excel أو Google Sheets.": "A CSV file with one row per call: time, model, chat or task, tokens and cost. Opens in Excel or Google Sheets.",
+  "من يوم": "From",
+  "لـ يوم": "To",
+  "كل النماذج": "All models",
+  "المحادثة أو المهمة": "Chat or task",
+  "كل المحادثات والمهام": "All chats and tasks",
+  "مهمة: {0}": "Task: {0}",
+  "صدّر CSV": "Export CSV",
+  "ما في استدعاءات بهالفترة.": "No calls in this period.",
 };

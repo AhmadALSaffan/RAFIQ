@@ -3,10 +3,46 @@
 import { request } from "./client";
 import { getApiConfig } from "../config";
 import { locale } from "../../i18n";
-import type { Diagnostics, LogInfo, LogOut, UsageSummary } from "../types";
+import type { Diagnostics, LogInfo, LogOut, UsageSource, UsageSummary } from "../types";
 
 export async function getUsage(days = 30): Promise<UsageSummary> {
   return request<UsageSummary>(`/usage?days=${days}`);
+}
+
+/** Which part of the usage an export covers: a day range (YYYY-MM-DD, inclusive), a model, a chat or task. */
+export interface UsageFilter {
+  since?: string;
+  until?: string;
+  modelRef?: string;
+  source?: string;
+}
+
+function usageQuery(filter: UsageFilter): string {
+  const query = new URLSearchParams();
+  if (filter.since) query.set("since", filter.since);
+  if (filter.until) query.set("until", filter.until);
+  if (filter.modelRef) query.set("model_ref", filter.modelRef);
+  if (filter.source) query.set("source", filter.source);
+  return query.toString();
+}
+
+/** The chats and tasks that made calls in the period, most expensive first. */
+export async function getUsageSources(filter: UsageFilter): Promise<UsageSource[]> {
+  return request<UsageSource[]>(`/usage/sources?${usageQuery({ since: filter.since, until: filter.until })}`);
+}
+
+/** Every call in the filter, as CSV text (with the byte-order mark Excel needs for Arabic). */
+export async function exportUsage(filter: UsageFilter): Promise<string> {
+  const { baseUrl, token } = await getApiConfig();
+  const res = await fetch(`${baseUrl}/usage/export?${usageQuery(filter)}`, {
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}`, "Accept-Language": locale() },
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.detail ?? `HTTP ${res.status}`);
+  }
+  return res.text();
 }
 
 export async function getDiagnostics(): Promise<Diagnostics> {

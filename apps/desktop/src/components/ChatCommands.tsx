@@ -428,11 +428,17 @@ export function chatToMarkdown(title: string, messages: ChatMessage[]): string {
 export async function saveTextFile(
   suggestedName: string,
   contents: string,
-  kind: "md" | "json" | "html" = "md",
+  kind: "md" | "json" | "html" | "csv" = "md",
 ): Promise<string | null> {
   const { isTauri, invoke } = await import("@tauri-apps/api/core");
   const filter =
-    kind === "json" ? { name: "JSON", extensions: ["json"] } : kind === "html" ? { name: "HTML", extensions: ["html"] } : { name: "Markdown", extensions: ["md"] };
+    kind === "json"
+      ? { name: "JSON", extensions: ["json"] }
+      : kind === "html"
+        ? { name: "HTML", extensions: ["html"] }
+        : kind === "csv"
+          ? { name: "CSV", extensions: ["csv"] }
+          : { name: "Markdown", extensions: ["md"] };
   if (isTauri()) {
     const { save } = await import("@tauri-apps/plugin-dialog");
     const path = await save({ defaultPath: suggestedName, filters: [filter] });
@@ -441,7 +447,14 @@ export async function saveTextFile(
     return path;
   }
 
-  const type = kind === "json" ? "application/json;charset=utf-8" : kind === "html" ? "text/html;charset=utf-8" : "text/markdown;charset=utf-8";
+  const type =
+    kind === "json"
+      ? "application/json;charset=utf-8"
+      : kind === "html"
+        ? "text/html;charset=utf-8"
+        : kind === "csv"
+          ? "text/csv;charset=utf-8"
+          : "text/markdown;charset=utf-8";
   const url = URL.createObjectURL(new Blob([contents], { type }));
   const link = document.createElement("a");
   link.href = url;

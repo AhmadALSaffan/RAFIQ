@@ -1,4 +1,5 @@
-"""What the app spent, a report to send when something goes wrong, and the logs.
+"""What the app spent (and every call behind it, as a CSV), a report to send when something
+goes wrong, and the logs.
 
 All read-only. The diagnostics report is built here rather than in the UI so it can be
 checked in one place that nothing secret gets in: keys, tokens, account labels and file
@@ -6,11 +7,14 @@ contents never appear — only counts, names and settings. The logs go through t
 door: every line is scrubbed of secrets before it leaves (core/logs.py).
 """
 
+import csv
+import io
 import platform
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +30,7 @@ from rafiq_agent.schemas.insights import (
     UsageByModel,
     UsageByWorkspace,
     UsageDay,
+    UsageSource,
     UsageSummary,
 )
 from rafiq_agent.schemas.settings import AppSettings
@@ -118,6 +123,133 @@ async def usage_summary(
             )
             for ws in (await session.execute(select(Workspace).order_by(Workspace.created_at))).scalars()
         ],
+    )
+
+
+# ── Every call, for a spreadsheet ─────────────────────────────────────────────────────
+
+
+def _day_bound(day: str | None, *, end: bool) -> datetime | None:
+    """A YYYY-MM-DD day in the user's own time zone, as the UTC instant it starts (or, for
+    `end`, the instant the next day starts) — the way the rows are stored."""
+    if not day:
+        return None
+    try:
+        parsed = date.fromisoformat(day)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=tr("التاريخ لازم يكون بالشكل YYYY-MM-DD.")) from exc
+    if end:
+        parsed += timedelta(days=1)
+    return datetime.combine(parsed, time.min).astimezone().astimezone(UTC)
+
+
+def _usage_filter(since: str | None, until: str | None, model_ref: str | None, source: str | None) -> list:
+    where = []
+    if (start := _day_bound(since, end=False)) is not None:
+        where.append(UsageRecord.created_at >= start)
+    if (stop := _day_bound(until, end=True)) is not None:
+        where.append(UsageRecord.created_at < stop)
+    if model_ref:
+        where.append(UsageRecord.model_ref == model_ref)
+    if source:
+        where.append(UsageRecord.scope_id == source)
+    return where
+
+
+async def _titles(session: AsyncSession, ids: set[str]) -> dict[str, str]:
+    """The chat or task each call was for, by its current title."""
+    if not ids:
+        return {}
+    chats = (await session.execute(select(Chat.id, Chat.title).where(Chat.id.in_(ids)))).all()
+    tasks = (await session.execute(select(Task.id, Task.title).where(Task.id.in_(ids)))).all()
+    return {**dict(tasks), **dict(chats)}
+
+
+@router.get("/usage/sources", response_model=list[UsageSource])
+async def usage_sources(
+    since: str | None = None, until: str | None = None, session: AsyncSession = Depends(get_session)
+) -> list[UsageSource]:
+    """The chats and tasks that made calls in the period, most expensive first."""
+    rows = (
+        await session.execute(
+            select(UsageRecord.scope, UsageRecord.scope_id, func.count(), func.sum(UsageRecord.cost_usd))
+            .where(UsageRecord.scope_id.is_not(None), UsageRecord.scope.in_(("chat", "task")), *_usage_filter(since, until, None, None))
+            .group_by(UsageRecord.scope, UsageRecord.scope_id)
+        )
+    ).all()
+    titles = await _titles(session, {r[1] for r in rows})
+    out = [
+        UsageSource(kind=kind, id=scope_id, title=titles.get(scope_id) or tr("(محذوفة)"), calls=int(calls), cost_usd=round(float(cost or 0.0), 6))
+        for kind, scope_id, calls, cost in rows
+    ]
+    out.sort(key=lambda s: (s.cost_usd, s.calls), reverse=True)
+    return out
+
+
+def _cell(value: object) -> object:
+    """A spreadsheet reads a cell that starts with = + - @ as a formula. A chat title is the
+    user's own text, but it shouldn't run as one when the file is opened."""
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
+
+
+@router.get("/usage/export")
+async def usage_export(
+    since: str | None = None,
+    until: str | None = None,
+    model_ref: str | None = None,
+    source: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    """Every model call in the period as CSV: when, which model, what for, tokens, cost.
+    Filtered by day range, by model, and by one chat or task."""
+    records = (
+        await session.execute(
+            select(UsageRecord).where(*_usage_filter(since, until, model_ref, source)).order_by(UsageRecord.created_at)
+        )
+    ).scalars().all()
+    names = dict((await session.execute(select(LlmModel.id, LlmModel.name))).all())
+    titles = await _titles(session, {r.scope_id for r in records if r.scope_id})
+    designs = set((await session.execute(select(Chat.id).where(Chat.mode == "design"))).scalars())
+    kinds = {"chat": tr("محادثة"), "task": tr("مهمة"), "design": tr("تصميم")}
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\r\n")
+    writer.writerow(
+        [
+            tr("الوقت"),
+            tr("النموذج"),
+            tr("معرّف النموذج"),
+            tr("النوع"),
+            tr("المحادثة أو المهمة"),
+            tr("توكنات الإدخال"),
+            tr("منها من الكاش"),
+            tr("توكنات الإخراج"),
+            tr("الكلفة (دولار)"),
+        ]
+    )
+    for r in records:
+        stamp = r.created_at if r.created_at.tzinfo else r.created_at.replace(tzinfo=UTC)
+        writer.writerow(
+            [
+                stamp.astimezone().strftime("%Y-%m-%d %H:%M:%S"),
+                _cell(names.get(r.model_ref or "", r.model_name)),
+                _cell(r.model_name),
+                kinds["design"] if r.scope_id in designs else kinds.get(r.scope, tr("غير ذلك")),
+                _cell(titles.get(r.scope_id or "", "")),
+                r.prompt_tokens,
+                r.cached_tokens,
+                r.completion_tokens,
+                f"{r.cost_usd:.6f}",
+            ]
+        )
+    name = f"rafiq-usage-{since or 'all'}-{until or date.today().isoformat()}.csv"
+    # The byte-order mark tells Excel the file is UTF-8, so Arabic titles open as Arabic.
+    return Response(
+        content="\ufeff" + buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )
 
 

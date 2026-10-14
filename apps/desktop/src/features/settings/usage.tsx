@@ -8,11 +8,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { getDiagnostics, getUsage, saveWorkspace } from "../../lib/api";
+import { exportUsage, getDiagnostics, getUsage, getUsageSources, saveWorkspace } from "../../lib/api";
 import { refreshWorkspaces, useWorkspaces } from "../../lib/workspace";
 import { BudgetMeter, money } from "../../components/BudgetMeter";
 import { easeOutExpo, listContainer, listItem } from "../../lib/motion";
-import type { AppSettings, UsageSummary } from "../../lib/types";
+import type { AppSettings, UsageByModel, UsageSource, UsageSummary } from "../../lib/types";
 import { Button } from "../../components/ui";
 import { DownloadIcon, RefreshIcon } from "../../components/Icons";
 import { saveTextFile } from "../../components/ChatCommands";
@@ -53,6 +53,116 @@ function BudgetField({ label, value, onCommit }: { label: string; value: number;
         />
       </div>
     </label>
+  );
+}
+
+/** A day as YYYY-MM-DD in the user's own time zone. */
+function isoDay(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
+/**
+ * Every call as a spreadsheet: a day range, one model, one chat or task. The file has one
+ * row per call (when, which model, what for, tokens, cost), so the user can total it any
+ * way they like.
+ */
+function UsageExport({ models }: { models: UsageByModel[] }) {
+  const today = isoDay(new Date());
+  const [since, setSince] = useState(isoDay(new Date(Date.now() - 29 * 86_400_000)));
+  const [until, setUntil] = useState(today);
+  const [modelRef, setModelRef] = useState("");
+  const [source, setSource] = useState("");
+  const [sources, setSources] = useState<UsageSource[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getUsageSources({ since, until })
+      .then((list) => {
+        if (!alive) return;
+        setSources(list);
+        // A chat outside the new range has nothing to export.
+        setSource((current) => (list.some((s) => s.id === current) ? current : ""));
+      })
+      .catch(() => alive && setSources([]));
+    return () => {
+      alive = false;
+    };
+  }, [since, until]);
+
+  async function save() {
+    setBusy(true);
+    setNote(null);
+    try {
+      const text = await exportUsage({ since, until, modelRef: modelRef || undefined, source: source || undefined });
+      const calls = Math.max(0, text.trim().split("\n").length - 1);
+      if (calls === 0) {
+        setNote(t("ما في استدعاءات بهالفترة."));
+        return;
+      }
+      const path = await saveTextFile(`rafiq-usage-${since}-${until}.csv`, text, "csv");
+      if (path) setNote(t("انحفظ: {0}", { 0: path }));
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const named = models.filter((m) => m.model_ref);
+  return (
+    <Card>
+      <p className="text-sm font-medium">{t("صدّر الاستهلاك")}</p>
+      <Hint>{note ?? t("ملف CSV فيه كل طلب لحاله: الوقت، النموذج، المحادثة أو المهمة، التوكنات والكلفة. بيفتح بـ Excel أو Google Sheets.")}</Hint>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+            {t("من يوم")}
+          </span>
+          <input type="date" value={since} max={until} onChange={(e) => setSince(e.target.value)} className="input py-1.5 text-sm" dir="ltr" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+            {t("لـ يوم")}
+          </span>
+          <input type="date" value={until} min={since} max={today} onChange={(e) => setUntil(e.target.value)} className="input py-1.5 text-sm" dir="ltr" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+            {t("النموذج")}
+          </span>
+          <select value={modelRef} onChange={(e) => setModelRef(e.target.value)} className="input py-1.5 text-sm">
+            <option value="">{t("كل النماذج")}</option>
+            {named.map((m) => (
+              <option key={m.model_ref!} value={m.model_ref!}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+            {t("المحادثة أو المهمة")}
+          </span>
+          <select value={source} onChange={(e) => setSource(e.target.value)} className="input py-1.5 text-sm">
+            <option value="">{t("كل المحادثات والمهام")}</option>
+            {sources.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.kind === "task" ? t("مهمة: {0}", { 0: s.title }) : s.title} · {money(s.cost_usd)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="mt-3 flex justify-end">
+        <Button variant="ghost" onClick={() => void save()} disabled={busy || !since || !until}>
+          <DownloadIcon className="h-4 w-4" />
+          {t("صدّر CSV")}
+        </Button>
+      </div>
+    </Card>
   );
 }
 
@@ -211,6 +321,8 @@ export function UsageSettings({ settings, persist }: { settings: AppSettings; pe
           ))}
         </motion.ul>
       )}
+
+      <UsageExport models={summary?.by_model ?? []} />
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">

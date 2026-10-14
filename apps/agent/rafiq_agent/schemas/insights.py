@@ -20,6 +20,16 @@ class UsageDay(BaseModel):
     tokens: int
 
 
+class UsageSource(BaseModel):
+    """A chat or task that made model calls in a period: what the export can be narrowed to."""
+
+    kind: str  # "chat" | "task"
+    id: str
+    title: str
+    calls: int
+    cost_usd: float
+
+
 class UsageByWorkspace(BaseModel):
     """Today's spending of one workspace against its own daily limit."""
 

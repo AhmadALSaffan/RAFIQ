@@ -524,6 +524,15 @@ export interface UsageByModel {
   cost_usd: number;
 }
 
+/** A chat or task that made model calls in a period — what a usage export can be narrowed to. */
+export interface UsageSource {
+  kind: "chat" | "task";
+  id: string;
+  title: string;
+  calls: number;
+  cost_usd: number;
+}
+
 export interface UsageSummary {
   days: number;
   today_usd: number;
