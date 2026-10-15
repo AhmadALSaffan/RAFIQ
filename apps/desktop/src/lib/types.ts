@@ -397,6 +397,8 @@ export interface AppSettings {
   permissions: Record<PermissionKey, PermissionMode>;
   /** The first-run welcome was finished or skipped. */
   onboarded?: boolean;
+  /** Which updates are offered: stable releases only, or beta builds too. */
+  update_channel?: "stable" | "beta";
   desktop_control_enabled: boolean;
   /** How many tasks may run at once (1–100); tasks editing the same files still take turns. */
   max_parallel_tasks: number;

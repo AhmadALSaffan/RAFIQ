@@ -2097,4 +2097,14 @@ export const en: Dictionary = {
   "مهمة: {0}": "Task: {0}",
   "صدّر CSV": "Export CSV",
   "ما في استدعاءات بهالفترة.": "No calls in this period.",
+  // Update channel
+  "مستقرة": "Stable",
+  "تجريبية (beta)": "Beta",
+  "قناة التحديث": "Update channel",
+  "خبّي شو الجديد": "Hide what's new",
+  "شو الجديد بهالنسخة؟": "What's new in this version?",
+  "ملاحظات الإصدار": "Release notes",
+  "بتوصلك النسخ التجريبية أول بأول، وفيها ميزات جديدة قبل الكل — وممكن يكون فيها غلطات.": "You get beta builds as they come out, with new features first — and possibly a few bugs.",
+  "بتوصلك بس النسخ اللي جرّبناها كفاية.": "You only get versions that have been tested enough.",
+  "إذا كنت على نسخة تجريبية، بتضل عليها لحد ما تطلع نسخة مستقرة أجدد منها.": "If you're on a beta build, you stay on it until a newer stable version comes out.",
 };

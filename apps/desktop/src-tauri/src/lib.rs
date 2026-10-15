@@ -6,6 +6,7 @@ use std::sync::Mutex;
 
 mod file_icon;
 mod job;
+mod update;
 
 use rand::RngCore;
 use serde::Serialize;
@@ -348,8 +349,11 @@ pub fn run() {
             quit_app,
             set_quick_ask_shortcut,
             hide_quick_ask,
-            open_in_main
+            open_in_main,
+            update::check_update,
+            update::install_update
         ])
+        .manage(update::Pending::default())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(

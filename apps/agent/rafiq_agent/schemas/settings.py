@@ -40,6 +40,8 @@ class AppSettings(BaseModel):
     # The first-run welcome has been finished or skipped (it also never shows once a model
     # exists, so people updating from an older version don't get it).
     onboarded: bool = False
+    # Which updates the app offers: "stable" releases only, or "beta" builds too.
+    update_channel: Literal["stable", "beta"] = "stable"
     desktop_control_enabled: bool = False
     # How many tasks may run at once (tasks that would edit the same files still take turns).
     max_parallel_tasks: int = Field(default=100, ge=1, le=100)
