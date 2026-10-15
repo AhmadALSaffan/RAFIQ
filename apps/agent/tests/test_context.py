@@ -41,6 +41,8 @@ def test_windows_come_from_the_model_or_a_careful_default():
     assert window_for("lm_studio", "qwen") == LM_STUDIO_WINDOW
     assert window_for("custom", "something-nobody-knows") == UNKNOWN_WINDOW
     assert window_for("custom", "something-nobody-knows", {"context_window": 2048}) == 2048
+    assert window_for("custom", "something-nobody-knows", {"context_window": "8192"}) == 8192
+    assert window_for("custom", "something-nobody-knows", {"context_window": "lots"}) == UNKNOWN_WINDOW
 
 
 def test_a_request_that_fits_is_sent_as_it_is():

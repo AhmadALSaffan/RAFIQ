@@ -74,8 +74,12 @@ def total_tokens(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | N
 
 def window_for(provider: str, model_id: str, options: dict[str, Any] | None = None) -> int:
     """How many tokens this model reads in one request."""
-    override = (options or {}).get("context_window")
-    if isinstance(override, int) and override > 0:
+    # A model's own setting wins. Options arrive from the API as text, so "8192" counts too.
+    try:
+        override = int((options or {}).get("context_window") or 0)
+    except (TypeError, ValueError):
+        override = 0
+    if override > 0:
         return override
     if provider == "ollama":
         return OLLAMA_WINDOW
