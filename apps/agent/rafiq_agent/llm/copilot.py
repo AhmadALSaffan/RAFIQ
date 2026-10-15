@@ -362,6 +362,12 @@ class CopilotProvider:
 
         self._loop = asyncio.get_running_loop()
         self._events = asyncio.Queue()
+        # GitHub's token lasts 8 hours: renewed here if it's about to run out (auth/refresh.py).
+        from rafiq_agent.auth.refresh import fresh_token
+
+        # Can't renew right now (no database, no network): the current token may still work.
+        with contextlib.suppress(Exception):
+            self._token = await fresh_token(self._account_id) or self._token
         client = await healthy_client(self._account_id, self._token)
 
         # Tools Copilot has of its own. Rafiq normally leaves those to it, but the user can
@@ -468,7 +474,8 @@ class CopilotProvider:
     ) -> AsyncIterator[StreamEvent]:
         if self._session is None:
             system, prompt = split_messages(messages)
-            for attempt in (1, 2):
+            renewed = False
+            for attempt in (1, 2, 3):
                 started = False
                 try:
                     await self._open(system, tools)
@@ -477,12 +484,18 @@ class CopilotProvider:
                         started = True
                         yield event
                     return
-                except StaleRuntime:
-                    # Nothing reached the user yet: a fresh runtime, same token, same turn.
+                except (StaleRuntime, AuthError):
+                    # Nothing reached the user yet. First a fresh runtime with the same token
+                    # (the usual cause); if that fails too and GitHub refuses the token itself,
+                    # a renewed token; only then is the sign-in really gone.
                     await self.aclose()
                     await drop_client(self._account_id)
-                    if started or attempt == 2:
-                        raise await signed_out_error(self._token) from None
+                    if started or attempt == 3:
+                        raise await self._signed_out() from None
+                    if attempt == 2:
+                        renewed = await self._renew_if_refused()
+                        if not renewed:
+                            raise await self._signed_out() from None
             return
         else:
             # A continuation: hand back the results the loop just produced, in order…
@@ -504,7 +517,31 @@ class CopilotProvider:
         except StaleRuntime:
             # mid-turn: the session can't be resumed; the next turn gets a fresh runtime
             await drop_client(self._account_id)
-            raise await signed_out_error(self._token) from None
+            raise await self._signed_out() from None
+
+    async def _renew_if_refused(self) -> bool:
+        """If GitHub refuses the token itself, renew it now rather than at its usual time.
+        True when there's a new token to try."""
+        if not await token_revoked(self._token):
+            return False
+        from rafiq_agent.auth.refresh import fresh_token
+
+        renewed = await fresh_token(self._account_id, force=True)
+        if not renewed or renewed == self._token:
+            return False
+        self._token = renewed
+        return True
+
+    async def _signed_out(self) -> Exception:
+        """The error for a turn Copilot wouldn't take. If GitHub itself refuses the sign-in
+        (and it couldn't be renewed), the account is marked disconnected, so Settings offers
+        «Reconnect» instead of showing it as connected."""
+        error = await signed_out_error(self._token)
+        if isinstance(error, AuthError):
+            from rafiq_agent.auth.refresh import signed_out
+
+            await signed_out(self._account_id)
+        return error
 
     async def complete(self, messages: list[dict[str, Any]], max_tokens: int | None = None) -> str:
         """One-shot, no tools — used for summarising a chat."""

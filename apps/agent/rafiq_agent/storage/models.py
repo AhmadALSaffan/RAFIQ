@@ -63,6 +63,11 @@ class AuthAccount(Base):
     external_id: Mapped[str | None] = mapped_column(String, nullable=True)
     label: Mapped[str] = mapped_column(String)
     secret_ref: Mapped[str | None] = mapped_column(String, nullable=True)
+    # A short-lived sign-in renews itself: its refresh token is in the keychain under
+    # `refresh_ref`, and `expires_at` says when the access token runs out (None = never).
+    refresh_ref: Mapped[str | None] = mapped_column(String, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refresh_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String, default="connected")  # connected | disconnected
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -74,6 +74,11 @@ def store_api_key(api_key: str) -> str:
     return ref
 
 
+def replace_api_key(ref: str, api_key: str) -> None:
+    """Puts a new value under an existing reference — a renewed token keeps its place."""
+    _write(ref, api_key)
+
+
 def get_api_key(ref: str | None) -> str | None:
     if not ref:
         return None

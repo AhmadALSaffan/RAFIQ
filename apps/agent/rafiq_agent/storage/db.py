@@ -49,6 +49,7 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "workspaces": {"daily_budget_usd": "FLOAT", "brand_kit": "JSON"},
     "usage_records": {"workspace_id": "VARCHAR"},
     "mcp_servers": {"auth": "VARCHAR DEFAULT 'none'", "preset": "VARCHAR", "permissions": "JSON"},
+    "auth_accounts": {"refresh_ref": "VARCHAR", "expires_at": "DATETIME", "refresh_expires_at": "DATETIME"},
 }
 
 

@@ -65,9 +65,10 @@ async def _verify_with_account(
     account: AuthAccount, model_id: str, base_url: str | None = None
 ) -> VerifyResult:
     """Checks an agent that signs in with an account, using that account's own credential."""
+    from rafiq_agent.auth.refresh import fresh_token
     from rafiq_agent.llm import copilot
 
-    token = get_api_key(account.secret_ref)
+    token = await fresh_token(account.id) or get_api_key(account.secret_ref)
     from rafiq_agent.auth.registry import adapter_for
 
     adapter = adapter_for(account.provider)
@@ -173,7 +174,9 @@ async def discover(
 
         account = await _connected_account(session, body.account_id, body.provider)
         try:
-            found = await copilot.list_models(account.id, get_api_key(account.secret_ref) or "")
+            from rafiq_agent.auth.refresh import fresh_token
+
+            found = await copilot.list_models(account.id, await fresh_token(account.id) or "")
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(
                 status_code=400, detail=tr("ما قدرت أجيب موديلات Copilot: {0}", redact(str(exc))[:200])

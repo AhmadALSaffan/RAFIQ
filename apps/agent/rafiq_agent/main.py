@@ -78,6 +78,10 @@ async def lifespan(app: FastAPI):
 
     pricing.load_cached()
     prices = asyncio.create_task(pricing.refresh())
+    # Short-lived sign-ins (GitHub's last 8 hours) renew themselves: the user signs in once.
+    from rafiq_agent.auth.refresh import keep_fresh
+
+    sign_ins = asyncio.create_task(keep_fresh())
     MCP.warm()  # connect the MCP servers while the user is still opening a chat
     write_discovery()
     # Optional experimental adapter: load its saved config, or skip it silently.
@@ -89,6 +93,7 @@ async def lifespan(app: FastAPI):
     remove_discovery()
     schedules.cancel()
     prices.cancel()
+    sign_ins.cancel()
     # Replies still being written are saved as far as they got.
     await stop_all_turns()
     await usage.drain()  # don't lose the last calls' cost

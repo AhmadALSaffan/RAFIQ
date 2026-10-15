@@ -6,7 +6,7 @@ reference and a display label, and no response here ever includes a credential.
 
 import asyncio
 import inspect
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -136,10 +136,18 @@ async def _poll(flow_id: str, now: bool, session: AsyncSession) -> ConnectPollOu
         session.add(account)
     else:
         delete_api_key(account.secret_ref)
+        delete_api_key(account.refresh_ref)
+    now = datetime.now(UTC)
     account.label = identity.label
     account.secret_ref = store_api_key(identity.token)
+    # A short-lived sign-in renews itself from here on (auth/refresh.py).
+    account.refresh_ref = store_api_key(identity.refresh_token) if identity.refresh_token else None
+    account.expires_at = now + timedelta(seconds=identity.expires_in) if identity.expires_in else None
+    account.refresh_expires_at = (
+        now + timedelta(seconds=identity.refresh_expires_in) if identity.refresh_expires_in else None
+    )
     account.status = "connected"
-    account.verified_at = datetime.now(UTC)
+    account.verified_at = now
     await session.commit()
     await session.refresh(account)
     return ConnectPollOut(status="complete", account=await _to_out(session, account))
@@ -159,6 +167,9 @@ async def disconnect(account_id: str, session: AsyncSession = Depends(get_sessio
     if revoke and token:
         await revoke(token)  # best effort — the local copy is deleted regardless
     delete_api_key(account.secret_ref)
+    delete_api_key(account.refresh_ref)
+    account.refresh_ref = None
+    account.expires_at = None
     if account.provider == "github_copilot":
         from rafiq_agent.llm import copilot
 

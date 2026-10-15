@@ -300,6 +300,9 @@ EN: dict[str, str] = {
     "توكنات الإخراج": "Output tokens",
     "الكلفة (دولار)": "Cost (USD)",
     "غير ذلك": "Other",
+    # Sign-ins that renew themselves
+    "انتهى دخولك لـ GitHub — اربط الحساب من جديد من الإعدادات ← الحسابات المتصلة.": "Your GitHub sign-in has ended — connect the account again in Settings → Connected accounts.",
+    "GitHub رجّع رد غير متوقع.": "GitHub sent an unexpected answer.",
 }
 
 RU: dict[str, str] = {
@@ -601,4 +604,7 @@ RU: dict[str, str] = {
     "توكنات الإخراج": "Выходные токены",
     "الكلفة (دولار)": "Стоимость (USD)",
     "غير ذلك": "Другое",
+    # Sign-ins that renew themselves
+    "انتهى دخولك لـ GitHub — اربط الحساب من جديد من الإعدادات ← الحسابات المتصلة.": "Вход в GitHub закончился — подключите аккаунт снова в «Настройки → Подключённые аккаунты».",
+    "GitHub رجّع رد غير متوقع.": "GitHub прислал неожиданный ответ.",
 }

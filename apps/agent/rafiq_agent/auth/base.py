@@ -50,6 +50,25 @@ class ConnectedIdentity:
     token: str = field(repr=False)
     external_id: str
     label: str
+    # Short-lived sign-ins (GitHub's are 8 hours): the token that renews it, and when each
+    # runs out, in seconds from now. None for a token that doesn't expire.
+    refresh_token: str | None = field(default=None, repr=False)
+    expires_in: int | None = None
+    refresh_expires_in: int | None = None
+
+
+@dataclass
+class TokenPair:
+    """A renewed sign-in: a new access token and the refresh token that replaces the old one."""
+
+    token: str = field(repr=False)
+    refresh_token: str | None = field(default=None, repr=False)
+    expires_in: int | None = None
+    refresh_expires_in: int | None = None
+
+
+class RefreshRejected(AuthError):
+    """The provider refused the refresh token itself: only a new sign-in helps."""
 
 
 @dataclass
