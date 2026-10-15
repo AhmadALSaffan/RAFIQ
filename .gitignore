@@ -28,3 +28,7 @@ release/
 # Updater signing keys never belong in the repo (they live in ~/.tauri).
 *.key
 *.key.pub
+
+# End-to-end test output
+apps/desktop/test-results/
+apps/desktop/playwright-report/

@@ -13,8 +13,9 @@
     "release": "pnpm check && pnpm build:app && node scripts/release.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "tsc -b && eslint src && vitest run",
-    "lint": "eslint src"
+    "e2e": "playwright test -c e2e/playwright.config.ts",
+    "check": "tsc -b && eslint src e2e && vitest run",
+    "lint": "eslint src e2e"
   },
   "dependencies": {
     "@fontsource-variable/alexandria": "^5.3.0",
@@ -56,6 +57,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.0.0",
     "@tauri-apps/cli": "^2.2.4",
     "@types/react": "^19.0.7",

@@ -42,4 +42,10 @@ export default tseslint.config(
       eqeqeq: ["error", "smart"],
     },
   },
+  // The end-to-end test and its pretend model run in Node, not the browser.
+  {
+    files: ["e2e/**/*.{ts,mjs}"],
+    languageOptions: { globals: { ...globals.node } },
+    rules: { "no-console": "off" },
+  },
 );
