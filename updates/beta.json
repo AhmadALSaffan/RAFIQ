@@ -1,0 +1,11 @@
+{
+  "version": "0.4.24",
+  "notes": "# Rafiq v0.4.24 — choose your updates\n\nYou can now choose which updates Rafiq offers you, and read what's in an update before you install it.\n\n---\n\n## 🔀 Stable or beta\n\n**About → Updates** has a new choice:\n\n- **Stable**: only versions that have been tested enough. This is the default, and nothing changes if you keep it.\n- **Beta**: new builds as soon as they're ready, so you get new features first, and possibly a few bugs. Beta also gets every stable release, so you never fall behind.\n\nRafiq saves your choice with your settings. If you go back to Stable while on a beta build, you stay on it until a newer stable version comes out.\n\n## 📝 Read before you install\n\nWhen an update is found, its release notes open right under it: what's new, what's fixed, and anything you need to do. Then you choose whether to install.\n\nBoth channels are signed with the same key, and Rafiq checks the signature before installing anything.\n\n---\n\n**Updating:** installed copies offer this update on their own. New installs: download `Rafiq_0.4.24_x64-setup.exe` below and check it against `SHA256SUMS.txt`:\n\n```powershell\nGet-FileHash .\\Rafiq_0.4.24_x64-setup.exe -Algorithm SHA256\n```",
+  "pub_date": "2026-10-15T23:24:09.000Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTUzlLQmEra2FEQ1JuNTh3b0dPVFBITDhTZkNEK1ZBU3FiZm1KOGdlWWlMTTBYY0lpWGtnQmU2UU1xQ3JKSmVvYWRJYmVHQlBKODlnc2JlVEwzL09oUGRTV05DWG83VkFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMTA2NjIzCWZpbGU62LHZgdmK2YJfMC40LjI0X3g2NC1zZXR1cC5leGUKZFg4QnpDWEVXalZPWGNDV2NaeU81OEhPMXo4YlRqYXdIUU5NendMZHA0NVZ6T3JxQkhzY05yVlpCWDFVdkFLTk1zOGVab040QU14WUt6b05tWU9iQ3c9PQo=",
+      "url": "https://github.com/AhmadALSaffan/RAFIQ/releases/download/v0.4.24/Rafiq_0.4.24_x64-setup.exe"
+    }
+  }
+}
