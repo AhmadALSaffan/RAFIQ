@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
 from rafiq_agent.core import designs as design_core
+from rafiq_agent.core import identity as identity_core
 from rafiq_agent.core.designs import (
     brief_message,
     handoff_message,
@@ -26,7 +27,6 @@ from rafiq_agent.skills import editor as skill_editor
 from rafiq_agent.skills.install import SkillInstallError, fetch, find_skills, install_folder
 from rafiq_agent.skills.registry import USER_DIR, Skill, all_skills, get_skill, reload_skills
 from rafiq_agent.storage.db import get_session
-from rafiq_agent.core import identity as identity_core
 from rafiq_agent.storage.models import Chat, ChatMessage, Design, DesignIdentity, LlmModel
 
 router = APIRouter(tags=["designs"], dependencies=[Depends(require_token)])
