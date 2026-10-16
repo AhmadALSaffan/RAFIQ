@@ -258,6 +258,20 @@ fn system_file_icon(name: String) -> Option<String> {
     file_icon::data_url(&name)
 }
 
+/// The language picked in the installer (installer/hooks.nsh writes its Windows language id
+/// next to the program), for the app's first launch. None when there's no such file.
+#[tauri::command]
+fn installer_language() -> Option<String> {
+    let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let id = std::fs::read_to_string(dir.join("installer-language")).ok()?;
+    match id.trim() {
+        "1025" => Some("ar".into()),
+        "1033" => Some("en".into()),
+        "1049" => Some("ru".into()),
+        _ => None,
+    }
+}
+
 /// Writes a UTF-8 text file the user picked a path for (chat export).
 #[tauri::command]
 fn save_text_file(path: String, contents: String) -> Result<(), String> {
@@ -350,6 +364,7 @@ pub fn run() {
             set_quick_ask_shortcut,
             hide_quick_ask,
             open_in_main,
+            installer_language,
             update::check_update,
             update::install_update
         ])
