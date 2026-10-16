@@ -188,6 +188,17 @@ with contextlib.suppress(Exception):
     app.include_router(authai_router)
 
 
+from rafiq_agent.llm.errors import GuidedError  # noqa: E402
+
+
+@app.exception_handler(GuidedError)
+async def guided_error(_request, exc: GuidedError):  # noqa: ANN201
+    """`detail` is the message as before; `kind` tells the app which guide to open."""
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(status_code=exc.status, content={"detail": exc.message, "kind": exc.kind, "provider": exc.provider})
+
+
 @app.get("/health")
 async def health() -> dict[str, bool]:
     return {"ok": True}

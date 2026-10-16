@@ -31,6 +31,7 @@ import { easeOutExpo, snappy } from "../lib/motion";
 import { ToastStack, type Toast } from "./Toasts";
 import { Logo } from "./Logo";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import { GuideDialog } from "./GuideDialog";
 
 import { t } from "../i18n";
 const navItems = [
@@ -426,6 +427,7 @@ export function Shell() {
       </div>
       <ToastStack toasts={toasts} onDismiss={dismiss} />
       <CommandPalette open={paletteOpen} onClose={closePalette} theme={theme} onToggleTheme={toggle} />
+      <GuideDialog />
     </MotionConfig>
   );
 }

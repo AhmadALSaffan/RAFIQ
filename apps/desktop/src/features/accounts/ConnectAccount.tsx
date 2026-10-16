@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { pollConnect, startConnect } from "../../lib/api";
+import { showGuide } from "../../lib/guides";
 import type { AuthAccount, ConnectPoll, ConnectStart, Provider } from "../../lib/types";
 import { openExternal } from "../../lib/links";
 import { easeOutExpo } from "../../lib/motion";
@@ -64,12 +65,14 @@ export function ConnectAccount({
       if (!alive) return true;
       if (result.status === "complete" && result.account) {
         if (timer) clearTimeout(timer);
+        showGuide({ kind: result.kind });
         setPhase({ kind: "done", account: result.account });
         timer = setTimeout(() => done.current(result.account!), 900);
         return true;
       }
       if (result.status !== "pending") {
         if (timer) clearTimeout(timer);
+        showGuide({ kind: result.kind });
         setPhase({ kind: "error", message: result.message ?? t("ما زبط تسجيل الدخول.") });
         return true;
       }

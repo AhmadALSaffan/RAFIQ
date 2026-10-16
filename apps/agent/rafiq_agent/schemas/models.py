@@ -81,6 +81,7 @@ class ModelOut(BaseModel):
     created_at: datetime
     verify_ok: bool | None = None
     verify_error: str | None = None
+    verify_kind: str | None = None
     verify_latency_ms: int | None = None
     verified_at: datetime | None = None
     supports_tools: bool | None = None

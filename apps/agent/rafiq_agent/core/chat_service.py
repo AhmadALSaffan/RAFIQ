@@ -63,7 +63,8 @@ from rafiq_agent.core.vision import describe_attachments
 from rafiq_agent.i18n import all_translations, tr
 from rafiq_agent.llm import usage
 from rafiq_agent.llm.base import LlmProvider
-from rafiq_agent.llm.discovery import friendly_error, supports_vision
+from rafiq_agent.llm.discovery import supports_vision
+from rafiq_agent.llm.errors import error_event
 from rafiq_agent.llm.presets import native_tools
 from rafiq_agent.schemas.chats import (
     AUTO_SUMMARIZE_AFTER,
@@ -866,7 +867,7 @@ class ChatTurn:
             if text or self.parts:
                 await save_assistant(self.chat_id, text, "", self.parts, self.model_id)
                 self.saved = True
-            self._emit({"type": "error", "message": friendly_error(exc)})
+            self._emit({"type": "error", **error_event(exc, getattr(self.llm, "model", None))})
         finally:
             spent.__exit__(None, None, None)
             await registry.aclose()  # the turn's browser tab, its hold on the desktop
@@ -931,7 +932,7 @@ class ChatTurn:
         except asyncio.CancelledError:
             raise  # `_on_worker_done` says «stopped» and closes the stream
         except Exception as exc:  # noqa: BLE001 - reported in-stream, like any other failure
-            self._emit({"type": "error", "message": friendly_error(exc)})
+            self._emit({"type": "error", **error_event(exc, getattr(getattr(self, "llm", None), "model", None))})
             self.saved = True  # the error is the reply; don't also say «stopped»
             return
         await self._run(messages, registry)

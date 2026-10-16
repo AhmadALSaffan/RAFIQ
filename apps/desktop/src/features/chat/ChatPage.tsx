@@ -41,6 +41,7 @@ import { applyEvent, textOf, type Draft } from "./draft";
 import { DEFAULT_REPLY_SETTINGS, MODEL_KEY, savedModel } from "./constants";
 
 import { t } from "../../i18n";
+import { showGuide } from "../../lib/guides";
 export function ChatPage({
   chatId,
   embedded = false,
@@ -508,6 +509,7 @@ export function ChatPage({
           setDraft(null);
         } else if (event.type === "error") {
           setError(event.message);
+          showGuide({ kind: event.kind, provider: event.provider });
         } else {
           partial = applyEvent(partial, event);
           setDraft(partial);

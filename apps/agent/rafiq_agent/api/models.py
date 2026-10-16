@@ -9,6 +9,7 @@ from rafiq_agent.api.deps import require_token
 from rafiq_agent.auth.base import redact
 from rafiq_agent.i18n import tr
 from rafiq_agent.llm.discovery import DiscoveryError, VerifyResult, discover_models, verify_model
+from rafiq_agent.llm.errors import GuidedError, provider_name  # noqa: E402
 from rafiq_agent.llm.presets import native_tools
 from rafiq_agent.llm.pricing import price_for
 from rafiq_agent.schemas.models import (
@@ -38,6 +39,7 @@ def _to_out(model: LlmModel) -> ModelOut:
         created_at=model.created_at,
         verify_ok=model.verify_ok,
         verify_error=model.verify_error,
+        verify_kind=model.verify_kind,
         verify_latency_ms=model.verify_latency_ms,
         verified_at=model.verified_at,
         supports_tools=model.supports_tools,
@@ -91,12 +93,13 @@ async def _verify_with_account(
 
     started = time.perf_counter()
 
-    def result(ok: bool, error: str | None) -> VerifyResult:
+    def result(ok: bool, error: str | None, kind: str | None = None) -> VerifyResult:
         return VerifyResult(
             ok=ok,
             latency_ms=int((time.perf_counter() - started) * 1000),
             supports_tools=True if ok else None,
             error=error,
+            kind=kind,
         )
 
     if not token:
@@ -104,7 +107,10 @@ async def _verify_with_account(
     try:
         available = {model for model, _ in await copilot.list_models(account.id, token)}
     except Exception as exc:  # noqa: BLE001 - any runtime failure is a verification failure
-        return result(False, redact(str(exc))[:300])
+        from rafiq_agent.llm.errors import explain
+
+        message, kind = explain(exc, "github_copilot")
+        return result(False, message, kind)
     if model_id not in available:
         return result(False, tr("هالموديل مش متاح لحساب Copilot هاد."))
     return result(True, None)
@@ -113,6 +119,7 @@ async def _verify_with_account(
 def _apply_verification(model: LlmModel, result: VerifyResult) -> None:
     model.verify_ok = result.ok
     model.verify_error = result.error
+    model.verify_kind = None if result.ok else result.kind
     model.verify_latency_ms = result.latency_ms
     model.verified_at = datetime.now(UTC)
     if result.ok:
@@ -157,14 +164,14 @@ async def discover(
             try:
                 listed = await adapter.list_models(get_api_key(account.secret_ref) or "")
             except Exception as exc:  # noqa: BLE001
-                raise HTTPException(status_code=400, detail=redact(str(exc))[:300]) from exc
+                raise GuidedError.of(exc, account.provider) from exc
             return _priced(
                 body.provider, [DiscoveredModelOut(id=model, display_name=name) for model, name in listed]
             )
         try:
             found = await discover_models(body.provider, get_api_key(account.secret_ref), body.base_url)
         except DiscoveryError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise GuidedError(str(exc), exc.kind, provider_name(body.provider)) from exc
         return _priced(
             body.provider,
             [DiscoveredModelOut(id=m.id, display_name=m.display_name, price=m.price) for m in found],
@@ -178,16 +185,14 @@ async def discover(
 
             found = await copilot.list_models(account.id, await fresh_token(account.id) or "")
         except Exception as exc:  # noqa: BLE001
-            raise HTTPException(
-                status_code=400, detail=tr("ما قدرت أجيب موديلات Copilot: {0}", redact(str(exc))[:200])
-            ) from exc
+            raise GuidedError.of(exc, "github_copilot") from exc
         return _priced(
             body.provider, [DiscoveredModelOut(id=model, display_name=name) for model, name in found]
         )
     try:
         found = await discover_models(body.provider, body.api_key, body.base_url, body.options)
     except DiscoveryError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise GuidedError(str(exc), exc.kind, provider_name(body.provider)) from exc
     return _priced(
         body.provider,
         [DiscoveredModelOut(id=m.id, display_name=m.display_name, price=m.price) for m in found],
@@ -204,7 +209,7 @@ async def create_model(body: ModelCreate, session: AsyncSession = Depends(get_se
         account = None
         result = await verify_model(body.provider, body.model_id, body.api_key, body.base_url, body.options)
     if not result.ok:
-        raise HTTPException(status_code=400, detail=tr("الموديل ما اشتغل: {0}", result.error))
+        raise GuidedError(tr("الموديل ما اشتغل: {0}", result.error), result.kind, provider_name(body.provider))
 
     api_key_ref = store_api_key(body.api_key) if body.api_key and account is None else None
     model = LlmModel(

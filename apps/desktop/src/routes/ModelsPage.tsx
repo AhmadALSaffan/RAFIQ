@@ -31,6 +31,7 @@ import { ConnectAccount } from "../features/accounts/ConnectAccount";
 import { accountLabel } from "../features/accounts/labels";
 
 import { t } from "../i18n";
+import { isGuideKind, showGuide } from "../lib/guides";
 import { roving } from "../lib/keyboard";
 export function ModelsPage() {
   const [models, setModels] = useState<LlmModel[]>([]);
@@ -323,6 +324,19 @@ function ModelRow({
             style={{ color: "var(--color-danger)" }}
           >
             {model.verify_error}
+            {isGuideKind(model.verify_kind) && (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  onClick={() => showGuide({ kind: model.verify_kind, provider: model.provider })}
+                  className="font-medium underline underline-offset-4"
+                  style={{ color: "var(--color-ink)" }}
+                >
+                  {t("شو أعمل؟")}
+                </button>
+              </>
+            )}
           </motion.p>
         )}
       </AnimatePresence>

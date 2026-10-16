@@ -41,13 +41,14 @@ import { ChangesPanel } from "./ChangesPanel";
 import { BigNumber, Block as BrandBlock, BracketLabel, LedBar } from "../../components/brand";
 
 import { t } from "../../i18n";
+import { isGuideKind, showGuide } from "../../lib/guides";
 type Block =
   | { kind: "message"; key: string; text: string }
   | { kind: "tool"; key: string; call?: ToolCall; tool: string; result?: { ok: boolean; output: string } }
   | { kind: "permission"; key: string; event: Extract<TaskEvent, { type: "permission_request" }> }
   | { kind: "plan"; key: string; text: string }
   | { kind: "note"; key: string; text: string }
-  | { kind: "error"; key: string; message: string };
+  | { kind: "error"; key: string; message: string; guide?: string | null; provider?: string | null };
 
 /** Pairs each tool_call with the tool_result that follows it so they read as one step. */
 function toBlocks(events: TaskEvent[]): Block[] {
@@ -69,7 +70,7 @@ function toBlocks(events: TaskEvent[]): Block[] {
     else if (e.type === "plan") blocks.push({ kind: "plan", key: e.id, text: e.text });
     else if (e.type === "plan_approved") blocks.push({ kind: "note", key: e.id, text: t("وافقت على الخطة — بلّش التنفيذ.") });
     else if (e.type === "resumed") blocks.push({ kind: "note", key: e.id, text: t("كمّلت المهمة من وين وقفت.") });
-    else if (e.type === "error") blocks.push({ kind: "error", key: e.id, message: e.message });
+    else if (e.type === "error") blocks.push({ kind: "error", key: e.id, message: e.message, guide: e.kind, provider: e.provider });
   }
   return blocks;
 }
@@ -660,7 +661,17 @@ function BlockView({
       style={{ borderColor: "var(--color-danger)", color: "var(--color-danger)" }}
     >
       <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
-      <span className="min-w-0 break-words">{block.message}</span>
+      <span className="min-w-0 flex-1 break-words">{block.message}</span>
+      {isGuideKind(block.guide) && (
+        <button
+          type="button"
+          onClick={() => showGuide({ kind: block.guide, provider: block.provider })}
+          className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium underline underline-offset-4"
+          style={{ color: "var(--color-ink)" }}
+        >
+          {t("شو أعمل؟")}
+        </button>
+      )}
     </div>
   );
 }

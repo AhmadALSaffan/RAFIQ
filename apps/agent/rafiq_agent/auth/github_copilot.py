@@ -168,8 +168,12 @@ class GitHubCopilotAdapter:
                 await self.check(token)
                 break
             except AuthError as exc:
+                if exc.kind == "copilot_not_enabled":
+                    # The sign-in is good; Copilot just isn't turned on yet. Keep the
+                    # account, so after turning it on there's no second sign-in.
+                    return PollOutcome("complete", identity=identity, message=str(exc), kind=exc.kind)
                 if attempt == 2:
-                    return PollOutcome("error", message=str(exc))
+                    return PollOutcome("error", message=str(exc), kind=exc.kind)
                 await asyncio.sleep(2 + 2 * attempt)
         return PollOutcome("complete", identity=identity)
 

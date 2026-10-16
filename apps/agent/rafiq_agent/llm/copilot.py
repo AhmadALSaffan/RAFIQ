@@ -158,9 +158,19 @@ async def shutdown_all() -> None:
         await drop_client(account_id)
 
 
+def copilot_off(message: str) -> bool:
+    """GitHub accepted the sign-in but Copilot isn't turned on for the account (a 403
+    "not authorized to use this Copilot feature"). No retry or new sign-in fixes that."""
+    from rafiq_agent.llm.errors import classify
+
+    return classify(message) == "copilot_not_enabled"
+
+
 def _is_auth_failure(message: str) -> bool:
     """Whether a runtime error means "this token is no longer good" rather than a hiccup."""
     text = message.lower()
+    if copilot_off(message):
+        return False
     return any(
         s in text
         for s in ('"status":401', "status: 401", "unauthorized", "bad credentials", "not authenticated")
@@ -178,10 +188,12 @@ async def check_token(token: str) -> None:
             raise AuthError(tr("GitHub قبل الدخول، بس Copilot ما قبل الحساب."))
         models = await client.list_models()
         if not models:
-            raise AuthError(tr("الحساب ما عليه اشتراك Copilot شغّال."))
+            raise AuthError(tr("حساب GitHub تبعك ما فيه Copilot مفعّل. التفعيل مجاني وبياخد دقيقة."), kind="copilot_not_enabled")
     except AuthError:
         raise
     except Exception as exc:  # noqa: BLE001 - any SDK failure means the account isn't usable
+        if copilot_off(str(exc)):
+            raise AuthError(tr("حساب GitHub تبعك ما فيه Copilot مفعّل. التفعيل مجاني وبياخد دقيقة."), kind="copilot_not_enabled") from exc
         if _is_auth_failure(str(exc)):
             raise AuthError(tr("GitHub رفض التوكن — جرّب تربط الحساب من جديد.")) from exc
         raise AuthError(tr("ما قدرت اتأكد من Copilot: {0}", redact(str(exc))[:200])) from exc

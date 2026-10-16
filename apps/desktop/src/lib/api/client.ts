@@ -1,3 +1,4 @@
+import { showGuide } from "../guides";
 import { locale } from "../../i18n";
 /**
  * The one place that talks to the local backend.
@@ -94,7 +95,10 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
     if (!res.ok) {
       const detail = await res.json().catch(() => null);
-      throw new Error(detail?.detail ?? `${res.status} ${res.statusText}`);
+      // A failure the user can fix (Copilot off, a blocked country, no credit…) opens the
+      // guide that says how (lib/guides.ts).
+      if (detail?.kind) showGuide({ kind: detail.kind, provider: detail.provider });
+      throw Object.assign(new Error(detail?.detail ?? `${res.status} ${res.statusText}`), { kind: detail?.kind ?? null });
     }
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;

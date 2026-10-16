@@ -13,7 +13,12 @@ AuthMethod = Literal["api_key", "oauth", "experimental"]
 
 
 class AuthError(Exception):
-    """A readable, user-facing sign-in problem (Arabic message)."""
+    """A readable, user-facing sign-in problem (Arabic message). `kind` names a guide the
+    app can open for it (see llm/errors.py), when there is one."""
+
+    def __init__(self, message: str = "", kind: str | None = None) -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 @dataclass(frozen=True, repr=False)
@@ -76,6 +81,9 @@ class PollOutcome:
     status: Literal["pending", "complete", "expired", "denied", "error"]
     identity: ConnectedIdentity | None = None
     message: str | None = None
+    # A guide the app should open even though the sign-in itself worked (Copilot not
+    # turned on for the account, say).
+    kind: str | None = None
 
 
 class AccountAdapter(Protocol):

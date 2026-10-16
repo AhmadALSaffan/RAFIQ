@@ -313,9 +313,9 @@ async def summarize_chat(chat_id: str, body: SummarizeIn) -> SummarizeOut:
         except ChatError as exc:
             raise _http(exc) from exc
         except Exception as exc:  # noqa: BLE001 - provider failures become a readable message
-            from rafiq_agent.llm.discovery import friendly_error
+            from rafiq_agent.llm.errors import GuidedError
 
-            raise HTTPException(status_code=502, detail=friendly_error(exc)) from exc
+            raise GuidedError.of(exc, model.provider, status=502) from exc
 
         chat.updated_at = _now()
         await session.commit()

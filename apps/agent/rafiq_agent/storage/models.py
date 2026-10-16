@@ -30,6 +30,8 @@ class LlmModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     verify_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     verify_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Which guide explains the last failed check (llm/errors.py), e.g. "region_blocked".
+    verify_kind: Mapped[str | None] = mapped_column(String, nullable=True)
     verify_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     supports_tools: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

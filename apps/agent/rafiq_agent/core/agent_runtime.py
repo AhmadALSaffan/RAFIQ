@@ -19,7 +19,8 @@ from rafiq_agent.core.workspace import session_dir
 from rafiq_agent.i18n import tr
 from rafiq_agent.integrations.tools import issue_tools
 from rafiq_agent.llm import usage
-from rafiq_agent.llm.discovery import friendly_error, supports_vision
+from rafiq_agent.llm.discovery import supports_vision
+from rafiq_agent.llm.errors import error_event
 from rafiq_agent.llm.presets import native_tools
 from rafiq_agent.schemas.settings import AppSettings
 from rafiq_agent.storage.db import SessionLocal
@@ -224,7 +225,7 @@ async def _plan_task(
         await manager.set_status(task_id, "cancelled")
         raise
     except Exception as exc:  # noqa: BLE001 - surface any failure to the transcript
-        await manager.emit_event(task_id, "error", {"message": friendly_error(exc)})
+        await manager.emit_event(task_id, "error", error_event(exc))
         await manager.set_status(task_id, "failed")
 
 
@@ -375,7 +376,7 @@ async def run_task(task_id: str) -> None:
     except AttachmentError as exc:
         await manager.emit_event(task_id, "error", {"message": str(exc)})
     except Exception as exc:  # noqa: BLE001 - surface any failure to the transcript
-        await manager.emit_event(task_id, "error", {"message": friendly_error(exc)})
+        await manager.emit_event(task_id, "error", error_event(exc))
     finally:
         if registry is not None:
             await registry.aclose()

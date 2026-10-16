@@ -120,7 +120,7 @@ async def _poll(flow_id: str, now: bool, session: AsyncSession) -> ConnectPollOu
     if outcome.status != "complete" or outcome.identity is None:
         if outcome.status != "pending":
             _flows.pop(flow_id, None)
-        return ConnectPollOut(status=outcome.status, message=outcome.message)
+        return ConnectPollOut(status=outcome.status, message=outcome.message, kind=outcome.kind)
     _flows.pop(flow_id, None)
 
     identity = outcome.identity
@@ -150,7 +150,9 @@ async def _poll(flow_id: str, now: bool, session: AsyncSession) -> ConnectPollOu
     account.verified_at = now
     await session.commit()
     await session.refresh(account)
-    return ConnectPollOut(status="complete", account=await _to_out(session, account))
+    return ConnectPollOut(
+        status="complete", account=await _to_out(session, account), message=outcome.message, kind=outcome.kind
+    )
 
 
 @router.delete("/{account_id}", status_code=204)

@@ -32,7 +32,9 @@ _NON_CHAT_MARKERS = (
 
 
 class DiscoveryError(Exception):
-    pass
+    def __init__(self, message: str = "", kind: str | None = None) -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 @dataclass
@@ -44,10 +46,18 @@ class DiscoveredModel:
 
 
 def _raise_for_status(resp: httpx.Response) -> None:
+    if resp.status_code < 400:
+        return
+    from rafiq_agent.llm.errors import classify
+
+    # A 403 isn't always the key: OpenAI answers a request from a country it doesn't serve
+    # with 403 too. The body says which.
+    kind = classify(f"{resp.status_code} {resp.text[:500]}") or {401: "bad_key", 402: "no_credit", 429: "rate_limited"}.get(resp.status_code)
+    if kind == "region_blocked":
+        raise DiscoveryError(tr("المزوّد ما بيقدّم الخدمة ببلدك. شغّل VPN وجرّب من جديد."), kind=kind)
     if resp.status_code in (401, 403):
-        raise DiscoveryError(tr("المفتاح غير صحيح أو ما عنده صلاحية."))
-    if resp.status_code >= 400:
-        raise DiscoveryError(tr("المزوّد رجّع خطأ ({0}).", resp.status_code))
+        raise DiscoveryError(tr("المفتاح غير صحيح أو ما عنده صلاحية."), kind=kind or "bad_key")
+    raise DiscoveryError(tr("المزوّد رجّع خطأ ({0}).", resp.status_code), kind=kind)
 
 
 def _openai_style(data: list[dict], name_key: str | None = None) -> list[DiscoveredModel]:
@@ -183,9 +193,10 @@ async def discover_models(
                 models.sort(key=lambda m: created.get(m.id, 0), reverse=True)
             return models
     except httpx.ConnectError as exc:
-        raise DiscoveryError(tr("ما قدرت اتصل بالمزوّد — تأكد من الإنترنت أو من الـ Base URL.")) from exc
+        kind = "local_server_down" if provider in ("ollama", "lm_studio") else "cant_reach"
+        raise DiscoveryError(tr("ما قدرت اتصل بالمزوّد — تأكد من الإنترنت أو من الـ Base URL."), kind=kind) from exc
     except httpx.TimeoutException as exc:
-        raise DiscoveryError(tr("المزوّد ما رد بالوقت المحدد.")) from exc
+        raise DiscoveryError(tr("المزوّد ما رد بالوقت المحدد."), kind="cant_reach") from exc
 
 
 @dataclass
@@ -194,6 +205,8 @@ class VerifyResult:
     latency_ms: int
     supports_tools: bool | None
     error: str | None
+    # Which guide explains the failure (llm/errors.py), when one does.
+    kind: str | None = None
 
 
 def _capability(model: str, key: str) -> bool | None:
@@ -233,11 +246,15 @@ async def verify_model(
             **connection,
         )
     except Exception as exc:  # noqa: BLE001 - any provider failure is a verification failure
+        from rafiq_agent.llm.errors import explain
+
+        message, kind = explain(exc, provider)
         return VerifyResult(
             ok=False,
             latency_ms=int((time.perf_counter() - started) * 1000),
             supports_tools=None,
-            error=friendly_error(exc),
+            error=message,
+            kind=kind,
         )
     return VerifyResult(
         ok=True,
@@ -247,14 +264,8 @@ async def verify_model(
     )
 
 
-def friendly_error(exc: Exception) -> str:
-    name = type(exc).__name__
-    if "Authentication" in name:
-        return tr("المفتاح غير صحيح.")
-    if "NotFound" in name:
-        return tr("الموديل غير موجود عند هالمزوّد، أو ما عندك صلاحية عليه.")
-    if "RateLimit" in name:
-        return tr("تجاوزت حد الاستخدام أو الرصيد خلص.")
-    if "Connection" in name or "Timeout" in name:
-        return tr("ما قدرت اتصل بالمزوّد.")
-    return redact(str(exc))[:300]
+def friendly_error(exc: Exception, provider: str | None = None) -> str:
+    """One line for the user. The kind behind it (llm/errors.py) opens a guide in the app."""
+    from rafiq_agent.llm.errors import explain
+
+    return explain(exc, provider)[0]

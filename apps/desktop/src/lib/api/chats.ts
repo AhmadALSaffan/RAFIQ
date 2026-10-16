@@ -122,7 +122,7 @@ export type ChatStreamEvent =
   | { type: "usage"; prompt_tokens: number; completion_tokens: number; cached_tokens: number; cost_usd: number }
   | { type: "done"; message: ChatMessage }
   | { type: "stopped" }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; kind?: string | null; provider?: string | null };
 
 /**
  * Sends a message and streams the reply (Server-Sent Events over fetch). Aborting `signal`

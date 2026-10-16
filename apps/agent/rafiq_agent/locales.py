@@ -16,7 +16,6 @@ EN: dict[str, str] = {
     "هالموديل مش متاح لهالحساب.": "This model isn't available to this account.",
     "الموديل ما اشتغل: {0}": "The model didn't work: {0}",
     "هالنموذج بيشتغل بمفتاح، مش بحساب.": "This model uses a key, not an account.",
-    "ما قدرت أجيب موديلات Copilot: {0}": "Couldn't load Copilot models: {0}",
     "الحساب المربوط بهالنموذج مفصول — اربطه من جديد من الإعدادات ← الحسابات المتصلة.": "The account for this model is disconnected — reconnect it in Settings → Connected accounts.",
     # AuthAI
     "AuthAI مطفي — فعّله من بطاقة AuthAI تحت.": "AuthAI is off — enable it from the AuthAI card below.",
@@ -44,7 +43,6 @@ EN: dict[str, str] = {
     "معرّف تطبيق GitHub تبع رفيق غير صحيح.": "Rafiq's GitHub app ID is invalid.",
     "GitHub رفض طريقة الدخول.": "GitHub rejected the sign-in method.",
     "GitHub قبل الدخول، بس Copilot ما قبل الحساب.": "GitHub accepted the sign-in, but Copilot didn't accept the account.",
-    "الحساب ما عليه اشتراك Copilot شغّال.": "The account doesn't have an active Copilot subscription.",
     "ما قدرت اتأكد من Copilot: {0}": "Couldn't verify Copilot: {0}",
     # OpenRouter
     "OpenRouter رفض رمز الموافقة — ابدأ من جديد.": "OpenRouter rejected the approval code — start again.",
@@ -189,10 +187,6 @@ EN: dict[str, str] = {
     "رابط الخادم": "Server URL",
     "صلاحية api": "api scope",
     # Model discovery
-    "المفتاح غير صحيح.": "The key is invalid.",
-    "الموديل غير موجود عند هالمزوّد، أو ما عندك صلاحية عليه.": "The model doesn't exist at this provider, or you don't have access to it.",
-    "تجاوزت حد الاستخدام أو الرصيد خلص.": "You've hit the usage limit or run out of credit.",
-    "ما قدرت اتصل بالمزوّد.": "Couldn't reach the provider.",
     "المفتاح غير صحيح أو ما عنده صلاحية.": "The key is invalid or lacks permission.",
     "المزوّد رجّع خطأ ({0}).": "The provider returned an error ({0}).",
     "ما قدرت اتصل بالمزوّد — تأكد من الإنترنت أو من الـ Base URL.": "Couldn't reach the provider — check your internet connection or the Base URL.",
@@ -303,6 +297,18 @@ EN: dict[str, str] = {
     # Sign-ins that renew themselves
     "انتهى دخولك لـ GitHub — اربط الحساب من جديد من الإعدادات ← الحسابات المتصلة.": "Your GitHub sign-in has ended — connect the account again in Settings → Connected accounts.",
     "GitHub رجّع رد غير متوقع.": "GitHub sent an unexpected answer.",
+    # Errors that come with a guide
+    "حساب GitHub تبعك ما فيه Copilot مفعّل. التفعيل مجاني وبياخد دقيقة.": "Copilot isn't turned on for your GitHub account. Turning it on is free and takes a minute.",
+    "المزوّد ما بيقدّم الخدمة ببلدك. شغّل VPN وجرّب من جديد.": "The provider doesn't offer its service in your country. Turn on a VPN and try again.",
+    "المزوّد": "The provider",
+    "{0} ما بيقدّم الخدمة ببلدك. شغّل VPN وجرّب من جديد.": "{0} doesn't offer its service in your country. Turn on a VPN and try again.",
+    "{0} رفض المفتاح: غلط، أو انلغى، أو انتهت صلاحيته.": "{0} refused the key: it's wrong, revoked or expired.",
+    "رصيدك عند {0} خلص.": "Your balance at {0} has run out.",
+    "{0} طلب نستنى شوي: وصلت لحد الطلبات بالدقيقة.": "{0} asks us to wait a little: you've reached its requests-per-minute limit.",
+    "{0} مش شغّال على جهازك.": "{0} isn't running on your computer.",
+    "ما قدرت أوصل لـ {0}.": "Couldn't reach {0}.",
+    "{0} ما عنده هالموديل، أو حسابك ما بيوصله.": "{0} doesn't have this model, or your account can't use it.",
+    "صار خطأ ما توقّعناه.": "Something went wrong that we didn't expect.",
 }
 
 RU: dict[str, str] = {
@@ -320,7 +326,6 @@ RU: dict[str, str] = {
     "هالموديل مش متاح لهالحساب.": "Эта модель недоступна для этого аккаунта.",
     "الموديل ما اشتغل: {0}": "Модель не сработала: {0}",
     "هالنموذج بيشتغل بمفتاح، مش بحساب.": "Эта модель работает с ключом, а не с аккаунтом.",
-    "ما قدرت أجيب موديلات Copilot: {0}": "Не удалось загрузить модели Copilot: {0}",
     "الحساب المربوط بهالنموذج مفصول — اربطه من جديد من الإعدادات ← الحسابات المتصلة.": "Аккаунт этой модели отключён — подключите его снова в «Настройки → Подключённые аккаунты».",
     # AuthAI
     "AuthAI مطفي — فعّله من بطاقة AuthAI تحت.": "AuthAI выключен — включите его на карточке AuthAI ниже.",
@@ -348,7 +353,6 @@ RU: dict[str, str] = {
     "معرّف تطبيق GitHub تبع رفيق غير صحيح.": "Неверный ID приложения GitHub для Rafiq.",
     "GitHub رفض طريقة الدخول.": "GitHub отклонил способ входа.",
     "GitHub قبل الدخول، بس Copilot ما قبل الحساب.": "GitHub принял вход, но Copilot не принял аккаунт.",
-    "الحساب ما عليه اشتراك Copilot شغّال.": "У аккаунта нет активной подписки Copilot.",
     "ما قدرت اتأكد من Copilot: {0}": "Не удалось проверить Copilot: {0}",
     # OpenRouter
     "OpenRouter رفض رمز الموافقة — ابدأ من جديد.": "OpenRouter отклонил код подтверждения — начните заново.",
@@ -493,10 +497,6 @@ RU: dict[str, str] = {
     "رابط الخادم": "Адрес сервера",
     "صلاحية api": "область доступа api",
     # Model discovery
-    "المفتاح غير صحيح.": "Неверный ключ.",
-    "الموديل غير موجود عند هالمزوّد، أو ما عندك صلاحية عليه.": "Такой модели нет у этого провайдера, или у вас нет к ней доступа.",
-    "تجاوزت حد الاستخدام أو الرصيد خلص.": "Превышен лимит использования или закончился баланс.",
-    "ما قدرت اتصل بالمزوّد.": "Не удалось подключиться к провайдеру.",
     "المفتاح غير صحيح أو ما عنده صلاحية.": "Ключ неверный или без нужных прав.",
     "المزوّد رجّع خطأ ({0}).": "Провайдер вернул ошибку ({0}).",
     "ما قدرت اتصل بالمزوّد — تأكد من الإنترنت أو من الـ Base URL.": "Не удалось подключиться к провайдеру — проверьте интернет или Base URL.",
@@ -607,4 +607,16 @@ RU: dict[str, str] = {
     # Sign-ins that renew themselves
     "انتهى دخولك لـ GitHub — اربط الحساب من جديد من الإعدادات ← الحسابات المتصلة.": "Вход в GitHub закончился — подключите аккаунт снова в «Настройки → Подключённые аккаунты».",
     "GitHub رجّع رد غير متوقع.": "GitHub прислал неожиданный ответ.",
+    # Errors that come with a guide
+    "حساب GitHub تبعك ما فيه Copilot مفعّل. التفعيل مجاني وبياخد دقيقة.": "В вашем аккаунте GitHub не включён Copilot. Включить его бесплатно, это займёт минуту.",
+    "المزوّد ما بيقدّم الخدمة ببلدك. شغّل VPN وجرّب من جديد.": "Провайдер не работает в вашей стране. Включите VPN и попробуйте снова.",
+    "المزوّد": "Провайдер",
+    "{0} ما بيقدّم الخدمة ببلدك. شغّل VPN وجرّب من جديد.": "{0} не работает в вашей стране. Включите VPN и попробуйте снова.",
+    "{0} رفض المفتاح: غلط، أو انلغى، أو انتهت صلاحيته.": "{0} отклонил ключ: он неверный, отозван или истёк.",
+    "رصيدك عند {0} خلص.": "Баланс в {0} закончился.",
+    "{0} طلب نستنى شوي: وصلت لحد الطلبات بالدقيقة.": "{0} просит немного подождать: достигнут лимит запросов в минуту.",
+    "{0} مش شغّال على جهازك.": "{0} не запущен на вашем компьютере.",
+    "ما قدرت أوصل لـ {0}.": "Не удалось связаться с {0}.",
+    "{0} ما عنده هالموديل، أو حسابك ما بيوصله.": "У {0} нет этой модели, или ваш аккаунт не может её использовать.",
+    "صار خطأ ما توقّعناه.": "Произошла непредвиденная ошибка.",
 }

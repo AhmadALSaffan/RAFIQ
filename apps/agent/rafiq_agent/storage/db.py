@@ -15,6 +15,7 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "llm_models": {
         "verify_ok": "BOOLEAN",
         "verify_error": "TEXT",
+        "verify_kind": "VARCHAR",
         "verify_latency_ms": "INTEGER",
         "verified_at": "DATETIME",
         "supports_tools": "BOOLEAN",

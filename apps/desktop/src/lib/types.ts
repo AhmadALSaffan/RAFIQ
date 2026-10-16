@@ -34,6 +34,8 @@ export interface LlmModel {
   created_at: string;
   verify_ok: boolean | null;
   verify_error: string | null;
+  /** Which guide explains the failed check (lib/guides.ts). */
+  verify_kind?: string | null;
   verify_latency_ms: number | null;
   verified_at: string | null;
   supports_tools: boolean | null;
@@ -96,6 +98,8 @@ export interface ConnectPoll {
   status: "pending" | "complete" | "expired" | "denied" | "error";
   message: string | null;
   account: AuthAccount | null;
+  /** A guide to open (lib/guides.ts), e.g. Copilot isn't turned on for this account. */
+  kind?: string | null;
 }
 
 /** What a model costs, in US dollars per million tokens. */
@@ -174,7 +178,7 @@ export type TaskEvent =
   | { id: string; type: "plan"; text: string; created_at: string }
   | { id: string; type: "plan_approved"; text: string; created_at: string }
   | { id: string; type: "resumed"; from: TaskStatus; created_at: string }
-  | { id: string; type: "error"; message: string; created_at: string };
+  | { id: string; type: "error"; message: string; kind?: string | null; provider?: string | null; created_at: string };
 
 export interface TaskDetail extends TaskSummary {
   prompt: string;

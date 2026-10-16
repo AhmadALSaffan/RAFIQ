@@ -40,4 +40,6 @@ class ConnectStartOut(BaseModel):
 class ConnectPollOut(BaseModel):
     status: str  # pending | complete | expired | denied | error
     message: str | None = None
+    # A guide for the app to open (see llm/errors.py), e.g. "copilot_not_enabled".
+    kind: str | None = None
     account: AccountOut | None = None
