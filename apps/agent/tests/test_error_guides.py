@@ -20,6 +20,12 @@ COPILOT_403 = (
     'authorized to use this Copilot feature\\n","hasRequestId":true}'
 )
 
+# What GitHub answered a fresh sign-in with, several attempts in a row (the installed app's log).
+COPILOT_DENIED = (
+    'copilot._jsonrpc.JsonRpcError: JSON-RPC Error -32603: Request models.list failed with message: '
+    'GenericFailure, {"kind":"http","status":403,"statusText":"Forbidden","body":"forbidden: access denied\n"}'
+)
+
 
 class Fake(Exception):
     def __init__(self, text: str, status: int | None = None, provider: str | None = None):
@@ -32,6 +38,9 @@ class Fake(Exception):
     ("error", "kind"),
     [
         (COPILOT_403, "copilot_not_enabled"),
+        (COPILOT_DENIED, "copilot_not_enabled"),
+        # A 403 from another provider isn't mistaken for Copilot's.
+        (Fake("Error code: 403 - Forbidden", 403, "openai"), None),
         (Fake("Country, region, or territory not supported", 403, "openai"), "region_blocked"),
         (Fake('{"error":{"code":"unsupported_country_region_territory"}}', 403, "openai"), "region_blocked"),
         (Fake("User location is not supported for the API use.", 400, "gemini"), "region_blocked"),

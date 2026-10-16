@@ -423,6 +423,7 @@ function contentFor({ kind, provider }: GuideRequest): GuideContent {
             "حسابك تابع لشركة أو جامعة؟ Copilot بيفعّله المسؤول عن الحساب، فاطلب منه.",
           ),
           t("فعّلته وضل نفس الشي؟ ممكن Copilot مش متاح ببلدك: شغّل VPN وجرّب."),
+          t("حاولت تسجّل دخول كذا مرة ورا بعض؟ GitHub أحياناً بيرفض لدقايق. استنى شوي وجرّب، بدون ما تسجّل من جديد."),
         ],
         link: { label: t("افتح إعدادات Copilot"), url: COPILOT_SETTINGS },
       };

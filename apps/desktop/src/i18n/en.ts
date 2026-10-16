@@ -1867,7 +1867,6 @@ export const en: Dictionary = {
   "عرض لوحة الأدوات": "Tool panel width",
   "عم شيك…": "Checking…",
   "سجّلت — شيك هلأ": "I've signed in — check now",
-  "{0} لسا ما وصله موافقتك. تأكد إنك حطيت الرمز وضغطت «Authorize»، وبعدين شيك كمان مرة.": "{0} hasn't received your approval yet. Make sure you entered the code and pressed “Authorize”, then check again.",
   "بستنى موافقتك على {0}… بيتربط لحاله بس توافق، أو اضغط «شيك هلأ» لتخلص فوراً.": "Waiting for your approval on {0}… It connects by itself once you approve, or press “check now” to finish right away.",
   "{n} أيقونة. المعلّمة بـ ● ملوّنة بألوانها (إيموجي، شعارات، أعلام)، والباقي بياخد لون الطبقة.": "{n} icons. Those marked ● keep their own colours (emoji, logos, flags); the rest take the layer's colour.",
   "أكتر": "More",
@@ -2181,4 +2180,6 @@ export const en: Dictionary = {
   "هي الخطة المجانية: فيها موديلات منيحة وحد شهري بيكفي للاستعمال العادي. وإذا عندك Copilot Pro، بيكون مفعّل أصلاً.": "That's the free plan: good models and a monthly limit that's enough for everyday use. With Copilot Pro it's already on.",
   "وبعدين جرّب": "then try again",
   "يا إنه اسم الموديل تغيّر، يا إنه حسابك ما بيوصله.": "Either the model's name changed, or your account can't use it.",
+  "حاولت تسجّل دخول كذا مرة ورا بعض؟ GitHub أحياناً بيرفض لدقايق. استنى شوي وجرّب، بدون ما تسجّل من جديد.": "Signed in several times in a row? GitHub sometimes refuses for a few minutes. Wait a little and try again, without signing in again.",
+  "{0} لسا ما وصله موافقتك. تأكد إنك حطيت الرمز وضغطت «Authorize»، وشوف صفحة GitHub بالمتصفح: إذا سجّلت دخول كذا مرة بآخر ساعة، بيطلب تأكيد تاني. وبعدين شيك كمان مرة.": "{0} hasn't received your approval yet. Make sure you entered the code and pressed «Authorize», and look at the GitHub page in your browser: after several sign-ins within an hour, it asks you to confirm again. Then check once more.",
 };

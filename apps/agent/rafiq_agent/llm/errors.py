@@ -118,6 +118,13 @@ def classify(exc: BaseException | str, provider: str | None = None) -> str | Non
 
     if any(s in text for s in _COPILOT_OFF):
         return "copilot_not_enabled"
+    # The Copilot runtime's own refusal: a JSON-RPC failure with a 403 inside, e.g.
+    # "Request models.list failed … 403 Forbidden … forbidden: access denied". GitHub
+    # accepted the sign-in; Copilot didn't let the account in (not turned on, a policy, or
+    # for a few minutes after several sign-ins in a row).
+    copilot_call = "json-rpc" in text or "copilot" in text or provider == "github_copilot"
+    if copilot_call and ('"status":403' in text or "forbidden" in text):
+        return "copilot_not_enabled"
     if status == 451 or any(s in text for s in _REGION):
         return "region_blocked"
     # Anthropic answers a request from an unsupported region with a bare 403 "Request not allowed".

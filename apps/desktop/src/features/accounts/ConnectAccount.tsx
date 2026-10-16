@@ -200,7 +200,7 @@ export function ConnectAccount({
             </div>
             {notYet && !checking && (
               <p className="text-xs" style={{ color: "var(--color-pending)" }}>
-                {t("{0} لسا ما وصله موافقتك. تأكد إنك حطيت الرمز وضغطت «Authorize»، وبعدين شيك كمان مرة.", { 0: providerName })}
+                {t("{0} لسا ما وصله موافقتك. تأكد إنك حطيت الرمز وضغطت «Authorize»، وشوف صفحة GitHub بالمتصفح: إذا سجّلت دخول كذا مرة بآخر ساعة، بيطلب تأكيد تاني. وبعدين شيك كمان مرة.", { 0: providerName })}
               </p>
             )}
             <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>

@@ -169,8 +169,9 @@ class GitHubCopilotAdapter:
                 break
             except AuthError as exc:
                 if exc.kind == "copilot_not_enabled":
-                    # The sign-in is good; Copilot just isn't turned on yet. Keep the
-                    # account, so after turning it on there's no second sign-in.
+                    # The sign-in is good; Copilot just won't let the account in yet. Keep
+                    # the account: after fixing that there's no second sign-in, and no new
+                    # token (GitHub allows an app only so many per hour, then asks again).
                     return PollOutcome("complete", identity=identity, message=str(exc), kind=exc.kind)
                 if attempt == 2:
                     return PollOutcome("error", message=str(exc), kind=exc.kind)
