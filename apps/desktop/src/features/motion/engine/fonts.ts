@@ -38,6 +38,27 @@ export function cssFamily(name: string): string {
   return FONT_FAMILIES[name] ?? name;
 }
 
+/**
+ * A family the app doesn't ship comes from Google Fonts (a video can use any of them). The
+ * stylesheet is added once; `ensureFonts` then waits for the faces like for any other
+ * font, and reports the family as missing if it never arrives (offline, or no such font).
+ */
+function loadFromGoogle(name: string): Promise<void> {
+  if (typeof document === "undefined") return Promise.resolve();
+  const id = `gf-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  if (document.getElementById(id)) return Promise.resolve();
+  const link = document.createElement("link");
+  link.id = id;
+  link.rel = "stylesheet";
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name).replace(/%20/g, "+")}:wght@400;500;600;700;800&display=block`;
+  return new Promise((resolve) => {
+    link.onload = () => resolve();
+    link.onerror = () => resolve();
+    document.head.appendChild(link);
+    setTimeout(resolve, 8000);
+  });
+}
+
 const loaded = new Set<string>();
 
 /**
@@ -51,7 +72,8 @@ export async function ensureFonts(names: string[], weights: number[] = [400, 500
   const missing: string[] = [];
   for (const name of new Set(names)) {
     if (loaded.has(name)) continue;
-    await LOADERS[name]?.().catch(() => undefined);
+    if (LOADERS[name]) await LOADERS[name]().catch(() => undefined);
+    else if (!(name in FONT_FAMILIES)) await loadFromGoogle(name);
     const family = cssFamily(name);
     if (typeof document !== "undefined" && document.fonts) {
       const results = await Promise.all(

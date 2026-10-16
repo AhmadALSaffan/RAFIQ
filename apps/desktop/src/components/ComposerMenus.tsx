@@ -7,6 +7,15 @@ import { BrandMark } from "./BrandMark";
 import {
   AlertIcon,
   ClockIcon,
+  TextIcon,
+  PlayIcon,
+  MusicIcon,
+  MoonIcon,
+  MaximizeIcon,
+  LayersIcon,
+  EyeIcon,
+  BoltIcon,
+  AdjustIcon,
   CompressIcon,
   CopyIcon,
   DownloadIcon,
@@ -68,7 +77,12 @@ export type CommandId =
   | "schedule"
   | "design"
   | "stop"
-  | `skill:${string}`;
+  | `skill:${string}`
+  | `motion:${string}`
+  | `design:${string}`;
+
+/** Which screen the chat is on: a plain chat, a design's, or a motion project's. */
+export type ChatMode = "chat" | "design" | "motion";
 
 export interface CommandDef {
   id: CommandId;
@@ -82,20 +96,22 @@ export interface CommandDef {
   text?: string;
   /** The skill this command came from (installed skills add their own commands). */
   from?: string;
+  /** The screens it belongs on; every screen when unset. */
+  modes?: ChatMode[];
 }
 
 export const COMMANDS: CommandDef[] = [
-  { id: "task", label: t("/مهمة"), hint: t("اذكر مهمة من Jira أو غيرها"), aliases: ["task", "issue", t("مهمة"), t("جيرا")], Icon: TasksIcon, needs: "integration" },
-  { id: "file", label: t("/ملف"), hint: t("اذكر ملف من مجلد المحادثة (أو اكتب @)"), aliases: ["file", t("ملف")], Icon: FileIcon, needs: "folder" },
+  { id: "task", label: t("/مهمة"), hint: t("اذكر مهمة من Jira أو غيرها"), aliases: ["task", "issue", t("مهمة"), t("جيرا")], Icon: TasksIcon, needs: "integration", modes: ["chat"] },
+  { id: "file", label: t("/ملف"), hint: t("اذكر ملف من مجلد المحادثة (أو اكتب @)"), aliases: ["file", t("ملف")], Icon: FileIcon, needs: "folder", modes: ["chat"] },
   { id: "attach", label: t("/أرفق"), hint: t("ارفع صورة أو ملف من جهازك"), aliases: ["attach", "upload", t("ارفق"), t("أرفق"), t("مرفق")], Icon: PaperclipIcon },
-  { id: "folder", label: t("/مجلد"), hint: t("حدد مجلد العمل لهالمحادثة"), aliases: ["folder", "dir", t("مجلد")], Icon: FolderIcon },
+  { id: "folder", label: t("/مجلد"), hint: t("حدد مجلد العمل لهالمحادثة"), aliases: ["folder", "dir", t("مجلد")], Icon: FolderIcon, modes: ["chat"] },
   { id: "model", label: t("/نموذج"), hint: t("بدّل النموذج اللي بيرد عليك"), aliases: ["model", t("نموذج"), t("موديل")], Icon: ModelsIcon },
   { id: "config", label: t("/إعدادات"), hint: t("طول الرد، لغته، الحرارة، وتشغيل الأدوات"), aliases: ["config", "settings", t("اعدادات"), t("إعدادات"), t("ضبط")], Icon: SettingsIcon },
   { id: "summarize", label: t("/لخّص"), hint: t("اطوِ المحادثة بملخص عشان توفّر توكنز"), aliases: ["summarize", "compact", t("لخص"), t("لخّص"), t("تلخيص")], Icon: CompressIcon, needs: "chat" },
   { id: "retry", label: t("/أعد"), hint: t("احذف آخر رد وجرّب من جديد"), aliases: ["retry", "again", t("اعد"), t("أعد"), t("كرر")], Icon: RefreshIcon, needs: "chat" },
   { id: "copy", label: t("/انسخ"), hint: t("انسخ آخر رد للحافظة"), aliases: ["copy", t("انسخ"), t("نسخ")], Icon: CopyIcon, needs: "chat" },
-  { id: "export", label: t("/صدّر"), hint: t("احفظ المحادثة كملف Markdown أو HTML"), aliases: ["export", "save", t("صدر"), t("صدّر"), t("تصدير"), t("حفظ")], Icon: DownloadIcon, needs: "chat" },
-  { id: "share", label: t("/شارك"), hint: t("صفحة HTML كاملة تبعتها لأي حدا — بدون رفيق"), aliases: ["share", "html", t("شارك"), t("مشاركة")], Icon: GlobeIcon, needs: "chat" },
+  { id: "export", label: t("/صدّر"), hint: t("احفظ المحادثة كملف Markdown أو HTML"), aliases: ["export", "save", t("صدر"), t("صدّر"), t("تصدير"), t("حفظ")], Icon: DownloadIcon, needs: "chat", modes: ["chat"] },
+  { id: "share", label: t("/شارك"), hint: t("صفحة HTML كاملة تبعتها لأي حدا — بدون رفيق"), aliases: ["share", "html", t("شارك"), t("مشاركة")], Icon: GlobeIcon, needs: "chat", modes: ["chat"] },
   {
     id: "search",
     label: t("/بحث"),
@@ -107,6 +123,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: "review",
+    modes: ["chat"],
     label: t("/راجع"),
     hint: t("مراجعة كود مجلد المحادثة: أخطاء، أمان، أداء"),
     aliases: ["review", t("راجع"), t("مراجعة")],
@@ -117,6 +134,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: "test",
+    modes: ["chat"],
     label: t("/اختبر"),
     hint: t("شغّل اختبارات المشروع وصلّح اللي فشل"),
     aliases: ["test", "tests", t("اختبر"), t("اختبار"), t("تست")],
@@ -127,6 +145,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: "explain",
+    modes: ["chat"],
     label: t("/اشرح"),
     hint: t("اشرح آخر رد بشكل أبسط"),
     aliases: ["explain", "eli5", t("اشرح"), t("شرح"), t("بسط")],
@@ -137,6 +156,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: "translate",
+    modes: ["chat"],
     label: t("/ترجم"),
     hint: t("ترجم آخر رد للغة تختارها"),
     aliases: ["translate", t("ترجم"), t("ترجمة")],
@@ -154,20 +174,55 @@ export const COMMANDS: CommandDef[] = [
     kind: "prefill",
     text: t("تذكّر إني "),
   },
-  { id: "memory", label: t("/ذاكرة"), hint: t("شوف وعدّل اللي بيتذكّره رفيق"), aliases: ["memory", "memories", t("ذاكرة"), t("الذاكرة")], Icon: InfoIcon },
-  { id: "fork", label: t("/فرّع"), hint: t("افتح نسخة من المحادثة لتجرّب اتجاه تاني"), aliases: ["fork", "branch", t("فرع"), t("فرّع"), t("تفريع")], Icon: ForkIcon, needs: "chat" },
-  { id: "pin", label: t("/ثبّت"), hint: t("ثبّت المحادثة (أو فكّ تثبيتها) بأول القائمة"), aliases: ["pin", t("ثبت"), t("ثبّت"), t("تثبيت")], Icon: PinIcon, needs: "chat" },
-  { id: "title", label: t("/عنوان"), hint: t("غيّر عنوان المحادثة"), aliases: ["title", "rename", t("عنوان"), t("اسم"), t("سمي")], Icon: PencilIcon, needs: "chat" },
-  { id: "template", label: t("/قالب"), hint: t("احفظ آخر طلب كقالب مهمة تعيده بضغطة"), aliases: ["template", t("قالب"), t("قوالب")], Icon: TasksIcon, needs: "chat" },
+  { id: "memory", label: t("/ذاكرة"), hint: t("شوف وعدّل اللي بيتذكّره رفيق"), aliases: ["memory", "memories", t("ذاكرة"), t("الذاكرة")], Icon: InfoIcon, modes: ["chat"] },
+  { id: "fork", label: t("/فرّع"), hint: t("افتح نسخة من المحادثة لتجرّب اتجاه تاني"), aliases: ["fork", "branch", t("فرع"), t("فرّع"), t("تفريع")], Icon: ForkIcon, needs: "chat", modes: ["chat"] },
+  { id: "pin", label: t("/ثبّت"), hint: t("ثبّت المحادثة (أو فكّ تثبيتها) بأول القائمة"), aliases: ["pin", t("ثبت"), t("ثبّت"), t("تثبيت")], Icon: PinIcon, needs: "chat", modes: ["chat"] },
+  { id: "title", label: t("/عنوان"), hint: t("غيّر عنوان المحادثة"), aliases: ["title", "rename", t("عنوان"), t("اسم"), t("سمي")], Icon: PencilIcon, needs: "chat", modes: ["chat"] },
+  { id: "template", label: t("/قالب"), hint: t("احفظ آخر طلب كقالب مهمة تعيده بضغطة"), aliases: ["template", t("قالب"), t("قوالب")], Icon: TasksIcon, needs: "chat", modes: ["chat"] },
   { id: "prompts", label: t("/برومبت"), hint: t("نصوصك الجاهزة — بمتغيرات تعبّيها كل مرة"), aliases: ["prompt", "prompts", t("برومبت"), t("برومبتات"), t("موجه")], Icon: WandIcon },
-  { id: "tasks", label: t("/مهام"), hint: t("روح لصفحة المهام"), aliases: ["tasks", t("مهام"), t("المهام")], Icon: TasksIcon },
-  { id: "schedule", label: t("/جدولة"), hint: t("جدول مهمة تتكرر كل يوم أو أسبوع"), aliases: ["schedule", "cron", t("جدولة"), t("جدول"), t("مجدولة")], Icon: ClockIcon },
-  { id: "design", label: t("/تصميم"), hint: t("ابدأ تصميم واجهة قبل ما تبرمجها"), aliases: ["design", t("تصميم"), t("صمم"), t("صمّم")], Icon: SparkIcon },
+  { id: "tasks", label: t("/مهام"), hint: t("روح لصفحة المهام"), aliases: ["tasks", t("مهام"), t("المهام")], Icon: TasksIcon, modes: ["chat"] },
+  { id: "schedule", label: t("/جدولة"), hint: t("جدول مهمة تتكرر كل يوم أو أسبوع"), aliases: ["schedule", "cron", t("جدولة"), t("جدول"), t("مجدولة")], Icon: ClockIcon, modes: ["chat"] },
+  { id: "design", label: t("/تصميم"), hint: t("ابدأ تصميم واجهة قبل ما تبرمجها"), aliases: ["design", t("تصميم"), t("صمم"), t("صمّم")], Icon: SparkIcon, modes: ["chat"] },
   { id: "stop", label: t("/وقف"), hint: t("أوقف الرد اللي عم ينكتب"), aliases: ["stop", t("وقف"), t("أوقف"), t("اوقف"), t("توقف")], Icon: StopIcon, needs: "chat" },
-  { id: "done", label: t("/خلصت"), hint: t("اكتب تعليق على المهمة وعلّمها مكتملة"), aliases: ["done", "complete", t("خلصت"), t("انجزت"), t("أنجزت")], Icon: DrawnCheckIconShim, needs: "integration" },
-  { id: "new", label: t("/جديد"), hint: t("ابدأ محادثة جديدة"), aliases: ["new", t("جديد")], Icon: PlusIcon },
+  { id: "done", label: t("/خلصت"), hint: t("اكتب تعليق على المهمة وعلّمها مكتملة"), aliases: ["done", "complete", t("خلصت"), t("انجزت"), t("أنجزت")], Icon: DrawnCheckIconShim, needs: "integration", modes: ["chat"] },
+  { id: "new", label: t("/جديد"), hint: t("ابدأ محادثة جديدة"), aliases: ["new", t("جديد")], Icon: PlusIcon, modes: ["chat"] },
   { id: "help", label: t("/مساعدة"), hint: t("كل الأوامر والاختصارات"), aliases: ["help", t("مساعدة"), t("اوامر"), t("أوامر")], Icon: HelpIcon },
 ];
+
+/** What a motion project's chat offers on top of the shared commands. */
+export const MOTION_COMMANDS: CommandDef[] = [
+  { id: "motion:review", label: t("/راجع"), hint: t("مراجعة المخرج لقطة لقطة، وتصليح الملاحظات"), aliases: ["review", t("راجع"), t("مراجعة"), t("حسن"), t("حسّن")], Icon: WandIcon, kind: "send", text: t("راجع الفيديو لقطة لقطة متل مخرج: شغّل motion_review، وصلّح ملاحظات كل لقطة بـ patch وحدة للقطة، وقارن مع مثال الفيديو الاحترافي. أعد motion_review لحد ما تخلص الملاحظات. بالآخر قلّي شو غيّرت بكل لقطة.") },
+  { id: "motion:lint", label: t("/افحص"), hint: t("افحص المشهد وصلّح الأخطاء"), aliases: ["lint", "check", t("افحص"), t("فحص")], Icon: ShieldIcon, kind: "send", text: t("افحص الفيديو بـ motion_lint وصلّح كل خطأ، وقلّي شو صلّحت.") },
+  { id: "motion:shot", label: t("/لقطة"), hint: t("ضيف لقطة جديدة"), aliases: ["shot", "scene", t("لقطة"), t("مشهد")], Icon: PlusIcon, kind: "prefill", text: t("ضيف لقطة جديدة: ") },
+  { id: "motion:colors", label: t("/ألوان"), hint: t("غيّر ألوان الفيديو"), aliases: ["colors", "palette", t("الوان"), t("ألوان"), t("لون")], Icon: AdjustIcon, kind: "prefill", text: t("غيّر ألوان الفيديو لتكون ") },
+  { id: "motion:fonts", label: t("/خطوط"), hint: t("غيّر خطوط الفيديو"), aliases: ["fonts", "type", t("خطوط"), t("خط")], Icon: TextIcon, kind: "prefill", text: t("غيّر خطوط الفيديو لـ ") },
+  { id: "motion:sound", label: t("/صوت"), hint: t("موسيقى ومؤثرات على اللحظات المهمة"), aliases: ["sound", "music", "sfx", t("صوت"), t("موسيقى")], Icon: MusicIcon, kind: "send", text: t("ضيف موسيقى بتناسب جو الفيديو، ومؤثرات صوتية على اللحظات المهمة بس (القطع، ظهور العنوان، الزر).") },
+  { id: "motion:length", label: t("/مدة"), hint: t("طوّل أو قصّر الفيديو"), aliases: ["length", "duration", t("مدة"), t("طول")], Icon: ClockIcon, kind: "prefill", text: t("خلّي مدة الفيديو ") },
+  { id: "motion:aspect", label: t("/مقاس"), hint: t("ريل 9:16، عريض 16:9، أو مربع 1:1"), aliases: ["aspect", "size", "ratio", t("مقاس"), t("أبعاد")], Icon: MaximizeIcon, kind: "prefill", text: t("حوّل الفيديو لمقاس ") },
+  { id: "motion:preview", label: t("/معاينة"), hint: t("شغّل الفيديو على كامل الشاشة"), aliases: ["preview", "play", t("معاينة"), t("شغل")], Icon: PlayIcon },
+  { id: "motion:export", label: t("/صدّر"), hint: t("صدّر الفيديو MP4"), aliases: ["export", "render", "mp4", t("صدر"), t("صدّر"), t("تصدير")], Icon: DownloadIcon },
+];
+
+/** What a design's chat offers on top of the shared commands. */
+export const DESIGN_COMMANDS: CommandDef[] = [
+  { id: "design:review", label: t("/راجع"), hint: t("مراجعة المصمم قسم قسم، وتصليح الملاحظات"), aliases: ["review", t("راجع"), t("مراجعة"), t("حسن"), t("حسّن")], Icon: WandIcon, kind: "send", text: t("راجع التصميم قسم قسم متل مصمم محترف: شغّل design_review، وصلّح كل ملاحظاته، وقارن مع مثال التصميم الاحترافي بالدليل. أعد design_review لحد ما تخلص الملاحظات، وبالآخر قلّي شو غيّرت بكل قسم.") },
+  { id: "design:motion", label: t("/حركة"), hint: t("ظهور مع السكرول، hover، وحركة بالهيرو"), aliases: ["motion", "animate", t("حركة"), t("تحريك"), t("أنيميشن")], Icon: BoltIcon, kind: "send", text: t("ضيف حركة للتصميم متل المواقع الاحترافية: ظهور الأقسام مع السكرول بتتابع، hover على الأزرار والكروت، وحركة بتلفت النظر بالهيرو — بدون مبالغة، ومع prefers-reduced-motion.") },
+  { id: "design:colors", label: t("/ألوان"), hint: t("غيّر ألوان التصميم"), aliases: ["colors", "palette", t("الوان"), t("ألوان"), t("لون")], Icon: AdjustIcon, kind: "prefill", text: t("غيّر ألوان التصميم لتكون ") },
+  { id: "design:fonts", label: t("/خطوط"), hint: t("غيّر خطوط التصميم"), aliases: ["fonts", "type", t("خطوط"), t("خط")], Icon: TextIcon, kind: "prefill", text: t("غيّر خطوط التصميم لـ ") },
+  { id: "design:section", label: t("/قسم"), hint: t("ضيف قسم للصفحة"), aliases: ["section", t("قسم")], Icon: PlusIcon, kind: "prefill", text: t("ضيف قسم: ") },
+  { id: "design:page", label: t("/صفحة"), hint: t("ضيف صفحة بنفس التدفّق"), aliases: ["page", "screen", t("صفحة"), t("شاشة")], Icon: LayersIcon, kind: "prefill", text: t("ضيف صفحة جديدة بنفس التدفّق: ") },
+  { id: "design:mobile", label: t("/موبايل"), hint: t("راجع التصميم على عرض الموبايل"), aliases: ["mobile", "responsive", t("موبايل"), t("جوال")], Icon: EyeIcon, kind: "send", text: t("راجع التصميم على عرض 380px: صلّح أي شي مكسور أو مزحوم أو مقصوص، وخلّي الأزرار مريحة للمس.") },
+  { id: "design:dark", label: t("/داكن"), hint: t("وضع داكن بنفس الهوية"), aliases: ["dark", "theme", t("داكن"), t("ليلي")], Icon: MoonIcon, kind: "send", text: t("ضيف وضع داكن بنفس هوية التصميم (مش مجرد قلب ألوان)، مع زر تبديل بيتذكّر اختيار المستخدم.") },
+  { id: "design:build", label: t("/برمج"), hint: t("سلّم التصميم لجلسة برمجة"), aliases: ["build", "code", "handoff", t("برمج"), t("بدء")], Icon: TerminalIcon },
+];
+
+/** Every command a chat on this screen offers, its own first. */
+export function commandsFor(mode: ChatMode, extra: CommandDef[] = []): CommandDef[] {
+  const own = mode === "motion" ? MOTION_COMMANDS : mode === "design" ? DESIGN_COMMANDS : [];
+  const shared = COMMANDS.filter((c) => !c.modes || c.modes.includes(mode));
+  // a skill's command is for chats and designs; a motion project has its own vocabulary
+  return [...own, ...shared, ...(mode === "motion" ? [] : extra)];
+}
 
 function DrawnCheckIconShim({ className }: { className?: string }) {
   return <DrawnCheck className={className} />;
@@ -304,6 +359,7 @@ export function CommandMenu({
   onClose,
   registerKeyHandler,
   extra = [],
+  mode = "chat",
 }: {
   query: string;
   available: (cmd: CommandDef) => boolean;
@@ -312,9 +368,10 @@ export function CommandMenu({
   registerKeyHandler: (handler: (e: React.KeyboardEvent) => boolean) => void;
   /** Commands installed skills bring, listed after the built-in ones. */
   extra?: CommandDef[];
+  mode?: ChatMode;
 }) {
   const q = query.toLowerCase();
-  const items = [...COMMANDS, ...extra].filter((c) => !q || c.aliases.some((a) => a.toLowerCase().startsWith(q)) || c.label.includes(q));
+  const items = commandsFor(mode, extra).filter((c) => !q || c.aliases.some((a) => a.toLowerCase().startsWith(q)) || c.label.includes(q));
   const [active, setActive] = useState(0);
 
   useEffect(() => setActive(0), [query]);

@@ -247,7 +247,18 @@ export function DesignWorkspace() {
         {/* The design conversation — the same chat surface as everywhere else. */}
         <div className="flex min-h-0 shrink-0 flex-col" style={{ width: chatWidth }}>
           {/* The kickoff is sent only while that chat is still empty, so a reload is safe. */}
-          <ChatPage chatId={design.chat_id} embedded autoSend={design.kickoff} onReplyDone={refresh} />
+          <ChatPage
+            chatId={design.chat_id}
+            embedded
+            autoSend={design.kickoff}
+            onReplyDone={refresh}
+            mode="design"
+            onHostCommand={(id) => {
+              if (id !== "design:build") return false;
+              setHandoffOpen(true);
+              return true;
+            }}
+          />
         </div>
         <Resizer
           value={chatWidth}

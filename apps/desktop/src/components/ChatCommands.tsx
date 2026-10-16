@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import type { ChatMessage, ReplyLanguage, ReplyLength, ReplySettings } from "../lib/types";
 import { fieldDir } from "../lib/bidi";
 import { easeOutExpo } from "../lib/motion";
-import { COMMANDS, type CommandDef } from "./ComposerMenus";
+import { commandsFor, type ChatMode, type CommandDef } from "./ComposerMenus";
 import { DownloadIcon, GlobeIcon } from "./Icons";
 import { Button } from "./ui";
 import { XIcon } from "./Icons";
@@ -310,12 +310,12 @@ const SHORTCUTS = [
 ];
 
 /** `/مساعدة` — every command and shortcut in one place. */
-export function HelpDialog({ onClose, extra = [] }: { onClose: () => void; extra?: CommandDef[] }) {
+export function HelpDialog({ onClose, extra = [], mode = "chat" }: { onClose: () => void; extra?: CommandDef[]; mode?: ChatMode }) {
   return (
     <Dialog title={t("الأوامر والاختصارات")} subtitle={t("اكتب / بصندوق الكتابة عشان تطلعلك نفس القائمة.")} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <ul className="flex flex-col gap-1.5">
-          {[...COMMANDS, ...extra].map((cmd) => (
+          {commandsFor(mode, extra).map((cmd) => (
             <li key={cmd.id} className="flex items-start gap-2.5">
               <cmd.Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
               <span className="min-w-0">

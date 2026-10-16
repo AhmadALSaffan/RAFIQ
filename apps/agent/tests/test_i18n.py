@@ -42,7 +42,12 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     "core/chat_service.py": {"transcript_of", "_transcript_lines", "_fold_into", "summarize", "_system_prompt"},
     # What a request carries is fitted to the model; its notes are written to the model.
     "core/context.py": "*",
-    "core/designs.py": {"QUESTIONS", "DESIGN_SYSTEM_PROMPT", "skills_note", "_SLUG_BAD", "OLD_VERSION", "CURRENT_MENTION", "current_documents", "without_html"},
+    "core/designs.py": {"QUESTIONS", "DESIGN_SYSTEM_PROMPT", "skills_note", "_SLUG_BAD", "OLD_VERSION", "CURRENT_MENTION", "current_documents", "without_html", "design_guide_note"},
+    # the designer's review talks to the model (and matches Arabic placeholder text)
+    "core/design_review.py": "*",
+    "tools/design.py": {"DesignReviewTool"},
+    # style labels are translated where they're served; the note is for the model
+    "core/identity.py": {"STYLES", "identity_note"},
     "llm/copilot.py": {"_text_of", "split_messages", "stream_chat", "aclose"},
     "integrations/tools.py": {"description", "parameters"},
     "integrations/providers.py": {"spec"},
@@ -140,6 +145,9 @@ def _scan():
     dynamic = [DISCONNECTED, DEFAULT_TITLE, *_ERRORS.values()]
     for q in QUESTIONS:
         dynamic += [q["label"], q.get("placeholder") or "", *q.get("options", [])]
+    from rafiq_agent.core.identity import STYLES
+
+    dynamic += [s["label"] for s in STYLES.values()]
     for cls in REGISTRY.values():
         dynamic += [cls.spec.blurb, *(f.label for f in cls.spec.fields), *(f.help for f in cls.spec.fields)]
     for text in dynamic:

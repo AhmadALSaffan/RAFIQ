@@ -12,6 +12,7 @@ import { arcPath, arrowPath, ellipsePath, heartPath, polygonPath, rectPath, ring
 import { iconNames, loadIcons, searchIcons } from "./engine/icons";
 import { ICON_SETS, isColourIcon } from "./engine/iconSets";
 import { IconPreview } from "./IconPreview";
+import { kitForScene } from "./engine/brand";
 import { mixAudio, toAudioBuffer } from "./engine/audio";
 import type { AudioTrack, BrandKit, Gradient, Layer, Scene } from "./engine/types";
 import { AssetsPane } from "./AssetsPane";
@@ -464,8 +465,11 @@ function MotionTab({ scene, time, selected, onChange }: PanelProps) {
   );
 }
 
-export function EditorPanel({ tab, onTab, ...props }: PanelProps & { tab: PanelTab; onTab: (tab: PanelTab) => void }) {
-  const { scene, kit, projectId, time, selected, onSelect, onChange } = props;
+export function EditorPanel({ tab, onTab, ...given }: PanelProps & { tab: PanelTab; onTab: (tab: PanelTab) => void }) {
+  // The swatches show this video's own palette when it has one (scene.palette), like the stage.
+  const kit = useMemo(() => kitForScene(given.kit, given.scene), [given.kit, given.scene]);
+  const props = { ...given, kit };
+  const { scene, projectId, time, selected, onSelect, onChange } = props;
   const selectedLayer = useMemo(() => {
     const walk = (layers: Layer[]): Layer | null => {
       for (const l of layers) {

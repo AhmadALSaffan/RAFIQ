@@ -8,7 +8,10 @@ import { DEFAULT_KIT, LINE_HEIGHT, TEXT_WEIGHT, fontStack, isGradient, paintColo
 import { BASE, countExtent, expand, isArabic, valueAt, type LayerTracks } from "./tracks";
 import type { Anchor, Box, BrandKit, DrawItem, Frame, Layer, Scene, TextLine, TypeStyle } from "./types";
 
-export type Measure = (text: string, font: string) => number;
+export type Measure = ((text: string, font: string) => number) & {
+  /** How far the drawn glyphs reach below the baseline, in px (a deep ي or ج in a display face). */
+  descent?: (text: string, font: string) => number;
+};
 
 export interface LaidOut {
   box: Box;
@@ -110,7 +113,7 @@ function fontFor(layer: Layer, kit: BrandKit, px: number): string {
   const style = layer.style ?? "body";
   const weight = layer.weight ?? TEXT_WEIGHT[style];
   const role = layer.font ?? (style === "display" || style === "headline" || style === "title" ? "display" : "body");
-  return `${weight} ${px.toFixed(2)}px ${fontStack(kit, role)}`;
+  return `${weight} ${px.toFixed(2)}px ${fontStack(kit, role, layer.fontFamily)}`;
 }
 
 // ── Layout ──────────────────────────────────────────────────────────────────────────────
@@ -132,7 +135,7 @@ function intrinsic(layer: Layer, p: Prepared, container: Box, measure: Measure):
 
   if (layer.type === "text") {
     const style: TypeStyle = layer.style ?? "body";
-    const px = stylePx(kit, comp, style);
+    const px = stylePx(kit, comp, style, layer.size);
     const font = fontFor(layer, kit, px);
     const tracks = p.tracks.get(layer.id)!;
     // Measure with the widest number the count will show, so the box never jumps.
@@ -142,7 +145,14 @@ function intrinsic(layer: Layer, p: Prepared, container: Box, measure: Measure):
     const lines = wrapText(sample, Math.max(unit, maxW), font, measure);
     const lineHeight = px * LINE_HEIGHT[style];
     const w = W ?? Math.min(container.w, Math.max(...lines.map((l) => l.width)) + pad * 2);
-    const h = H ?? lines.length * lineHeight + pad * 2;
+    let h = H ?? lines.length * lineHeight + pad * 2;
+    // Some faces draw below the line box (Alexandria's ي at 250px): grow the box so what's
+    // stacked under it keeps its gap instead of touching the glyphs.
+    if (H === undefined && measure.descent && lines.length) {
+      const last = lines[lines.length - 1].text;
+      const baseline = pad + (lineHeight - px) / 2 + (lines.length - 1) * lineHeight + px * 0.92;
+      h = Math.max(h, baseline + measure.descent(last, font) + pad);
+    }
     const dir = textDirection(sample, p.dir);
     return { box: { x: 0, y: 0, w, h }, lines, font, fontPx: px, lineHeight, dir, pad, sample };
   }

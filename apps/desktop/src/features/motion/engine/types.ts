@@ -67,7 +67,7 @@ export interface Layout {
 export type PresetName =
   | "fadeIn" | "fadeOut" | "fadeUp" | "fadeDown" | "slideIn" | "slideOut" | "scaleIn" | "scaleOut" | "pop"
   | "typewriter" | "wordPop" | "lineReveal" | "maskReveal" | "countUp" | "drawOn" | "kenBurns" | "wipe"
-  | "zoomPunch" | "shake" | "float" | "blurIn" | "bounceIn" | "rotateIn" | "spin" | "pulse";
+  | "zoomPunch" | "shake" | "float" | "blurIn" | "bounceIn" | "rotateIn" | "spin" | "pulse" | "sweep";
 
 export interface Animation {
   preset: PresetName;
@@ -115,6 +115,10 @@ export interface Layer {
   outline?: { color?: ColorRef; width?: number };
   align?: "start" | "center" | "end";
   font?: "display" | "body" | "latin" | "mono";
+  /** A font family for this text alone, over its role's (any family, like scene.fonts). */
+  fontFamily?: string;
+  /** An exact size for this text, px on a 1080 short side, over its style's. */
+  size?: number;
   background?: { color?: Paint; padding?: number; radius?: number };
   format?: { decimals?: number; group?: boolean };
   // shape
@@ -181,6 +185,12 @@ export interface Scene {
   title?: string;
   composition: Composition;
   brand?: string;
+  /** This video's own colours for the brand.* tokens (surface, primary…), over the kit's. */
+  palette?: Record<string, string>;
+  /** This video's own fonts (any family: shipped ones, or any Google Fonts family). */
+  fonts?: { display?: string; body?: string; latin?: string; mono?: string };
+  /** This video's own type scale, px on a 1080 short side (a reel wants bigger type). */
+  type?: Partial<Record<TypeStyle, number>>;
   assets?: Record<string, Asset>;
   layers: Layer[];
   audio?: AudioTrack[];

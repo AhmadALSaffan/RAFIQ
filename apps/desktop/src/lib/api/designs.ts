@@ -1,7 +1,27 @@
 /** Design sessions: the brief, the preview, and the handoff to a build session. */
 
 import { request } from "./client";
-import type { Design, DesignDiff, DesignDocument, DesignSummary, DesignVersion, HandoffResult, InitQuestion } from "../types";
+import type { Design, DesignDiff, DesignDocument, DesignIdentity, DesignSummary, DesignVersion, HandoffResult, IdentityData, IdentityOptions, InitQuestion } from "../types";
+
+export async function identityOptions(): Promise<IdentityOptions> {
+  return request<IdentityOptions>("/design-identities/options");
+}
+
+export async function listIdentities(workspaceId?: string | null): Promise<DesignIdentity[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : "";
+  return request<DesignIdentity[]>(`/design-identities${query}`);
+}
+
+export async function saveIdentity(data: IdentityData, id?: string | null, workspaceId?: string | null): Promise<DesignIdentity> {
+  return request<DesignIdentity>(id ? `/design-identities/${id}` : "/design-identities", {
+    method: id ? "PUT" : "POST",
+    body: JSON.stringify({ name: data.name, data, workspace_id: workspaceId ?? null }),
+  });
+}
+
+export async function deleteIdentity(id: string): Promise<void> {
+  await request<void>(`/design-identities/${id}`, { method: "DELETE" });
+}
 
 export async function initQuestions(): Promise<InitQuestion[]> {
   return request<InitQuestion[]>("/designs/questions");
@@ -24,6 +44,8 @@ export async function createDesign(
   /** Rafiq's search tool for the design chat (null = decide by the model). */
   webSearch?: boolean | null,
   workspaceId?: string | null,
+  /** The identity the user built for it. */
+  identity?: IdentityData | null,
 ): Promise<Design> {
   return request<Design>("/designs", {
     method: "POST",
@@ -34,6 +56,7 @@ export async function createDesign(
       working_dir: workingDir ?? null,
       web_search: webSearch ?? null,
       workspace_id: workspaceId ?? null,
+      identity: identity ?? null,
     }),
   });
 }

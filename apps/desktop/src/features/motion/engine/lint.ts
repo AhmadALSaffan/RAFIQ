@@ -325,6 +325,8 @@ export async function lintScene(engine: MotionEngine, options: LintOptions = {})
   for (const layer of allLayers(scene.layers)) {
     const tracks = p.tracks.get(layer.id);
     if (!tracks || !tracks.segments.size) continue;
+    // a transition panel crosses the whole frame in half a second on purpose
+    if ((layer.animate ?? []).some((a) => a.preset === "sweep")) continue;
     let prev: number[] | null = null;
     const end = Math.min(layer.end, comp.duration);
     for (let time = layer.start; time < end; time += step) {

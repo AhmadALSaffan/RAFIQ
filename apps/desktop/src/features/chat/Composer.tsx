@@ -17,14 +17,7 @@ import { BrandMark } from "../../components/BrandMark";
 import { TokenText } from "../../components/TokenText";
 import { UploadChips, useUploads } from "../../components/Attachments";
 import { ChevronDownIcon, ModelsIcon, PaperclipIcon, StopIcon } from "../../components/Icons";
-import {
-  CommandMenu,
-  FileMenu,
-  IssueMenu,
-  readTrigger,
-  replaceTrigger,
-  type CommandDef,
-} from "../../components/ComposerMenus";
+import { CommandMenu, FileMenu, IssueMenu, readTrigger, replaceTrigger, type CommandDef, type ChatMode } from "../../components/ComposerMenus";
 import { MicButton } from "./MicButton";
 
 import { t } from "../../i18n";
@@ -47,6 +40,7 @@ export function Composer({
   webSearch,
   onWebSearch,
   extraCommands,
+  mode = "chat",
 }: {
   disabled: boolean;
   streaming: boolean;
@@ -63,6 +57,8 @@ export function Composer({
   onCommand: (cmd: CommandDef) => void;
   /** Slash commands from installed skills. */
   extraCommands?: CommandDef[];
+  /** The screen the chat is on — which commands `/` offers. */
+  mode?: ChatMode;
   onIssueMentioned: (issue: TrackerIssue) => void;
   /** Text to drop in the box (a question being edited); `at` makes repeats take effect. */
   prefill?: { text: string; at: number } | null;
@@ -167,6 +163,7 @@ export function Composer({
               onClose={() => setDismissed({ kind: trigger.kind, start: trigger.start })}
               registerKeyHandler={(h) => (menuKeys.current = h)}
               extra={extraCommands}
+              mode={mode}
             />
           )}
           {menuOpen && trigger?.kind === "@" && (

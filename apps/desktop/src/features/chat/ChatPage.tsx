@@ -22,7 +22,7 @@ import { easeOutExpo, snappy } from "../../lib/motion";
 import { ChatList } from "../../components/ChatList";
 import { usePageMenu } from "../../components/ContextMenu";
 import { Resizer } from "../../components/Resizer";
-import { DoneDialog, type CommandDef } from "../../components/ComposerMenus";
+import { DoneDialog, type ChatMode, type CommandDef } from "../../components/ComposerMenus";
 import { chatToMarkdown, ExportDialog, HelpDialog, RenameDialog, ReplyConfigDialog, saveTextFile } from "../../components/ChatCommands";
 import { PromptLibraryDialog, SavePromptDialog } from "./prompts";
 import { BookmarksMenu } from "./bookmarks";
@@ -48,6 +48,8 @@ export function ChatPage({
   autoSend,
   onReplyDone,
   sendRequest,
+  mode = "chat",
+  onHostCommand,
 }: {
   chatId?: string;
   embedded?: boolean;
@@ -56,6 +58,10 @@ export function ChatPage({
   onReplyDone?: () => void;
   /** A message the host page sends on the user's behalf (a button press); a new `id` sends again. */
   sendRequest?: { id: number; text: string } | null;
+  /** Which screen it's on: decides what `/` offers. */
+  mode?: ChatMode;
+  /** The host page runs its own commands (export, preview, hand off); true = handled. */
+  onHostCommand?: (id: string) => boolean;
 } = {}) {
   const params = useParams<{ id: string }>();
   const routeId = chatId ?? params.id;
@@ -679,6 +685,7 @@ export function ChatPage({
 
   async function runCommand(cmd: CommandDef) {
     const id = cmd.id;
+    if (onHostCommand?.(id)) return;
     // Commands that are really a message (built-in ones and every skill command).
     if (cmd.kind === "send" && cmd.text) {
       if (cmd.needs === "chat" && !routeId) return setError(t("ابدأ المحادثة أول."));
@@ -1137,6 +1144,7 @@ export function ChatPage({
           openModelMenu={openModelMenu}
           onCommand={runCommand}
           extraCommands={skillCommands}
+          mode={mode}
           onIssueMentioned={setLastIssue}
           prefill={prefill}
           webSearch={current?.settings?.web_search ?? undefined}
@@ -1192,7 +1200,7 @@ export function ChatPage({
         {configOpen && (
           <ReplyConfigDialog settings={current?.settings ?? DEFAULT_REPLY_SETTINGS} onClose={() => setConfigOpen(false)} onSave={saveSettings} />
         )}
-        {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} extra={skillCommands} />}
+        {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} extra={skillCommands} mode={mode} />}
         {exportOpen && (
           <ExportDialog
             onClose={() => setExportOpen(false)}

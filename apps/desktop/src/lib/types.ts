@@ -745,6 +745,42 @@ export interface InitQuestion {
 
 export type DesignStatus = "draft" | "ready" | "handed_off";
 
+/** The roles of a visual identity's palette (core/identity.py). */
+export type IdentityRole = "background" | "surface" | "ink" | "muted" | "line" | "primary" | "onPrimary" | "accent";
+
+/** A visual identity the user builds before a design starts; the model uses exactly it. */
+export interface IdentityData {
+  name: string;
+  style: string;
+  theme: "light" | "dark" | "both";
+  colors: Record<IdentityRole, string>;
+  /** The dark palette, when the theme is both. */
+  dark?: Record<IdentityRole, string>;
+  fonts: { display: string; body: string; latin: string };
+  radius: "sharp" | "soft" | "round";
+  shadow: "none" | "soft" | "hard";
+  density: "airy" | "balanced" | "compact";
+  motion: "calm" | "medium" | "cinematic";
+  logo: string;
+  voice: string;
+}
+
+export interface DesignIdentity {
+  id: string;
+  name: string;
+  data: IdentityData;
+  workspace_id: string | null;
+  updated_at: string;
+}
+
+export interface IdentityOptions {
+  styles: { key: string; label: string; preset: Omit<IdentityData, "name" | "logo" | "voice"> }[];
+  fonts: { display: string[]; body: string[]; latin: string[] };
+  /** The weights each font family really has. */
+  weights: Record<string, string>;
+  roles: IdentityRole[];
+}
+
 export interface DesignSummary {
   id: string;
   title: string;
@@ -809,6 +845,8 @@ export interface Design {
   id: string;
   title: string;
   brief: Record<string, string | string[]> | null;
+  /** The identity the user built for this design. */
+  identity?: IdentityData | null;
   spec: string | null;
   preview_html: string | null;
   /** Every document, oldest first; the preview opens on the one the model touched last. */

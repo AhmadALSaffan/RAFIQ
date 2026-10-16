@@ -6,6 +6,7 @@ import { MotionEngine, openAudio } from "./engine/engine";
 import type { ExportSettings } from "./engine/export";
 import { inspectFrames } from "./engine/inspect";
 import { lintScene, type Issue } from "./engine/lint";
+import { formatReview, reviewScene } from "./engine/review";
 import { analyzeVideo, blobToDataUrl, VideoClip } from "./engine/video";
 import type { Asset, BrandKit, Scene } from "./engine/types";
 import { assetLoader, runExport } from "./exports";
@@ -48,6 +49,14 @@ export async function handle(request: EngineRequest): Promise<unknown> {
       const engine = await engineFor(p.scene as Scene, p.kit as BrandKit);
       try {
         return { report: await inspectFrames(engine, (p.times as number[]) ?? [0]) };
+      } finally {
+        engine.dispose();
+      }
+    }
+    case "review": {
+      const engine = await engineFor(p.scene as Scene, p.kit as BrandKit);
+      try {
+        return { report: formatReview(reviewScene(engine)) };
       } finally {
         engine.dispose();
       }

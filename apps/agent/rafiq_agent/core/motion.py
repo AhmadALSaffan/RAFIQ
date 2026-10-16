@@ -122,6 +122,19 @@ async def inspect(scene: dict[str, Any], kit: dict[str, Any], times: list[float]
     )
 
 
+def review_guide() -> str:
+    """How to review shot by shot (REVIEW.md): the mistakes and what a designer does instead."""
+    return (rms.SCHEMA_PATH.parent / "REVIEW.md").read_text(encoding="utf-8").strip()
+
+
+async def review(scene: dict[str, Any], kit: dict[str, Any]) -> str:
+    """The director's review: the video cut into shots, each measured (hero size, smallest
+    text, frame fill, centre, life while it holds, transitions), with a note per problem.
+    Needs the engine — the measurements are of laid-out, animated frames."""
+    result = await bridge.call("review", {"scene": scene, "kit": kit}, timeout=60)
+    return str(result.get("report", ""))
+
+
 async def frames(scene: dict[str, Any], kit: dict[str, Any], times: list[float], max_side: int = 960) -> list[str]:
     """PNG data URLs of chosen frames, for a model that can look."""
     result = await bridge.call("frames", {"scene": scene, "kit": kit, "times": times, "maxSide": max_side}, timeout=90)
@@ -158,18 +171,25 @@ def format_issues(issues: list[dict[str, Any]], limit: int = 25) -> str:
 
 
 MOTION_SYSTEM_PROMPT = (
-    "أنت مخرج موشن قرافك داخل تطبيق رفيق. بتبني فيديوهات (ريلز، إنترو، شرح، رسوم بيانية، عرض تطبيق، "
-    "وتعديل فيديو المستخدم) بكتابة **مشهد** بصيغة RMS v1، والإنجن بيرسم كل فريم.\n\n"
+    "أنت مخرج ومصمم موشن قرافك محترف داخل تطبيق رفيق. بتبني فيديوهات (ريلز، إنترو، شرح، رسوم بيانية، "
+    "عرض تطبيق، وتعديل فيديو المستخدم) بكتابة **مشهد** بصيغة RMS v1، والإنجن بيرسم كل فريم. المستوى المطلوب: "
+    "متل شغل استوديو موشن محترف، مش شرائح نص.\n\n"
     "القواعد:\n"
-    "1. مرجع الصيغة (مهارة motion) موجود تحت بهالرسالة — اشتغل منه مباشرة وما تقرأ ملفات بالبداية. "
-    "schema.json بـ skill_read بس إذا احتجت تفصيل خاصية مش موجود بالمرجع.\n"
-    "2. ما بتكتب بكسلات ولا خطوط مباشرة: المواقع بوحدات الشبكة والستايلات من سلّم الخط. الألوان مفتوحة: "
-    "توكنز brand.* لتضل على الهوية، أو أي hex أو gradient لما التصميم بده — بس انتبه للتباين.\n"
+    "1. تحت بهالرسالة في دليلين: «إخراج الموشن» (كيف بيفكّر المصمم المحترف: البريف، اللقطات، الألوان، الخطوط، "
+    "الحركة، الصوت) و«مرجع الصيغة». اشتغل منهم مباشرة وما تقرأ ملفات بالبداية. "
+    "schema.json بـ skill_read بس إذا احتجت تفصيل خاصية مش موجود.\n"
+    "2. قبل أول تعديل اكتب البريف (الفكرة، الألوان بالـ hex، الخطوط، قائمة اللقطات بالتوقيت، الصوت) — "
+    "إنت اللي بتقرر كل شي حسب فكرة الفيديو، ولكل فيديو هوية خاصة فيه. الألوان والخطوط مفتوحة بالكامل: "
+    "حط ألوانك بـ scene.palette وخطوطك بـ scene.fonts (أي خط من Google Fonts بالاسم)، والـ brand kit "
+    "مجرد افتراضي. المواقع بوحدات الشبكة والأحجام من سلّم الخط، وانتبه للتباين.\n"
     "3. بتعدّل المشهد بس بـ motion_patch_scene، مش بإعادة كتابته. خلّي كل patch مقطع كامل (كل طبقات المقطع "
     "بـ patch وحدة)، مش طبقة طبقة. كل patch بيصير نسخة وبيرجعلك نتيجة الفحص — صلّح أي خطأ قبل ما تكمّل.\n"
     "  دوّر على كل الأيقونات اللي بدك ياها بطلب وحدة: motion_assets action=icons مع queries (قائمة كلمات).\n"
-    "4. لما يخلص الفحص بدون أخطاء: راجع الفريمات المهمة بـ motion_render_frames (إذا ما بتشوف صور بيرجعلك "
-    "وصفها مكتوب)، و motion_inspect للقياسات الدقيقة (المسافات والتباين).\n"
+    "4. لما يخلص الفحص بدون أخطاء: شغّل motion_review (مراجعة المخرج: كل لقطة مقاسة مع ملاحظات) وصلّح "
+    "ملاحظاته لقطة لقطة، patch لكل لقطة، وأعدها لحد ما تخلص الملاحظات. بعدها إذا بتشوف صور راجع "
+    "الفريمات بـ motion_render_frames، و motion_inspect للقياسات الدقيقة.\n"
+    "  إذا طلب المستخدم مراجعة أو تحسين («راجع وحسّن»): ابدأ بـ motion_review واتبع طريقة المراجعة اللي "
+    "بترجع معه.\n"
     "5. اكتب للمستخدم بالعربي شو عملت وليش، بجمل قصيرة. ما تلصق المشهد كامل بالرد.\n"
     "6. إذا ما في مزوّد صوت، لا تعرض تعليق صوتي — استعمل كابشن نصي وموسيقى ومؤثرات.\n"
     "7. التصدير بيعمله المستخدم من زر «تصدير»، أو إنت بـ motion_render إذا طلب صراحة."
@@ -177,18 +197,28 @@ MOTION_SYSTEM_PROMPT = (
 
 
 def skill_note() -> str:
-    """The motion skill, as the model reads it with every turn of a motion chat."""
-    text = (rms.SCHEMA_PATH.parent / "SKILL.md").read_text(encoding="utf-8")
+    """The motion skill, as the model reads it with every turn of a motion chat: how a
+    professional directs (DIRECTOR.md), then the scene format (SKILL.md). A weak model makes
+    good videos from the first message because both are there before the user writes."""
+    folder = rms.SCHEMA_PATH.parent
+    text = (folder / "SKILL.md").read_text(encoding="utf-8")
     if text.startswith("---"):
         text = text.split("---", 2)[2]
-    return "مرجع صيغة المشهد (مهارة motion):\n" + text.strip()
+    director = (folder / "DIRECTOR.md").read_text(encoding="utf-8")
+    example = (folder / "examples" / "pro-reel.json").read_text(encoding="utf-8")
+    return (
+        "دليل إخراج الموشن:\n" + director.strip()
+        + "\n\nمرجع صيغة المشهد (مهارة motion):\n" + text.strip()
+        + "\n\nمثال لفيديو احترافي منتهي (examples/pro-reel.json) — تعلّم منه الأحجام والتوزيع والتتابع "
+        "والانتقالات، وما تنسخ محتواه ولا ألوانه:\n" + example.strip()
+    )
 
 
 def kit_summary(kit: dict[str, Any]) -> str:
     c = kit["colors"]
     t = kit["type"]
     return (
-        "الـ brand kit لهالمشروع:\n"
+        "الـ brand kit الافتراضي (نقطة بداية بس — اختار ألوان وخطوط الفيديو بنفسك بـ scene.palette و scene.fonts):\n"
         f"- الألوان: {', '.join(f'brand.{k}={v}' for k, v in c.items())}\n"
         f"- الخطوط: display={kit['fonts']['display']}، body={kit['fonts']['body']}، latin={kit['fonts']['latin']}\n"
         f"- سلّم الخط (px على 1080): {', '.join(f'{k}={v}' for k, v in t.items())}\n"

@@ -103,7 +103,7 @@ machine-made:
 
 Produce **one self-contained HTML document** in a single ```html fenced block:
 
-- Inline `<style>` — no external CSS, no build step, no CDN scripts required.
+- Inline `<style>` and `<script>` — no build step and no CDN libraries; fonts come from one Google Fonts `<link>`.
 - CSS custom properties at `:root` for the tokens you decided in step 2, so a developer
   can lift them straight into the real app.
 - Real, plausible content in the product's language — never lorem ipsum.

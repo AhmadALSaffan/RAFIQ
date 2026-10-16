@@ -75,10 +75,20 @@ out, draws every frame, checks it, and exports it. Full field list: `schema.json
 
 ## 4. Colour, paint and type
 
-- **Colours are open.** Use the kit's tokens (`brand.surface`, `brand.surface2`,
-  `brand.onSurface`, `brand.muted`, `brand.primary`, `brand.onPrimary`, `brand.accent`) to
-  stay on brand, or any hex colour (`#ff3366`, `#f36`, `#ff336680` with alpha) when the
-  design calls for it, or `transparent`. The contrast check applies to every colour.
+- **Each video picks its own palette and fonts** (see the directing guide):
+  ```jsonc
+  "palette": { "surface": "#0b1020", "surface2": "#141b33", "onSurface": "#eef2ff",
+               "muted": "#94a3c4", "primary": "#ffb547", "onPrimary": "#1a1205", "accent": "#5eead4" },
+  "fonts":   { "display": "Lalezar", "body": "Almarai", "latin": "Poppins" }
+  ```
+  `palette` sets what the `brand.*` tokens mean in this video (you can add your own roles:
+  `"glow": "#7c5cff"` → `brand.glow`). `fonts` takes any family — the shipped ones or any
+  Google Fonts family by its exact name. One text can have its own face: `"fontFamily":
+  "Bebas Neue"`. The workspace kit is only the default when a video sets neither.
+- **Colours are open.** Use the tokens (`brand.surface`, `brand.surface2`,
+  `brand.onSurface`, `brand.muted`, `brand.primary`, `brand.onPrimary`, `brand.accent`) so
+  the video stays one system, or any hex colour (`#ff3366`, `#f36`, `#ff336680` with alpha),
+  or `transparent`. The contrast check applies to every colour.
 - **Gradients** wherever a fill goes — `fill`, text `color`, `background.color`,
   `composition.background`:
   `{ "type": "linear", "angle": 90, "stops": [{ "at": 0, "color": "#7928ca" }, { "at": 1, "color": "brand.primary" }] }`
@@ -101,7 +111,15 @@ out, draws every frame, checks it, and exports it. Full field list: `schema.json
 
 - **Presets first**: `fadeIn/Out, fadeUp/Down, slideIn/Out (dir), scaleIn/Out, pop,
   bounceIn, blurIn, rotateIn (dir), typewriter, wordPop, lineReveal, maskReveal (dir), wipe,
-  countUp (to), drawOn, kenBurns, zoomPunch, shake, float, pulse, spin (amount = turns)`.
+  countUp (to), drawOn, kenBurns, zoomPunch, shake, float, pulse, spin (amount = turns),
+  sweep (dir)`.
+- **A cut transition in one layer** — `sweep` carries a full-frame panel across the cut:
+  `{"id":"cut1","type":"shape","shape":"rect","fill":"brand.primary","important":false,
+  "start":2.32,"end":2.88,"layout":{"anchor":"center","width":143,"height":248},
+  "animate":[{"preset":"sweep","at":2.32,"duration":0.56,"dir":"start"}]}` for a cut at
+  2.6 s in 9:16 (grid 135×240 → panel 143×248; 16:9 → 248×143; 1:1 → 143×143). It covers
+  the frame exactly at the cut, so the outgoing shot ends and the next starts under it.
+  `dir` up/down sweeps vertically. Don't build panels that scale from the middle.
   `{ "preset": "fadeUp", "at": 0.4, "duration": 0.6 }` — `duration` defaults to the kit's
   enter/exit times.
 - **Keyframes** when a preset can't: `x, y, scale, rotation, opacity, blur, trim, color,

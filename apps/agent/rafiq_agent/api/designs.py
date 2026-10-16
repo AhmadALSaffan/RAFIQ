@@ -26,7 +26,8 @@ from rafiq_agent.skills import editor as skill_editor
 from rafiq_agent.skills.install import SkillInstallError, fetch, find_skills, install_folder
 from rafiq_agent.skills.registry import USER_DIR, Skill, all_skills, get_skill, reload_skills
 from rafiq_agent.storage.db import get_session
-from rafiq_agent.storage.models import Chat, ChatMessage, Design, LlmModel
+from rafiq_agent.core import identity as identity_core
+from rafiq_agent.storage.models import Chat, ChatMessage, Design, DesignIdentity, LlmModel
 
 router = APIRouter(tags=["designs"], dependencies=[Depends(require_token)])
 
@@ -44,6 +45,8 @@ class DesignCreate(BaseModel):
     # before it exists. None = decide by the model (see ReplySettings.web_search).
     web_search: bool | None = None
     workspace_id: str | None = None
+    # The identity the user built for this design (a saved one, or made right there).
+    identity: dict[str, Any] | None = None
 
 
 class DesignUpdate(BaseModel):
@@ -78,6 +81,7 @@ class DesignOut(BaseModel):
     id: str
     title: str
     brief: dict[str, Any] | None = None
+    identity: dict[str, Any] | None = None
     spec: str | None = None
     preview_html: str | None = None
     # Every document, oldest first; the preview opens on the last one the model touched.
@@ -404,6 +408,76 @@ async def workspace() -> dict[str, str]:
     return {"path": str(workspace_root())}
 
 
+class IdentityIn(BaseModel):
+    name: str | None = None
+    data: dict[str, Any]
+    workspace_id: str | None = None
+
+
+class IdentityOut(BaseModel):
+    id: str
+    name: str
+    data: dict[str, Any]
+    workspace_id: str | None = None
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+@router.get("/design-identities/options")
+async def identity_options() -> dict[str, Any]:
+    """What the identity builder offers: the style starting points, the fonts, the roles."""
+    return {
+        "styles": [{**s, "label": tr(s["label"])} for s in identity_core.presets()],
+        "fonts": {slot: list(names) for slot, names in identity_core.FONTS.items()},
+        "weights": {name: w for names in identity_core.FONTS.values() for name, w in names.items()},
+        "roles": identity_core.COLOR_ROLES,
+    }
+
+
+@router.post("/design-identities/normalize")
+async def normalize_identity(body: dict[str, Any]) -> dict[str, Any]:
+    """The identity cleaned up, with its tokens and font link — what the builder previews."""
+    data = identity_core.normalize(body)
+    return {"data": data, "css": identity_core.css_tokens(data), "fonts": identity_core.fonts_link(data)}
+
+
+@router.get("/design-identities", response_model=list[IdentityOut])
+async def list_identities(workspace_id: str | None = None, session: AsyncSession = Depends(get_session)) -> list[DesignIdentity]:
+    query = select(DesignIdentity).order_by(DesignIdentity.updated_at.desc())
+    if workspace_id:
+        query = query.where((DesignIdentity.workspace_id == workspace_id) | (DesignIdentity.workspace_id.is_(None)))
+    return list((await session.execute(query)).scalars())
+
+
+@router.post("/design-identities", response_model=IdentityOut, status_code=201)
+async def create_identity(body: IdentityIn, session: AsyncSession = Depends(get_session)) -> DesignIdentity:
+    data = identity_core.normalize({**body.data, "name": body.name or body.data.get("name")})
+    row = DesignIdentity(name=data["name"], data=data, workspace_id=body.workspace_id or None)
+    session.add(row)
+    await session.commit()
+    return row
+
+
+@router.put("/design-identities/{identity_id}", response_model=IdentityOut)
+async def update_identity(identity_id: str, body: IdentityIn, session: AsyncSession = Depends(get_session)) -> DesignIdentity:
+    row = await session.get(DesignIdentity, identity_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="identity not found")
+    data = identity_core.normalize({**body.data, "name": body.name or body.data.get("name")})
+    row.name, row.data, row.updated_at = data["name"], data, _now()
+    await session.commit()
+    return row
+
+
+@router.delete("/design-identities/{identity_id}", status_code=204)
+async def delete_identity(identity_id: str, session: AsyncSession = Depends(get_session)) -> None:
+    row = await session.get(DesignIdentity, identity_id)
+    if row:
+        await session.delete(row)
+        await session.commit()
+
+
 @router.get("/designs/questions")
 async def init_questions() -> list[dict[str, Any]]:
     """`impeccable init` — the brief Rafiq collects before the design chat opens."""
@@ -457,6 +531,7 @@ async def create_design(body: DesignCreate, session: AsyncSession = Depends(get_
     design = Design(
         title=title,
         brief=body.brief,
+        identity=identity_core.normalize(body.identity) if body.identity else None,
         chat_id=chat.id,
         model_id=model.id,
         working_dir=folder,

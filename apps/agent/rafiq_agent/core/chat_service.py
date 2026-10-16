@@ -559,6 +559,11 @@ class ChatTurn:
             system = MOTION_SYSTEM_PROMPT
         else:
             system = DESIGN_SYSTEM_PROMPT if self.design_mode else CHAT_SYSTEM_PROMPT
+            if self.design_mode:
+                # the guide, the process and a finished page: a first design at the bar
+                from rafiq_agent.core.designs import design_guide_note
+
+                system += f"\n\n{design_guide_note()}"
         for note in (LENGTH_NOTES.get(self.reply.length, ""), LANGUAGE_NOTES.get(self.reply.language, "")):
             if note:
                 system += f" {note}"
@@ -619,6 +624,10 @@ class ChatTurn:
         )
         registry.register(WaitForTasksTool(lambda: list(self.created_task_ids)))
         notes.append(TASKS_NOTE)
+        if self.design_mode:
+            from rafiq_agent.tools.design import DesignReviewTool
+
+            registry.register(DesignReviewTool(self.chat_id))
         if any(n.startswith("issue_") for n in names):
             notes.append(ISSUES_NOTE)
         if any(n.startswith("browser_") for n in names):
@@ -690,7 +699,20 @@ class ChatTurn:
             if note := await workspace_note(self.workspace_id):
                 notes.append(note)
         if self.design_mode:
-            # The same identity for screens and videos: the workspace's brand kit, if it has one.
+            # The identity the user built for this design comes first; without one, the
+            # workspace's brand kit (the same identity as its videos), if it has one.
+            from sqlalchemy import select as _select
+
+            from rafiq_agent.core.identity import identity_note
+            from rafiq_agent.core.identity import normalize as normalize_identity
+            from rafiq_agent.storage.models import Design
+
+            async with SessionLocal() as session:
+                row = (await session.execute(_select(Design).where(Design.chat_id == self.chat_id))).scalar_one_or_none()
+                built = row.identity if row else None
+            if built:
+                notes.append(identity_note(normalize_identity(built)))
+                return "".join(f"\n\n{n}" for n in notes)
             from rafiq_agent.motion.brand import design_note, normalize
 
             kit = None

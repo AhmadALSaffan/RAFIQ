@@ -180,7 +180,7 @@ export function MotionWorkspace() {
   usePageMenu(() => [
     { id: "export", label: t("تصدير"), onSelect: () => setExportOpen(true) },
     { id: "full", label: t("معاينة كاملة"), onSelect: () => setFullOpen(true) },
-    { id: "review", label: t("خلّي الموديل يراجع"), onSelect: () => review() },
+    { id: "review", label: t("راجع وحسّن"), onSelect: () => review() },
     { id: "versions", label: t("النسخ"), onSelect: () => setView("versions") },
     { id: "layers", label: t("الطبقات"), onSelect: () => setPanel("layers") },
     { id: "all", label: t("كل المشاريع"), onSelect: () => navigate("/motion") },
@@ -190,7 +190,7 @@ export function MotionWorkspace() {
     const times = scene ? reviewTimes(scene).map((x) => x.toFixed(2)).join(t("، ")) : "";
     setRequest({
       id: Date.now(),
-      text: t("راجع الفيديو جولة وحدة: افحصه بـ motion_lint، وشوف هالفريمات بـ motion_render_frames: {times} (إذا ما بتشوف صور بيرجعلك وصفها مكتوب). صلّح اللي بيلزم بـ patches صغيرة، افحص من جديد، وقلّي شو غيّرت.", { times }),
+      text: t("راجع الفيديو لقطة لقطة متل مخرج: شغّل motion_review، وصلّح ملاحظات كل لقطة بـ patch وحدة للقطة، وقارن مع مثال الفيديو الاحترافي. أعد motion_review لحد ما تخلص الملاحظات، وإذا بتشوف صور شوف كمان هالفريمات بـ motion_render_frames: {times}. بالآخر قلّي شو غيّرت بكل لقطة.", { times }),
     });
   }
 
@@ -288,7 +288,7 @@ export function MotionWorkspace() {
         </div>
         <LintBadge issues={lintIssues} open={lintOpen} onToggle={() => setLintOpen((o) => !o)} />
         <Button variant="ghost" onClick={review}>
-          {t("خلّي الموديل يراجع")}
+          {t("راجع وحسّن")}
         </Button>
         <Button
           variant="soft"
@@ -314,7 +314,20 @@ export function MotionWorkspace() {
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 shrink-0 flex-col" style={{ width: chatWidth }}>
-          <ChatPage chatId={project.chat_id} embedded autoSend={kickoff} onReplyDone={load} sendRequest={request} />
+          <ChatPage
+            chatId={project.chat_id}
+            embedded
+            autoSend={kickoff}
+            onReplyDone={load}
+            sendRequest={request}
+            mode="motion"
+            onHostCommand={(id) => {
+              if (id === "motion:export") setExportOpen(true);
+              else if (id === "motion:preview") setFullOpen(true);
+              else return false;
+              return true;
+            }}
+          />
         </div>
         <Resizer value={chatWidth} min={300} max={640} onChange={setChatWidth} onDoubleClick={() => setChatWidth(380)} label={t("عرض الشات")} />
 

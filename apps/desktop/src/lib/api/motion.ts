@@ -233,7 +233,7 @@ export const replyToEngine = (requestId: string, ok: boolean, result?: unknown, 
 
 export interface EngineRequest {
   id: string;
-  kind: "hello" | "lint" | "inspect" | "frames" | "export" | "analyze";
+  kind: "hello" | "lint" | "inspect" | "review" | "frames" | "export" | "analyze";
   payload: Record<string, unknown>;
 }
 

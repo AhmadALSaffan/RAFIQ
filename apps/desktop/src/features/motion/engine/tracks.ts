@@ -87,6 +87,8 @@ export function defaultDuration(a: Animation, layer: Layer, kit: BrandKit): numb
       return 0.45;
     case "zoomPunch":
       return 0.35;
+    case "sweep":
+      return 0.56;
     default:
       return kit.motion.enter;
   }
@@ -218,6 +220,19 @@ export function expand(layer: Layer, kit: BrandKit): LayerTracks {
         // turns (1 = a full turn) across the duration, on top of the layer's own rotation
         const turns = amt ?? 1;
         add(segments, { prop: "rotation", t0, t1, to: 0, ease: lin, mode: "add", wave: (u) => (a.dir === "start" ? -1 : 1) * 360 * turns * e(u) });
+        break;
+      }
+      case "sweep": {
+        // A transition panel: in from one side, covering the frame at the middle (the cut),
+        // out the other side. Distance = the layer's own size + a margin, in units.
+        const dir = a.dir ?? "start";
+        const across = dir === "up" || dir === "down";
+        const n = amt ?? ((across ? layer.layout?.height : layer.layout?.width) ?? 250) + 10;
+        const sign = dir === "end" || dir === "down" ? 1 : -1;
+        const prop = across ? "y" : "x";
+        const io = a.ease ? e : easeFn("inOut", kit);
+        seg(prop, sign * n, 0, io, t0, t0 + d / 2);
+        seg(prop, 0, -sign * n, io, t0 + d / 2, t1);
         break;
       }
       case "pulse": {

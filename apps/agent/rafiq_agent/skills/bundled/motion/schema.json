@@ -47,6 +47,73 @@
         "$ref": "#/$defs/audio"
       },
       "maxItems": 100
+    },
+    "palette": {
+      "type": "object",
+      "description": "This video's own colours for the brand.* tokens (surface, surface2, onSurface, muted, primary, onPrimary, accent, or any new role name you use as brand.<role>). Choose a palette for the video's concept; it overrides the workspace kit for this video only.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$"
+      }
+    },
+    "fonts": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "This video's own fonts by role. Any family works: the shipped ones (Alexandria, IBM Plex Sans Arabic, Cairo, Tajawal, Readex Pro, Noto Kufi Arabic, Inter, Space Grotesk, IBM Plex Mono) or any Google Fonts family by its exact name (e.g. \"Rubik\", \"El Messiri\", \"Lalezar\", \"Amiri\", \"Reem Kufi\", \"Changa\", \"Almarai\", \"Baloo Bhaijaan 2\", \"Marhey\", \"Playfair Display\", \"Bebas Neue\", \"Poppins\").",
+      "properties": {
+        "display": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "body": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "latin": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "mono": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        }
+      }
+    },
+    "type": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "This video's own type scale, px on a 1080 short side, over the kit's (display 96, headline 64, title 44, body 32, caption 28). Vertical reels read best much bigger, e.g. display 200, headline 110, title 72, body 48, caption 36.",
+      "properties": {
+        "display": {
+          "type": "number",
+          "minimum": 12,
+          "maximum": 600
+        },
+        "headline": {
+          "type": "number",
+          "minimum": 12,
+          "maximum": 600
+        },
+        "title": {
+          "type": "number",
+          "minimum": 12,
+          "maximum": 600
+        },
+        "body": {
+          "type": "number",
+          "minimum": 12,
+          "maximum": 600
+        },
+        "caption": {
+          "type": "number",
+          "minimum": 12,
+          "maximum": 600
+        }
+      }
     }
   },
   "$defs": {
@@ -264,7 +331,8 @@
             "bounceIn",
             "rotateIn",
             "spin",
-            "pulse"
+            "pulse",
+            "sweep"
           ]
         },
         "at": {
@@ -796,6 +864,18 @@
             "end"
           ],
           "description": "Which way an arrow points; end = the way the line reads."
+        },
+        "fontFamily": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60,
+          "description": "A font family for this text alone (any family, like the scene's fonts)."
+        },
+        "size": {
+          "type": "number",
+          "minimum": 12,
+          "maximum": 600,
+          "description": "An exact size for this text, px on a 1080 short side, over its style's (a hero word at 260, say)."
         }
       },
       "unevaluatedProperties": false

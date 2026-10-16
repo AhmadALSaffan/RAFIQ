@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { createDesign, deleteDesign, getDesign, initQuestions, listDesigns, listModels, listSkills } from "../lib/api";
-import type { AgentSkill, DesignSummary, InitQuestion, LlmModel } from "../lib/types";
+import type { AgentSkill, DesignIdentity, DesignSummary, InitQuestion, LlmModel } from "../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../lib/motion";
 import { timeAgo } from "../lib/time";
 import { BrandMark } from "../components/BrandMark";
@@ -15,6 +15,7 @@ import { folderName } from "../lib/folders";
 import { fieldDir } from "../lib/bidi";
 
 import { SkillsSection } from "../features/design/SkillsSection";
+import { IdentityStep } from "../features/design/IdentityBuilder";
 import { useWorkspaces } from "../lib/workspace";
 import { Wireframe } from "../components/brand";
 
@@ -164,7 +165,7 @@ export function DesignsPage() {
       ) : designs.length === 0 ? (
         <EmptyState
           scene="designs"
-          text={t("ما في تصاميم بعد. اضغط «تصميم جديد» وجاوب على تسع أسئلة — بعدها بتفتحلك جلسة تصميم فيها شات ومعاينة حيّة.")}
+          text={t("ما في تصاميم بعد. اضغط «تصميم جديد»، ابنِ هوية تطبيقك البصرية وجاوب على أسئلة عن المنتج — بعدها بتفتحلك جلسة تصميم فيها شات ومعاينة حيّة.")}
           action={
             usable.length > 0 ? <Button onClick={() => setWizard(true)}>{t("تصميم جديد")}</Button> : undefined
           }
@@ -259,6 +260,9 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
   const [error, setError] = useState<string | null>(null);
   // null = whatever suits the model; the switch below makes it an explicit yes or no.
   const [webSearch, setWebSearch] = useState<boolean | null>(null);
+  // Step one is the visual identity (the user's, not the model's); step two the product.
+  const [step, setStep] = useState<"identity" | "brief">("identity");
+  const [identity, setIdentity] = useState<DesignIdentity | null>(null);
 
   useEffect(() => {
     initQuestions().then(setQuestions).catch(() => setError(t("ما قدرت أجيب الأسئلة")));
@@ -285,7 +289,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
     setBusy(true);
     setError(null);
     try {
-      const design = await createDesign(modelId, answers, folder, undefined, webSearch, workspaceId);
+      const design = await createDesign(modelId, answers, folder, undefined, webSearch, workspaceId, identity?.data ?? null);
       onDone(design.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("ما قدرت أبدأ التصميم"));
@@ -308,19 +312,21 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
         animate={{ scale: 1, y: 0, opacity: 1 }}
         exit={{ scale: 0.97, opacity: 0, transition: { duration: 0.15 } }}
         transition={{ duration: 0.3, ease: easeOutExpo }}
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border shadow-2xl"
+        className={`flex max-h-[88vh] w-full flex-col rounded-2xl border shadow-2xl ${step === "identity" ? "h-[88vh] max-w-6xl" : "max-w-2xl"}`}
         style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
       >
         <header className="flex items-start justify-between gap-3 border-b px-5 py-4" style={{ borderColor: "var(--color-border)" }}>
           <div>
             <h2 className="flex items-center gap-2 text-lg font-extrabold">
-              <span className="font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr">
-                /impeccable init
+              <span className="num text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                {step === "identity" ? "1/2" : "2/2"}
               </span>
-              {t("جمع معلومات المشروع")}
+              {step === "identity" ? t("الهوية البصرية") : t("جمع معلومات المشروع")}
             </h2>
             <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-              {t("تسع أسئلة. اللي بتتركه فاضي رفيق بيفترضه وبيقلّك شو افترض.")}
+              {step === "identity"
+                ? t("ابنِ ألوان وخطوط وشكل تطبيقك قبل ما يبدأ النموذج — هو بيصمّم بهويتك، مش بقالب.")
+                : t("أسئلة عن المنتج. اللي بتتركه فاضي رفيق بيفترضه وبيقلّك شو افترض.")}
             </p>
           </div>
           <button onClick={onClose} aria-label={t("إغلاق")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
@@ -328,6 +334,14 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
           </button>
         </header>
 
+        {step === "identity" && (
+          <>
+            <IdentityStep workspaceId={workspaceId} selected={identity} onPick={setIdentity} onNext={() => setStep("brief")} />
+          </>
+        )}
+
+        {step === "brief" && (
+        <>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           <div className="flex flex-col gap-5">
             {questions.map((question, i) => (
@@ -447,11 +461,16 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
                 {error}
               </span>
             )}
+            <Button variant="ghost" onClick={() => setStep("identity")} disabled={busy}>
+              {t("رجوع")}
+            </Button>
             <Button variant="accent" onClick={start} disabled={busy || missing.length > 0 || !modelId}>
               {busy ? t("جارِ البدء…") : t("ابدأ التصميم")}
             </Button>
           </div>
         </footer>
+        </>
+        )}
       </motion.div>
     </motion.div>
   );

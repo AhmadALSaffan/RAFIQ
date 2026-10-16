@@ -135,6 +135,30 @@ class MotionInspectTool(_ProjectTool):
         return ToolResult(ok=True, output=_clip(await service.inspect(scene, kit, times)))
 
 
+class MotionReviewTool(_ProjectTool):
+    name = "motion_review"
+    category = "read_only"
+    description = (
+        "مراجعة المخرج: بيقسم الفيديو للقطاته وبيقيس كل لقطة (حجم العنصر الرئيسي، أصغر نص، قديش مالية "
+        "الفريم، وين مركزها، إذا في حركة وهي ثابتة، طول الانتقالات) وبيرجع ملاحظات لكل لقطة مع طريقة "
+        "المراجعة والتصليح. استعمله بعد ما تبني الفيديو، وبعد كل جولة تصليح."
+    )
+    parameters = {"type": "object", "properties": {}}
+
+    async def run(self, args: dict[str, Any]) -> ToolResult:
+        async with SessionLocal() as session:
+            project = await self._project(session)
+            if not project:
+                return ToolResult(ok=False, output="project not found")
+            kit = await service.kit_for(session, project)
+            scene = project.scene
+        try:
+            report = await service.review(scene, kit)
+        except (bridge.EngineUnavailable, bridge.EngineError) as exc:
+            return ToolResult(ok=False, output=f"can't measure the shots now ({exc}) — the app window has to be open")
+        return ToolResult(ok=True, output=_clip(f"{report}\n\n{service.review_guide()}"))
+
+
 class MotionRenderFramesTool(_ProjectTool):
     name = "motion_render_frames"
     category = "read_only"
@@ -247,6 +271,7 @@ def motion_tools(project_id: str, on_change: Any = None, chat_model: str | None 
         MotionPatchSceneTool(project_id, on_change),
         MotionLintTool(project_id),
         MotionInspectTool(project_id),
+        MotionReviewTool(project_id),
         MotionRenderFramesTool(project_id, chat_model),
         MotionRenderTool(project_id),
         MotionAnalyzeVideoTool(project_id),

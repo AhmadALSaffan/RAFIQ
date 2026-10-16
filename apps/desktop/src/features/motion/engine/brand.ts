@@ -1,5 +1,5 @@
 import { cssFamily } from "./fonts";
-import type { BrandKit, ColorRef, Composition, Gradient, Paint, TypeStyle } from "./types";
+import type { BrandKit, ColorRef, Composition, Gradient, Paint, Scene, TypeStyle } from "./types";
 
 /** The dark template — what a workspace without a kit of its own uses (agent: motion/brand.py). */
 export const DEFAULT_KIT: BrandKit = {
@@ -30,8 +30,9 @@ export function unitPx(comp: Composition): number {
 }
 
 /** A type style's size in canvas px for this frame. */
-export function stylePx(kit: BrandKit, comp: Composition, style: TypeStyle): number {
-  return (kit.type[style] * Math.min(comp.width, comp.height)) / 1080;
+export function stylePx(kit: BrandKit, comp: Composition, style: TypeStyle, size?: number): number {
+  const px = typeof size === "number" && size >= 12 && size <= 600 ? size : kit.type[style];
+  return (px * Math.min(comp.width, comp.height)) / 1080;
 }
 
 /** brand.primary → #e68835. Unknown tokens fall back to onSurface so a typo is visible, not black. */
@@ -89,10 +90,37 @@ export function mixColor(a: string, b: string, u: number): string {
   return `#${c(r1, r2)}${c(g1, g2)}${c(b1, b2)}`;
 }
 
+const HEX = /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/;
+
+/** The kit a scene is drawn with: the workspace's kit, with the scene's own palette and
+ * fonts on top — so each video can have its own look without touching the workspace. */
+export function kitForScene(kit: BrandKit, scene: Pick<Scene, "palette" | "fonts" | "type">): BrandKit {
+  const colors = { ...kit.colors };
+  for (const [role, value] of Object.entries(scene.palette ?? {})) {
+    if (typeof value === "string" && HEX.test(value)) colors[role] = value.slice(0, 7);
+  }
+  const fonts = { ...kit.fonts };
+  for (const role of ["display", "body", "latin", "mono"] as const) {
+    const name = scene.fonts?.[role];
+    if (typeof name === "string" && name.trim()) fonts[role] = name.trim();
+  }
+  const type = { ...kit.type };
+  for (const [style, px] of Object.entries(scene.type ?? {})) {
+    if (style in type && typeof px === "number" && px >= 12 && px <= 600) type[style as TypeStyle] = px;
+  }
+  return { ...kit, colors, fonts, type };
+}
+
+/** Every font family a scene draws with, for loading before the first frame. */
+export function sceneFonts(kit: BrandKit, layers: { fontFamily?: string }[]): string[] {
+  const own = layers.map((l) => l.fontFamily?.trim()).filter((n): n is string => !!n);
+  return [kit.fonts.display, kit.fonts.body, kit.fonts.latin, kit.fonts.mono ?? "IBM Plex Mono", "IBM Plex Sans Arabic", "Alexandria", ...own];
+}
+
 /** The CSS font stack for a role: the kit's font, then Latin, then what the app ships.
  * Every face here is loaded before drawing (fonts.ts), so the stack never actually falls back. */
-export function fontStack(kit: BrandKit, role: "display" | "body" | "latin" | "mono"): string {
-  const first = role === "mono" ? (kit.fonts.mono ?? "IBM Plex Mono") : kit.fonts[role];
+export function fontStack(kit: BrandKit, role: "display" | "body" | "latin" | "mono", own?: string): string {
+  const first = own?.trim() || (role === "mono" ? (kit.fonts.mono ?? "IBM Plex Mono") : kit.fonts[role]);
   const stack = [first, kit.fonts.latin, "IBM Plex Sans Arabic", "Alexandria"];
   return [...new Set(stack.map(cssFamily))].map((f) => `"${f}"`).join(", ");
 }

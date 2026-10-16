@@ -330,6 +330,9 @@ class Design(Base):
     spec: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The document the preview opens on (the last one the model touched).
     preview_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The visual identity the user built before the design started (core/identity.py),
+    # copied in so a later edit of the saved identity never changes this design behind it.
+    identity: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Every document of this design: [{"name": …, "html": …, "path": …}]. A design usually
     # has one; a model that answers with a second screen adds to the list instead of
     # replacing it, and the preview lets the user switch (core/designs.py::merge_files).
@@ -341,6 +344,20 @@ class Design(Base):
     saved_path: Mapped[str | None] = mapped_column(String, nullable=True)
     workspace_id: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, default="draft")  # draft | ready | handed_off
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class DesignIdentity(Base):
+    """A visual identity the user built (colours, fonts, shape, depth, density, motion), kept
+    to start any number of designs with."""
+
+    __tablename__ = "design_identities"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    name: Mapped[str] = mapped_column(String)
+    data: Mapped[dict] = mapped_column(JSON)
+    workspace_id: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

@@ -6,7 +6,7 @@
 
 import { ALL_FORMATS, AudioBufferSink, Input, UrlSource } from "mediabunny";
 import { BufferReader, StreamReader, type AudioReader } from "./audio";
-import { DEFAULT_KIT } from "./brand";
+import { DEFAULT_KIT, kitForScene, sceneFonts } from "./brand";
 import { evaluate, prepare, type Measure, type Prepared } from "./evaluate";
 import { ensureFonts } from "./fonts";
 import { loadIcons } from "./icons";
@@ -63,6 +63,21 @@ export const measureText: Measure = (text, font) => {
   return w;
 };
 
+const descentCache = new Map<string, number>();
+measureText.descent = (text, font) => {
+  const key = `${font}|${text}`;
+  const hit = descentCache.get(key);
+  if (hit !== undefined) return hit;
+  measureText("", font); // makes the context
+  measureCtx!.font = font;
+  measureCtx!.direction = /[؀-ۿ]/.test(text) ? "rtl" : "ltr";
+  measureCtx!.textBaseline = "alphabetic";
+  const d = measureCtx!.measureText(text).actualBoundingBoxDescent || 0;
+  if (descentCache.size > 20000) descentCache.clear();
+  descentCache.set(key, d);
+  return d;
+};
+
 export function allLayers(layers: Layer[]): Layer[] {
   const out: Layer[] = [];
   const walk = (list: Layer[]) => {
@@ -88,15 +103,18 @@ export class MotionEngine {
   /** The frame each video layer shows right now (filled by `prepareFrame`). */
   private videoFrames = new Map<string, ImageLike>();
   private audioCache = new Map<string, Promise<AudioBuffer | null>>();
+  /** The workspace's kit, before the scene's own palette and fonts are put on top. */
+  private baseKit: BrandKit;
   lottie?: { draw: NonNullable<Resources["lottie"]>; load: (scene: Scene, loader: AssetLoader) => Promise<void> };
 
   /** `preview`: videos are decoded no wider than 1280 px — plenty for the stage, and a 4K
    * source plays smoothly. Exports leave it off. */
   constructor(scene: Scene, kit: BrandKit = DEFAULT_KIT, loader?: AssetLoader, private options: { preview?: boolean } = {}) {
     this.scene = structuredClone(scene);
-    this.kit = kit;
+    this.baseKit = kit;
+    this.kit = kitForScene(kit, scene);
     this.loader = loader;
-    this.resources = { kit, unit: 1, images: new Map(), video: (layer) => this.videoFrames.get(layer.id) ?? null };
+    this.resources = { kit: this.kit, unit: 1, images: new Map(), video: (layer) => this.videoFrames.get(layer.id) ?? null };
   }
 
   private assetId(key: string | undefined): string | null {
@@ -175,9 +193,8 @@ export class MotionEngine {
 
   async ready(): Promise<void> {
     const kit = this.kit;
-    const fonts = [kit.fonts.display, kit.fonts.body, kit.fonts.latin, kit.fonts.mono ?? "IBM Plex Mono", "IBM Plex Sans Arabic", "Alexandria"];
-    this.missingFonts = await ensureFonts(fonts);
     const layers = allLayers(this.scene.layers);
+    this.missingFonts = await ensureFonts(sceneFonts(kit, layers));
     await loadIcons(layers.map((l) => l.icon).filter((n): n is string => !!n));
     this.missingAssets = [];
     if (this.loader) {
@@ -228,10 +245,10 @@ export class MotionEngine {
   /** Swap in an edited scene without reloading what's already loaded. */
   async update(scene: Scene, kit?: BrandKit): Promise<void> {
     this.scene = structuredClone(scene);
-    if (kit) {
-      this.kit = kit;
-      this.resources.kit = kit;
-    }
+    if (kit) this.baseKit = kit;
+    // The scene may bring its own palette and fonts: re-merge on every edit.
+    this.kit = kitForScene(this.baseKit, scene);
+    this.resources.kit = this.kit;
     await this.ready();
   }
 
