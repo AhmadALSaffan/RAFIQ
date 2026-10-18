@@ -7,6 +7,7 @@
  * learns whether one is set.
  */
 
+import { Progress as ArcProgress } from "../../components/arc/progress/progress";
 import { useEffect, useMemo, useState } from "react";
 import { ffmpegStatus, getMotionKit, installFfmpeg, installLocalModel, listModels, localModels, listWorkspaces, motionKitTemplates, motionMediaKeys, removeFfmpeg, removeLocalModel, saveMotionKit, saveMotionMediaKey, type FfmpegStatus, type LocalPack, type LocalPackName, quietly } from "../../lib/api";
 import type { AppSettings, LlmModel, Workspace } from "../../lib/types";
@@ -476,12 +477,10 @@ function DownloadProgress({ progress }: { progress: Progress }) {
           </span>
         ) : null}
       </div>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full" style={{ background: "var(--color-surface-2)" }}>
-        <div
-          className="h-full rounded-full transition-[width]"
-          style={{ width: `${progress.total && progress.state === "downloading" ? Math.round(((progress.done ?? 0) / progress.total) * 100) : 100}%`, background: "var(--color-ink)" }}
-        />
-      </div>
+      <ArcProgress
+        className="mt-1"
+        value={progress.total && progress.state === "downloading" ? ((progress.done ?? 0) / progress.total) * 100 : 100}
+      />
     </div>
   );
 }

@@ -3,9 +3,9 @@
  * it next to the current scene, in step (the same clock drives both), and bring it back.
  */
 
+import { Timeline } from "../../components/arc/timeline/timeline";
 import { useEffect, useState } from "react";
-import { t } from "../../i18n";
-import { timeAgo } from "../../lib/time";
+import { intlLocale, t } from "../../i18n";
 import { getMotionVersion, listMotionVersions, restoreMotionVersion, type MotionProject, type MotionVersion } from "../../lib/api";
 import { BracketLabel } from "../../components/brand";
 import { Button } from "../../components/ui";
@@ -41,31 +41,31 @@ export function VersionsPane({ project, onRestored }: { project: MotionProject; 
     <div className="flex h-full min-h-0">
       <div className="flex w-72 shrink-0 flex-col gap-1 overflow-y-auto border-e p-3" style={{ borderColor: "var(--color-border)" }}>
         <BracketLabel>{t("النسخ")}</BracketLabel>
-        {versions.map((v) => {
-          const current = v.number === project.version;
-          const on = picked === v.number;
-          return (
-            <button
-              key={v.number}
-              onClick={() => setPicked(current ? null : v.number)}
-              className="flex flex-col items-start gap-0.5 rounded-xl px-3 py-2 text-start transition-colors"
-              style={{ background: on ? "var(--color-surface-2)" : "transparent" }}
-            >
-              <span className="flex w-full items-center justify-between gap-2">
-                <span className="num text-sm font-bold">v{v.number}</span>
-                <span className="text-[10px]" style={{ color: current ? "var(--color-success)" : "var(--color-ink-muted)" }}>
-                  {current ? t("الحالية") : v.author === "model" ? t("الموديل") : v.author === "restore" ? t("إرجاع") : t("إنت")}
-                </span>
-              </span>
-              <span className="line-clamp-2 text-[11px]" style={{ color: "var(--color-ink-muted)" }} dir="auto">
-                {v.summary || "—"}
-              </span>
-              <span className="text-[10px]" style={{ color: "var(--color-ink-muted)" }}>
-                {timeAgo(v.created_at)}
-              </span>
-            </button>
-          );
-        })}
+        {/* Every version as a feed, newest first: who made it and what changed; open one to
+            compare it with the current scene. */}
+        <Timeline
+          label={t("نسخ المشهد")}
+          now={Date.now()}
+          timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone}
+          locale={intlLocale()}
+          scrollToNew
+          events={versions.map((v) => {
+            const current = v.number === project.version;
+            return {
+              id: String(v.number),
+              at: v.created_at,
+              actor: `v${v.number}`,
+              title: v.summary || "—",
+              meta: current ? t("الحالية") : v.author === "model" ? t("الموديل") : v.author === "restore" ? t("إرجاع") : t("إنت"),
+              tone: current ? ("success" as const) : ("neutral" as const),
+              detail: current ? undefined : (
+                <Button variant={picked === v.number ? "accent" : "ghost"} className="mt-1 text-xs" onClick={() => setPicked(picked === v.number ? null : v.number)}>
+                  {picked === v.number ? t("سكّر المقارنة") : t("قارنها مع الحالية")}
+                </Button>
+              ),
+            };
+          })}
+        />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
         {picked === null || !other ? (

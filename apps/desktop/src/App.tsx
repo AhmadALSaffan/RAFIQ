@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { Toasts } from "./lib/toast";
 import { Route, Routes } from "react-router-dom";
 import { Shell } from "./components/Shell";
 import { ContextMenuProvider } from "./components/ContextMenu";
@@ -26,6 +27,7 @@ const DesignSystemPage = import.meta.env.DEV ? lazy(() => import("./routes/Desig
 
 export function App() {
   return (
+    <Toasts>
     <ContextMenuProvider>
       <TopProgress />
       <BootGate>
@@ -63,5 +65,6 @@ export function App() {
         <FirstRun />
       </BootGate>
     </ContextMenuProvider>
+    </Toasts>
   );
 }

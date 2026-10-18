@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Badge, type BadgeTone } from "../components/arc/badge/badge";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { createDesign, deleteDesign, getDesign, initQuestions, listDesigns, listModels, listSkills } from "../lib/api";
@@ -20,6 +21,7 @@ import { useWorkspaces } from "../lib/workspace";
 import { Wireframe } from "../components/brand";
 
 import { t } from "../i18n";
+import { ConfirmMorph } from "../components/arc/confirm-morph/confirm-morph";
 /** Cheap live thumbnail: the real document, scaled down and inert. */
 function Thumb({ html }: { html: string | null }) {
   if (!html) {
@@ -56,10 +58,10 @@ const STATUS_LABEL: Record<string, string> = {
   handed_off: t("انبعت للبرمجة"),
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  draft: "var(--color-ink-muted)",
-  ready: "var(--color-success)",
-  handed_off: "var(--color-ink-muted)",
+const STATUS_TONE: Record<string, BadgeTone> = {
+  draft: "neutral",
+  ready: "success",
+  handed_off: "info",
 };
 
 export function DesignsPage() {
@@ -208,26 +210,25 @@ export function DesignsPage() {
                     {timeAgo(design.updated_at)}
                   </p>
                 </div>
-                <span
-                  className="flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px]"
-                  style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: STATUS_COLOR[design.status] ?? "var(--color-border)" }} />
+                <Badge size="sm" tone={STATUS_TONE[design.status] ?? "neutral"} className="shrink-0">
                   {STATUS_LABEL[design.status] ?? design.status}
-                </span>
+                </Badge>
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void remove(design.id);
-                }}
-                aria-label={t("احذف التصميم")}
-                title={t("احذف التصميم")}
-                className="absolute end-5 top-5 rounded-full p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
-                style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}
+              {/* the press asks, a second press deletes; the card leaves once it says so */}
+              <div
+                role="presentation"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+                className="absolute end-5 top-5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
               >
-                <TrashIcon className="h-3.5 w-3.5" />
-              </button>
+                <ConfirmMorph
+                  label={t("احذف")}
+                  icon={<TrashIcon className="h-3.5 w-3.5" />}
+                  prompt={t("نحذف التصميم؟")}
+                  onConfirm={() => deleteDesign(design.id)}
+                  onStateChange={(state) => state === "done" && setTimeout(() => setDesigns((prev) => prev.filter((d) => d.id !== design.id)), 900)}
+                />
+              </div>
             </motion.div>
           ))}
           </AnimatePresence>
@@ -336,7 +337,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
 
         {step === "identity" && (
           <>
-            <IdentityStep workspaceId={workspaceId} selected={identity} onPick={setIdentity} onNext={() => setStep("brief")} />
+            <IdentityStep workspaceId={workspaceId} models={models} modelId={modelId} selected={identity} onPick={setIdentity} onNext={() => setStep("brief")} />
           </>
         )}
 

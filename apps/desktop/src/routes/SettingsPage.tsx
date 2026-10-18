@@ -33,6 +33,7 @@ import { TEXT_SCALE, TEXT_SIZES, TEXT_SIZE_LABELS, setTextSize, useTextSize } fr
 
 import { LOCALES, locale, setLocale, t } from "../i18n";
 import { roving } from "../lib/keyboard";
+import { Breadcrumb } from "../components/arc/breadcrumb/breadcrumb";
 const permissionRows: { key: PermissionKey; label: string; hint: string }[] = [
   { key: "filesystem_write", label: t("الكتابة على الملفات"), hint: t("إنشاء/تعديل/حذف ملفات") },
   { key: "shell", label: t("أوامر Shell"), hint: t("تنفيذ أوامر على الجهاز") },
@@ -388,6 +389,14 @@ export function SettingsPage() {
         </div>
 
         <div className="min-w-0 flex-1">
+          <div className="mb-3">
+            <Breadcrumb
+              items={[
+                { label: t("الإعدادات"), onClick: () => setTab("general") },
+                { label: TABS.find((x) => x.id === tab)?.label ?? "" },
+              ]}
+            />
+          </div>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={tab}

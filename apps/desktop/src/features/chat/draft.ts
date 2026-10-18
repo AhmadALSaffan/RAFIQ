@@ -13,6 +13,8 @@ export type Draft = { parts: ChatPart[]; reasoning: string; usage?: TurnUsage };
 
 /** Tool steps the transcript never shows — internal reading, not work the user asked for. */
 export const SILENT_TOOLS = new Set(["skill_read", "skill_list"]);
+// Shown as their own card (StudioCard) once they work; a failure still shows the tool.
+export const CARD_TOOLS = new Set(["design_start", "motion_start"]);
 
 
 export function applyEvent(draft: Draft, ev: ChatStreamEvent): Draft {
@@ -45,6 +47,8 @@ export function applyEvent(draft: Draft, ev: ChatStreamEvent): Draft {
       };
     case "task_created":
       return { ...draft, parts: [...parts, { kind: "task", task_id: ev.task.id, title: ev.task.title }] };
+    case "studio_created":
+      return { ...draft, parts: [...parts, { kind: "studio", ...ev.item }] };
     default:
       return draft;
   }

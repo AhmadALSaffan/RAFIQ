@@ -55,6 +55,7 @@ from rafiq_agent.core.prompts import (
     MCP_NOTE,
     MEMORY_NOTE,
     RAFIQ_WEB_TOOLS_NOTE,
+    STUDIO_NOTE,
     SUMMARY_PROMPT,
     TASKS_NOTE,
     WEB_NOTE,
@@ -625,9 +626,17 @@ class ChatTurn:
         registry.register(WaitForTasksTool(lambda: list(self.created_task_ids)))
         notes.append(TASKS_NOTE)
         if self.design_mode:
-            from rafiq_agent.tools.design import DesignReviewTool
+            from rafiq_agent.tools.design import DesignReviewTool, DesignSlopCheckTool
 
             registry.register(DesignReviewTool(self.chat_id))
+            registry.register(DesignSlopCheckTool(self.chat_id))
+        else:
+            # Any other chat can start a design or a reel; they run in their own sessions.
+            from rafiq_agent.tools.studio import DesignStartTool, MotionStartTool
+
+            registry.register(DesignStartTool(self.model_id, self.workspace_id, self._on_studio_created))
+            registry.register(MotionStartTool(self.model_id, self.workspace_id, self._on_studio_created))
+            notes.append(STUDIO_NOTE)
         if any(n.startswith("issue_") for n in names):
             notes.append(ISSUES_NOTE)
         if any(n.startswith("browser_") for n in names):
@@ -760,6 +769,12 @@ class ChatTurn:
         self.created_task_ids.append(task.id)
         self.parts.append({"kind": "task", "task_id": task.id, "title": task.title})
         self._emit({"type": "task_created", "task": {"id": task.id, "title": task.title, "status": task.status}})
+
+    async def _on_studio_created(self, kind: str, item_id: str, chat_id: str, title: str) -> None:
+        """A design or motion project started from this chat: a card for it."""
+        part = {"kind": "studio", "studio": kind, "id": item_id, "chat_id": chat_id, "title": title}
+        self.parts.append(part)
+        self._emit({"type": "studio_created", "item": {k: v for k, v in part.items() if k != "kind"}})
 
     async def _on_text_delta(self, text: str) -> None:
         if self.parts and self.parts[-1]["kind"] == "text":

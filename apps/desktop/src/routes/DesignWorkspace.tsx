@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Tabs, TabsList, TabsTrigger } from "../components/arc/tabs/tabs";
+import { Breadcrumb } from "../components/arc/breadcrumb/breadcrumb";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -30,7 +32,8 @@ import { Button, DrawnCheck } from "../components/ui";
 import { Resizer } from "../components/Resizer";
 import { usePageMenu } from "../components/ContextMenu";
 import { ChatPage } from "../features/chat";
-import { AlertIcon, ArrowDownIcon, ChatIcon, FileIcon, FolderIcon, PlusIcon, RefreshIcon, TasksIcon, TrashIcon, XIcon, PencilIcon } from "../components/Icons";
+import { AlertIcon, ArrowDownIcon, ChatIcon, FileIcon, FolderIcon, PlusIcon, RefreshIcon, ShieldIcon, TasksIcon, TrashIcon, XIcon, PencilIcon } from "../components/Icons";
+import { SLOP_REQUEST } from "../components/ComposerMenus";
 
 import { t } from "../i18n";
 const DEVICES = [
@@ -50,6 +53,8 @@ export function DesignWorkspace() {
   const [device, setDevice] = useState<(typeof DEVICES)[number]["id"]>("desktop");
   const [chatWidth, setChatWidth] = useState(420);
   const [handoffOpen, setHandoffOpen] = useState(false);
+  // A message a button here sends into the design chat (the AI-slop check).
+  const [sendRequest, setSendRequest] = useState<{ id: number; text: string } | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   // What the preview can open, and which one the user picked. Null follows the model:
@@ -147,14 +152,6 @@ export function DesignWorkspace() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center gap-3 px-5 pb-1 pt-3">
-        <button
-          onClick={() => navigate("/designs")}
-          className="shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors hover:bg-[var(--color-surface)]"
-          style={{ color: "var(--color-ink-muted)" }}
-        >
-          {t("التصاميم ›")}
-        </button>
-
         {renaming ? (
           <input
             autoFocus
@@ -175,13 +172,8 @@ export function DesignWorkspace() {
           />
         ) : (
           <div className="group/title flex min-w-0 flex-1 items-center gap-1">
-            <h1
-              onDoubleClick={() => setRenaming(true)}
-              title={t("دبل كليك لإعادة التسمية")}
-              className="min-w-0 cursor-text truncate text-[17px] font-bold"
-              dir="auto"
-            >
-              {design.title}
+            <h1 onDoubleClick={() => setRenaming(true)} title={t("دبل كليك لإعادة التسمية")} className="min-w-0 truncate text-[15px]">
+              <Breadcrumb items={[{ label: t("التصاميم"), onClick: () => navigate("/designs") }, { label: design.title }]} />
             </h1>
             <button
               type="button"
@@ -196,31 +188,30 @@ export function DesignWorkspace() {
           </div>
         )}
 
-        <div className="flex shrink-0 items-center gap-1 rounded-full p-1" style={{ background: "var(--color-surface)" }}>
-          {(["preview", "history", "spec", "skills"] as Tab[]).map((key) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className="relative rounded-full px-3 py-1 text-xs"
-              style={{ color: tab === key ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
-            >
-              {tab === key && (
-                <motion.span
-                  layoutId="design-tab"
-                  className="absolute inset-0 rounded-full"
-                  style={{ background: "var(--color-inverse)" }}
-                  transition={snappy}
-                />
-              )}
-              <span className="relative">{key === "preview" ? t("معاينة") : key === "history" ? t("النسخ") : key === "spec" ? t("المواصفات") : t("المهارات")}</span>
-            </button>
-          ))}
-        </div>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="shrink-0">
+          <TabsList aria-label={t("عرض التصميم")}>
+            {(["preview", "history", "spec", "skills"] as Tab[]).map((key) => (
+              <TabsTrigger key={key} value={key} className="!min-w-0">
+                <span className="text-xs">{key === "preview" ? t("معاينة") : key === "history" ? t("النسخ") : key === "spec" ? t("المواصفات") : t("المهارات")}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         <FolderChip
           value={design.working_dir}
           onChange={async (path) => setDesign(await setDesignFolder(design.id, path))}
         />
+
+        <Button
+          variant="ghost"
+          onClick={() => setSendRequest({ id: Date.now(), text: SLOP_REQUEST })}
+          disabled={!design.preview_html}
+          title={t("بيفحص التصميم على كل علامات التصميم الآلي، والنموذج بيصلّحها")}
+        >
+          <ShieldIcon className="h-4 w-4" />
+          {t("تأكد إنه مش AI slop")}
+        </Button>
 
         <Button variant="accent" onClick={() => setHandoffOpen(true)} disabled={!design.preview_html && !design.spec}>
           <TasksIcon className="h-4 w-4" />
@@ -251,6 +242,7 @@ export function DesignWorkspace() {
             chatId={design.chat_id}
             embedded
             autoSend={design.kickoff}
+            sendRequest={sendRequest}
             onReplyDone={refresh}
             mode="design"
             onHostCommand={(id) => {
@@ -495,7 +487,7 @@ function PreviewPane({
               title={t("معاينة التصميم")}
               sandbox="allow-scripts allow-forms"
               className="h-full w-full"
-              style={{ border: 0, minHeight: "600px" }}
+              style={{ border: 0 }}
             />
           </div>
         ) : (

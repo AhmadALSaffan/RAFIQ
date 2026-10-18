@@ -6,6 +6,8 @@
  * shows its tokens and no dollars — never a made-up number.
  */
 
+import { DonutChart } from "../../components/arc/donut-chart/donut-chart";
+import { UsageMeter } from "../../components/arc/usage-meter/usage-meter";
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { exportUsage, getDiagnostics, getUsage, getUsageSources, saveWorkspace } from "../../lib/api";
@@ -166,6 +168,14 @@ function UsageExport({ models }: { models: UsageByModel[] }) {
   );
 }
 
+/** The four biggest spenders, the rest folded into one, for the usage meter. */
+function topModels(models: UsageByModel[]) {
+  const sorted = [...models].filter((m) => m.cost_usd > 0).sort((a, b) => b.cost_usd - a.cost_usd);
+  const top = sorted.slice(0, 3).map((m) => ({ id: `${m.model_ref ?? ""}${m.name}`, label: m.name, value: m.cost_usd }));
+  const rest = sorted.slice(3).reduce((sum, m) => sum + m.cost_usd, 0);
+  return rest > 0 ? [...top, { id: "rest", label: t("غيرها"), value: rest }] : top;
+}
+
 export function UsageSettings({ settings, persist }: { settings: AppSettings; persist: Persist }) {
   const [summary, setSummary] = useState<UsageSummary | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -300,6 +310,35 @@ export function UsageSettings({ settings, persist }: { settings: AppSettings; pe
         checked={settings.token_saver}
         onChange={(token_saver) => persist({ ...settings, token_saver })}
       />
+
+      {/* Where the money went: the month's spend against its limit, split by model, and the
+          same split as a donut you can explore. */}
+      {summary && summary.by_model.length > 0 && (
+        <>
+        <Card>
+            <DonutChart
+              label={t("التكلفة حسب النموذج")}
+              data={summary.by_model.filter((m) => m.cost_usd > 0).map((m) => ({ key: `${m.model_ref ?? ""}${m.name}`, label: m.name, value: m.cost_usd }))}
+              formatValue={money}
+              size={188}
+              thickness={22}
+            />
+        </Card>
+        <Card>
+            {(settings.monthly_budget_usd ?? 0) > 0 ? (
+              <UsageMeter
+                label={t("حد الشهر")}
+                limit={settings.monthly_budget_usd ?? 0}
+                unit="$"
+                decimals={2}
+                segments={topModels(summary.by_model)}
+              />
+            ) : (
+              <Hint>{t("حط حد شهري فوق لتشوف قديش صرفت منه، مقسوم على النماذج.")}</Hint>
+            )}
+        </Card>
+        </>
+      )}
 
       {summary && summary.by_model.length > 0 && (
         <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">

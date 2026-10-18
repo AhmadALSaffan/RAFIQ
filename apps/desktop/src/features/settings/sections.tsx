@@ -14,6 +14,7 @@ import { Button } from "../../components/ui";
 import { Card, Hint, Section, SelectRow, SliderRow, ToggleRow } from "./controls";
 import { t } from "../../i18n";
 import { roving } from "../../lib/keyboard";
+import { ShortcutRecorder, normalizeShortcut } from "../../components/arc/shortcut-recorder/shortcut-recorder";
 
 type Persist = (next: AppSettings) => void;
 
@@ -172,6 +173,18 @@ export function WebSettings({ settings, persist }: { settings: AppSettings; pers
   );
 }
 
+/** Tauri writes "Ctrl+Shift+Space"; the recorder writes "mod+shift+space". */
+function toRecorder(shortcut: string): string {
+  return normalizeShortcut(shortcut.toLowerCase().replace(/\s+/g, ""), "other");
+}
+function toTauri(shortcut: string): string {
+  const names: Record<string, string> = { mod: "Ctrl", ctrl: "Ctrl", alt: "Alt", shift: "Shift", meta: "Super", space: "Space", enter: "Enter", escape: "Escape", tab: "Tab", up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" };
+  return shortcut
+    .split("+")
+    .map((part) => names[part] ?? (part.length === 1 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join("+");
+}
+
 export function BackgroundSettings({ settings, persist }: { settings: AppSettings; persist: Persist }) {
   const [autostart, setAutostartState] = useState<boolean | null>(null);
   const [quickError, setQuickError] = useState<string | null>(null);
@@ -212,13 +225,18 @@ export function BackgroundSettings({ settings, persist }: { settings: AppSetting
         onChange={(on) => void setQuick(on ? QUICK_ASK_SHORTCUTS[0] : null)}
       />
       {quick !== null && (
-        <SelectRow
-          label={t("الاختصار")}
-          hint={t("اضغطه بأي وقت، ورفيق شغّال بالخلفية.")}
-          value={quick}
-          options={QUICK_ASK_SHORTCUTS.map((s) => ({ value: s, label: s }))}
-          onChange={(s) => void setQuick(s)}
-        />
+        <div className="px-1 py-2">
+          <ShortcutRecorder
+            label={t("الاختصار")}
+            description={t("اضغط عليه وسجّل أي اختصار فيه Ctrl أو Alt. بيشتغل بأي وقت، ورفيق شغّال بالخلفية.")}
+            platform="other"
+            requireModifier
+            value={toRecorder(quick)}
+            resetValue={toRecorder(QUICK_ASK_SHORTCUTS[0])}
+            bindings={[{ shortcut: "mod+k", label: t("بحث رفيق") }]}
+            onValueChange={(v) => void setQuick(v ? toTauri(v) : null)}
+          />
+        </div>
       )}
       {quickError && (
         <p className="px-1 text-xs" style={{ color: "var(--color-danger)" }} role="alert">

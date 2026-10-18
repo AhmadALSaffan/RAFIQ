@@ -3,6 +3,7 @@
  * stripe on each row — so moving between pages feels like one app, not seven.
  */
 
+import { TextReveal } from "./arc/text-reveal/text-reveal";
 import { motion } from "motion/react";
 import { easeOutExpo } from "../lib/motion";
 import { RefreshIcon } from "./Icons";
@@ -30,7 +31,7 @@ export function PageHeader({
     >
       {scene && <Illustration scene={scene} size={96} className="-mb-2 hidden shrink-0 sm:block" />}
       <div className="min-w-0 flex-1">
-        <h1 className="text-[28px] font-extrabold leading-tight">{title}</h1>
+        <TextReveal key={title} as="h1" text={title} className="text-[28px] font-extrabold leading-tight" />
         {description && (
           <p className="mt-1 max-w-xl text-sm leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
             {description}

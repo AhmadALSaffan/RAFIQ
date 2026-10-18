@@ -7,6 +7,8 @@ the app window; each note says what to do instead."""
 import re
 from dataclasses import dataclass, field
 
+from rafiq_agent.core.design_slop import eyebrow_note
+
 _STYLE = re.compile(r"<style[^>]*>(.*?)</style>", re.S | re.I)
 _SCRIPT = re.compile(r"<script[^>]*>(.*?)</script>", re.S | re.I)
 _TAGS = re.compile(r"<[^>]+>")
@@ -131,6 +133,8 @@ def review(html: str, kind: str = "", identity: dict | None = None) -> Review:
         r.notes.append("animating width/height/top/margin janks — animate transform, opacity and filter only.")
 
     # ── craft ──
+    if not app and (eyebrow := eyebrow_note(html)):
+        r.notes.append(eyebrow)
     if _EMOJI.search(text):
         r.notes.append("emoji used as icons — they look cheap in a product. Draw simple inline SVG icons (24px strokes) or small CSS shapes in the palette.")
     if re.search(r"lorem ipsum|placeholder\.com|via\.placeholder|عنوان هنا|نص تجريبي|صورة هنا|image here|feature \d", html, re.I):

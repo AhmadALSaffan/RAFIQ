@@ -269,7 +269,9 @@ export type ChatPart =
   | { kind: "text"; text: string }
   | { kind: "tool"; id: string; tool: string; args: Record<string, unknown>; ok?: boolean; output?: string }
   | { kind: "permission"; id: string; call: ToolCall; resolution: Resolution }
-  | { kind: "task"; task_id: string; title: string };
+  | { kind: "task"; task_id: string; title: string }
+  /** A design or a motion reel the model started from this chat. */
+  | { kind: "studio"; studio: "design" | "motion"; id: string; chat_id: string; title: string };
 
 export interface ChatMessage {
   id: string;
@@ -773,12 +775,28 @@ export interface DesignIdentity {
   updated_at: string;
 }
 
+/** A Google Font the builder offers: its class and whether it has Arabic. */
+export interface FontEntry {
+  name: string;
+  class: "sans" | "serif" | "display" | "handwriting" | "mono";
+  arabic: boolean;
+}
+
 export interface IdentityOptions {
   styles: { key: string; label: string; preset: Omit<IdentityData, "name" | "logo" | "voice"> }[];
-  fonts: { display: string[]; body: string[]; latin: string[] };
+  /** Every font, Arabic ones first; any of them fits any slot. */
+  fonts: FontEntry[];
   /** The weights each font family really has. */
   weights: Record<string, string>;
   roles: IdentityRole[];
+}
+
+/** An identity the model proposed from designs the user likes, for the builder to open. */
+export interface IdentityProposal {
+  data: IdentityData;
+  /** What it took from which reference, in the user's language. */
+  why: string;
+  references: { label: string; ok: boolean; error: string }[];
 }
 
 export interface DesignSummary {
@@ -857,6 +875,8 @@ export interface Design {
   /** Where the latest preview was written on disk, when a folder is set. */
   saved_path: string | null;
   status: DesignStatus;
+  /** Its chat is replying right now (the model is working on it). */
+  working?: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -6,7 +6,9 @@
  * instead of the design's page. This runtime keeps navigation inside the design: `#id` links
  * move within the document (hashchange included, for designs that route on it), links to
  * another page jump to the section with that name, web links open in the browser, and forms
- * don't navigate. It also keeps the webview's own menu (with Inspect) out of the frame.
+ * don't navigate. It also keeps the webview's own menu (with Inspect) out of the frame, and
+ * keeps the reader where they were when the model sends a new version: the frame's
+ * `window.name` survives the reload, so the scroll position rides in it.
  * Only the rendered copy is touched; what we copy, save and hand off stays the model's HTML.
  */
 const PREVIEW_RUNTIME = `(function () {
@@ -25,6 +27,18 @@ const PREVIEW_RUNTIME = `(function () {
     if (target) target.scrollIntoView();
     else if (!name) scrollTo(0, 0);
   };
+  var KEY = "rafiq-scroll:";
+  var pending = false;
+  addEventListener("scroll", function () {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function () { pending = false; window.name = KEY + Math.round(scrollY); });
+  }, { passive: true });
+  var restore = function () {
+    var y = window.name.indexOf(KEY) === 0 ? parseInt(window.name.slice(KEY.length), 10) : 0;
+    if (y > 0 && !location.hash) scrollTo(0, y);
+  };
+  if (document.readyState === "complete") restore(); else addEventListener("load", restore);
   document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   document.addEventListener("submit", function (e) { if (!e.defaultPrevented) e.preventDefault(); });
   document.addEventListener("click", function (e) {

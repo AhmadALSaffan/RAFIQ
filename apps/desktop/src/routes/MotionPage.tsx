@@ -16,7 +16,7 @@ import { easeOutExpo, listContainer, listItem, snappy } from "../lib/motion";
 import { timeAgo } from "../lib/time";
 import { fieldDir } from "../lib/bidi";
 import { Button, EmptyState } from "../components/ui";
-import { AlertIcon, PlusIcon, XIcon } from "../components/Icons";
+import { AlertIcon, PlusIcon, TrashIcon, XIcon } from "../components/Icons";
 import { useElementMenu, usePageMenu } from "../components/ContextMenu";
 import { PageHeader, RefreshButton } from "../components/Page";
 import { BracketLabel } from "../components/brand";
@@ -25,6 +25,7 @@ import { ScenePlayer } from "../features/motion/ScenePlayer";
 import { formatTime } from "../features/motion/pieces";
 
 import { t } from "../i18n";
+import { ConfirmMorph } from "../components/arc/confirm-morph/confirm-morph";
 
 /** A live thumbnail: the scene itself, still at a third of the way in, playing on hover. */
 function Thumb({ id }: { id: string }) {
@@ -314,7 +315,7 @@ export function MotionPage() {
                 layout="position"
                 whileHover={{ y: -3 }}
                 transition={snappy}
-                className="flex cursor-pointer flex-col gap-3 rounded-2xl p-3"
+                className="group relative flex cursor-pointer flex-col gap-3 rounded-2xl p-3"
                 style={{ background: "var(--color-surface)" }}
                 onClick={() => navigate(`/motion/${p.id}`)}
                 onContextMenu={menu(() => [
@@ -338,6 +339,21 @@ export function MotionPage() {
                   <span className="shrink-0 text-[11px]" style={{ color: p.last_render?.status === "done" ? "var(--color-success)" : "var(--color-ink-muted)" }}>
                     {p.last_render?.status === "done" ? t("مصدَّر") : timeAgo(p.updated_at)}
                   </span>
+                </div>
+                {/* the press asks, a second press deletes; the card leaves once it says so */}
+                <div
+                  role="presentation"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className="absolute end-5 top-5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
+                >
+                  <ConfirmMorph
+                    label={t("احذف")}
+                    icon={<TrashIcon className="h-3.5 w-3.5" />}
+                    prompt={t("نحذف المشروع؟")}
+                    onConfirm={() => deleteMotionProject(p.id)}
+                    onStateChange={(state) => state === "done" && setTimeout(() => setProjects((prev) => prev.filter((x) => x.id !== p.id)), 900)}
+                  />
                 </div>
               </motion.div>
             ))}

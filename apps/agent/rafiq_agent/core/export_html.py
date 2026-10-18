@@ -58,6 +58,9 @@ def _part(part: dict[str, Any]) -> str:
         )
     if kind == "task":
         return f'<div class="card"><div class="task"><span>{html.escape(str(part.get("title", "")))}</span><span class="meta">task</span></div></div>'
+    if kind == "studio":
+        label = "design" if part.get("studio") == "design" else "motion"
+        return f'<div class="card"><div class="task"><span>{html.escape(str(part.get("title", "")))}</span><span class="meta">{label}</span></div></div>'
     return ""
 
 

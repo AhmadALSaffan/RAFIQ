@@ -5,6 +5,8 @@
  */
 
 import { memo, useLayoutEffect, useRef, useState } from "react";
+import { StudioCard } from "./StudioCard";
+import { ShimmerText, TextSwap } from "../../components/LiveText";
 import { AnimatePresence, motion } from "motion/react";
 import type { ChatMessage, ChatPart, LlmModel, TaskStatus, TurnUsage } from "../../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../../lib/motion";
@@ -22,7 +24,7 @@ import { Logo } from "../../components/Logo";
 import { Illustration } from "../../components/Illustration";
 import { LedBar } from "../../components/brand";
 import { StatusPill } from "../../components/StatusPill";
-import { SILENT_TOOLS, textOf } from "./draft";
+import { CARD_TOOLS, SILENT_TOOLS, textOf } from "./draft";
 import { isGone, useTaskSummaries } from "./taskStatus";
 import { SUGGESTIONS } from "./constants";
 import { StarButton } from "./bookmarks";
@@ -192,10 +194,12 @@ export function MessageView({
   const menu = useElementMenu();
   if (message.role === "user") {
     return (
+      // Sent: the bubble springs up out of the composer's corner (the end edge), sharpening as it lands.
       <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.22, ease: easeOutExpo }}
+        initial={{ opacity: 0, y: 18, scale: 0.9, filter: "blur(4px)" }}
+        animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+        transition={{ type: "spring", visualDuration: 0.38, bounce: 0.22, opacity: { duration: 0.18 }, filter: { duration: 0.24 } }}
+        style={{ transformOrigin: document.documentElement.dir === "rtl" ? "0% 100%" : "100% 100%" }}
         className="group flex max-w-[85%] flex-col items-end gap-2 self-end"
         onContextMenu={menu(() => [
           { id: "copy", label: t("انسخ الرسالة"), onSelect: () => void navigator.clipboard.writeText(message.content) },
@@ -307,14 +311,16 @@ export function AssistantBlock({
   const menu = useElementMenu();
   // Reading a skill is housekeeping, not something the user asked for — keep it off screen,
   // and let the ordinary "thinking" state cover the wait.
-  const visible = parts.filter((p) => !(p.kind === "tool" && SILENT_TOOLS.has(p.tool)));
+  const visible = parts.filter((p) => !(p.kind === "tool" && (SILENT_TOOLS.has(p.tool) || (CARD_TOOLS.has(p.tool) && p.ok !== false))));
   const text = textOf(visible);
 
   return (
+    // A new reply unfolds from beside the avatar (its start corner) — the answer to the bubble above.
     <motion.div
-      initial={live ? { opacity: 0, y: 3 } : false}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: easeOutExpo }}
+      initial={live ? { opacity: 0, y: 8, scale: 0.97, filter: "blur(3px)" } : false}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      transition={{ type: "spring", visualDuration: 0.42, bounce: 0.14, opacity: { duration: 0.2 }, filter: { duration: 0.26 } }}
+      style={{ transformOrigin: document.documentElement.dir === "rtl" ? "100% 0%" : "0% 0%" }}
       className="group flex gap-3"
       onContextMenu={menu(() => [
         { id: "copy-reply", label: t("انسخ الرد"), disabled: !text, onSelect: () => void navigator.clipboard.writeText(text) },
@@ -323,7 +329,8 @@ export function AssistantBlock({
     >
       <motion.div
         className="mt-1 shrink-0"
-        animate={live ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+        // breathes with opacity, not scale: a scaled box counts toward the chat's scroll height
+        animate={live ? { opacity: [1, 0.55, 1] } : { opacity: 1 }}
         transition={live ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
       >
         {/* The model that wrote the reply gets the byline, not the app. */}
@@ -356,7 +363,7 @@ export function AssistantBlock({
               )
             ) : item.part.kind === "text" ? (
               <div>
-                <Markdown text={item.part.text} />
+                <Markdown text={item.part.text} live={live && item.last} />
                 {live && item.last && <span className="stream-caret" aria-hidden />}
               </div>
             ) : item.part.kind === "tool" ? (
@@ -367,6 +374,8 @@ export function AssistantBlock({
               />
             ) : item.part.kind === "permission" ? (
               <PermissionCard call={item.part.call} resolution={item.part.resolution} onResolve={(r) => onResolve?.(permissionId(item.part), r)} />
+            ) : item.part.kind === "studio" ? (
+              <StudioCard item={item.part} fresh={live} />
             ) : null}
           </motion.div>
         ))}
@@ -560,7 +569,10 @@ function Reasoning({ text, live }: { text: string; live: boolean }) {
   return (
     <div>
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-        {live ? <span>{t("تفكيره")}</span> : <span>{expanded ? t("إخفاء التفكير ▴") : t("عرض التفكير ▾")}</span>}
+        {/* thinking → thought: the label swaps in place when the answer starts */}
+        <TextSwap text={live ? t("عم يفكّر…") : expanded ? t("إخفاء التفكير ▴") : t("عرض التفكير ▾")}>
+          {live ? <ShimmerText>{t("عم يفكّر…")}</ShimmerText> : undefined}
+        </TextSwap>
       </button>
       <AnimatePresence initial={false}>
         {expanded && (

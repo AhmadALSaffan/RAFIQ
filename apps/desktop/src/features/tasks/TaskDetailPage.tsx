@@ -6,6 +6,7 @@
  * run lands while the user is watching, the completion sweep plays once.
  */
 
+import { Breadcrumb } from "../../components/arc/breadcrumb/breadcrumb";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -247,7 +248,7 @@ export function TaskDetailPage() {
     <div className="relative mx-auto max-w-3xl px-6 py-8">
       <CompletionSweep show={sweep !== null} tone={sweep ?? "success"} onDone={() => setSweep(null)} />
 
-      <BackLink onClick={() => navigate("/tasks")} />
+      <Breadcrumb items={[{ label: t("المهام"), onClick: () => navigate("/tasks") }, { label: task.title.length > 48 ? `${task.title.slice(0, 48)}…` : task.title }]} />
 
       <header className="relative mb-4 mt-4">
         <ActionProgress active={running} />

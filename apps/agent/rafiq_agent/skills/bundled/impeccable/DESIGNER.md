@@ -43,7 +43,9 @@ then what the product's story needs.
   - tints and shades come from the same colours (`color-mix(in srgb, var(--primary) 12%, transparent)`).
 - **Contrast:** body text ≥ 4.5:1, large text ≥ 3:1. Text on `--primary` uses `--on-primary`.
 - **No AI tells:** no purple-to-blue gradients, no gradient text for no reason, no neon glow
-  on every button, no pure `#000` on pure `#fff`.
+  on every button, no pure `#000` on pure `#fff`, and **no eyebrows** — no small label, tag,
+  status dot or "01 —" line above any headline. A heading starts the section by itself; real
+  information (availability, a step, a date) goes in the sentence under it or beside the button.
 
 ## 3. The numbers
 
@@ -53,7 +55,7 @@ then what the product's story needs.
 | section title | `clamp(32px, 4.4vw, 64px)` | 20–24px |
 | card title | 20–24px | 15–17px |
 | body | `var(--text)` (16–18px) | 14–15px |
-| labels | 12–13px, Latin uppercase `.14em`, or Arabic at 600 | 12px |
+| small text (captions, meta, footnotes) | 12–14px, `var(--muted)` | 12px |
 | section padding | `var(--section)` top and bottom | 24–32px |
 | max width | 1160–1280px, gutter `clamp(20px, 4vw, 48px)` | full width, sidebar 240–280px |
 | buttons | 48–56px tall, radius `var(--pill)` or `var(--r-sm)` | 36–40px |

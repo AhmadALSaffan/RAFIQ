@@ -17,6 +17,7 @@ import { fieldDir } from "../../lib/bidi";
 import { easeOutExpo } from "../../lib/motion";
 import { t } from "../../i18n";
 import { fillPrompt, variablesOf } from "../../lib/variables";
+import { RichTextEditor } from "../../components/arc/rich-text-editor/rich-text-editor";
 
 // The `{{name}}` rule is shared with task templates (lib/variables.ts).
 export { fillPrompt, variablesOf } from "../../lib/variables";
@@ -90,18 +91,13 @@ export function SavePromptDialog({
         </span>
         <input value={title} onChange={(e) => setTitle(e.target.value)} className="input" dir={fieldDir(title)} maxLength={120} autoFocus />
       </label>
-      <label className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
           {t("النص")}
         </span>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={7}
-          className="input resize-y text-sm leading-relaxed"
-          dir={fieldDir(body)}
-        />
-      </label>
+        {/* Headings, lists and code as you type (Markdown shortcuts, / for blocks); saved as Markdown. */}
+        <RichTextEditor defaultMarkdown={body} onChange={(v) => setBody(v.markdown)} aria-label={t("النص")} className="max-h-72 overflow-y-auto" />
+      </div>
       <Variables names={names} />
       {error && (
         <p className="text-xs" style={{ color: "var(--color-danger)" }} role="alert">

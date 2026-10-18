@@ -9,6 +9,7 @@
  * explicit chat id and can drop the conversation list and the page header.
  */
 
+import { notify } from "../../lib/toast";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -29,7 +30,6 @@ import { BookmarksMenu } from "./bookmarks";
 import { useWorkspaces } from "../../lib/workspace";
 import { SparkIcon } from "../../components/Icons";
 import { DropZone, useUploads } from "../../components/Attachments";
-import { DrawnCheck } from "../../components/ui";
 import { FolderChip } from "../../components/FolderPicker";
 import { AlertIcon, ArchiveIcon, ArrowDownIcon, ChatIcon, CompressIcon, TerminalIcon } from "../../components/Icons";
 import { TokenText } from "../../components/TokenText";
@@ -88,7 +88,6 @@ export function ChatPage({
   const [hasIntegrations, setHasIntegrations] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
   const [lastIssue, setLastIssue] = useState<TrackerIssue | null>(null);
-  const [notes, setNotes] = useState<string[]>([]);
   const [configOpen, setConfigOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -562,10 +561,9 @@ export function ChatPage({
     return last?.content ?? "";
   }
 
-  /** Success line under the composer; it fades out on its own so they don't pile up. */
+  /** A success notice, in the app's toast stack (it leaves on its own). */
   const note = useCallback((text: string) => {
-    setNotes((prev) => [...prev, text]);
-    setTimeout(() => setNotes((prev) => prev.filter((n) => n !== text)), 7000);
+    notify({ type: "success", title: text });
   }, []);
 
   async function saveSettings(settings: ReplySettings) {
@@ -1104,26 +1102,6 @@ export function ChatPage({
           )}
         </AnimatePresence>
 
-        <AnimatePresence>
-          {notes.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="px-6">
-              <div className="mx-auto w-full" style={{ maxWidth: reading }}>
-                {notes.map((note, i) => (
-                  <motion.p
-                    key={`${note}-${i}`}
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center gap-2 py-1 text-xs"
-                    style={{ color: "var(--color-success)" }}
-                  >
-                    <DrawnCheck className="h-3.5 w-3.5" />
-                    {note}
-                  </motion.p>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <Composer
           disabled={usable.length === 0}

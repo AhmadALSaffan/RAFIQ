@@ -33,6 +33,8 @@ export interface MotionProject {
   kit: BrandKit;
   created_at: string;
   updated_at: string;
+  /** Its chat is replying right now (the model is working on it). */
+  working?: boolean;
 }
 
 export interface MotionVersion {

@@ -5,56 +5,15 @@ tokens. The style presets are starting points the user edits, not themes the mod
 import re
 from typing import Any
 
+from rafiq_agent.core import font_catalog
+
 COLOR_ROLES = ["background", "surface", "ink", "muted", "line", "primary", "onPrimary", "accent"]
 
-# Google Fonts the builder offers, with the weights each family really has (asking css2 for
-# a weight a family lacks fails the whole request).
-FONTS: dict[str, dict[str, str]] = {
-    "display": {
-        "Alexandria": "400;500;600;700;800",
-        "Readex Pro": "400;500;600;700",
-        "Cairo": "400;600;700;800",
-        "Lalezar": "400",
-        "Marhey": "400;500;600;700",
-        "El Messiri": "400;500;600;700",
-        "Reem Kufi": "400;500;600;700",
-        "Amiri": "400;700",
-        "Changa": "400;500;600;700;800",
-        "Rubik": "400;500;600;700;800",
-        "Baloo Bhaijaan 2": "400;500;600;700;800",
-        "Noto Kufi Arabic": "400;600;700;800",
-        "Aref Ruqaa": "400;700",
-        "Lemonada": "400;500;600;700",
-        "Mada": "400;500;600;700",
-    },
-    "body": {
-        "IBM Plex Sans Arabic": "400;500;600;700",
-        "Almarai": "400;700;800",
-        "Tajawal": "400;500;700;800",
-        "Noto Sans Arabic": "400;500;600;700",
-        "Noto Naskh Arabic": "400;500;600;700",
-        "Cairo": "400;600;700;800",
-        "Rubik": "400;500;600;700;800",
-        "Readex Pro": "400;500;600;700",
-        "Mada": "400;500;600;700",
-    },
-    "latin": {
-        "Space Grotesk": "400;500;600;700",
-        "Manrope": "400;500;600;700;800",
-        "Inter": "400;500;600;700;800",
-        "Bricolage Grotesque": "400;500;600;700;800",
-        "Instrument Sans": "400;500;600;700",
-        "DM Sans": "400;500;600;700",
-        "Sora": "400;500;600;700;800",
-        "Outfit": "400;500;600;700;800",
-        "Fredoka": "400;500;600;700",
-        "JetBrains Mono": "400;500;700",
-        "Newsreader": "400;500;600;700",
-        "Cormorant Garamond": "400;500;600;700",
-        "Playfair Display": "400;600;700;800",
-        "Syne": "400;600;700;800",
-    },
-}
+# Every Google Font the builder offers (core/font_catalog.py), with the weights each family
+# really has. Any family fits any slot: an Arabic page whose heading face has no Arabic falls
+# back to the body face for the Arabic letters.
+WEIGHTS: dict[str, str] = {name: weights for name, _cls, _ar, weights in font_catalog.FONTS}
+
 
 CHOICES = {
     "theme": ["light", "dark", "both"],
@@ -101,7 +60,7 @@ STYLES: dict[str, dict[str, Any]] = {
     "luxury": {
         "label": "فخم وأنيق",
         "preset": _preset("luxury", "dark", {"background": "#0e0d0b", "surface": "#181612", "ink": "#f1ebdd", "muted": "#a39b8a", "line": "#f1ebdd24", "primary": "#c8a96b", "onPrimary": "#0e0d0b", "accent": "#7d8c72"}, ("El Messiri", "IBM Plex Sans Arabic", "Cormorant Garamond"), "sharp", "none", "airy", "calm"),
-        "direction": "Quiet and expensive. Centred, symmetrical compositions; thin rules in the primary (gold) colour; small uppercase Latin labels with wide tracking; large dark panels with a subtle gradient or texture standing in for photography; few words, lots of air. Nothing bounces: reveals are slow (1–1.2s) fades and masks, hover is a thin line drawing in.",
+        "direction": "Quiet and expensive. Centred, symmetrical compositions; thin rules in the primary (gold) colour; small captions under figures; large dark panels with a subtle gradient or texture standing in for photography; few words, lots of air. Nothing bounces: reveals are slow (1–1.2s) fades and masks, hover is a thin line drawing in.",
     },
     "playful": {
         "label": "مرح وملوّن",
@@ -111,12 +70,12 @@ STYLES: dict[str, dict[str, Any]] = {
     "tech": {
         "label": "تقني داكن",
         "preset": _preset("tech", "dark", {"background": "#07080c", "surface": "#10121a", "ink": "#e7e9f0", "muted": "#8a90a3", "line": "#ffffff14", "primary": "#7cf2a4", "onPrimary": "#03140a", "accent": "#62a8ff"}, ("Alexandria", "IBM Plex Sans Arabic", "JetBrains Mono"), "soft", "none", "balanced", "medium"),
-        "direction": "Precise and technical. A faint grid or dot pattern behind everything, mono labels and numbers, terminal and code blocks, product UI drawn dark with real data, thin borders with a glow of the primary on focus. Layouts are dense and aligned. Motion: lines and borders draw in, numbers tick, a cursor blinks, panels slide on a grid.",
+        "direction": "Precise and technical. A faint grid or dot pattern behind everything, mono numbers and code, terminal and code blocks, product UI drawn dark with real data, thin borders with a glow of the primary on focus. Layouts are dense and aligned. Motion: lines and borders draw in, numbers tick, a cursor blinks, panels slide on a grid.",
     },
     "editorial": {
         "label": "تحريري متل المجلات",
         "preset": _preset("editorial", "light", {"background": "#f2eee5", "surface": "#fbf9f4", "ink": "#1b1815", "muted": "#6a6359", "line": "#1b181526", "primary": "#b42a1f", "onPrimary": "#fbf9f4", "accent": "#20395c"}, ("Amiri", "Noto Naskh Arabic", "Newsreader"), "sharp", "none", "balanced", "calm"),
-        "direction": "A magazine. Multi-column layouts with columns of different widths, big serif headlines, rules between columns, issue numbers and section labels, pull quotes, captions under drawn figures, a drop cap. Hierarchy comes from type and rules, not boxes. Motion is restrained: text reveals line by line, rules draw across.",
+        "direction": "A magazine. Multi-column layouts with columns of different widths, big serif headlines, rules between columns, an issue number in the masthead, pull quotes, captions under drawn figures, a drop cap. Hierarchy comes from type and rules, not boxes. Motion is restrained: text reveals line by line, rules draw across.",
     },
     "craft": {
         "label": "دافئ وحِرَفي",
@@ -155,7 +114,7 @@ def normalize(raw: dict[str, Any] | None) -> dict[str, Any]:
     if out["theme"] == "both":
         out["dark"] = palette(raw.get("dark"), derive_dark(out["colors"]))
     fonts = raw.get("fonts") if isinstance(raw.get("fonts"), dict) else {}
-    out["fonts"] = {slot: (fonts.get(slot) if fonts.get(slot) in FONTS[slot] else base["fonts"][slot]) for slot in ("display", "body", "latin")}
+    out["fonts"] = {slot: (fonts.get(slot) if fonts.get(slot) in WEIGHTS else base["fonts"][slot]) for slot in ("display", "body", "latin")}
     out["logo"] = str(raw.get("logo") or "")[:40]
     out["voice"] = str(raw.get("voice") or "")[:600]
     return out
@@ -181,7 +140,7 @@ def fonts_link(identity: dict[str, Any]) -> str:
     seen: dict[str, str] = {}
     for slot in ("display", "body", "latin"):
         name = identity["fonts"][slot]
-        seen.setdefault(name, FONTS[slot].get(name) or "400;700")
+        seen.setdefault(name, WEIGHTS.get(name) or "400;700")
     families = "&".join(f"family={n.replace(' ', '+')}:wght@{w}" for n, w in seen.items())
     return f"https://fonts.googleapis.com/css2?{families}&display=swap"
 

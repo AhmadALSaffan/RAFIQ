@@ -1,0 +1,69 @@
+/* The design tokens the Arc components (Arc UI, MIT — THIRD_PARTY_NOTICES.md) read, mapped
+   onto Rafiq's theme. --surface, --border, --accent, --success and --danger already mean the
+   same thing in both, so they follow light and dark by themselves. */
+:root {
+  --foreground: var(--ink);
+  --text-secondary: color-mix(in oklch, var(--ink) 72%, var(--ink-muted));
+  --text-muted: var(--ink-muted);
+  --placeholder: var(--ink-muted);
+  --surface-muted: var(--surface-2);
+  --surface-raised: var(--surface);
+  --border-strong: color-mix(in oklch, var(--ink) 24%, var(--border));
+  --border-subtle: color-mix(in oklch, var(--border) 60%, transparent);
+  --warning: var(--pending);
+  --accent-strong: color-mix(in oklch, var(--accent) 82%, var(--ink));
+  --accent-subtle: color-mix(in oklch, var(--accent) 14%, transparent);
+  --accent-foreground: var(--accent-ink);
+  /* Chart series: the brand orange first, then steps toward the ink. */
+  --series-1: var(--accent);
+  --series-2: color-mix(in oklch, var(--accent) 55%, var(--ink));
+  --series-3: color-mix(in oklch, var(--accent) 45%, var(--surface));
+  --series-4: color-mix(in oklch, var(--ink) 55%, var(--surface));
+
+  --font-body: var(--font-sans);
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 22px;
+  --text-3xl: 28px;
+  --leading-body: 1.6;
+  --leading-display: 1.2;
+  --tracking-body: 0;
+  --tracking-display: 0;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-control: 10px;
+  --radius-pill: 999px;
+  --radius-panel: 16px;
+  --radius-surface: 16px;
+  --control-height-sm: 32px;
+
+  --shadow-resting: 0 1px 2px color-mix(in oklch, var(--ink) 6%, transparent);
+  --shadow-raised: 0 1px 2px color-mix(in oklch, var(--ink) 6%, transparent), 0 8px 24px -12px color-mix(in oklch, var(--ink) 22%, transparent);
+  --shadow-floating: 0 2px 6px color-mix(in oklch, var(--ink) 8%, transparent), 0 18px 48px -18px color-mix(in oklch, var(--ink) 36%, transparent);
+
+  --duration-instant: 120ms;
+  --duration-fast: 160ms;
+  --duration-standard: 240ms;
+  --duration-considered: 480ms;
+  --duration-spring: 420ms;
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Arrows and chevrons point the way the page reads. */
+:dir(rtl) .arc-mirror {
+  transform: scaleX(-1);
+}

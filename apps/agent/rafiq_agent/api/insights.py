@@ -50,7 +50,7 @@ from rafiq_agent.storage.models import (
 
 router = APIRouter(tags=["insights"], dependencies=[Depends(require_token)])
 
-VERSION = "0.4.27"
+VERSION = "0.4.28"
 
 
 @router.get("/usage", response_model=UsageSummary)

@@ -45,7 +45,9 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     "core/designs.py": {"QUESTIONS", "DESIGN_SYSTEM_PROMPT", "skills_note", "_SLUG_BAD", "OLD_VERSION", "CURRENT_MENTION", "current_documents", "without_html", "design_guide_note"},
     # the designer's review talks to the model (and matches Arabic placeholder text)
     "core/design_review.py": "*",
-    "tools/design.py": {"DesignReviewTool"},
+    "tools/design.py": {"DesignReviewTool", "DesignSlopCheckTool"},
+    "core/design_slop.py": "*",  # the tells it matches (Arabic stock copy) and its notes, for the model
+    "tools/studio.py": "*",  # tool descriptions and the brief options, for the model
     # style labels are translated where they're served; the note is for the model
     "core/identity.py": {"STYLES", "identity_note"},
     "llm/copilot.py": {"_text_of", "split_messages", "stream_chat", "aclose"},

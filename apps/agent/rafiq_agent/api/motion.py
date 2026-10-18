@@ -20,13 +20,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from rafiq_agent.api.deps import require_token
 from rafiq_agent.config import AUTH_TOKEN
 from rafiq_agent.core import motion as service
+from rafiq_agent.core import studio
 from rafiq_agent.core.agent_runtime import SETTINGS_KEY, load_settings
-from rafiq_agent.core.workspace import session_dir
+from rafiq_agent.core.chat_service import active_turn
 from rafiq_agent.i18n import tr
 from rafiq_agent.motion import brand, bridge, media, mp4
 from rafiq_agent.motion import lint as structural_lint
 from rafiq_agent.motion import scene as rms
-from rafiq_agent.schemas.chats import ReplySettings
 from rafiq_agent.storage.db import get_session
 from rafiq_agent.storage.models import (
     Chat,
@@ -96,6 +96,8 @@ class ProjectOut(BaseModel):
     kit: dict[str, Any]
     created_at: datetime
     updated_at: datetime
+    # Its chat is replying right now (the model is working on it).
+    working: bool = False
 
 
 class ProjectUpdate(BaseModel):
@@ -211,6 +213,7 @@ async def _out(session: AsyncSession, project: MotionProject) -> ProjectOut:
         kit=await service.kit_for(session, project),
         created_at=project.created_at,
         updated_at=project.updated_at,
+        working=active_turn(project.chat_id) is not None,
     )
 
 
@@ -329,29 +332,17 @@ async def create_project(body: ProjectCreate, session: AsyncSession = Depends(ge
         raise HTTPException(status_code=400, detail="aspect must be 9:16, 1:1, 16:9, 4:5 or custom")
     if body.fps not in (24, 25, 30, 50, 60, 120):
         raise HTTPException(status_code=400, detail="fps must be 24, 25, 30, 50, 60 or 120")
-    title = (body.title or tr("مشروع موشن")).strip()[:80]
-    scene = rms.new_scene(body.aspect, body.fps, max(0.5, min(body.duration, 7200)), title)
-    if body.brand and body.brand in brand.TEMPLATES:
-        scene["brand"] = body.brand
-    chat = Chat(
-        title=tr("موشن: {0}", title),
-        model_id=model.id,
-        mode="motion",
-        settings=ReplySettings().model_dump(),
-        workspace_id=body.workspace_id or None,
+    project = await studio.new_motion(
+        session,
+        model,
+        title=body.title,
+        aspect=body.aspect,
+        fps=body.fps,
+        duration=body.duration,
+        brand_name=body.brand,
+        working_dir=body.working_dir,
+        workspace_id=body.workspace_id,
     )
-    session.add(chat)
-    await session.flush()
-    project = MotionProject(title=title, workspace_id=body.workspace_id or None, chat_id=chat.id, model_id=model.id, folder="", scene=scene, version=1)
-    session.add(project)
-    await session.flush()
-    folder = Path(body.working_dir) if body.working_dir and Path(body.working_dir).is_dir() else session_dir("motion", project.id, title)
-    project.folder = str(folder)
-    chat.working_dir = str(folder)
-    session.add(MotionVersion(project_id=project.id, number=1, scene=scene, author="user", summary=tr("مشهد فاضي")))
-    await session.commit()
-    await session.refresh(project)
-    service.write_scene_file(project)
     return await _out(session, project)
 
 

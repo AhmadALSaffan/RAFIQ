@@ -1,7 +1,7 @@
 /** Design sessions: the brief, the preview, and the handoff to a build session. */
 
 import { request } from "./client";
-import type { Design, DesignDiff, DesignDocument, DesignIdentity, DesignSummary, DesignVersion, HandoffResult, IdentityData, IdentityOptions, InitQuestion } from "../types";
+import type { Design, DesignDiff, DesignDocument, DesignIdentity, DesignSummary, DesignVersion, HandoffResult, IdentityData, IdentityOptions, IdentityProposal, InitQuestion } from "../types";
 
 export async function identityOptions(): Promise<IdentityOptions> {
   return request<IdentityOptions>("/design-identities/options");
@@ -16,6 +16,15 @@ export async function saveIdentity(data: IdentityData, id?: string | null, works
   return request<DesignIdentity>(id ? `/design-identities/${id}` : "/design-identities", {
     method: id ? "PUT" : "POST",
     body: JSON.stringify({ name: data.name, data, workspace_id: workspaceId ?? null }),
+  });
+}
+
+/** The model reads the references (links, uploaded screenshots and pages) and proposes an
+ *  identity; nothing is saved until the user saves it in the builder. */
+export async function identityFromReferences(modelId: string, urls: string[], attachmentIds: string[], notes: string): Promise<IdentityProposal> {
+  return request<IdentityProposal>("/design-identities/from-references", {
+    method: "POST",
+    body: JSON.stringify({ model_id: modelId, urls, attachment_ids: attachmentIds, notes }),
   });
 }
 

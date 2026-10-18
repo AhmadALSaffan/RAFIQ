@@ -7,6 +7,7 @@ import "@fontsource/ibm-plex-sans-arabic/400.css";
 import "@fontsource/ibm-plex-sans-arabic/500.css";
 import "@fontsource/ibm-plex-sans-arabic/600.css";
 import "./styles/index.css";
+import "./components/arc/arc.css";
 import { adoptInstallerLanguage } from "./lib/firstLanguage";
 
 // The language is settled first (on the first launch, the one picked in the installer):

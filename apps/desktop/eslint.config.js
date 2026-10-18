@@ -42,6 +42,24 @@ export default tseslint.config(
       eqeqeq: ["error", "smart"],
     },
   },
+  // Arc UI (vendored, MIT): kept close to upstream so it can be updated. Its widgets handle
+  // keyboard and focus their own way (a focusable code region, a pointer-driven meter, an
+  // editor that manages its own caret), and it carries Next.js lint comments.
+  {
+    files: ["src/components/arc/**/*.{ts,tsx}"],
+    linterOptions: { reportUnusedDisableDirectives: false },
+    rules: {
+      "jsx-a11y/no-noninteractive-tabindex": "off",
+      "jsx-a11y/anchor-has-content": "off",
+      "jsx-a11y/aria-activedescendant-has-tabindex": "off",
+      "jsx-a11y/interactive-supports-focus": "off",
+      "jsx-a11y/click-events-have-key-events": "off",
+      "jsx-a11y/no-static-element-interactions": "off",
+      "jsx-a11y/no-noninteractive-element-interactions": "off",
+      "no-control-regex": "off",
+      "no-useless-assignment": "off",
+    },
+  },
   // The end-to-end test and its pretend model run in Node, not the browser.
   {
     files: ["e2e/**/*.{ts,mjs}"],

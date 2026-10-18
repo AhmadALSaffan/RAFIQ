@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { RaySpinner, ShimmerText, TextSwap } from "../../components/LiveText";
 import { t } from "../../i18n";
 import { toolLabel } from "../../lib/tools";
 import type { ChatPart } from "../../lib/types";
@@ -41,6 +41,16 @@ export function doing(tool: string, args: Record<string, unknown>): string {
       return t("عم يقرأ صفحة من الإنترنت…");
     case "wait_for_tasks":
       return t("ناطر المهام تخلص…");
+    case "design_start":
+      return t("عم يفتح جلسة تصميم…");
+    case "motion_start":
+      return t("عم يفتح مشروع موشن…");
+    case "design_review":
+      return t("عم يراجع التصميم قسم قسم…");
+    case "design_slop_check":
+      return t("عم يفحص علامات التصميم الآلي…");
+    case "motion_review":
+      return t("عم يراجع الريل لقطة لقطة…");
     default:
       if (tool.startsWith("browser_")) return t("عم يستعمل المتصفح…");
       if (tool.startsWith("desktop_")) return t("عم يستعمل الشاشة…");
@@ -76,33 +86,22 @@ export function WorkStatus({ parts }: { parts: ChatPart[] }) {
   const elapsed = seconds < 60 ? t("{0} ث", { 0: seconds }) : t("{0} د {1} ث", { 0: Math.floor(seconds / 60), 1: seconds % 60 });
 
   return (
-    <div className="flex items-center gap-2.5 py-1 text-sm" style={{ color: "var(--color-ink-muted)" }} role="status" aria-live="polite">
-      <span className="flex items-center gap-1" aria-hidden="true">
-        {[0, 1, 2].map((i) => (
-          <motion.span
-            key={i}
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ background: "var(--color-accent)" }}
-            animate={{ opacity: [0.25, 1, 0.25], y: [0, -3, 0] }}
-            transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.16, ease: "easeInOut" }}
-          />
-        ))}
+    <div
+      className="flex max-w-full items-center gap-2 self-start rounded-full py-1.5 pe-3 ps-2.5 text-[13px]"
+      // contain: paint — the turning spinner's rotated box would otherwise count toward the
+      // chat's scroll height, and following the bottom would chase it every turn.
+      style={{ background: "var(--color-surface)", color: "var(--color-ink-muted)", contain: "paint" }}
+      role="status"
+      aria-live="polite"
+    >
+      <span className="flex h-3.5 w-3.5 shrink-0 overflow-hidden" style={{ color: "var(--color-accent)" }}>
+        <RaySpinner size={14} />
       </span>
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span
-          key={text}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.2 }}
-          className="min-w-0 truncate"
-          dir="auto"
-        >
-          {text}
-        </motion.span>
-      </AnimatePresence>
-      <span className="num shrink-0 text-xs" aria-hidden="true">
-        · {elapsed}
+      <TextSwap text={text} className="min-w-0">
+        <ShimmerText>{text}</ShimmerText>
+      </TextSwap>
+      <span className="num shrink-0 text-xs opacity-70" aria-hidden="true">
+        {elapsed}
       </span>
     </div>
   );

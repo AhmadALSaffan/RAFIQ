@@ -1,35 +1,15 @@
-import { memo, useState } from "react";
+import { memo } from "react";
+import { CodeBlock } from "./arc/code-block/code-block";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isolateMentions } from "../lib/bidi";
 
-import { t } from "../i18n";
-function CodeBlock({ language, code }: { language: string; code: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="md-code">
-      <div className="md-code-bar">
-        <span dir="ltr">{language || "code"}</span>
-        <button
-          type="button"
-          onClick={() => {
-            navigator.clipboard.writeText(code).then(() => {
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1400);
-            });
-          }}
-        >
-          {copied ? t("انتسخ ✓") : t("نسخ")}
-        </button>
-      </div>
-      <pre dir="ltr">
-        <code>{code}</code>
-      </pre>
-    </div>
-  );
-}
+// Past this many lines a block opens folded to a fixed height: a design's whole HTML or a
+// motion scene streams in as one block, and a chat that grows with every line drags the
+// reader down with it.
+const FOLD_LINES = 16;
 
-export const Markdown = memo(function Markdown({ text }: { text: string }) {
+export const Markdown = memo(function Markdown({ text, live = false }: { text: string; live?: boolean }) {
   // @ملف / #مهمة inside Arabic prose would otherwise flip the sentence around them.
   const source = isolateMentions(text);
   return (
@@ -42,7 +22,7 @@ export const Markdown = memo(function Markdown({ text }: { text: string }) {
             const match = /language-(\w+)/.exec(className ?? "");
             const code = String(children ?? "");
             if (match || code.includes("\n")) {
-              return <CodeBlock language={match?.[1] ?? ""} code={code.replace(/\n$/, "")} />;
+              return <CodeBlock language={match?.[1] ?? "text"} code={code.replace(/\n$/, "")} maxLines={FOLD_LINES} live={live} />;
             }
             return (
               <code className="md-inline" dir="ltr">

@@ -204,8 +204,12 @@ export const MOTION_COMMANDS: CommandDef[] = [
 ];
 
 /** What a design's chat offers on top of the shared commands. */
+/** What the "is it AI slop?" check asks the design model (the /آلي command and the header button). */
+export const SLOP_REQUEST = t("تأكد إن التصميم مش AI slop: شغّل design_slop_check، واقرأ الصفحة قسم قسم مقابل الدليل اللي معه (الألوان، الخطوط، التكوين، النصوص، الصور، الحركة). صلّح كل علامة بتلاقيها بدون ما تطلع عن الهوية، وأعد الفحص لحد ما ما يضل شي. بالآخر قلّي شو العلامات اللي لقيتها وشو عملت بدالها.");
+
 export const DESIGN_COMMANDS: CommandDef[] = [
   { id: "design:review", label: t("/راجع"), hint: t("مراجعة المصمم قسم قسم، وتصليح الملاحظات"), aliases: ["review", t("راجع"), t("مراجعة"), t("حسن"), t("حسّن")], Icon: WandIcon, kind: "send", text: t("راجع التصميم قسم قسم متل مصمم محترف: شغّل design_review، وصلّح كل ملاحظاته، وقارن مع مثال التصميم الاحترافي بالدليل. أعد design_review لحد ما تخلص الملاحظات، وبالآخر قلّي شو غيّرت بكل قسم.") },
+  { id: "design:slop", label: t("/آلي"), hint: t("تأكد إن التصميم مش AI slop وصلّح علاماته"), aliases: ["slop", "ai", t("آلي"), t("سلوب"), t("مصطنع")], Icon: ShieldIcon, kind: "send", text: SLOP_REQUEST },
   { id: "design:motion", label: t("/حركة"), hint: t("ظهور مع السكرول، hover، وحركة بالهيرو"), aliases: ["motion", "animate", t("حركة"), t("تحريك"), t("أنيميشن")], Icon: BoltIcon, kind: "send", text: t("ضيف حركة للتصميم متل المواقع الاحترافية: ظهور الأقسام مع السكرول بتتابع، hover على الأزرار والكروت، وحركة بتلفت النظر بالهيرو — بدون مبالغة، ومع prefers-reduced-motion.") },
   { id: "design:colors", label: t("/ألوان"), hint: t("غيّر ألوان التصميم"), aliases: ["colors", "palette", t("الوان"), t("ألوان"), t("لون")], Icon: AdjustIcon, kind: "prefill", text: t("غيّر ألوان التصميم لتكون ") },
   { id: "design:fonts", label: t("/خطوط"), hint: t("غيّر خطوط التصميم"), aliases: ["fonts", "type", t("خطوط"), t("خط")], Icon: TextIcon, kind: "prefill", text: t("غيّر خطوط التصميم لـ ") },

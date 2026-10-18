@@ -11,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
 from rafiq_agent.core import designs as design_core
+from rafiq_agent.core import font_catalog, identity_refs, studio
 from rafiq_agent.core import identity as identity_core
+from rafiq_agent.core.chat_service import active_turn
 from rafiq_agent.core.designs import (
     brief_message,
     handoff_message,
@@ -20,14 +22,13 @@ from rafiq_agent.core.designs import (
     save_preview,
 )
 from rafiq_agent.core.tasks_service import TaskCreateError, create_task, resolve_working_dir
-from rafiq_agent.core.workspace import session_dir, workspace_root
+from rafiq_agent.core.workspace import workspace_root
 from rafiq_agent.i18n import tr
-from rafiq_agent.schemas.chats import ReplySettings
 from rafiq_agent.skills import editor as skill_editor
 from rafiq_agent.skills.install import SkillInstallError, fetch, find_skills, install_folder
 from rafiq_agent.skills.registry import USER_DIR, Skill, all_skills, get_skill, reload_skills
 from rafiq_agent.storage.db import get_session
-from rafiq_agent.storage.models import Chat, ChatMessage, Design, DesignIdentity, LlmModel
+from rafiq_agent.storage.models import Attachment, Chat, ChatMessage, Design, DesignIdentity, LlmModel
 
 router = APIRouter(tags=["designs"], dependencies=[Depends(require_token)])
 
@@ -98,6 +99,8 @@ class DesignOut(BaseModel):
     working_dir: str | None = None
     saved_path: str | None = None
     status: str
+    # Its chat is replying right now (the model is working on it).
+    working: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -321,6 +324,7 @@ def _checked_dir(raw: str | None) -> str | None:
 def _out(design: Design) -> DesignOut:
     out = DesignOut.model_validate(design)
     out.kickoff = brief_message(design.brief or {})
+    out.working = active_turn(design.chat_id) is not None
     # A design from before documents were named still has only its preview.
     if not out.files and design.preview_html:
         out.files = [DesignFileOut(name=design.title[:40], html=design.preview_html, path=design.saved_path)]
@@ -429,8 +433,8 @@ async def identity_options() -> dict[str, Any]:
     """What the identity builder offers: the style starting points, the fonts, the roles."""
     return {
         "styles": [{**s, "label": tr(s["label"])} for s in identity_core.presets()],
-        "fonts": {slot: list(names) for slot, names in identity_core.FONTS.items()},
-        "weights": {name: w for names in identity_core.FONTS.values() for name, w in names.items()},
+        "fonts": [{"name": n, "class": c, "arabic": a} for n, c, a, _w in font_catalog.FONTS],
+        "weights": identity_core.WEIGHTS,
         "roles": identity_core.COLOR_ROLES,
     }
 
@@ -440,6 +444,36 @@ async def normalize_identity(body: dict[str, Any]) -> dict[str, Any]:
     """The identity cleaned up, with its tokens and font link — what the builder previews."""
     data = identity_core.normalize(body)
     return {"data": data, "css": identity_core.css_tokens(data), "fonts": identity_core.fonts_link(data)}
+
+
+class FromReferencesIn(BaseModel):
+    model_id: str
+    urls: list[str] = []
+    attachment_ids: list[str] = []
+    notes: str = ""
+
+
+@router.post("/design-identities/from-references")
+async def identity_from_references(body: FromReferencesIn, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+    """An identity the model proposes from designs the user likes (links, screenshots,
+    saved pages), for the builder to open with — nothing is saved until the user saves it."""
+    model = await session.get(LlmModel, body.model_id)
+    if model is None:
+        raise HTTPException(status_code=404, detail=tr("النموذج مش موجود"))
+    attachments = [a for a in [await session.get(Attachment, i) for i in body.attachment_ids[:12]] if a is not None]
+    if not any(u.strip() for u in body.urls) and not attachments:
+        raise HTTPException(status_code=400, detail=tr("أضف رابط أو صورة وحدة على الأقل"))
+    refs = await identity_refs.references_from(body.urls, attachments)
+    report = [{"label": r.label, "ok": r.ok, "error": r.error} for r in refs]
+    if not any(r.ok for r in refs):
+        raise HTTPException(status_code=422, detail=tr("ما قدرت أقرأ ولا مرجع — تأكد من الروابط والملفات"))
+    try:
+        data, why = await identity_refs.propose(model, refs, body.notes)
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=tr("النموذج ما رجّع هوية مفهومة — جرّب مرة تانية أو نموذج تاني")) from exc
+    except Exception as exc:  # noqa: BLE001 - the provider's own error, in words
+        raise HTTPException(status_code=502, detail=tr("الموديل ما اشتغل: {0}", exc)) from exc
+    return {"data": data, "why": why, "references": report}
 
 
 @router.get("/design-identities", response_model=list[IdentityOut])
@@ -514,38 +548,16 @@ async def create_design(body: DesignCreate, session: AsyncSession = Depends(get_
     if not model:
         raise HTTPException(status_code=404, detail="model not found")
 
-    title = (body.title or str(body.brief.get("what") or "").strip() or tr("تصميم جديد"))[:80]
-    folder = _checked_dir(body.working_dir)
-    # The design chat gets the same folder, so the model can read the project it designs for.
-    chat = Chat(
-        title=tr("تصميم: {0}", title),
-        model_id=model.id,
-        mode="design",
-        working_dir=folder,
-        settings=ReplySettings(web_search=body.web_search).model_dump(),
-        workspace_id=body.workspace_id or None,
+    design = await studio.new_design(
+        session,
+        model,
+        body.brief,
+        identity=body.identity,
+        title=body.title,
+        working_dir=_checked_dir(body.working_dir),
+        workspace_id=body.workspace_id,
+        web_search=body.web_search,
     )
-    session.add(chat)
-    await session.flush()
-
-    design = Design(
-        title=title,
-        brief=body.brief,
-        identity=identity_core.normalize(body.identity) if body.identity else None,
-        chat_id=chat.id,
-        model_id=model.id,
-        working_dir=folder,
-        workspace_id=body.workspace_id or None,
-    )
-    session.add(design)
-    await session.flush()
-    if not design.working_dir:
-        # Without a folder the design would live only in the database; give it one so every
-        # version lands on disk where the user can find it.
-        design.working_dir = str(session_dir("designs", design.id, title))
-        chat.working_dir = design.working_dir
-    await session.commit()
-    await session.refresh(design)
     return _out(design)
 
 

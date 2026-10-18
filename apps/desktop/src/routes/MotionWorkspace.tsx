@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Breadcrumb } from "../components/arc/breadcrumb/breadcrumb";
+import { Badge } from "../components/arc/badge/badge";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { getMotionProject, patchMotionScene, renameMotionProject, type MotionProject, quietly } from "../lib/api";
@@ -237,9 +239,6 @@ export function MotionWorkspace() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center gap-3 px-5 pb-1 pt-3">
-        <button onClick={() => navigate("/motion")} className="shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors hover:bg-[var(--color-surface)]" style={{ color: "var(--color-ink-muted)" }}>
-          {t("موشن ›")}
-        </button>
         {renaming ? (
           <input
             autoFocus
@@ -260,11 +259,11 @@ export function MotionWorkspace() {
           />
         ) : (
           <div className="group/title flex min-w-0 flex-1 items-center gap-1">
-            <h1 onDoubleClick={() => setRenaming(true)} title={t("دبل كليك لإعادة التسمية")} className="min-w-0 cursor-text truncate text-[17px] font-bold" dir="auto">
-              {project.title}
-              <span className="num ms-2 text-xs font-normal" style={{ color: "var(--color-ink-muted)" }}>
+            <h1 onDoubleClick={() => setRenaming(true)} title={t("دبل كليك لإعادة التسمية")} className="flex min-w-0 items-center gap-2 truncate text-[15px]">
+              <Breadcrumb items={[{ label: t("موشن"), onClick: () => navigate("/motion") }, { label: project.title }]} />
+              <Badge size="sm" className="num shrink-0">
                 v{project.version}
-              </span>
+              </Badge>
             </h1>
             <button
               type="button"

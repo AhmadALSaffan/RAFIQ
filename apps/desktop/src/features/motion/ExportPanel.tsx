@@ -4,13 +4,15 @@
  * cancelled, and at the end says what the file really is (read back by the agent).
  */
 
-import { useEffect, useState } from "react";
+import { Progress } from "../../components/arc/progress/progress";
+import { notify } from "../../lib/toast";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { t } from "../../i18n";
 import { easeOutExpo, snappy } from "../../lib/motion";
 import { ffmpegStatus, installFfmpeg, motionRenderUrl, type FfmpegStatus } from "../../lib/api";
 import { revealPath } from "../../lib/folders";
-import { BigNumber, BracketLabel, LedBar } from "../../components/brand";
+import { BigNumber, BracketLabel } from "../../components/brand";
 import { Button } from "../../components/ui";
 import { AlertIcon, XIcon } from "../../components/Icons";
 import { capabilities, outputSize, type ExportSettings, type ExportSize } from "./engine/export";
@@ -68,6 +70,14 @@ export function ExportPanel({
   useEffect(() => {
     if (job?.result?.status === "done") void motionRenderUrl(job.result.id).then(setUrl);
     else setUrl(null);
+  }, [job?.result]);
+  // The export finishing is news even after the panel's been looked away from.
+  const announced = useRef<string | null>(null);
+  useEffect(() => {
+    const result = job?.result;
+    if (result?.status !== "done" || announced.current === result.id) return;
+    announced.current = result.id;
+    notify({ type: "success", title: t("خلص التصدير"), description: t("الفيديو جاهز بمجلد المشروع") });
   }, [job?.result]);
 
   const supported = (size: ExportSize, fps: number) => !caps || caps[`${size}@${fps}`] !== false;
@@ -298,7 +308,7 @@ export function ExportPanel({
                     )}
                   </p>
                 </div>
-                <LedBar value={job.progress.fraction} segments={24} tone="accent" label={t("تصدير")} className="mt-2" />
+                <Progress value={job.progress.fraction * 100} className="mt-2" />
               </>
             )}
             {job.error && (

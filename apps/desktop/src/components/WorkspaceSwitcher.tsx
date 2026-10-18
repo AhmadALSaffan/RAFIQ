@@ -17,6 +17,7 @@ import { Button, ErrorText, Field } from "./ui";
 import { BudgetMeter } from "./BudgetMeter";
 import { BriefcaseIcon, ChevronDownIcon, PlusIcon, SettingsIcon, TrashIcon, XIcon } from "./Icons";
 import { t } from "../i18n";
+import { RichTextEditor } from "./arc/rich-text-editor/rich-text-editor";
 
 function Dot({ color, className = "h-2.5 w-2.5" }: { color: string | null; className?: string }) {
   return <span className={`inline-block shrink-0 rounded-full ${className}`} style={{ background: color ?? "var(--color-ink-muted)" }} />;
@@ -255,7 +256,12 @@ export function WorkspacesDialog({ onClose }: { onClose: () => void }) {
               </select>
             </Field>
             <Field label={t("تعليمات دائمة (اختياري)")} hint={t("بتنضاف لكل محادثة ومهمة بهالمساحة — مثلاً: «المشروع بـ TypeScript، لا تستخدم any، الرد بالعربي».")}>
-              <textarea value={editing.draft.instructions ?? ""} onChange={(e) => setEditing({ ...editing, draft: { ...editing.draft, instructions: e.target.value || null } })} rows={3} className="input resize-none" dir={fieldDir(editing.draft.instructions ?? "")} />
+              <RichTextEditor
+                defaultMarkdown={editing.draft.instructions ?? ""}
+                onChange={(v) => setEditing((prev) => (prev ? { ...prev, draft: { ...prev.draft, instructions: v.empty ? null : v.markdown } } : prev))}
+                aria-label={t("تعليمات دائمة (اختياري)")}
+                className="max-h-56 overflow-y-auto"
+              />
             </Field>
             <Field label={t("حد المصروف اليومي (اختياري)")} hint={t("لما محادثات ومهام هالمساحة يصرفوا هالمبلغ باليوم، رفيق بيوقف يبعت للنماذج منها لبكرا — والباقي بيكمّل عادي. فاضي = بلا حد.")}>
               <DollarInput

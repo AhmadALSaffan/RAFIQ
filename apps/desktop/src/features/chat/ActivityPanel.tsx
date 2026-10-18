@@ -4,12 +4,13 @@
  * like a terminal. Opens by itself the first time either happens in a chat.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { TreeView, type TreeNode } from "../../components/arc/tree-view/tree-view";
+import { Tabs, TabsList, TabsTrigger } from "../../components/arc/tabs/tabs";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { t } from "../../i18n";
 import { previewFile, rawFileUrl, type FilePreview } from "../../lib/api";
 import { revealPath } from "../../lib/folders";
-import { roving } from "../../lib/keyboard";
 import { easeOutExpo } from "../../lib/motion";
 import type { ChatPart } from "../../lib/types";
 import { Markdown } from "../../components/Markdown";
@@ -81,28 +82,24 @@ export function ActivityPanel({
   return (
     <aside className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl" aria-label={t("شغل الموديل")} style={{ background: "var(--color-surface)" }}>
       <div className="flex items-center gap-2 border-b px-3 py-2" style={{ borderColor: "var(--color-border)" }}>
-        <div ref={roving} role="tablist" aria-label={t("شغل الموديل")} className="flex flex-1 gap-1">
-          {(
-            [
-              ["files", t("الملفات"), activity.files.length, FileIcon],
-              ["commands", t("الأوامر"), activity.commands.length, TerminalIcon],
-            ] as const
-          ).map(([id, label, count, Icon]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => onTab(id)}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
-              style={{ background: tab === id ? "var(--color-inverse)" : "transparent", color: tab === id ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-              <span className="num">{count}</span>
-            </button>
-          ))}
-        </div>
+        <Tabs value={tab} onValueChange={(v) => onTab(v as ActivityTab)} className="flex-1">
+          <TabsList aria-label={t("شغل الموديل")}>
+            {(
+              [
+                ["files", t("الملفات"), activity.files.length, FileIcon],
+                ["commands", t("الأوامر"), activity.commands.length, TerminalIcon],
+              ] as const
+            ).map(([id, label, count, Icon]) => (
+              <TabsTrigger key={id} value={id}>
+                <span className="flex items-center gap-1.5 text-xs">
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                  <span className="num">{count}</span>
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <button type="button" onClick={onClose} aria-label={t("سكّر اللوحة")} title={t("سكّر اللوحة")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
           <XIcon className="h-4 w-4" />
         </button>
@@ -114,10 +111,33 @@ export function ActivityPanel({
 
 // ── Files ──────────────────────────────────────────────────────────────────────────────
 
+/** Paths as nested folders; a file's id is its path, and it carries its state mark. */
+function fileTree(files: FileActivity[]): { nodes: TreeNode[]; folders: string[] } {
+  const roots: TreeNode[] = [];
+  const folders = new Map<string, TreeNode>();
+  for (const f of files) {
+    const parts = f.path.split("/");
+    let siblings = roots;
+    parts.slice(0, -1).forEach((name, i) => {
+      const id = `dir:${parts.slice(0, i + 1).join("/")}`;
+      let folder = folders.get(id);
+      if (!folder) {
+        folder = { id, label: name, children: [] };
+        folders.set(id, folder);
+        siblings.push(folder);
+      }
+      siblings = folder.children!;
+    });
+    siblings.push({ id: f.path, label: parts[parts.length - 1], icon: <StateMark state={f.state} /> });
+  }
+  return { nodes: roots, folders: [...folders.keys()] };
+}
+
 function FilesView({ files, folder }: { files: FileActivity[]; folder: string | null }) {
   const [picked, setPicked] = useState<string | null>(null);
   // The newest file unless the user picked one; a rewrite of the open file refreshes it.
   const current = files.find((f) => f.path === picked) ?? files[0];
+  const tree = useMemo(() => fileTree(files), [files]);
   if (!files.length) {
     return (
       <p className="p-6 text-center text-sm leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
@@ -127,24 +147,10 @@ function FilesView({ files, folder }: { files: FileActivity[]; folder: string | 
   }
   return (
     <div className="flex h-full flex-col">
-      <ul className="flex max-h-40 shrink-0 flex-col gap-0.5 overflow-y-auto border-b p-2" style={{ borderColor: "var(--color-border)" }} aria-label={t("الملفات")}>
-        {files.map((f) => (
-          <li key={f.path}>
-            <button
-              type="button"
-              aria-pressed={f.path === current?.path}
-              onClick={() => setPicked(f.path)}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-xs transition-colors hover:bg-[var(--color-surface-2)]"
-              style={{ background: f.path === current?.path ? "var(--color-surface-2)" : undefined }}
-            >
-              <StateMark state={f.state} />
-              <span className="min-w-0 flex-1 truncate font-mono" dir="ltr">
-                {f.path}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {/* The files as a tree of their folders; paths read left to right, like code. */}
+      <div className="max-h-48 shrink-0 overflow-y-auto border-b p-2 font-mono text-xs" style={{ borderColor: "var(--color-border)" }} dir="ltr">
+        <TreeView nodes={tree.nodes} defaultExpandedIds={tree.folders} aria-label={t("الملفات")} onSelect={(node) => !node.children && setPicked(node.id)} />
+      </div>
       {current && folder ? (
         <PreviewView key={current.path} dir={folder} path={current.path} version={`${current.id}:${current.state}`} running={current.state === "running"} />
       ) : (

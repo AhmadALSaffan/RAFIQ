@@ -7,10 +7,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { deleteIdentity, identityOptions, listIdentities, saveIdentity } from "../../lib/api";
-import type { DesignIdentity, IdentityData, IdentityOptions, IdentityRole } from "../../lib/types";
+import type { DesignIdentity, IdentityData, IdentityOptions, IdentityProposal, IdentityRole, LlmModel } from "../../lib/types";
 import { Button } from "../../components/ui";
-import { PencilIcon, PlusIcon, TrashIcon } from "../../components/Icons";
+import { PencilIcon, PlusIcon, SparkIcon, TrashIcon } from "../../components/Icons";
+import { FontPicker } from "./FontPicker";
+import { IdentityFromReferences } from "./IdentityFromReferences";
 import { t } from "../../i18n";
+import { notify } from "../../lib/toast";
+import { ExpandableCard } from "../../components/arc/expandable-card/expandable-card";
 
 const ROLE_LABELS: Record<IdentityRole, string> = {
   background: t("الخلفية"),
@@ -94,7 +98,6 @@ body { background: var(--background); color: var(--ink); font: 400 var(--text)/1
 nav { display: flex; align-items: center; gap: 20px; padding: 10px 12px 10px 18px; border-radius: var(--pill); background: var(--surface); box-shadow: 0 0 0 1px var(--line) }
 nav b { font: 700 20px var(--display) } nav span { color: var(--muted); font-size: 14px } nav .btn { margin-inline-start: auto; height: 38px; font-size: 14px }
 .hero { padding-block: var(--section) calc(var(--section) * .6) }
-.label { font: 500 12px var(--latin); letter-spacing: .14em; text-transform: uppercase; color: var(--muted) }
 h1 { font: 700 clamp(40px, 6vw, 76px)/1.08 var(--display); margin-block: 14px 16px; animation: rise var(--speed) var(--ease) both }
 h1 em { font-style: normal; color: var(--primary) }
 .hero p { color: var(--muted); max-width: 36ch; animation: rise var(--speed) var(--ease) .12s both }
@@ -120,7 +123,7 @@ h2 { font: 700 13px var(--latin); letter-spacing: .14em; text-transform: upperca
 @media (max-width: 640px) { .cards, .swatches { grid-template-columns: 1fr 1fr } }
 </style></head><body>
 <nav><b>${name}</b><span>${t("المزايا")}</span><span>${t("الأسعار")}</span><button class="btn main">${t("ابدأ الآن")}</button></nav>
-<section class="hero"><span class="label">Brand · ${d.style}</span><h1>${t("هيك بتبين")} <em>${t("هويتك")}</em>.</h1>
+<section class="hero"><h1>${t("هيك بتبين")} <em>${t("هويتك")}</em>.</h1>
 <p>${t("هاد مثال بيوريك الألوان والخطوط والزوايا والظلال والحركة اللي اخترتها — التصميم الحقيقي رح يكون بتكوين خاص فيه.")}</p>
 <div class="row"><button class="btn main">${t("الزر الأساسي")}</button><button class="btn ghost">${t("زر ثانوي")}</button></div></section>
 <div class="cards"><div class="card"><div class="ic">◆</div><h3>${t("بطاقة ميزة")}</h3><p>${t("سطح، خط فاصل، ظل وزوايا من الهوية.")}</p></div>
@@ -196,12 +199,15 @@ export function IdentityBuilder({
   onSave,
   onCancel,
   saving,
+  proposal,
 }: {
   options: IdentityOptions;
   initial: IdentityData;
   onSave: (data: IdentityData) => void;
   onCancel?: () => void;
   saving?: boolean;
+  /** When the model proposed this identity from references: its reasons, and what it read. */
+  proposal?: Pick<IdentityProposal, "why" | "references">;
 }) {
   const [d, setD] = useState<IdentityData>(initial);
   const [darkTab, setDarkTab] = useState(false);
@@ -226,6 +232,28 @@ export function IdentityBuilder({
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <div className="flex min-h-0 w-full flex-col border-b md:w-[340px] md:border-b-0 md:border-e" style={{ borderColor: "var(--color-border)" }}>
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
+        {proposal && (
+          <ExpandableCard
+            title={t("اقتراح النموذج — عدّل اللي بدك")}
+            description={proposal.references.some((r) => !r.ok) ? t("في مراجع ما انقرأت") : t("ليش اختار هيك؟")}
+            defaultExpanded
+          >
+          <div className="flex flex-col gap-1.5 text-xs leading-relaxed">
+            {proposal.why && (
+              <p className="whitespace-pre-line" style={{ color: "var(--color-ink-muted)" }} dir="auto">
+                {proposal.why}
+              </p>
+            )}
+            {proposal.references
+              .filter((r) => !r.ok)
+              .map((r) => (
+                <p key={r.label} style={{ color: "var(--color-danger)" }} dir="auto">
+                  {t("ما انقرأ: {0} — {1}", { 0: r.label, 1: r.error })}
+                </p>
+              ))}
+          </div>
+          </ExpandableCard>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <Row label={t("اسم الهوية")}>
             <input value={d.name} onChange={(e) => set("name", e.currentTarget.value)} className="input w-full" dir="auto" />
@@ -299,17 +327,18 @@ export function IdentityBuilder({
               ["latin", t("اللاتيني والأرقام")],
             ] as const
           ).map(([slot, label]) => (
-            <label key={slot} className="flex items-center gap-2 text-xs">
-              <span className="w-24 shrink-0">{label}</span>
-              <select value={d.fonts[slot]} onChange={(e) => set("fonts", { ...d.fonts, [slot]: e.currentTarget.value })} className="input min-w-0 flex-1">
-                {options.fonts[slot].map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <FontPicker
+              key={slot}
+              label={label}
+              value={d.fonts[slot]}
+              fonts={options.fonts}
+              arabicFirst={slot !== "latin"}
+              onChange={(name) => set("fonts", { ...d.fonts, [slot]: name })}
+            />
           ))}
+          <p className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+            {t("{0} خط من Google Fonts. خط العناوين إذا ما فيه عربي، الحروف العربية بتطلع بخط النص.", { 0: options.fonts.length })}
+          </p>
         </Row>
 
         <Row label={t("الزوايا")}>
@@ -411,11 +440,16 @@ function IdentityCard({ identity, selected, onPick, onEdit, onDelete }: { identi
  */
 export function IdentityStep({
   workspaceId,
+  models,
+  modelId,
   selected,
   onPick,
   onNext,
 }: {
   workspaceId: string | null;
+  /** The models that can propose an identity from references, and the one picked so far. */
+  models: LlmModel[];
+  modelId: string;
   selected: DesignIdentity | null;
   onPick: (identity: DesignIdentity | null) => void;
   /** On to the product questions (after a pick, or right after saving a new one). */
@@ -423,7 +457,8 @@ export function IdentityStep({
 }) {
   const [options, setOptions] = useState<IdentityOptions | null>(null);
   const [saved, setSaved] = useState<DesignIdentity[] | null>(null);
-  const [editing, setEditing] = useState<{ id: string | null; data: IdentityData } | null>(null);
+  const [editing, setEditing] = useState<{ id: string | null; data: IdentityData; proposal?: Pick<IdentityProposal, "why" | "references"> } | null>(null);
+  const [fromRefs, setFromRefs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -432,7 +467,6 @@ export function IdentityStep({
       .then(([opts, list]) => {
         setOptions(opts);
         setSaved(list);
-        if (!list.length) setEditing({ id: null, data: fresh(opts) });
       })
       .catch(() => setError(t("ما قدرت أجيب الهويات")));
   }, [workspaceId]);
@@ -447,6 +481,7 @@ export function IdentityStep({
     setError(null);
     try {
       const row = await saveIdentity(data, editing?.id, workspaceId);
+      notify({ type: "success", title: t("انحفظت الهوية"), description: row.name });
       setSaved((prev) => [row, ...(prev ?? []).filter((x) => x.id !== row.id)]);
       setEditing(null);
       onPick(row);
@@ -464,8 +499,28 @@ export function IdentityStep({
     return (
       <>
         {error && <p className="px-5 pt-3 text-xs" style={{ color: "var(--color-danger)" }}>{error}</p>}
-        <IdentityBuilder key={editing.id ?? "new"} options={options} initial={editing.data} saving={saving} onSave={save} onCancel={saved.length ? () => setEditing(null) : undefined} />
+        <IdentityBuilder
+          key={editing.id ?? (editing.proposal ? "proposed" : "new")}
+          options={options}
+          initial={editing.data}
+          proposal={editing.proposal}
+          saving={saving}
+          onSave={save}
+          onCancel={() => setEditing(null)}
+        />
       </>
+    );
+  if (fromRefs)
+    return (
+      <IdentityFromReferences
+        models={models}
+        modelId={modelId}
+        onCancel={() => setFromRefs(false)}
+        onProposal={(p) => {
+          setFromRefs(false);
+          setEditing({ id: null, data: { ...p.data, voice: p.data.voice ?? "", logo: p.data.logo ?? "" }, proposal: { why: p.why, references: p.references } });
+        }}
+      />
     );
   return (
     <>
@@ -482,6 +537,17 @@ export function IdentityStep({
         >
           <PlusIcon className="h-5 w-5" />
           {t("هوية جديدة")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setFromRefs(true)}
+          disabled={models.length === 0}
+          className="flex min-h-[132px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed px-3 text-center text-sm transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-50"
+          style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
+        >
+          <SparkIcon className="h-5 w-5" />
+          {t("من تصاميم عجبتك")}
+          <span className="text-[11px]">{t("روابط أو لقطات شاشة، والنموذج بيقرر")}</span>
         </button>
         {saved.map((identity) => (
           <IdentityCard

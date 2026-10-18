@@ -8,7 +8,9 @@ import { DownloadIcon, GlobeIcon } from "./Icons";
 import { Button } from "./ui";
 import { XIcon } from "./Icons";
 
-import { t } from "../i18n";
+import { direction, t } from "../i18n";
+import { Drawer, DrawerContent } from "./arc/drawer/drawer";
+import { ShortcutList } from "./arc/shortcut-recorder/shortcut-recorder";
 /** Shared modal shell for the composer's dialogs. */
 export function Dialog({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -302,17 +304,23 @@ export function ReplyConfigDialog({
 }
 
 const SHORTCUTS = [
-  { keys: "Enter", what: t("إرسال") },
-  { keys: "Shift + Enter", what: t("سطر جديد") },
-  { keys: "Esc", what: t("إغلاق القائمة، أو إيقاف الرد وهو شغّال") },
-  { keys: "↑ / ↓", what: t("تنقل بين خيارات القائمة") },
-  { keys: "Tab", what: t("اختيار الخيار المحدد") },
+  { shortcut: "enter", what: t("إرسال") },
+  { shortcut: "shift+enter", what: t("سطر جديد") },
+  { shortcut: "escape", what: t("إغلاق القائمة، أو إيقاف الرد وهو شغّال") },
+  { shortcut: "down", what: t("تنقل بين خيارات القائمة") },
+  { shortcut: "tab", what: t("اختيار الخيار المحدد") },
 ];
 
 /** `/مساعدة` — every command and shortcut in one place. */
 export function HelpDialog({ onClose, extra = [], mode = "chat" }: { onClose: () => void; extra?: CommandDef[]; mode?: ChatMode }) {
   return (
-    <Dialog title={t("الأوامر والاختصارات")} subtitle={t("اكتب / بصندوق الكتابة عشان تطلعلك نفس القائمة.")} onClose={onClose}>
+    // A side drawer at the end edge (the left, in Arabic): the chat stays in view beside it.
+    <Drawer open onOpenChange={(open) => !open && onClose()}>
+      <DrawerContent
+        side={direction() === "rtl" ? "left" : "right"}
+        title={t("الأوامر والاختصارات")}
+        description={t("اكتب / بصندوق الكتابة عشان تطلعلك نفس القائمة.")}
+      >
       <div className="flex flex-col gap-4">
         <ul className="flex flex-col gap-1.5">
           {commandsFor(mode, extra).map((cmd) => (
@@ -336,23 +344,17 @@ export function HelpDialog({ onClose, extra = [], mode = "chat" }: { onClose: ()
           <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
             {t("كمان:")} <span className="font-mono">@</span> {t("لملف من مجلد المحادثة، و")}<span className="font-mono">#</span> {t("لمهمة من حسابك المربوط.")}
           </p>
-          <ul className="flex flex-col gap-1">
-            {SHORTCUTS.map((s) => (
-              <li key={s.keys} className="flex items-center justify-between gap-3 text-xs">
-                <span style={{ color: "var(--color-ink-muted)" }}>{s.what}</span>
-                <kbd
-                  className="rounded-md border px-1.5 py-0.5 font-mono text-[11px]"
-                  dir="ltr"
-                  style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)" }}
-                >
-                  {s.keys}
-                </kbd>
-              </li>
-            ))}
-          </ul>
+          <ShortcutList
+            platform="other"
+            groups={[
+              { label: t("بالمحادثة"), items: SHORTCUTS.map((x) => ({ label: x.what, shortcut: x.shortcut })) },
+              { label: t("بالتطبيق"), items: [{ label: t("ابحث بكل شي"), shortcut: "mod+k", keywords: `search palette ${t("بحث")}` }] },
+            ]}
+          />
         </div>
       </div>
-    </Dialog>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
