@@ -17,6 +17,8 @@ class TaskCreate(BaseModel):
     attachment_ids: list[str] = []
     mode: TaskMode = "auto"
     workspace_id: str | None = None
+    # The tracker issue this task works on: {"integration_id": …, "key": …}.
+    issue: dict[str, Any] | None = None
 
 
 class TaskPlanIn(BaseModel):
@@ -58,6 +60,7 @@ class TaskSummaryOut(BaseModel):
     mode: str = "auto"
     plan: str | None = None
     workspace_id: str | None = None
+    issue: dict[str, Any] | None = None
     status: TaskStatus
     needs_approval: bool = False
     # Its changes in git (core.task_git): "running" · "applied" · "pending" · "conflict" ·

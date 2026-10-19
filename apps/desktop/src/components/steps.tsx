@@ -8,6 +8,7 @@ import { AlertIcon, ShieldIcon, SpinnerIcon, TerminalIcon } from "./Icons";
 import { Button, DrawnCheck } from "./ui";
 
 import { t } from "../i18n";
+import { canAlwaysAllow, permissionLabelOf, type PermissionAnswer } from "../lib/permissions";
 
 export function formatArgs(args: Record<string, unknown>): string {
   const entries = Object.entries(args);
@@ -165,9 +166,10 @@ export function PermissionCard({
 }: {
   call: ToolCall;
   resolution: Resolution;
-  onResolve: (resolution: "approved" | "denied") => void;
+  onResolve: (resolution: PermissionAnswer) => void;
 }) {
   const pending = resolution === "pending";
+  const group = permissionLabelOf(call.tool);
   return (
     <div
       className={`rounded-2xl border-2 px-4 py-4 transition-[border-color] duration-300 ${pending ? "pending-ring" : ""}`}
@@ -193,6 +195,16 @@ export function PermissionCard({
             <Button variant="danger" onClick={() => onResolve("denied")} className="px-3.5 py-1.5">
               {t("رفض")}
             </Button>
+            {canAlwaysAllow(call.tool) && (
+              <Button
+                variant="ghost"
+                onClick={() => onResolve("always")}
+                className="ms-auto px-3 py-1.5 text-xs"
+                title={t("«{0}» بتصير بدون سؤال — فيك ترجّعها من الإعدادات ← السماحيات", { 0: group })}
+              >
+                {t("اسمح دايماً لـ «{0}»", { 0: group })}
+              </Button>
+            )}
           </motion.div>
         ) : (
           <motion.p

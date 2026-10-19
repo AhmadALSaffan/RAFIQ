@@ -142,6 +142,8 @@ export interface TaskSummary {
   /** The plan the model wrote (plan mode), as approved. */
   plan?: string | null;
   workspace_id?: string | null;
+  /** The tracker issue it works on (agent: core/issue_lifecycle.py). */
+  issue?: TaskIssue | null;
   status: TaskStatus;
   needs_approval: boolean;
   /** Its changes in git (null when the folder isn't a repository). */
@@ -151,6 +153,19 @@ export interface TaskSummary {
   created_at: string;
   /** Last time the task moved; once it stops running this is when it finished. */
   updated_at: string;
+}
+
+export interface TaskIssue {
+  integration_id: string;
+  provider: string;
+  account?: string;
+  key: string;
+  url: string;
+  title: string;
+  branch?: string;
+  commit?: string;
+  pushed?: boolean;
+  pr_url?: string;
 }
 
 export type ToolCategory = "read_only" | "write" | "exec";
@@ -174,6 +189,7 @@ export type TaskEvent =
       resolution: "pending" | "approved" | "denied";
       created_at: string;
     }
+  | { id: string; type: "issue_update"; text: string; ok: boolean; created_at: string }
   | { id: string; type: "status"; status: TaskStatus; note?: string; created_at: string }
   | { id: string; type: "plan"; text: string; created_at: string }
   | { id: string; type: "plan_approved"; text: string; created_at: string }
@@ -310,15 +326,81 @@ export interface IntegrationField {
   help: string;
 }
 
+/** What a tracker can do beyond reading and commenting (agent: integrations/base.py). */
+export type IntegrationCapability =
+  | "search"
+  | "create"
+  | "update"
+  | "subtasks"
+  | "link"
+  | "attach"
+  | "worklog"
+  | "dev"
+  | "comment_edit"
+  | "mentions"
+  | "reviews"
+  | "sprint"
+  | "projects"
+  | "users"
+  | "pull_request";
+
 export interface IntegrationProvider {
   id: string;
   name: string;
   icon: string;
   color: string;
   docs_url: string;
+  token_url: string;
   blurb: string;
+  scopes: string;
+  group: "tracker" | "git";
   secret_field: string;
+  capabilities: IntegrationCapability[];
   fields: IntegrationField[];
+}
+
+export interface Lifecycle {
+  on_start: "none" | "in_progress";
+  on_finish: "none" | "review" | "done";
+  comment_plan: boolean;
+  comment_summary: boolean;
+  log_work: boolean;
+  branch: boolean;
+  publish: "none" | "commit" | "push" | "pull_request";
+  review_status: string;
+}
+
+export interface WatchSettings {
+  enabled: boolean;
+  every_minutes: number;
+  kinds: NoticeKind[];
+  desktop: boolean;
+}
+
+export interface IssueRule {
+  id: string;
+  enabled: boolean;
+  label: string | null;
+  project: string | null;
+  contains: string | null;
+  action: "task" | "plan" | "notify";
+  note: string | null;
+}
+
+export interface SavedView {
+  id: string;
+  name: string;
+  query: string;
+  kind: "search" | "sprint" | "reviews" | "mentions";
+}
+
+export interface IntegrationSettings {
+  read_only: boolean;
+  lifecycle: Lifecycle;
+  watch: WatchSettings;
+  project_map: Record<string, string>;
+  rules: IssueRule[];
+  views: SavedView[];
 }
 
 export interface IntegrationAccount {
@@ -331,6 +413,10 @@ export interface IntegrationAccount {
   verify_error: string | null;
   verified_at: string | null;
   created_at: string;
+  settings: IntegrationSettings;
+  capabilities: IntegrationCapability[];
+  last_check: string | null;
+  watch_error: string | null;
 }
 
 export interface TrackerIssue {
@@ -356,6 +442,11 @@ export interface TrackerIssue {
   milestone: string | null;
   estimate: string | null;
   comment_count: number | null;
+  attachments: { name: string; url: string; size?: number | null; mime?: string | null }[];
+  subtasks: string[];
+  links: { kind: string; key: string; title?: string }[];
+  kind: "issue" | "pull_request";
+  project_key: string | null;
 }
 
 /** A state an issue can move to, as the tracker reports it. */
@@ -369,11 +460,102 @@ export interface IssueComment {
   author: string;
   body: string;
   created_at: string | null;
+  id: string | null;
+  mine: boolean;
+}
+
+export interface DevLink {
+  kind: "pull_request" | "branch" | "commit" | "link";
+  title: string;
+  url: string;
+  state: string | null;
+}
+
+export interface LinkedTask {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  created_at: string;
+  branch: string | null;
+  pr_url: string | null;
 }
 
 export interface TrackerIssueDetail extends TrackerIssue {
   comments: IssueComment[];
   comments_error: string | null;
+  dev: DevLink[];
+  tasks: LinkedTask[];
+}
+
+export interface IssueMeta {
+  issue_types: { id: string; name: string; subtask: boolean }[];
+  people: { id: string; name: string; handle: string | null }[];
+  labels: string[];
+  priorities: string[];
+}
+
+export interface IssueProject {
+  id: string;
+  key: string;
+  name: string;
+  url: string | null;
+}
+
+/** One change Rafiq made on a tracker. */
+export interface IntegrationAction {
+  id: string;
+  integration_id: string;
+  provider: string;
+  key: string;
+  action: string;
+  summary: string;
+  url: string | null;
+  can_undo: boolean;
+  undone_at: string | null;
+  source: { chat_id?: string; task_id?: string; by?: string } | null;
+  created_at: string;
+}
+
+export type NoticeKind = "assigned" | "mention" | "review" | "comment" | "status" | "update";
+
+export interface IssueNotice {
+  id: string;
+  integration_id: string;
+  kind: NoticeKind;
+  key: string;
+  title: string;
+  url: string | null;
+  actor: string | null;
+  text: string | null;
+  happened_at: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export type ChannelKind = "slack" | "teams" | "discord";
+export type ChannelEvent = "assigned" | "mention" | "review" | "comment" | "status" | "task_done" | "report";
+
+export interface NotifyChannel {
+  id: string;
+  kind: ChannelKind;
+  name: string;
+  events: ChannelEvent[];
+  created_at: string;
+}
+
+export interface BulkResult {
+  key: string;
+  ok: boolean;
+  message: string;
+}
+
+export interface DeviceSignIn {
+  flow_id: string;
+  user_code: string;
+  verification_uri: string;
+  verification_uri_complete: string | null;
+  interval: number;
+  expires_in: number;
 }
 
 export interface WorkspaceFile {
@@ -395,7 +577,10 @@ export type PermissionKey =
   | "mcp"
   | "memory"
   | "motion"
-  | "media";
+  | "media"
+  | "task_create"
+  | "git_publish"
+  | "notify_send";
 
 export type WebSearchProvider = "none" | "brave" | "tavily" | "searxng";
 

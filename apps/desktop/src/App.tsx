@@ -1,3 +1,4 @@
+import { ForcedUpdate } from "./features/updates/ForcedUpdate";
 import { lazy, Suspense } from "react";
 import { Toasts } from "./lib/toast";
 import { Route, Routes } from "react-router-dom";
@@ -62,6 +63,8 @@ export function App() {
             )}
           </Route>
         </Routes>
+        {/* A new version must be installed before the app carries on. */}
+        <ForcedUpdate />
         <FirstRun />
       </BootGate>
     </ContextMenuProvider>

@@ -18,6 +18,7 @@ from typing import Any
 
 from rafiq_agent.auth.resolve import helper_llm, llm_for
 from rafiq_agent.core.agent_runtime import (
+    allow_always,
     build_registry,
     load_settings,
     policy_decision,
@@ -606,7 +607,9 @@ class ChatTurn:
             skip.discard("web_search")
         elif self.reply.web_search is False:
             skip.add("web_search")
-        registry = await build_registry(folder, self.settings, frozenset(skip), self._groups())
+        registry = await build_registry(
+            folder, self.settings, frozenset(skip), self._groups(), source={"chat_id": self.chat_id}
+        )
 
         # Each note is only worth sending when the tools it describes are actually there.
         names = registry.names()
@@ -624,6 +627,10 @@ class ChatTurn:
             )
         )
         registry.register(WaitForTasksTool(lambda: list(self.created_task_ids)))
+        from rafiq_agent.tools.task_admin import admin_tools
+
+        for tool in admin_tools(await self._task_model(), self.working_dir):
+            registry.register(tool)
         notes.append(TASKS_NOTE)
         if self.design_mode:
             from rafiq_agent.tools.design import DesignReviewTool, DesignSlopCheckTool
@@ -823,6 +830,9 @@ class ChatTurn:
             resolution = await future
         finally:
             _pending_by_chat.get(self.chat_id, set()).discard(request_id)
+        if resolution == "always":
+            await allow_always(name, self.settings.permissions)
+            resolution = "approved"
         part = self._find_part(request_id)
         if part:
             part["resolution"] = resolution

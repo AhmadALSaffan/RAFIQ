@@ -20,6 +20,12 @@ import {
   IconIcons,
   IconAdjustmentsHorizontal,
   IconBolt,
+  IconBell,
+  IconArrowBackUp,
+  IconLayoutKanban,
+  IconGitPullRequest,
+  IconKey,
+  IconSubtask,
 
   IconArchive,
   IconArrowDown,
@@ -128,6 +134,12 @@ export const ExternalIcon = make(IconExternalLink);
 export const ChevronDownIcon = make(IconChevronDown);
 export const BriefcaseIcon = make(IconBriefcase);
 export const GitIcon = make(IconGitBranch);
+export const BellIcon = make(IconBell);
+export const UndoIcon = make(IconArrowBackUp);
+export const BoardIcon = make(IconLayoutKanban);
+export const PullRequestIcon = make(IconGitPullRequest);
+export const KeyIcon = make(IconKey);
+export const SubtaskIcon = make(IconSubtask);
 export const ListIcon = make(IconList);
 export const GlobeIcon = make(IconWorld);
 export const WandIcon = make(IconWand);

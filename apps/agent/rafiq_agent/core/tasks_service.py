@@ -23,6 +23,37 @@ def resolve_working_dir(raw: str | None) -> Path | None:
     return path.resolve()
 
 
+async def link_issue(raw: dict[str, Any]) -> dict[str, Any]:
+    """What a task keeps about its issue — and, when the account maps the issue's project to
+    a folder, that folder ("folder", taken out by the caller)."""
+    from rafiq_agent.core import issues as svc
+    from rafiq_agent.integrations.base import IntegrationError
+
+    integration_id, key = str(raw.get("integration_id") or ""), str(raw.get("key") or "")
+    if not key:
+        raise TaskCreateError(tr("ناقص مفتاح المهمة."))
+    try:
+        row, client = await svc.resolve(key, integration_id or None)
+        found = await client.get_issue(key)
+    except IntegrationError as exc:
+        raise TaskCreateError(str(exc)) from exc
+    mapping = svc.settings_of(row).project_map
+    folder = None
+    for name in filter(None, (found.extra.get("project_key"), found.extra.get("team_key"), found.project)):
+        if name in mapping:
+            folder = mapping[name]
+            break
+    return {
+        "integration_id": row.id,
+        "provider": row.provider,
+        "account": row.name,
+        "key": found.key,
+        "url": found.url,
+        "title": found.title,
+        "folder": folder,
+    }
+
+
 async def create_task(
     *,
     title: str,
@@ -35,9 +66,15 @@ async def create_task(
     depends_on: list[str] | None = None,
     mode: str = "auto",
     workspace_id: str | None = None,
+    issue: dict[str, Any] | None = None,
 ) -> Task:
     """Validates, stores, and queues a task. Tasks run in parallel unless they'd edit the
     same files (`paths`, or the whole folder when none are given) or wait on `depends_on`."""
+    linked = await link_issue(issue) if issue else None
+    if linked and not working_dir:
+        working_dir = linked.pop("folder", None)
+    elif linked:
+        linked.pop("folder", None)
     directory = resolve_working_dir(working_dir)
     try:
         attachments = await load_attachments(attachment_ids or [])
@@ -72,6 +109,7 @@ async def create_task(
             git=planned,
             mode=mode if mode in ("auto", "plan", "step") else "auto",
             workspace_id=workspace_id or None,
+            issue=linked,
             status="queued",
         )
         session.add(task)

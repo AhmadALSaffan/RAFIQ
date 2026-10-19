@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "../components/ui";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
-import { getUsage, listChats, listDesigns, listModels, listSchedules, listTasks } from "../lib/api";
+import { getUsage, listChats, listDesigns, listIntegrations, listIssues, listModels, listSchedules, listTasks, quietly } from "../lib/api";
 import type { ChatSummary, DesignSummary, LlmModel, Schedule, TaskSummary, UsageSummary } from "../lib/types";
 import { useCurrentWorkspaceId } from "../lib/workspace";
 import { queueChatSend } from "../lib/handoff";
@@ -54,6 +54,7 @@ export function HomePage() {
   const [schedules, setSchedules] = useState<Schedule[] | null>(null);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [models, setModels] = useState<LlmModel[] | null>(null);
+  const [due, setDue] = useState<{ late: number; today: number } | null>(null);
   const [text, setText] = useState("");
   // The last model the user chatted with, until they pick another one here.
   const [modelId, setModelId] = useState<string>(() => savedModel() ?? "");
@@ -65,6 +66,16 @@ export function HomePage() {
     listSchedules().then(setSchedules).catch(() => setSchedules([]));
     getUsage(1).then(setUsage).catch(() => setUsage(null));
     listModels().then(setModels).catch(() => setModels([]));
+    // Late and due-today issues from the connected trackers — quietly: they're slower.
+    void quietly(async () => {
+      if (!(await listIntegrations()).length) return;
+      const issues = await listIssues("", 100);
+      const now = new Date();
+      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+      const open = issues.filter((i) => i.due_date && i.status_category !== "done");
+      const at = (i: (typeof open)[number]) => new Date(i.due_date as string).getTime();
+      setDue({ late: open.filter((i) => at(i) < now.getTime()).length, today: open.filter((i) => at(i) >= now.getTime() && at(i) < endOfDay).length });
+    }).catch(() => setDue(null));
   }, [workspaceId]);
 
   const stats = useMemo(() => todayStats(tasks ?? []), [tasks]);
@@ -101,6 +112,23 @@ export function HomePage() {
         </h1>
         <Illustration scene="chat" size={150} className="hidden shrink-0 lg:block" />
       </motion.div>
+
+      {due && (due.late > 0 || due.today > 0) && (
+        <motion.button
+          variants={listItem}
+          onClick={() => navigate("/work")}
+          className="flex items-center gap-2 rounded-2xl px-4 py-2.5 text-start text-sm md:col-span-2"
+          style={{ background: due.late ? "color-mix(in oklch, var(--color-danger) 12%, var(--color-surface))" : "var(--color-surface)" }}
+        >
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: due.late ? "var(--color-danger)" : "var(--color-accent)" }} />
+          <span className="flex-1">
+            {due.late > 0 && t("{0} مهمة متأخرة", { 0: due.late })}
+            {due.late > 0 && due.today > 0 && " · "}
+            {due.today > 0 && t("{0} مستحقة اليوم", { 0: due.today })}
+          </span>
+          <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>{t("افتح شغلي")}</span>
+        </motion.button>
+      )}
 
       {/* Today, inverted: the one strong block on the screen. */}
       <motion.div variants={listItem} className="md:row-span-2">

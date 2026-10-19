@@ -41,6 +41,8 @@ export async function createTask(input: {
   attachmentIds?: string[];
   mode?: TaskMode;
   workspaceId?: string | null;
+  /** The tracker issue it works on: the task moves it along (agent: core/issue_lifecycle.py). */
+  issue?: { integration_id: string; key: string } | null;
 }): Promise<TaskDetail> {
   const raw = await request<Omit<TaskDetail, "events"> & { events: RawEvent[] }>("/tasks", {
     method: "POST",
@@ -52,6 +54,7 @@ export async function createTask(input: {
       attachment_ids: input.attachmentIds ?? [],
       mode: input.mode ?? "auto",
       workspace_id: input.workspaceId ?? null,
+      issue: input.issue ?? null,
     }),
   });
   return { ...raw, events: raw.events.map(toTaskEvent) };
@@ -107,7 +110,7 @@ export async function cancelTask(id: string): Promise<void> {
 export async function resolvePermission(
   taskId: string,
   eventId: string,
-  resolution: "approved" | "denied",
+  resolution: "approved" | "denied" | "always",
 ): Promise<void> {
   await request<void>(`/tasks/${taskId}/permission?event_id=${eventId}&resolution=${resolution}`, {
     method: "POST",

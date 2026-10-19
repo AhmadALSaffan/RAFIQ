@@ -43,12 +43,16 @@ import { BigNumber, Block as BrandBlock, BracketLabel, LedBar } from "../../comp
 
 import { t } from "../../i18n";
 import { isGuideKind, showGuide } from "../../lib/guides";
+import { permissionLabelOf, type PermissionAnswer } from "../../lib/permissions";
+import { notify } from "../../lib/toast";
+import { openExternal } from "../../lib/links";
+import { GitIcon as BranchIcon, PullRequestIcon } from "../../components/Icons";
 type Block =
   | { kind: "message"; key: string; text: string }
   | { kind: "tool"; key: string; call?: ToolCall; tool: string; result?: { ok: boolean; output: string } }
   | { kind: "permission"; key: string; event: Extract<TaskEvent, { type: "permission_request" }> }
   | { kind: "plan"; key: string; text: string }
-  | { kind: "note"; key: string; text: string }
+  | { kind: "note"; key: string; text: string; ok?: boolean }
   | { kind: "error"; key: string; message: string; guide?: string | null; provider?: string | null };
 
 /** Pairs each tool_call with the tool_result that follows it so they read as one step. */
@@ -72,6 +76,7 @@ function toBlocks(events: TaskEvent[]): Block[] {
     else if (e.type === "plan_approved") blocks.push({ kind: "note", key: e.id, text: t("وافقت على الخطة — بلّش التنفيذ.") });
     else if (e.type === "resumed") blocks.push({ kind: "note", key: e.id, text: t("كمّلت المهمة من وين وقفت.") });
     else if (e.type === "error") blocks.push({ kind: "error", key: e.id, message: e.message, guide: e.kind, provider: e.provider });
+    else if (e.type === "issue_update") blocks.push({ kind: "note", key: e.id, text: e.text, ok: e.ok });
   }
   return blocks;
 }
@@ -230,8 +235,9 @@ export function TaskDetailPage() {
     ? formatDuration(task.created_at, new Date(now).toISOString())
     : formatDuration(task.created_at, task.updated_at);
 
-  function handleResolve(eventId: string, resolution: "approved" | "denied") {
+  function handleResolve(eventId: string, answer: PermissionAnswer, tool?: string) {
     if (!id) return;
+    const resolution = answer === "denied" ? "denied" : "approved";
     // Optimistic: the banner settles immediately; the WS event_updated confirms it.
     setTask((prev) =>
       prev
@@ -241,7 +247,8 @@ export function TaskDetailPage() {
           }
         : prev,
     );
-    resolvePermission(id, eventId, resolution);
+    resolvePermission(id, eventId, answer);
+    if (answer === "always" && tool) notify({ type: "success", title: t("«{0}» صارت بدون سؤال", { 0: permissionLabelOf(tool) }), description: t("فيك ترجّعها من الإعدادات ← السماحيات") });
   }
 
   return (
@@ -281,6 +288,29 @@ export function TaskDetailPage() {
                 >
                   <ChatIcon className="h-4 w-4" />
                   {t("انعملت من محادثة")}
+                </motion.button>
+              )}
+              {task.issue && (
+                <motion.button
+                  whileHover={{ y: -1 }}
+                  onClick={() => navigate(`/work?open=${encodeURIComponent(`${task.issue!.integration_id}::${task.issue!.key}`)}`)}
+                  className="flex items-center gap-1.5 underline-offset-2 hover:underline"
+                  title={task.issue.title}
+                >
+                  <BrandMark provider={task.issue.provider} className="h-3.5 w-3.5" />
+                  <span className="font-mono" dir="ltr">{task.issue.key}</span>
+                </motion.button>
+              )}
+              {task.issue?.branch && (
+                <span className="flex items-center gap-1 font-mono text-xs" dir="ltr" title={t("الفرع")}>
+                  <BranchIcon className="h-3.5 w-3.5" />
+                  {task.issue.branch}
+                </span>
+              )}
+              {task.issue?.pr_url && (
+                <motion.button whileHover={{ y: -1 }} onClick={() => void openExternal(task.issue!.pr_url!)} className="flex items-center gap-1 underline-offset-2 hover:underline">
+                  <PullRequestIcon className="h-4 w-4" />
+                  {t("طلب الدمج")}
                 </motion.button>
               )}
             </p>
@@ -627,7 +657,7 @@ function BlockView({
   onResolve,
 }: {
   block: Block;
-  onResolve: (eventId: string, resolution: "approved" | "denied") => void;
+  onResolve: (eventId: string, resolution: PermissionAnswer, tool?: string) => void;
 }) {
   if (block.kind === "message") return <Markdown text={block.text} />;
   if (block.kind === "plan") {
@@ -640,8 +670,8 @@ function BlockView({
   }
   if (block.kind === "note") {
     return (
-      <p className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--color-success)" }}>
-        <DrawnCheck className="h-3.5 w-3.5" />
+      <p className="flex items-center gap-1.5 text-xs font-medium" style={{ color: block.ok === false ? "var(--color-warning, var(--color-danger))" : "var(--color-success)" }}>
+        {block.ok === false ? <AlertIcon className="h-3.5 w-3.5" /> : <DrawnCheck className="h-3.5 w-3.5" />}
         {block.text}
       </p>
     );
@@ -652,7 +682,7 @@ function BlockView({
       <PermissionCard
         call={block.event.call}
         resolution={block.event.resolution}
-        onResolve={(resolution) => onResolve(block.event.id, resolution)}
+        onResolve={(resolution) => onResolve(block.event.id, resolution, block.event.call.tool)}
       />
     );
   }

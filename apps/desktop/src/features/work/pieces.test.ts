@@ -26,6 +26,11 @@ function issue(overrides: Partial<TrackerIssue> = {}): TrackerIssue {
     milestone: null,
     estimate: null,
     comment_count: null,
+    attachments: [],
+    subtasks: [],
+    links: [],
+    kind: "issue",
+    project_key: "RAF",
     ...overrides,
   };
 }

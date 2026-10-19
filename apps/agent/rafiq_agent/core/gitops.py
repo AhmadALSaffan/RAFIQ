@@ -302,3 +302,92 @@ async def changes(repo: Path, base: str, result: str, paths: list[str] | None = 
     diff = await git(repo, "diff", base, result, *scope)
     truncated = len(diff) > MAX_DIFF_CHARS
     return {"files": files, "diff": diff[:MAX_DIFF_CHARS], "truncated": truncated}
+
+
+# ── Publishing a task's work on a branch (core/issue_lifecycle.py) ─────────────────────
+
+
+async def _diff_bytes(repo: Path, base: str, result: str) -> bytes:
+    """The task's own changes as a binary-safe patch."""
+
+    def run() -> bytes:
+        flags = 0x0800_0000 if os.name == "nt" else 0
+        proc = subprocess.run(  # noqa: S603 - fixed executable, arguments built by us
+            ["git", "diff", "--binary", "--full-index", base, result],
+            cwd=str(repo),
+            capture_output=True,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+            creationflags=flags,
+            timeout=600,
+        )
+        if proc.returncode != 0:
+            raise GitError(proc.stderr.decode("utf-8", "replace").strip() or "git diff failed")
+        return proc.stdout
+
+    return await asyncio.to_thread(run)
+
+
+async def branch_exists(repo: Path, name: str) -> bool:
+    result = await asyncio.to_thread(_run, ["rev-parse", "--verify", "-q", f"refs/heads/{name}"], repo, None, None)
+    return result.code == 0
+
+
+async def commit_onto_branch(repo: Path, base: str, result: str, branch: str, message: str) -> str:
+    """Puts a task's changes (base → result) on top of the user's current HEAD as one commit
+    on a new branch — built in a throwaway index, so the user's checkout, index and
+    uncommitted work are never touched, and nothing of theirs ends up in the commit.
+    Returns the commit."""
+    head = await _head(repo)
+    if not head:
+        raise GitError("the repository has no commits yet")
+    patch = await _diff_bytes(repo, base, result)
+    if not patch.strip():
+        raise GitError("the task changed nothing")
+    fd, index = tempfile.mkstemp(prefix="rafiq-index-")
+    os.close(fd)
+    os.unlink(index)
+    env = {"GIT_INDEX_FILE": index}
+    try:
+        await git(repo, "read-tree", head, env=env)
+        try:
+            await git(repo, "apply", "--cached", "--whitespace=nowarn", stdin=patch, env=env)
+        except GitError:
+            # HEAD moved on since the task started: let git merge the patch in.
+            await git(repo, "apply", "--cached", "--3way", "--whitespace=nowarn", stdin=patch, env=env)
+        tree = (await git(repo, "write-tree", env=env)).strip()
+        try:
+            commit = (await git(repo, "commit-tree", tree, "-p", head, "-m", message, env=env)).strip()
+        except GitError:
+            # No identity configured: sign it as Rafiq rather than fail.
+            commit = (await git(repo, "commit-tree", tree, "-p", head, "-m", message, env={**env, **IDENTITY})).strip()
+    finally:
+        with contextlib.suppress(OSError):
+            os.unlink(index)
+    await git(repo, "branch", "-f", branch, commit)
+    return commit
+
+
+async def remote_url(repo: Path, remote: str = "origin") -> str | None:
+    result = await asyncio.to_thread(_run, ["remote", "get-url", remote], repo, None, None)
+    if result.code == 0:
+        return result.out.strip()
+    remotes = await asyncio.to_thread(_run, ["remote"], repo, None, None)
+    first = (remotes.out.split() or [None])[0] if remotes.code == 0 else None
+    if first and first != remote:
+        again = await asyncio.to_thread(_run, ["remote", "get-url", first], repo, None, None)
+        return again.out.strip() if again.code == 0 else None
+    return None
+
+
+async def default_branch(repo: Path) -> str | None:
+    """The branch a pull request should target: the remote's default, else the current one."""
+    result = await asyncio.to_thread(_run, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], repo, None, None)
+    if result.code == 0 and result.out.strip():
+        return result.out.strip().split("/", 1)[-1]
+    return await current_branch(repo)
+
+
+async def push_branch(repo: Path, branch: str, remote: str = "origin") -> None:
+    """Pushes with the user's own git credentials. Never prompts: a push that needs a
+    password fails with git's message instead of hanging."""
+    await git(repo, "push", "--set-upstream", remote, f"refs/heads/{branch}:refs/heads/{branch}")

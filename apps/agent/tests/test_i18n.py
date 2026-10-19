@@ -51,8 +51,16 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     # style labels are translated where they're served; the note is for the model
     "core/identity.py": {"STYLES", "identity_note"},
     "llm/copilot.py": {"_text_of", "split_messages", "stream_chat", "aclose"},
-    "integrations/tools.py": {"description", "parameters"},
-    "integrations/providers.py": {"spec"},
+    "integrations/tools.py": {"description", "parameters", "ACCOUNT_PROP", "DRAFT_PROPS"},
+    # Provider specs are translated where they're served; Trello's list-name patterns match Arabic.
+    **{f"integrations/providers/{name}.py": {"spec"} for name in (
+        "linear", "github", "gitlab", "azure", "asana", "clickup", "youtrack", "bitbucket", "gitea", "plane"
+    )},
+    "integrations/providers/trello.py": {"spec", "DONE_LISTS", "DOING_LISTS"},
+    "integrations/providers/jira.py": {"spec", "TASK_TYPE_NAMES"},
+    # Task, schedule and channel tools talk to the model.
+    "tools/task_admin.py": "*",
+    "tools/notify.py": "*",
     "auth/github_copilot.py": {"_ERRORS"},
     "auth/resolve.py": {"DISCONNECTED"},
     # Standing notes the model reads (memory, workspace instructions, commit prompts).
@@ -151,7 +159,7 @@ def _scan():
 
     dynamic += [s["label"] for s in STYLES.values()]
     for cls in REGISTRY.values():
-        dynamic += [cls.spec.blurb, *(f.label for f in cls.spec.fields), *(f.help for f in cls.spec.fields)]
+        dynamic += [cls.spec.blurb, cls.spec.scopes, *(f.label for f in cls.spec.fields), *(f.help for f in cls.spec.fields)]
     for text in dynamic:
         if text and AR.search(text):
             keys.setdefault(text, "module text")

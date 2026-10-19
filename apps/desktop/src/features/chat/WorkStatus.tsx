@@ -51,6 +51,21 @@ export function doing(tool: string, args: Record<string, unknown>): string {
       return t("عم يفحص علامات التصميم الآلي…");
     case "motion_review":
       return t("عم يراجع الريل لقطة لقطة…");
+    case "issue_read":
+      return t("عم يقرأ {0}…", { 0: String(args.key ?? "") });
+    case "issue_search":
+    case "issue_list":
+      return t("عم يدوّر بالمهام…");
+    case "issue_create":
+      return t("عم ينشئ مهمة…");
+    case "issue_split":
+      return t("عم يقسّم {0}…", { 0: String(args.key ?? "") });
+    case "issue_comment":
+      return t("عم يعلّق على {0}…", { 0: String(args.key ?? "") });
+    case "schedule_create":
+      return t("عم يجدول مهمة…");
+    case "notify_post":
+      return t("عم يبعت لقناة الفريق…");
     default:
       if (tool.startsWith("browser_")) return t("عم يستعمل المتصفح…");
       if (tool.startsWith("desktop_")) return t("عم يستعمل الشاشة…");

@@ -1,6 +1,11 @@
 import {
   siAnthropic,
+  siAsana,
+  siBitbucket,
+  siClickup,
   siDeepseek,
+  siDiscord,
+  siGitea,
   siGithub,
   siGithubcopilot,
   siGitlab,
@@ -10,6 +15,8 @@ import {
   siMistralai,
   siOllama,
   siOpenrouter,
+  siPlane,
+  siTrello,
   type SimpleIcon,
 } from "simple-icons";
 import { BRAND_PATHS } from "./brandPaths";
@@ -27,6 +34,13 @@ const ICONS: Record<string, SimpleIcon> = {
   github: siGithub,
   github_copilot: siGithubcopilot,
   gitlab: siGitlab,
+  trello: siTrello,
+  asana: siAsana,
+  clickup: siClickup,
+  bitbucket: siBitbucket,
+  gitea: siGitea,
+  plane: siPlane,
+  discord: siDiscord,
 };
 
 /** Whatever has no icon at all falls back to a monogram badge in its brand colour. */
@@ -44,6 +58,9 @@ const MONOGRAMS: Record<string, { text: string; color: string }> = {
   moonshot: { text: "K", color: "#1A1A1A" },
   zai: { text: "Z", color: "#2B6CF5" },
   lm_studio: { text: "LM", color: "#4338CA" },
+  youtrack: { text: "YT", color: "#D93BA6" },
+  slack: { text: "#", color: "#4A154B" },
+  teams: { text: "T", color: "#5B5FC7" },
 };
 
 function isDark(hex: string): boolean {

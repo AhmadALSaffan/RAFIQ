@@ -31,6 +31,7 @@ import { StarButton } from "./bookmarks";
 
 import { Link } from "react-router-dom";
 import { t } from "../../i18n";
+import type { PermissionAnswer } from "../../lib/permissions";
 /** First screen of an empty chat: what رفيق can do, in one glance. */
 export function Welcome({ hasModels, onPick, onModels }: { hasModels: boolean; onPick: (text: string) => void; onModels: () => void }) {
   return (
@@ -301,7 +302,7 @@ export function AssistantBlock({
   model?: LlmModel;
   /** What this reply cost — only known for the reply that just streamed. */
   usage?: TurnUsage;
-  onResolve?: (id: string, resolution: "approved" | "denied") => void;
+  onResolve?: (id: string, resolution: PermissionAnswer, tool?: string) => void;
   onOpenTask: (id: string) => void;
   /** A saved reply can be starred; the one still streaming can't. */
   bookmarked?: boolean;
@@ -373,7 +374,7 @@ export function AssistantBlock({
                 result={item.part.ok === undefined ? undefined : { ok: item.part.ok, output: item.part.output ?? "" }}
               />
             ) : item.part.kind === "permission" ? (
-              <PermissionCard call={item.part.call} resolution={item.part.resolution} onResolve={(r) => onResolve?.(permissionId(item.part), r)} />
+              <PermissionPart part={item.part} onResolve={onResolve} />
             ) : item.part.kind === "studio" ? (
               <StudioCard item={item.part} fresh={live} />
             ) : null}
@@ -429,8 +430,15 @@ function groupTasks(parts: ChatPart[]): Item[] {
   return items;
 }
 
-function permissionId(part: ChatPart): string {
-  return part.kind === "permission" ? part.id : "";
+/** A permission request in the transcript; "always" also names the tool, so the group can be set. */
+function PermissionPart({
+  part,
+  onResolve,
+}: {
+  part: Extract<ChatPart, { kind: "permission" }>;
+  onResolve?: (id: string, resolution: PermissionAnswer, tool?: string) => void;
+}) {
+  return <PermissionCard call={part.call} resolution={part.resolution} onResolve={(r) => onResolve?.(part.id, r, part.call.tool)} />;
 }
 
 /** A task the model created from the chat; tracks its live status until it settles. */

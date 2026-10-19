@@ -288,8 +288,8 @@ async def delete_chat(chat_id: str, session: AsyncSession = Depends(get_session)
 
 @router.post("/{chat_id}/permissions/{request_id}", status_code=202)
 async def resolve_chat_permission(chat_id: str, request_id: str, resolution: str) -> dict[str, bool]:
-    if resolution not in ("approved", "denied"):
-        raise HTTPException(status_code=400, detail="resolution must be 'approved' or 'denied'")
+    if resolution not in ("approved", "denied", "always"):
+        raise HTTPException(status_code=400, detail="resolution must be 'approved', 'denied' or 'always'")
     return {"resolved": resolve_permission(request_id, resolution)}
 
 

@@ -86,6 +86,7 @@ async def create_task(body: TaskCreate) -> TaskDetailOut:
             attachment_ids=body.attachment_ids,
             mode=body.mode,
             workspace_id=body.workspace_id,
+            issue=body.issue,
         )
     except TaskCreateError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -283,8 +284,8 @@ async def commit_task_changes(task_id: str, body: CommitIn) -> CommitOut:
 
 @router.post("/{task_id}/permission", status_code=202)
 async def resolve_permission(task_id: str, event_id: str, resolution: str) -> dict[str, bool]:
-    if resolution not in ("approved", "denied"):
-        raise HTTPException(status_code=400, detail="resolution must be 'approved' or 'denied'")
+    if resolution not in ("approved", "denied", "always"):
+        raise HTTPException(status_code=400, detail="resolution must be 'approved', 'denied' or 'always'")
     return {"resolved": manager.resolve_permission(event_id, resolution)}
 
 

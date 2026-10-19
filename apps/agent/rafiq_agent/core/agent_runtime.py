@@ -1,10 +1,12 @@
 import asyncio
+import logging
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
 
 from rafiq_agent.auth.resolve import llm_for
+from rafiq_agent.core import issue_lifecycle
 from rafiq_agent.core.attachments import AttachmentError, build_user_content, load_attachments
 from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
 from rafiq_agent.core.manager import manager
@@ -37,6 +39,8 @@ from rafiq_agent.tools.shell import ShellRunTool
 from rafiq_agent.tools.skills import skill_tools
 
 # Maps a tool name to the settings permission key that gates it.
+log = logging.getLogger(__name__)
+
 PERMISSION_KEY_BY_TOOL = {
     "filesystem_write": "filesystem_write",
     "filesystem_delete": "filesystem_write",
@@ -44,6 +48,13 @@ PERMISSION_KEY_BY_TOOL = {
     "process_kill": "process",
     "issue_comment": "issue_write",
     "issue_complete": "issue_write",
+    "create_tasks": "task_create",
+    "schedule_create": "task_create",
+    "schedule_update": "task_create",
+    "schedule_delete": "task_create",
+    "task_cancel": "task_create",
+    "task_publish": "git_publish",
+    "notify_post": "notify_send",
     "web_fetch": "browser_navigate",
     "web_search": "browser_navigate",
     "memory_save": "memory",
@@ -52,7 +63,7 @@ PERMISSION_KEY_BY_TOOL = {
     "motion_stock": "media",
     "motion_image": "media",
 }
-PERMISSION_KEY_BY_PREFIX = {"browser_": "browser_navigate", "desktop_": "desktop_control", "mcp__": "mcp", "motion_": "motion"}
+PERMISSION_KEY_BY_PREFIX = {"issue_": "issue_write", "browser_": "browser_navigate", "desktop_": "desktop_control", "mcp__": "mcp", "motion_": "motion"}
 
 SYSTEM_PROMPT = (
     "أنت رفيق، مساعد ذكاء اصطناعي ينفّذ مهام حقيقية على جهاز المستخدم عبر أدوات "
@@ -101,6 +112,7 @@ async def build_registry(
     settings: AppSettings,
     native: frozenset[str] = frozenset(),
     groups: frozenset[str] = ALL_GROUPS,
+    source: dict[str, Any] | None = None,
 ) -> ToolRegistry:
     """The tools a run gets. File and shell tools need a folder, issue tools need a
     connected tracker, and the rest are asked for by `groups`. Call `aclose()` when the run
@@ -116,7 +128,11 @@ async def build_registry(
     registry = ToolRegistry()
     tools: list[Any] = []
     if "issues" in groups and await _has_integrations():
-        tools += issue_tools()
+        tools += issue_tools(source, working_dir)
+    if "issues" in groups:
+        from rafiq_agent.tools.notify import notify_tools
+
+        tools += await notify_tools()
     if "skills" in groups:
         tools += skill_tools()
     if "web" in groups:
@@ -162,6 +178,28 @@ async def load_settings() -> AppSettings:
     async with SessionLocal() as session:
         row = await session.get(SettingsRow, SETTINGS_KEY)
     return AppSettings.model_validate(row.value) if row else AppSettings()
+
+
+async def allow_always(tool_name: str, permissions: dict[str, str] | None = None) -> str | None:
+    """The user answered "always allow" on a permission card: the tool's whole group runs
+    without asking from now on, exactly as if they had set it in Settings. MCP tools keep
+    their per-server settings, so the answer stays a one-off approval for them. Returns the
+    group that changed, if any."""
+    if tool_name.startswith("mcp__"):
+        return None
+    key = permission_key(tool_name)
+    async with SessionLocal() as session:
+        row = await session.get(SettingsRow, SETTINGS_KEY)
+        current = AppSettings.model_validate(row.value) if row else AppSettings()
+        current.permissions = {**current.permissions, key: "auto"}  # type: ignore[dict-item]
+        if row:
+            row.value = current.model_dump()
+        else:
+            session.add(SettingsRow(key=SETTINGS_KEY, value=current.model_dump()))
+        await session.commit()
+    if permissions is not None:
+        permissions[key] = "auto"  # the run that asked stops asking too
+    return key
 
 
 def working_dir_system_note(working_dir: Path) -> str:
@@ -229,6 +267,35 @@ async def _plan_task(
         await manager.set_status(task_id, "failed")
 
 
+def register_task_tools(registry: ToolRegistry, task_id: str, model_id: str, folder: str | None, depth: int) -> None:
+    """A task can hand work on: start follow-up tasks (in the user's folder, not its own
+    worktree), wait for them, and see or schedule Rafiq's work — each start asks first."""
+    from rafiq_agent.tools.task_admin import admin_tools
+    from rafiq_agent.tools.tasks import CreateTasksTool, WaitForTasksTool
+
+    created: list[str] = []
+
+    async def on_created(task: Task) -> None:
+        created.append(task.id)
+
+    registry.register(
+        CreateTasksTool(model_id, folder, {"task_id": task_id, "depth": depth + 1}, on_created)
+    )
+    registry.register(WaitForTasksTool(lambda: list(created)))
+    for tool in admin_tools(model_id, folder):
+        registry.register(tool)
+
+
+async def _issue_hook(step: Any) -> None:
+    """The tracker side of a task never stops the task itself."""
+    try:
+        await step
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - reported, not raised
+        log.warning("issue lifecycle step failed: %s", exc)
+
+
 async def parallel_limit() -> int:
     """The scheduler reads the user's limit before every pass, so a change applies at once."""
     return (await load_settings()).max_parallel_tasks
@@ -246,6 +313,8 @@ async def run_task(task_id: str) -> None:
             await session.get(LlmModel, model.fallback_model_id) if model and model.fallback_model_id else None
         )
         prompt, title, planned = task.prompt, task.title, task.git
+        origin_folder = task.working_dir or None
+        depth = int((task.origin or {}).get("depth") or 0)
         mode, plan_text, workspace_id = task.mode or "auto", task.plan, task.workspace_id
         # Tasks created before the workspace existed may have no folder recorded.
         working_dir = (
@@ -278,6 +347,9 @@ async def run_task(task_id: str) -> None:
     registry: ToolRegistry | None = None
     git_info: dict[str, Any] | None = None
     outcome, cancelled = "failed", False
+    final_text, began = "", asyncio.get_running_loop().time()
+    permit: Any = None
+    await _issue_hook(issue_lifecycle.started(task_id))
     try:
         settings = await load_settings()
         # A worktree of its own when the folder is a git repo (and isolation is on), or a
@@ -331,6 +403,9 @@ async def run_task(task_id: str) -> None:
                 task_id, "permission_request", {"call": call, "resolution": "pending"}
             )
             resolution = await manager.await_permission(task_id, event.id)
+            if resolution == "always":
+                await allow_always(tool_name, settings.permissions)
+                resolution = "approved"
             await manager.update_event_payload(task_id, event.id, {"call": call, "resolution": resolution})
             return resolution == "approved"
 
@@ -346,7 +421,10 @@ async def run_task(task_id: str) -> None:
             await manager.emit_event(task_id, "tool_result", {"tool": name, "ok": ok, "output": output})
 
         # Tools this model already has of its own aren't offered a second time.
-        registry = await build_registry(effective, settings, native_tools(model.provider, model.model_id))
+        registry = await build_registry(
+            effective, settings, native_tools(model.provider, model.model_id), source={"task_id": task_id}
+        )
+        register_task_tools(registry, task_id, model.id, origin_folder, depth)
         result = await run_agent_loop(
             llm,
             messages,
@@ -370,6 +448,7 @@ async def run_task(task_id: str) -> None:
             )
         else:
             outcome = "completed"
+            final_text = result.text or ""
 
     except asyncio.CancelledError:
         outcome, cancelled = "cancelled", True
@@ -383,6 +462,14 @@ async def run_task(task_id: str) -> None:
         if git_info is not None:
             # Before the status changes, so a task waiting on this one starts from its changes.
             await settle_git(task_id, title, git_info, completed=outcome == "completed")
+        if outcome == "completed" and permit is not None:
+            # The issue moves on before the status changes, so a waiting task sees it done.
+            elapsed = asyncio.get_running_loop().time() - began
+            await _issue_hook(issue_lifecycle.finished(task_id, outcome, final_text, elapsed, permit))
         await manager.set_status(task_id, outcome)
+        if outcome == "completed":
+            from rafiq_agent.core.issue_watch import deliver
+
+            await _issue_hook(deliver("task_done", tr("✅ خلصت «{0}»", title), final_text[:1500]))
     if cancelled:
         raise asyncio.CancelledError

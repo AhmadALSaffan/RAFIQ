@@ -11,13 +11,16 @@ from rafiq_agent.storage.models import Task, TaskEvent
 from rafiq_agent.tools.base import Tool, ToolResult
 
 REPORT_CHARS = 2000
+# A task may start tasks of its own, and those theirs — but not without end.
+MAX_DEPTH = 3
 
 
 class CreateTasksTool(Tool):
     name = "create_tasks"
-    # Creating a task changes nothing on disk by itself; every action the task later takes
-    # goes through its own permission checks, so this is allowed without a prompt.
-    category = "read_only"
+    # Starting work in the background is the user's call: it asks (the "task_create"
+    # permission) unless they chose to always allow it. Every action the task then takes
+    # still goes through its own permission checks.
+    category = "write"
     description = (
         "أنشئ مهمة تنفيذية أو أكتر (لحد 100 بالمرة) يشتغل عليها رفيق بالخلفية، كل مهمة عندها أدوات ملفات "
         "وshell جوّا مجلد عملها. المهام بتشتغل **بالتوازي** إلا إذا بدها تعدّل نفس الملفات: حدد بـ paths "
@@ -52,6 +55,11 @@ class CreateTasksTool(Tool):
                             "items": {"type": "string"},
                             "description": "key أو id مهام لازم تخلص قبل ما تبلش هالمهمة",
                         },
+                        "issue": {
+                            "type": "string",
+                            "description": "مفتاح مهمة من Jira/GitHub/… (مثل PROJ-12) لتشتغل عليها المهمة: بتنتقل لقيد التنفيذ، "
+                            "وبينحط الشغل على فرع باسمها، وبينكتب الملخص عليها لما تخلص",
+                        },
                     },
                     "required": ["title", "prompt"],
                 },
@@ -72,11 +80,29 @@ class CreateTasksTool(Tool):
         self.origin = origin
         self.on_created = on_created
 
-    async def run(self, args: dict[str, Any]) -> ToolResult:
+    @staticmethod
+    def _specs(args: dict[str, Any]) -> list[Any]:
         specs = args.get("tasks")
         if not isinstance(specs, list) or not specs:
             # A model that sends one task's fields directly still gets its task.
             specs = [args] if args.get("title") or args.get("prompt") else []
+        return specs
+
+    async def preview(self, args: dict[str, Any]) -> str | None:
+        """What the permission card shows: each task, where it runs, and its first lines."""
+        blocks = []
+        for i, spec in enumerate(self._specs(args)[:MAX_PARALLEL], start=1):
+            if not isinstance(spec, dict):
+                continue
+            folder = spec.get("working_dir") or self.default_dir or "مجلد خاص فيها"
+            prompt = str(spec.get("prompt", "")).strip()
+            blocks.append(f"{i}. {spec.get('title', '')}\n   📁 {folder}\n   {prompt[:280]}{'…' if len(prompt) > 280 else ''}")
+        return "\n\n".join(blocks) or None
+
+    async def run(self, args: dict[str, Any]) -> ToolResult:
+        if int(self.origin.get("depth") or 0) >= MAX_DEPTH:
+            return ToolResult(ok=False, output=f"وصلت لأقصى عمق ({MAX_DEPTH}) لمهام بتنشئ مهام. كمّل الشغل بنفسك.")
+        specs = self._specs(args)
         if not specs:
             return ToolResult(ok=False, output="ما وصلت ولا مهمة — ابعت tasks فيها title و prompt لكل مهمة.")
 
@@ -98,6 +124,7 @@ class CreateTasksTool(Tool):
                     origin=self.origin,
                     paths=spec.get("paths") or None,
                     depends_on=deps or None,
+                    issue={"key": str(spec["issue"])} if spec.get("issue") else None,
                 )
             except TaskCreateError as exc:
                 lines.append(f"{i}. «{spec.get('title', '')}» ما انضافت: {exc}")

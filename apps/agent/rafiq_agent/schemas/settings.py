@@ -17,6 +17,12 @@ PermissionKey = Literal[
     "motion",
     # Outside services for media: text to speech, speech to text, stock images, image generation.
     "media",
+    # The model starting background tasks (or schedules) of its own.
+    "task_create",
+    # Pushing a task's branch and opening a pull/merge request: it leaves the machine.
+    "git_publish",
+    # Posting to the team's Slack, Teams or Discord channels.
+    "notify_send",
 ]
 
 DEFAULT_PERMISSIONS: dict[PermissionKey, PermissionMode] = {
@@ -30,6 +36,9 @@ DEFAULT_PERMISSIONS: dict[PermissionKey, PermissionMode] = {
     "memory": "ask",
     "motion": "auto",
     "media": "ask",
+    "task_create": "ask",
+    "git_publish": "ask",
+    "notify_send": "ask",
 }
 
 WebSearchProvider = Literal["none", "brave", "tavily", "searxng"]

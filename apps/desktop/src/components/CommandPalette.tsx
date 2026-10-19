@@ -13,8 +13,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { listBookmarks, listChats, listDesigns, listPrompts, listTasks, searchChats } from "../lib/api";
-import type { Bookmark, ChatSearchResult, ChatSummary, DesignSummary, SavedPrompt, TaskSummary } from "../lib/types";
+import { listBookmarks, listChats, listDesigns, listIssues, listPrompts, listTasks, quietly, searchChats } from "../lib/api";
+import type { Bookmark, ChatSearchResult, ChatSummary, DesignSummary, SavedPrompt, TaskSummary, TrackerIssue } from "../lib/types";
 import { useCurrentWorkspaceId } from "../lib/workspace";
 import { fieldDir } from "../lib/bidi";
 import { timeAgo } from "../lib/time";
@@ -143,6 +143,7 @@ export function CommandPalette({
   const [designs, setDesigns] = useState<DesignSummary[]>([]);
   const [prompts, setPrompts] = useState<SavedPrompt[]>([]);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [issues, setIssues] = useState<TrackerIssue[]>([]);
   const { pathname } = useLocation();
   const [found, setFound] = useState<ChatSearchResult[]>([]);
   const input = useRef<HTMLInputElement>(null);
@@ -159,6 +160,8 @@ export function CommandPalette({
     listDesigns(workspaceId).then(setDesigns).catch(() => setDesigns([]));
     listPrompts().then(setPrompts).catch(() => setPrompts([]));
     listBookmarks(workspaceId).then(setBookmarks).catch(() => setBookmarks([]));
+    // The trackers answer slower than the app; the box doesn't wait for them.
+    void quietly(() => listIssues("", 100).then(setIssues).catch(() => setIssues([])));
   }, [open, workspaceId]);
 
   // Inside the messages, from two letters on — the newest query wins.
@@ -219,6 +222,7 @@ export function CommandPalette({
       { id: "c-chat", label: t("محادثة جديدة"), Icon: PlusIcon, keywords: "new chat", run: go("/chat") },
       { id: "c-task", label: t("مهمة جديدة"), Icon: PlusIcon, keywords: "new task", run: go("/tasks?new=1") },
       { id: "c-design", label: t("تصميم جديد"), Icon: PlusIcon, keywords: "new design", run: go("/designs?new=1") },
+      { id: "c-issue", label: t("مهمة جديدة على Jira أو GitHub…"), Icon: PlusIcon, keywords: "new issue ticket jira github linear gitlab create", run: go("/work?new=1") },
       { id: "c-prompts", label: t("البرومبتات"), Icon: WandIcon, keywords: "prompts prompt saved snippets library", run: go(`${chatPath}?prompt=all`) },
       {
         id: "c-theme",
@@ -260,6 +264,14 @@ export function CommandPalette({
       keywords: p.body.slice(0, 300),
       run: go(`${chatPath}?prompt=${encodeURIComponent(p.id)}`),
     }));
+    const issueItems: Item[] = issues.map((issue) => ({
+      id: `issue-${issue.integration_id}-${issue.key}`,
+      label: `${issue.key} · ${issue.title}`,
+      hint: `${issue.integration_name} · ${issue.status}`,
+      Icon: InboxIcon,
+      keywords: [issue.project, ...issue.labels].filter(Boolean).join(" "),
+      run: go(`/work?open=${encodeURIComponent(`${issue.integration_id}::${issue.key}`)}`),
+    }));
     const bookmarkItems: Item[] = bookmarks.map((b) => ({
       id: `bookmark-${b.message_id}`,
       label: b.excerpt || b.chat_title,
@@ -274,6 +286,7 @@ export function CommandPalette({
         { title: t("أوامر"), items: commands },
         { title: t("محادثات"), items: chatItems.slice(0, 5) },
         { title: t("مهام"), items: taskItems.slice(0, 4) },
+        { title: t("شغلي"), items: issueItems.slice(0, 4) },
         { title: t("التصاميم"), items: designItems.slice(0, 3) },
         { title: t("البرومبتات"), items: promptItems.slice(0, 3) },
         { title: t("الرسائل المعلّمة"), items: bookmarkItems.slice(0, 3) },
@@ -298,11 +311,12 @@ export function CommandPalette({
       { title: t("محادثات"), items: rank(chatItems, q, 6) },
       { title: t("بالرسائل"), items: messageItems },
       { title: t("مهام"), items: rank(taskItems, q, 5) },
+      { title: t("شغلي"), items: rank(issueItems, q, 6) },
       { title: t("التصاميم"), items: rank(designItems, q, 5) },
       { title: t("البرومبتات"), items: rank(promptItems, q, 5) },
       { title: t("الرسائل المعلّمة"), items: rank(bookmarkItems, q, 5) },
     ].filter((g) => g.items.length);
-  }, [q, chats, tasks, designs, prompts, bookmarks, pathname, found, theme, go, onClose, onToggleTheme]);
+  }, [q, chats, tasks, designs, prompts, bookmarks, issues, pathname, found, theme, go, onClose, onToggleTheme]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
   const pointer = useRef<{ x: number; y: number } | null>(null);

@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  connectIntegration,
   disconnectIntegration,
   listIntegrationProviders,
   listIntegrations,
   listIssues,
+  pollTrackers,
   verifyIntegration,
 } from "../lib/api";
 import type { IntegrationAccount, IntegrationProvider, TrackerIssue } from "../lib/types";
@@ -16,8 +16,15 @@ import { useElementMenu, usePageMenu } from "../components/ContextMenu";
 import { PageHeader, RefreshButton, StatusStripe } from "../components/Page";
 import { ActionProgress } from "../components/Feedback";
 import { CATEGORY_COLOR as ISSUE_COLOR } from "../features/work/pieces";
-import { AlertIcon, LinkIcon, SpinnerIcon, TrashIcon } from "../components/Icons";
-import { Button, DrawnCheck, ErrorText, Field, Reveal } from "../components/ui";
+import { AdjustIcon, AlertIcon, BellIcon, LinkIcon, LockIcon, TrashIcon } from "../components/Icons";
+import { Button, DrawnCheck, Reveal } from "../components/ui";
+import { ConnectForm } from "../features/integrations/ConnectForm";
+import { AccountSettings } from "../features/integrations/AccountSettings";
+import { Channels } from "../features/integrations/Channels";
+import { Automations } from "../features/integrations/Automations";
+import { ActionLog } from "../features/integrations/ActionLog";
+import { CapabilityTable } from "../features/integrations/CapabilityTable";
+import { notify } from "../lib/toast";
 import { BrandMark } from "../components/BrandMark";
 
 import { t } from "../i18n";
@@ -45,7 +52,18 @@ export function IntegrationsPage() {
   usePageMenu(() => [
     { id: "refresh", label: t("حدّث الحسابات"), onSelect: () => void refreshAll() },
     { id: "work", label: t("روح لشغلي"), onSelect: () => navigate("/work"), disabled: accounts.length === 0 },
+    { id: "poll", label: t("شوف الجديد هلّق"), onSelect: () => void checkNow(), disabled: accounts.length === 0 },
   ]);
+
+  async function checkNow() {
+    try {
+      const { new: count } = await pollTrackers();
+      notify({ type: "success", title: count ? t("{0} تنبيه جديد", { 0: count }) : t("ما في جديد") });
+    } catch (err) {
+      notify({ type: "error", title: err instanceof Error ? err.message : t("ما زبط") });
+    }
+  }
+  const [showMatrix, setShowMatrix] = useState(false);
 
   const refreshIssues = () => listIssues("", 12).then(setIssues).catch(() => setIssues([]));
 
@@ -67,7 +85,7 @@ export function IntegrationsPage() {
         scene="connect"
         description={
           <>
-            {t("اربط حساب تتبّع المهام تبعك، وبتقدر تشاور على مهامك بالمحادثة بـ")} <code className="md-inline">/</code> {t("ورفيق يكتب التعليق ويعلّمها مكتملة لما تخلص.")}
+            {t("اربط Jira، GitHub، GitLab، Linear وغيرها: رفيق بيشتغل على مهامك وبيحرّكها لحاله — فرع، تعليق، طلب دمج، ونقل للمراجعة — وبيعلمك بالمنشن وطلبات المراجعة.")}
           </>
         }
         actions={accounts.length > 0 && <RefreshButton spinning={refreshing} onClick={() => void refreshAll()} />}
@@ -100,43 +118,47 @@ export function IntegrationsPage() {
             )}
           </AnimatePresence>
 
-          <h2 className="mb-3 text-[11px] font-normal" style={{ color: "var(--color-ink-muted)", fontFamily: "var(--font-sans)" }}>
-            ( {accounts.length ? t("اربط حساب ثاني") : t("اختار المنصّة")} )
-          </h2>
-          <motion.div variants={listContainer} initial="hidden" animate="show" className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
-            {providers.map((provider) => (
-              <motion.button
-                key={provider.id}
-                variants={listItem}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                transition={snappy}
-                onClick={() => setConnecting(connecting?.id === provider.id ? null : provider)}
-                className="flex flex-col items-start gap-3 rounded-2xl p-4 text-start transition-colors hover:bg-[var(--color-surface-2)]"
-                style={{
-                  background: "var(--color-surface)",
-                  boxShadow: connecting?.id === provider.id ? "inset 0 0 0 1.5px var(--color-ink)" : undefined,
-                }}
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "var(--color-surface-2)" }}>
-                  <BrandMark provider={provider.id} className="h-5 w-5" />
-                </span>
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2 text-[15px] font-bold" style={{ fontFamily: "var(--font-display)" }}>
-                    {provider.name}
-                    {connected.has(provider.id) && (
-                      <span className="text-xs" style={{ color: "var(--color-success)" }}>
-                        {t("مربوط")}
+          {(["tracker", "git"] as const).map((group) => (
+            <div key={group} className="mb-5">
+              <h2 className="mb-3 text-[11px] font-normal" style={{ color: "var(--color-ink-muted)", fontFamily: "var(--font-sans)" }}>
+                ( {group === "tracker" ? t("أنظمة تتبّع المهام") : t("استضافة الكود — issues وطلبات الدمج")} )
+              </h2>
+              <motion.div variants={listContainer} initial="hidden" animate="show" className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+                {providers.filter((p) => (p.group ?? "tracker") === group).map((provider) => (
+                  <motion.button
+                    key={provider.id}
+                    variants={listItem}
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={snappy}
+                    onClick={() => setConnecting(connecting?.id === provider.id ? null : provider)}
+                    className="flex flex-col items-start gap-3 rounded-2xl p-4 text-start transition-colors hover:bg-[var(--color-surface-2)]"
+                    style={{
+                      background: "var(--color-surface)",
+                      boxShadow: connecting?.id === provider.id ? "inset 0 0 0 1.5px var(--color-ink)" : undefined,
+                    }}
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "var(--color-surface-2)" }}>
+                      <BrandMark provider={provider.id} className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-2 text-[15px] font-bold" style={{ fontFamily: "var(--font-display)" }}>
+                        {provider.name}
+                        {connected.has(provider.id) && (
+                          <span className="text-xs" style={{ color: "var(--color-success)" }}>
+                            {t("مربوط")}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                  <span className="mt-0.5 block text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
-                    {provider.blurb}
-                  </span>
-                </span>
-              </motion.button>
-            ))}
-          </motion.div>
+                      <span className="mt-0.5 block text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
+                        {provider.blurb}
+                      </span>
+                    </span>
+                  </motion.button>
+                ))}
+              </motion.div>
+            </div>
+          ))}
 
           <Reveal open={Boolean(connecting)}>
             {connecting && (
@@ -190,6 +212,17 @@ export function IntegrationsPage() {
               </motion.section>
             )}
           </AnimatePresence>
+
+          {accounts.length > 0 && <Automations />}
+          <Channels />
+          {accounts.length > 0 && <ActionLog />}
+
+          <section className="mt-10">
+            <button onClick={() => setShowMatrix((v) => !v)} className="mb-3 text-sm font-medium underline-offset-2 hover:underline">
+              {showMatrix ? t("خبّي جدول المقارنة") : t("شو بتدعم كل منصّة؟")}
+            </button>
+            <Reveal open={showMatrix}>{showMatrix && <CapabilityTable providers={providers} />}</Reveal>
+          </section>
         </>
       )}
     </div>
@@ -209,6 +242,7 @@ function AccountRow({
 }) {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [open, setOpen] = useState(false);
   const menu = useElementMenu();
 
   async function reverify() {
@@ -221,6 +255,7 @@ function AccountRow({
   }
 
   return (
+    <div>
     <motion.div
       layout
       initial={{ opacity: 0, y: 8 }}
@@ -230,6 +265,7 @@ function AccountRow({
       style={{ background: "var(--color-surface)" }}
       onMouseLeave={() => setConfirming(false)}
       onContextMenu={menu(() => [
+        { id: "settings", label: t("إعدادات الحساب"), onSelect: () => setOpen((v) => !v) },
         { id: "verify", label: t("افحص الربط"), onSelect: () => void reverify(), disabled: busy },
         { id: "disconnect", label: t("افصل الحساب"), onSelect: () => setConfirming(true), danger: true },
       ])}
@@ -254,6 +290,21 @@ function AccountRow({
                 {t("مربوط")}
               </span>
             )}
+            {account.settings.read_only && (
+              <span className="flex items-center gap-1 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                <LockIcon className="h-3.5 w-3.5" />
+                {t("قراءة بس")}
+              </span>
+            )}
+            {account.settings.watch.enabled && account.last_check && (
+              <span
+                className="flex items-center gap-1 text-xs"
+                style={{ color: account.watch_error ? "var(--color-danger)" : "var(--color-ink-muted)" }}
+                title={account.watch_error ?? t("آخر نظرة {0}", { 0: timeAgo(account.last_check) })}
+              >
+                <BellIcon className="h-3.5 w-3.5" />
+              </span>
+            )}
           </p>
           <p className="truncate text-xs" style={{ color: "var(--color-ink-muted)" }} dir="auto">
             {account.verify_ok === false
@@ -263,6 +314,15 @@ function AccountRow({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="rounded-full p-2 transition-colors hover:bg-[var(--color-surface-2)]"
+          style={{ color: open ? "var(--color-ink)" : "var(--color-ink-muted)" }}
+          title={t("إعدادات الحساب")}
+        >
+          <AdjustIcon className="h-4 w-4" />
+        </button>
         {provider && (
           <a
             href={provider.docs_url}
@@ -311,97 +371,7 @@ function AccountRow({
         </AnimatePresence>
       </div>
     </motion.div>
-  );
-}
-
-function ConnectForm({
-  provider,
-  onCancel,
-  onConnected,
-}: {
-  provider: IntegrationProvider;
-  onCancel: () => void;
-  onConnected: (account: IntegrationAccount) => void;
-}) {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [name, setName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setValues({});
-    setName("");
-    setError(null);
-  }, [provider.id]);
-
-  const missing = provider.fields.some((f) => f.required && !values[f.key]?.trim());
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      onConnected(await connectIntegration({ provider: provider.id, name: name.trim() || undefined, config: values }));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("ما قدرت أربط الحساب"));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form
-      onSubmit={submit}
-      className="mt-4 flex flex-col gap-4 rounded-2xl p-5"
-      style={{ background: "var(--color-surface)" }}
-    >
-      <div className="flex items-center gap-2">
-        <BrandMark provider={provider.id} className="h-5 w-5" />
-        <span className="text-sm font-medium">{t("ربط")} {provider.name}</span>
-        <a href={provider.docs_url} target="_blank" rel="noreferrer" className="ms-auto text-xs underline underline-offset-2" style={{ color: "var(--color-ink-muted)" }}>
-          {t("من وين أجيب المفتاح؟")}
-        </a>
-      </div>
-
-      {provider.fields.map((field) => (
-        <Field key={field.key} label={`${field.label}${field.required ? "" : t(" (اختياري)")}`} hint={field.help || undefined}>
-          <input
-            value={values[field.key] ?? ""}
-            onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-            type={field.kind === "password" ? "password" : "text"}
-            placeholder={field.placeholder}
-            className={`input ${field.kind === "text" && field.key === "email" ? "" : "font-mono"}`}
-            dir={field.kind === "url" || field.kind === "password" ? "ltr" : "auto"}
-            autoComplete="off"
-          />
-        </Field>
-      ))}
-
-      <Field label={t("اسم يظهرلك (اختياري)")}>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={provider.name} className="input" />
-      </Field>
-
-      <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-        {t("المفتاح بينحفظ بخزنة ويندوز، وما بينحط بقاعدة البيانات.")}
-      </p>
-
-      <ErrorText message={error} />
-
-      <div className="flex gap-2">
-        <Button type="submit" disabled={saving || missing}>
-          {saving ? (
-            <>
-              <SpinnerIcon className="h-4 w-4" />
-              {t("جارِ التحقق…")}
-            </>
-          ) : (
-            t("تحقق واربط")
-          )}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          {t("إلغاء")}
-        </Button>
-      </div>
-    </form>
+    <Reveal open={open}>{open && <AccountSettings account={account} onSaved={onUpdated} />}</Reveal>
+    </div>
   );
 }

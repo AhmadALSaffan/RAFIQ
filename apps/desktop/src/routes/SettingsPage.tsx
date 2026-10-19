@@ -34,24 +34,9 @@ import { TEXT_SCALE, TEXT_SIZES, TEXT_SIZE_LABELS, setTextSize, useTextSize } fr
 import { LOCALES, locale, setLocale, t } from "../i18n";
 import { roving } from "../lib/keyboard";
 import { Breadcrumb } from "../components/arc/breadcrumb/breadcrumb";
-const permissionRows: { key: PermissionKey; label: string; hint: string }[] = [
-  { key: "filesystem_write", label: t("الكتابة على الملفات"), hint: t("إنشاء/تعديل/حذف ملفات") },
-  { key: "shell", label: t("أوامر Shell"), hint: t("تنفيذ أوامر على الجهاز") },
-  { key: "process", label: t("إدارة العمليات"), hint: t("إيقاف أو تشغيل عمليات") },
-  { key: "browser_navigate", label: t("الويب والمتصفح"), hint: t("قراءة صفحات، البحث، واستخدام المتصفح (ضغط وكتابة)") },
-  { key: "desktop_control", label: t("التحكم بسطح المكتب"), hint: t("تحريك الفأرة والكتابة على أي تطبيق") },
-  { key: "issue_write", label: t("التعديل على مهام Jira وغيرها"), hint: t("كتابة تعليق أو تعليم مهمة كمكتملة") },
-  { key: "mcp", label: t("أدوات MCP"), hint: t("استدعاء أدوات خوادم MCP اللي ربطتها") },
-  { key: "memory", label: t("الذاكرة"), hint: t("حفظ شي يتذكّره رفيق بالمحادثات الجاية") },
-  { key: "motion", label: t("تعديل الفيديوهات"), hint: t("تعديل مشهد الفيديو، فحصه، ورسم إطاراته — كله داخل المشروع") },
-  { key: "media", label: t("الصوت والصور"), hint: t("تعليق صوتي، تفريغ كلام، صور من Unsplash/Pexels، توليد صور — بيروح لخدمة برّا") },
-];
-
-const modeLabel: Record<PermissionMode, string> = {
-  auto: t("سماح تلقائي"),
-  ask: t("اسأل دايماً"),
-  deny: t("ممنوع"),
-};
+import { MODE_LABEL, PERMISSION_ROWS } from "../lib/permissions";
+const permissionRows = PERMISSION_ROWS;
+const modeLabel = MODE_LABEL;
 
 /** Where the files of sessions without a folder end up — so nothing gets lost. */
 function StorageSection() {

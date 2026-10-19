@@ -34,7 +34,9 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "mode": "VARCHAR DEFAULT 'auto'",
         "plan": "TEXT",
         "workspace_id": "VARCHAR",
+        "issue": "JSON",
     },
+    "integrations": {"settings": "JSON", "state": "JSON"},
     "chats": {
         "working_dir": "VARCHAR",
         "settings": "JSON",

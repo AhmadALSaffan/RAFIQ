@@ -11,11 +11,17 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   commentOnIssue,
   completeIssue,
+  deleteIssueComment,
+  editIssueComment,
   getIssue,
   listIssueStatuses,
   setIssueStatus,
+  updateIssue,
 } from "../../lib/api";
-import type { StatusOption, TrackerIssue, TrackerIssueDetail } from "../../lib/types";
+import type { IntegrationAccount, IssueComment, StatusOption, TaskMode, TrackerIssue, TrackerIssueDetail } from "../../lib/types";
+import { queueChatMessage } from "../../lib/handoff";
+import { useNavigate } from "react-router-dom";
+import { IssueHistory, IssueWork } from "./IssueWork";
 import { easeOutExpo, listContainer, listItem, snappy } from "../../lib/motion";
 import { timeAgo } from "../../lib/time";
 import { fieldDir } from "../../lib/bidi";
@@ -27,8 +33,11 @@ import {
   ClockIcon,
   CopyIcon,
   LinkIcon,
+  PencilIcon,
   SpinnerIcon,
   TasksIcon,
+  TrashIcon,
+  WandIcon,
   XIcon,
 } from "../../components/Icons";
 import { Button, DrawnCheck } from "../../components/ui";
@@ -37,21 +46,31 @@ import { CATEGORY_COLOR, CATEGORY_LABEL, dateLabel, isOverdue, StatusChip } from
 
 import { t } from "../../i18n";
 type Busy = "comment" | "status" | "complete" | "task" | null;
-type Tab = "details" | "comments";
+type Tab = "details" | "comments" | "work" | "history";
 
 export function IssuePanel({
   summary,
+  account,
   onClose,
   onChanged,
   onDiscuss,
   onRunTask,
+  onAddSubtask,
 }: {
   summary: TrackerIssue;
+  account?: IntegrationAccount;
   onClose: () => void;
   onChanged: (issue: TrackerIssue) => void;
   onDiscuss: (issue: TrackerIssue) => void;
-  onRunTask: (issue: TrackerIssue) => Promise<void>;
+  onRunTask: (issue: TrackerIssue, mode: TaskMode) => Promise<void>;
+  onAddSubtask?: (issue: TrackerIssue) => void;
 }) {
+  const navigate = useNavigate();
+  const writable = !!account && !account.settings.read_only;
+  const canEdit = writable && account.capabilities.includes("update");
+  const canEditComments = writable && account.capabilities.includes("comment_edit");
+  const [editing, setEditing] = useState<"title" | "description" | null>(null);
+  const [draft, setDraft] = useState("");
   const [detail, setDetail] = useState<TrackerIssueDetail | null>(null);
   const [statuses, setStatuses] = useState<StatusOption[]>([]);
   const [tab, setTab] = useState<Tab>("details");
@@ -140,6 +159,21 @@ export function IssuePanel({
       return t("صارت «{0}»", { 0: result.status });
     });
 
+  function startEdit(field: "title" | "description") {
+    setDraft(field === "title" ? issue.title : issue.description ?? "");
+    setEditing(field);
+  }
+
+  const saveField = (field: "title" | "description") =>
+    run("status", async () => {
+      const value = field === "title" ? draft.trim() : draft;
+      setEditing(null);
+      if ((field === "title" && (!value || value === issue.title)) || (field === "description" && value === (issue.description ?? ""))) return;
+      await updateIssue(issue.integration_id, issue.key, { [field]: value });
+      await reload();
+      return t("انحفظ");
+    });
+
   const isDone = issue.status_category === "done";
   const comments = detail?.comments ?? [];
 
@@ -182,9 +216,25 @@ export function IssuePanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="px-5 pt-4">
-          <h2 className="text-base font-semibold leading-relaxed" dir="auto" style={{ textWrap: "balance" }}>
-            {issue.title}
-          </h2>
+          {editing === "title" ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void saveField("title");
+              }}
+            >
+              <input className="input w-full text-base font-semibold" dir="auto" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setEditing(null)} onBlur={() => void saveField("title")} />
+            </form>
+          ) : (
+            <h2 className="group flex items-start gap-1.5 text-base font-semibold leading-relaxed" dir="auto" style={{ textWrap: "balance" }}>
+              <span className="min-w-0 flex-1">{issue.title}</span>
+              {canEdit && (
+                <button onClick={() => startEdit("title")} aria-label={t("عدّل العنوان")} className="mt-1 shrink-0 rounded-full p-1 opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] focus:opacity-100 group-hover:opacity-100">
+                  <PencilIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </h2>
+          )}
 
           {issue.labels.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -217,6 +267,12 @@ export function IssuePanel({
           <TabButton active={tab === "comments"} onClick={() => setTab("comments")} count={comments.length}>
             {t("التعليقات")}
           </TabButton>
+          <TabButton active={tab === "work"} onClick={() => setTab("work")} count={(detail?.dev.length ?? 0) + (detail?.tasks.length ?? 0)}>
+            {t("الشغل")}
+          </TabButton>
+          <TabButton active={tab === "history"} onClick={() => setTab("history")}>
+            {t("السجل")}
+          </TabButton>
         </div>
 
         <div className="px-5 py-4">
@@ -227,15 +283,57 @@ export function IssuePanel({
                 <div className="shimmer h-4 w-full rounded" />
                 <div className="shimmer h-4 w-2/3 rounded" />
               </div>
-            ) : issue.description ? (
-              <Markdown text={issue.description} />
+            ) : editing === "description" ? (
+              <div className="flex flex-col gap-2">
+                <textarea className="input min-h-48 text-sm" dir="auto" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} />
+                <div className="flex gap-1.5">
+                  <Button className="px-3 py-1.5 text-xs" disabled={busy !== null} onClick={() => void saveField("description")}>
+                    {t("احفظ")}
+                  </Button>
+                  <Button variant="ghost" className="px-3 py-1.5 text-xs" onClick={() => setEditing(null)}>
+                    {t("إلغاء")}
+                  </Button>
+                </div>
+              </div>
             ) : (
-              <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
-                {t("ما في وصف لهالمهمة.")}
-              </p>
+              <div className="group relative">
+                {canEdit && (
+                  <button onClick={() => startEdit("description")} aria-label={t("عدّل الوصف")} className="absolute end-0 top-0 z-10 rounded-full p-1.5 opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] focus:opacity-100 group-hover:opacity-100">
+                    <PencilIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {issue.description ? (
+                  <Markdown text={issue.description} />
+                ) : (
+                  <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                    {t("ما في وصف لهالمهمة.")}
+                  </p>
+                )}
+              </div>
+            )
+          ) : tab === "comments" ? (
+            <Comments
+              detail={detail}
+              canEdit={canEditComments}
+              onEdit={async (c, body) => {
+                if (!c.id) return;
+                await editIssueComment(issue.integration_id, issue.key, c.id, body);
+                await reload();
+              }}
+              onDelete={async (c) => {
+                if (!c.id) return;
+                await deleteIssueComment(issue.integration_id, issue.key, c.id);
+                await reload();
+              }}
+            />
+          ) : tab === "work" ? (
+            detail ? (
+              <IssueWork detail={detail} account={account} onReload={reload} onAddSubtask={onAddSubtask ? () => onAddSubtask(issue) : undefined} />
+            ) : (
+              <div className="shimmer h-24 rounded-lg" />
             )
           ) : (
-            <Comments detail={detail} />
+            <IssueHistory integrationId={issue.integration_id} issueKey={issue.key} />
           )}
         </div>
       </div>
@@ -294,12 +392,33 @@ export function IssuePanel({
           <SmallButton
             disabled={busy !== null}
             onClick={() => run("task", async () => {
-              await onRunTask(issue);
+              await onRunTask(issue, "auto");
               return t("انفتحت مهمة عليها");
             })}
             icon={busy === "task" ? <SpinnerIcon className="h-3.5 w-3.5" /> : <TasksIcon className="h-3.5 w-3.5" />}
           >
             {t("نفّذها")}
+          </SmallButton>
+
+          <SmallButton
+            disabled={busy !== null}
+            onClick={() => run("task", async () => {
+              await onRunTask(issue, "plan");
+              return t("انفتحت مهمة عليها");
+            })}
+            icon={<TasksIcon className="h-3.5 w-3.5" />}
+          >
+            {t("خطة أولاً")}
+          </SmallButton>
+
+          <SmallButton
+            onClick={() => {
+              queueChatMessage(t("صمّملي الشاشة اللي بتوصفها المهمة #{0} ({1}) — اقرأها أول بـ issue_read.", { 0: issue.key, 1: issue.title }));
+              navigate("/chat");
+            }}
+            icon={<WandIcon className="h-3.5 w-3.5" />}
+          >
+            {t("صمّمها")}
           </SmallButton>
 
           <SmallButton
@@ -502,7 +621,17 @@ function Person({ name }: { name: string }) {
   );
 }
 
-function Comments({ detail }: { detail: TrackerIssueDetail | null }) {
+function Comments({
+  detail,
+  canEdit,
+  onEdit,
+  onDelete,
+}: {
+  detail: TrackerIssueDetail | null;
+  canEdit: boolean;
+  onEdit: (comment: IssueComment, body: string) => Promise<void>;
+  onDelete: (comment: IssueComment) => Promise<void>;
+}) {
   if (!detail) {
     return (
       <div className="flex flex-col gap-2">
@@ -529,15 +658,7 @@ function Comments({ detail }: { detail: TrackerIssueDetail | null }) {
   return (
     <motion.ul variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-3">
       {detail.comments.map((c, i) => (
-        <motion.li key={i} variants={listItem} className="rounded-lg px-3 py-2" style={{ background: "var(--color-bg)" }}>
-          <p className="flex items-center justify-between gap-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-            <Person name={c.author} />
-            {c.created_at && <span className="shrink-0">{timeAgo(c.created_at)}</span>}
-          </p>
-          <div className="mt-1 text-sm">
-            <Markdown text={c.body} />
-          </div>
-        </motion.li>
+        <CommentItem key={c.id ?? i} comment={c} canEdit={canEdit && c.mine && !!c.id} onEdit={onEdit} onDelete={onDelete} />
       ))}
     </motion.ul>
   );
@@ -638,5 +759,64 @@ function SmallButton({
       {icon}
       {children}
     </motion.button>
+  );
+}
+
+function CommentItem({
+  comment,
+  canEdit,
+  onEdit,
+  onDelete,
+}: {
+  comment: IssueComment;
+  canEdit: boolean;
+  onEdit: (comment: IssueComment, body: string) => Promise<void>;
+  onDelete: (comment: IssueComment) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [body, setBody] = useState(comment.body);
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <motion.li variants={listItem} className="group rounded-lg px-3 py-2" style={{ background: "var(--color-bg)" }}>
+      <p className="flex items-center justify-between gap-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+        <Person name={comment.author} />
+        <span className="flex shrink-0 items-center gap-1">
+          {canEdit && !editing && (
+            <>
+              <button onClick={() => setEditing(true)} className="rounded p-0.5 opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] focus:opacity-100 group-hover:opacity-100" aria-label={t("عدّل التعليق")}>
+                <PencilIcon className="h-3 w-3" />
+              </button>
+              {confirming ? (
+                <button onClick={() => void onDelete(comment)} className="rounded px-1 text-[11px]" style={{ color: "var(--color-danger)" }} onMouseLeave={() => setConfirming(false)}>
+                  {t("احذف؟")}
+                </button>
+              ) : (
+                <button onClick={() => setConfirming(true)} className="rounded p-0.5 opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] focus:opacity-100 group-hover:opacity-100" aria-label={t("احذف التعليق")}>
+                  <TrashIcon className="h-3 w-3" />
+                </button>
+              )}
+            </>
+          )}
+          {comment.created_at && <span>{timeAgo(comment.created_at)}</span>}
+        </span>
+      </p>
+      {editing ? (
+        <div className="mt-1 flex flex-col gap-1.5">
+          <textarea className="input min-h-20 text-sm" dir="auto" value={body} onChange={(e) => setBody(e.target.value)} />
+          <div className="flex gap-1.5">
+            <Button className="px-2.5 py-1 text-xs" onClick={async () => { await onEdit(comment, body); setEditing(false); }} disabled={!body.trim()}>
+              {t("احفظ")}
+            </Button>
+            <Button variant="ghost" className="px-2.5 py-1 text-xs" onClick={() => { setBody(comment.body); setEditing(false); }}>
+              {t("إلغاء")}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-1 text-sm">
+          <Markdown text={comment.body} />
+        </div>
+      )}
+    </motion.li>
   );
 }

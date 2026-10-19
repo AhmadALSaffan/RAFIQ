@@ -97,6 +97,9 @@ class Task(Base):
     mode: Mapped[str] = mapped_column(String, default="auto")
     plan: Mapped[str | None] = mapped_column(Text, nullable=True)
     workspace_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # The tracker issue this task works on, and how it moves it (core/issue_lifecycle.py):
+    # {integration_id, provider, key, url, title, branch, pr_url, …}.
+    issue: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String, default="queued")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
@@ -376,6 +379,66 @@ class IntegrationAccount(Base):
     verify_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     verify_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # What the user chose for this account (core/issue_settings.py): read-only, how a task
+    # moves its issue, which folder each project lives in, what to be told about, rules.
+    settings: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # The watcher's memory (core/issue_watch.py): what each issue looked like last time.
+    state: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+class IntegrationAction(Base):
+    """Every change Rafiq made on a tracker, by whom it was asked, and how to take it back
+    where the tracker allows it."""
+
+    __tablename__ = "integration_actions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    integration_id: Mapped[str] = mapped_column(String, index=True)
+    provider: Mapped[str] = mapped_column(String)
+    key: Mapped[str] = mapped_column(String)
+    action: Mapped[str] = mapped_column(String)  # comment | status | create | update | link | attach | worklog | pull_request
+    summary: Mapped[str] = mapped_column(Text)
+    url: Mapped[str | None] = mapped_column(String, nullable=True)
+    # How to reverse it: {"kind": "delete_comment", "comment_id": …} | {"kind": "status", "to": …}
+    # | {"kind": "update", "fields": {…}}. None when the tracker can't.
+    undo: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # {"chat_id"} | {"task_id"} | {"by": "user"}
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class IssueNotice(Base):
+    """Something the watcher found: a mention, a review request, a new assignment, a status
+    change. Shown in the work inbox and announced once."""
+
+    __tablename__ = "issue_notices"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    integration_id: Mapped[str] = mapped_column(String, index=True)
+    external_id: Mapped[str] = mapped_column(String, index=True)
+    kind: Mapped[str] = mapped_column(String)
+    key: Mapped[str] = mapped_column(String)
+    title: Mapped[str] = mapped_column(Text)
+    url: Mapped[str | None] = mapped_column(String, nullable=True)
+    actor: Mapped[str | None] = mapped_column(String, nullable=True)
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    happened_at: Mapped[str | None] = mapped_column(String, nullable=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class NotifyChannel(Base):
+    """Somewhere Rafiq posts summaries and alerts: a Slack, Teams or Discord incoming
+    webhook. The webhook URL is a secret — it lives in the keychain, not here."""
+
+    __tablename__ = "notify_channels"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    kind: Mapped[str] = mapped_column(String)  # slack | teams | discord
+    name: Mapped[str] = mapped_column(String)
+    secret_ref: Mapped[str | None] = mapped_column(String, nullable=True)
+    events: Mapped[list | None] = mapped_column(JSON, nullable=True)  # which notices and reports go here
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

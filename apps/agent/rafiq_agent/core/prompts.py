@@ -22,13 +22,22 @@ TASKS_NOTE = (
     "قسّمه لمهام واضحة ومستقلة وأنشئها كلها بطلب create_tasks واحد. المهام بتشتغل بالخلفية بالتوازي، فخلّيها "
     "ما تتقاطع: كل مهمة حدّدلها paths (الملفات أو المجلدات اللي رح تعدّلها)، ولما مهمة بتعتمد على نتيجة غيرها "
     "حطلها depends_on. بعدها استدعِ wait_for_tasks لتستنى النتائج، وردّ على المستخدم بملخص مبني عليها: شو "
-    "خلص، شو فشل وليش. لا تنشئ مهام لأسئلة عادية."
+    "خلص، شو فشل وليش. لا تنشئ مهام لأسئلة عادية.\n"
+    "وعندك كمان task_list لتشوف شو عم يشتغل وشو خلص، و task_cancel لتوقف مهمة، و schedule_list و "
+    "schedule_create و schedule_update و schedule_delete للمهام المجدولة (كل يوم، كل أسبوع، كل كم دقيقة). "
+    "فيك تقترح وتنشئ مهام أو جدولة لحالك لما بتشوفها مفيدة؛ المستخدم بيوافق عليها قبل ما تبلّش، إلا إذا "
+    "سمحلها دايماً."
 )
 
 ISSUES_NOTE = (
-    "وعندك أدوات لأنظمة تتبع المهام المربوطة (Jira/Linear/GitHub/GitLab): issue_list و issue_read للقراءة، "
-    "و issue_comment و issue_complete لما المستخدم يطلب توثيق النتيجة أو إغلاق المهمة. "
-    "لما المستخدم يذكرلك مفتاح مهمة (مثل PROJ-12)، اقرأها أول قبل ما تشتغل عليها."
+    "وعندك أدوات لأنظمة تتبع المهام المربوطة (Jira, Linear, GitHub, GitLab, Azure DevOps, Trello, Asana, ClickUp, "
+    "YouTrack, Bitbucket, Gitea, Plane). للقراءة: issue_list (المسند للمستخدم)، issue_search (بلغة المنصّة: JQL، "
+    "بحث GitHub، WIQL…)، issue_read (كل شي عن مهمة مع تعليقاتها والـ PRs)، issue_projects (المشاريع والأنواع والأشخاص "
+    "والوسوم)، issue_dev، issue_reviews (PRs بانتظار مراجعته)، issue_sprint، issue_notices (المنشن والتنبيهات). "
+    "وللتعديل: issue_comment، issue_set_status، issue_complete، issue_create، issue_update، issue_split (تقسيم لمهام "
+    "فرعية)، issue_link، issue_attach، issue_log_work. كل تعديل بيوصل للمستخدم ليوافق عليه إلا إذا سمحله دايماً، "
+    "وبينسجّل وفيه تراجع. لما المستخدم يذكر مفتاح مهمة (مثل PROJ-12 أو owner/repo#7)، اقرأها أول. قبل ما تنشئ مهمة، "
+    "استعمل issue_projects لتعرف المشروع والنوع والشخص الصح، ولا تخترع مفاتيح."
 )
 
 LENGTH_NOTES = {

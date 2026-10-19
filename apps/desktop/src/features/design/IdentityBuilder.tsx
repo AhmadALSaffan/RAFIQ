@@ -12,7 +12,7 @@ import { Button } from "../../components/ui";
 import { PencilIcon, PlusIcon, SparkIcon, TrashIcon } from "../../components/Icons";
 import { FontPicker } from "./FontPicker";
 import { IdentityFromReferences } from "./IdentityFromReferences";
-import { t } from "../../i18n";
+import { direction, locale, t } from "../../i18n";
 import { notify } from "../../lib/toast";
 import { ExpandableCard } from "../../components/arc/expandable-card/expandable-card";
 
@@ -89,7 +89,7 @@ function previewHtml(d: IdentityData, weights: Record<string, string>, dark: boo
   const swatches = (Object.keys(ROLE_LABELS) as IdentityRole[])
     .map((role) => `<div class="sw"><i style="background:${colors[role]}"></i><b>${ROLE_LABELS[role]}</b><span class="latin">${colors[role]}</span></div>`)
     .join("");
-  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><link href="${fontsLink(d, weights)}" rel="stylesheet"><style>
+  return `<!doctype html><html lang="${locale()}" dir="${direction()}"><head><meta charset="utf-8"><link href="${fontsLink(d, weights)}" rel="stylesheet"><style>
 :root { ${palette(colors)} --display: "${d.fonts.display}", "${d.fonts.body}", sans-serif; --body: "${d.fonts.body}", sans-serif; --latin: "${d.fonts.latin}", sans-serif;
   --r-sm: ${r1}; --r-md: ${r2}; --r-lg: ${r3}; --pill: ${d.radius === "sharp" ? "4px" : "999px"}; --shadow: ${SHADOW[d.shadow]}; --section: ${section}; --text: ${text}; --speed: ${speed}; --ease: ${ease}; }
 * { box-sizing: border-box; margin: 0 }

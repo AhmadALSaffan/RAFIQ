@@ -34,6 +34,7 @@ import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { GuideDialog } from "./GuideDialog";
 
 import { t } from "../i18n";
+import { useIssueNotices } from "../lib/issueNotices";
 const navItems = [
   { to: "/", label: t("الرئيسية"), Icon: HomeIcon },
   { to: "/chat", label: t("المحادثات"), Icon: ChatIcon },
@@ -183,6 +184,7 @@ export function Shell() {
   const location = useLocation();
   const navigate = useNavigate();
   const { running, queued, approvals, toasts, dismiss } = useTaskWatcher(location.pathname, navigate);
+  const unreadNotices = useIssueNotices(navigate);
 
   // The tray, close-to-tray and the quick-ask shortcut follow the saved settings from the
   // first moment — the main window loads even when Rafiq starts hidden in the tray.
@@ -366,6 +368,24 @@ export function Shell() {
                           transition={{ duration: approvals > 0 ? 0.9 : 1.6, repeat: Infinity, ease: "easeInOut" }}
                           title={approvals > 0 ? t("في مهمة بدها إذنك") : t("في مهمة شغّالة")}
                         />
+                      )}
+                    </AnimatePresence>
+                  )}
+                  {to === "/work" && (
+                    <AnimatePresence>
+                      {unreadNotices > 0 && (
+                        <motion.span
+                          key="notices"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={snappy}
+                          className="num absolute -top-0.5 -end-0.5 min-w-4 rounded-full px-1 text-center text-[10px] font-medium"
+                          style={{ background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" }}
+                          title={t("{0} تنبيه ما انقرا", { 0: unreadNotices })}
+                        >
+                          {unreadNotices > 99 ? "99+" : unreadNotices}
+                        </motion.span>
                       )}
                     </AnimatePresence>
                   )}

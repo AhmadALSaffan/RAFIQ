@@ -42,7 +42,7 @@ export async function setChatFolder(id: string, workingDir: string | null): Prom
   return request<ChatSummary>(`/chats/${id}`, { method: "PATCH", body: JSON.stringify({ working_dir: workingDir ?? "" }) });
 }
 
-export async function resolveChatPermission(chatId: string, requestId: string, resolution: "approved" | "denied"): Promise<void> {
+export async function resolveChatPermission(chatId: string, requestId: string, resolution: "approved" | "denied" | "always"): Promise<void> {
   await request<void>(`/chats/${chatId}/permissions/${requestId}?resolution=${resolution}`, { method: "POST" });
 }
 

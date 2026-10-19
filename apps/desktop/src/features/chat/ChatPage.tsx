@@ -42,6 +42,7 @@ import { DEFAULT_REPLY_SETTINGS, MODEL_KEY, savedModel } from "./constants";
 
 import { t } from "../../i18n";
 import { showGuide } from "../../lib/guides";
+import { permissionLabelOf, type PermissionAnswer } from "../../lib/permissions";
 export function ChatPage({
   chatId,
   embedded = false,
@@ -727,10 +728,12 @@ export function ChatPage({
     }
   }
 
-  function resolvePermission(requestId: string, resolution: "approved" | "denied") {
+  function resolvePermission(requestId: string, answer: PermissionAnswer, tool?: string) {
     if (!routeId) return;
+    const resolution = answer === "denied" ? "denied" : "approved";
     setDraft((d) => (d ? applyEvent(d, { type: "permission_resolved", id: requestId, resolution }) : d));
-    resolveChatPermission(routeId, requestId, resolution);
+    resolveChatPermission(routeId, requestId, answer);
+    if (answer === "always" && tool) notify({ type: "success", title: t("«{0}» صارت بدون سؤال", { 0: permissionLabelOf(tool) }), description: t("فيك ترجّعها من الإعدادات ← السماحيات") });
   }
 
   async function removeChat(id: string) {
