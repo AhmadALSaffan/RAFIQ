@@ -29,6 +29,8 @@ export function doing(tool: string, args: Record<string, unknown>): string {
       return t("عم يقرأ {0}…", { 0: shortPath(args.path) });
     case "filesystem_write":
       return t("عم يكتب {0}…", { 0: shortPath(args.path) });
+    case "word_write":
+      return t("عم يكتب مستند Word: {0}…", { 0: shortPath(args.path) });
     case "filesystem_list":
       return t("عم يتفرّج على الملفات…");
     case "filesystem_delete":

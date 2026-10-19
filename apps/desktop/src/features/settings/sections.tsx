@@ -4,12 +4,12 @@
  */
 
 import { useEffect, useState } from "react";
-import { QUICK_ASK_SHORTCUTS, syncQuickAsk } from "../../lib/quickAsk";
+import { MAX_QUICK_ACTIONS, QUICK_ASK_SHORTCUTS, draftAction, syncQuickAsk } from "../../lib/quickAsk";
 import { motion } from "motion/react";
 import { getWebSearchKeys, listModels, saveWebSearchKey } from "../../lib/api";
 import { autostartEnabled, setAutostart, syncBackground } from "../../lib/background";
 import { snappy } from "../../lib/motion";
-import type { AppSettings, LlmModel, WebSearchKeys, WebSearchProvider } from "../../lib/types";
+import type { AppSettings, LlmModel, QuickAction, WebSearchKeys, WebSearchProvider } from "../../lib/types";
 import { Button } from "../../components/ui";
 import { Card, Hint, Section, SelectRow, SliderRow, ToggleRow } from "./controls";
 import { t } from "../../i18n";
@@ -190,9 +190,16 @@ export function BackgroundSettings({ settings, persist }: { settings: AppSetting
   const [quickError, setQuickError] = useState<string | null>(null);
   const quick = settings.quick_ask_shortcut ?? null;
 
+  const selection = settings.quick_ask_selection ?? true;
+
   async function setQuick(shortcut: string | null) {
     persist({ ...settings, quick_ask_shortcut: shortcut });
-    setQuickError(await syncQuickAsk(shortcut));
+    setQuickError(await syncQuickAsk(shortcut, selection));
+  }
+
+  async function setSelection(on: boolean) {
+    persist({ ...settings, quick_ask_selection: on });
+    setQuickError(await syncQuickAsk(quick, on));
   }
 
   useEffect(() => {
@@ -243,6 +250,119 @@ export function BackgroundSettings({ settings, persist }: { settings: AppSetting
           {quickError}
         </p>
       )}
+      {quick !== null && (
+        <ToggleRow
+          label={t("خد النص المحدد معه")}
+          hint={t("حدّد نص بأي برنامج واكبس الاختصار: المربع بيفتح عليه، مع ترجم وصحّح ولخّص. رفيق بينسخه وبيرجّع الحافظة متل ما كانت.")}
+          checked={selection}
+          onChange={(on) => void setSelection(on)}
+        />
+      )}
+      {quick !== null && <QuickActionsEditor settings={settings} persist={persist} />}
     </Section>
+  );
+}
+
+/** The user's own buttons for the quick box: a name, and what to do with the text. */
+function QuickActionsEditor({ settings, persist }: { settings: AppSettings; persist: Persist }) {
+  const actions = settings.quick_actions ?? [];
+  const [editing, setEditing] = useState<string | null>(null);
+  const [label, setLabel] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function clear() {
+    setEditing(null);
+    setLabel("");
+    setPrompt("");
+    setError(null);
+  }
+
+  function save() {
+    const next = draftAction(label, prompt, actions, editing ?? undefined);
+    if (typeof next === "string") {
+      setError(next);
+      return;
+    }
+    const list = editing ? actions.map((a) => (a.id === editing ? next : a)) : [...actions, next];
+    persist({ ...settings, quick_actions: list });
+    clear();
+  }
+
+  function edit(action: QuickAction) {
+    setEditing(action.id);
+    setLabel(action.label);
+    setPrompt(action.prompt);
+    setError(null);
+  }
+
+  function remove(id: string) {
+    persist({ ...settings, quick_actions: actions.filter((a) => a.id !== id) });
+    if (editing === id) clear();
+  }
+
+  return (
+    <Card>
+      <p className="text-sm font-medium">{t("أوامرك بالمربع السريع")}</p>
+      <Hint>{t("بتطلع جنب ترجم وصحّح ولخّص. اكتب شو بدك يعمل بالنص، متل «حوّلها لهجة رسمية» أو «اكتبها تغريدة».")}</Hint>
+      {actions.length > 0 && (
+        <ul className="mt-3 divide-y rounded-lg border" style={{ borderColor: "var(--color-border)" }}>
+          {actions.map((action) => (
+            <li key={action.id} className="flex items-start gap-3 px-3 py-2" style={{ borderColor: "var(--color-border)" }}>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium" dir="auto">
+                  {action.label}
+                </p>
+                <p className="truncate text-xs" style={{ color: "var(--color-ink-muted)" }} dir="auto">
+                  {action.prompt}
+                </p>
+              </div>
+              <Button variant="ghost" onClick={() => edit(action)}>
+                {t("عدّل")}
+              </Button>
+              <Button variant="ghost" onClick={() => remove(action.id)} aria-label={t("احذف {0}", { 0: action.label })}>
+                {t("احذف")}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {(editing !== null || actions.length < MAX_QUICK_ACTIONS) && (
+        <div className="mt-3 grid gap-2">
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.currentTarget.value)}
+            placeholder={t("اسم الأمر، مثلاً: لهجة رسمية")}
+            aria-label={t("اسم الأمر")}
+            maxLength={40}
+            className="input w-full"
+            dir={label ? "auto" : undefined}
+          />
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.currentTarget.value)}
+            placeholder={t("شو يعمل بالنص، مثلاً: أعد كتابة النص بلغة رسمية مناسبة لإيميل شغل.")}
+            aria-label={t("شو يعمل بالنص")}
+            maxLength={2000}
+            rows={3}
+            className="input w-full resize-y"
+            dir={prompt ? "auto" : undefined}
+          />
+          {error && (
+            <p className="text-xs" style={{ color: "var(--color-danger)" }} role="alert">
+              {error}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <Button onClick={save}>{editing ? t("احفظ التعديل") : t("ضيف الأمر")}</Button>
+            {editing && (
+              <Button variant="ghost" onClick={clear}>
+                {t("إلغاء")}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

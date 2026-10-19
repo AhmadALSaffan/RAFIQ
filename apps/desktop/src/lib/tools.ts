@@ -4,6 +4,7 @@ const LABELS: Record<string, string> = {
   filesystem_read: t("قراءة ملف"),
   filesystem_write: t("كتابة ملف"),
   filesystem_delete: t("حذف ملف"),
+  word_write: t("كتابة مستند Word"),
   shell_run: t("تنفيذ أمر"),
   process_list: t("عرض العمليات الشغّالة"),
   process_kill: t("إيقاف عملية"),

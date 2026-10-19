@@ -44,6 +44,15 @@ DEFAULT_PERMISSIONS: dict[PermissionKey, PermissionMode] = {
 WebSearchProvider = Literal["none", "brave", "tavily", "searxng"]
 
 
+class QuickAction(BaseModel):
+    """One of the user's own buttons in the quick-ask box: `prompt` is what the model is
+    told to do with the selected (or typed) text."""
+
+    id: str = Field(min_length=1, max_length=40)
+    label: str = Field(min_length=1, max_length=40)
+    prompt: str = Field(min_length=1, max_length=2000)
+
+
 class AppSettings(BaseModel):
     permissions: dict[PermissionKey, PermissionMode] = DEFAULT_PERMISSIONS
     # The first-run welcome has been finished or skipped (it also never shows once a model
@@ -88,6 +97,11 @@ class AppSettings(BaseModel):
     # The global shortcut that opens the quick-ask box from anywhere in Windows (a Tauri
     # accelerator, e.g. "Ctrl+Shift+Space"). None switches it off.
     quick_ask_shortcut: str | None = "Ctrl+Shift+Space"
+    # The shortcut also picks up the text selected in the program in front (copied and the
+    # clipboard put back), so the box opens on it with translate, fix, summarise and so on.
+    quick_ask_selection: bool = True
+    # The user's own actions for that text, next to the built-in ones.
+    quick_actions: list[QuickAction] = Field(default_factory=list, max_length=20)
     # The brand kit for motion and design work outside any workspace (motion/brand.py).
     # None = the dark template.
     brand_kit: dict | None = None

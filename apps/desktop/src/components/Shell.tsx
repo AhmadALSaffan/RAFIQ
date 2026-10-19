@@ -192,7 +192,7 @@ export function Shell() {
     getSettings()
       .then((s) => {
         void syncBackground(s.run_in_background ?? true);
-        void syncQuickAsk(s.quick_ask_shortcut ?? null);
+        void syncQuickAsk(s.quick_ask_shortcut ?? null, s.quick_ask_selection ?? true);
       })
       .catch(() => undefined);
   }, []);

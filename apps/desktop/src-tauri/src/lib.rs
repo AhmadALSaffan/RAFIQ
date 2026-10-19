@@ -6,6 +6,7 @@ use std::sync::Mutex;
 
 mod file_icon;
 mod job;
+mod selection;
 mod update;
 
 use rand::RngCore;
@@ -18,6 +19,11 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 /// Closing the window hides it to the tray instead of quitting (the setting lives in the
 /// agent; the page tells us on start and whenever it changes).
 static RUN_IN_BACKGROUND: AtomicBool = AtomicBool::new(true);
+
+/// The quick-ask shortcut also picks up the text selected in the program in front (the
+/// setting, again from the page), and keeps it here until the box asks for it.
+static QUICK_SELECTION: AtomicBool = AtomicBool::new(true);
+static SELECTED: Mutex<Option<String>> = Mutex::new(None);
 
 #[derive(Clone, Serialize)]
 struct ApiConfig {
@@ -67,16 +73,33 @@ fn in_front(window: &tauri::WebviewWindow) -> bool {
     window.is_focused().unwrap_or(false)
 }
 
-fn toggle_quick(app: &AppHandle) {
+/// The shortcut: pressed with the box in front, it puts it away; otherwise it reads what's
+/// selected in the program in front (that has to happen before the box takes the keyboard,
+/// and takes a moment, so off the main thread) and opens the box on it.
+fn on_quick_shortcut(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(QUICK) {
-        let shown = window.is_visible().unwrap_or(false);
-        if shown && in_front(&window) {
+        if window.is_visible().unwrap_or(false) && in_front(&window) {
             let _ = window.hide();
-        } else {
-            let _ = window.center();
-            let _ = window.show();
-            let _ = window.set_focus();
+            return;
         }
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let text = if QUICK_SELECTION.load(Ordering::Relaxed) { selection::selected_text() } else { None };
+        *SELECTED.lock().unwrap() = text;
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            show_quick(&handle);
+            let _ = handle.emit_to(QUICK, "rafiq://quick-opened", ());
+        });
+    });
+}
+
+fn show_quick(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(QUICK) {
+        let _ = window.center();
+        let _ = window.show();
+        let _ = window.set_focus();
         return;
     }
     let built = WebviewWindowBuilder::new(app, QUICK, WebviewUrl::App("index.html#/quick".into()))
@@ -221,7 +244,8 @@ fn quit_app(app: AppHandle) {
 /// before is released first, so changing it never leaves the old one behind. The error is
 /// the reason in words — most often another program holding the same keys.
 #[tauri::command]
-fn set_quick_ask_shortcut(app: AppHandle, shortcut: Option<String>) -> Result<(), String> {
+fn set_quick_ask_shortcut(app: AppHandle, shortcut: Option<String>, selection: Option<bool>) -> Result<(), String> {
+    QUICK_SELECTION.store(selection.unwrap_or(true), Ordering::Relaxed);
     let shortcuts = app.global_shortcut();
     shortcuts.unregister_all().map_err(|e| e.to_string())?;
     let Some(keys) = shortcut.filter(|k| !k.trim().is_empty()) else {
@@ -230,10 +254,16 @@ fn set_quick_ask_shortcut(app: AppHandle, shortcut: Option<String>) -> Result<()
     shortcuts
         .on_shortcut(keys.as_str(), |app, _shortcut, event| {
             if event.state() == ShortcutState::Pressed {
-                toggle_quick(app);
+                on_quick_shortcut(app);
             }
         })
         .map_err(|e| e.to_string())
+}
+
+/// The text that was selected when the box last opened, handed over once.
+#[tauri::command]
+fn take_quick_selection() -> Option<String> {
+    SELECTED.lock().unwrap().take()
 }
 
 /// Hides the quick box (Esc, or a question answered and taken to the main window).
@@ -363,6 +393,7 @@ pub fn run() {
             quit_app,
             set_quick_ask_shortcut,
             hide_quick_ask,
+            take_quick_selection,
             open_in_main,
             installer_language,
             update::check_update,

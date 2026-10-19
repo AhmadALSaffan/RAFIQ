@@ -584,6 +584,13 @@ export type PermissionKey =
 
 export type WebSearchProvider = "none" | "brave" | "tavily" | "searxng";
 
+/** One of the user's own buttons in the quick box: `prompt` says what to do with the text. */
+export interface QuickAction {
+  id: string;
+  label: string;
+  prompt: string;
+}
+
 export interface AppSettings {
   permissions: Record<PermissionKey, PermissionMode>;
   /** The first-run welcome was finished or skipped. */
@@ -618,6 +625,10 @@ export interface AppSettings {
   token_saver: boolean;
   /** The global shortcut for the quick-ask box ("Ctrl+Shift+Space"); null = off. */
   quick_ask_shortcut: string | null;
+  /** The shortcut also brings the text selected in the program in front. */
+  quick_ask_selection: boolean;
+  /** The user's own actions in the quick box, next to the built-in ones. */
+  quick_actions: QuickAction[];
   /** The app's brand kit — read only here; it's saved through /motion/kit, which checks it. */
   brand_kit?: Record<string, unknown> | null;
   /** A model that can see, to describe frames for chat models that can't (null = none). */

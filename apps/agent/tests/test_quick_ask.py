@@ -24,6 +24,28 @@ def test_the_shortcut_is_on_by_default_and_settings_saved_before_it_existed_stil
     assert AppSettings.model_validate({"run_in_background": True}).quick_ask_shortcut == "Ctrl+Shift+Space"
 
 
+def test_the_selected_text_comes_along_by_default_and_there_are_no_own_actions_yet():
+    settings = AppSettings.model_validate({"run_in_background": True})
+    assert settings.quick_ask_selection is True
+    assert settings.quick_actions == []
+
+
+async def test_own_actions_are_saved_and_bad_ones_refused(client):
+    current = (await client.get("/settings", headers=AUTH)).json()
+    action = {"id": "a1", "label": "تغريدة", "prompt": "اكتب النص كتغريدة قصيرة."}
+    try:
+        saved = await client.put("/settings", json={**current, "quick_actions": [action], "quick_ask_selection": False}, headers=AUTH)
+        assert saved.status_code == 200
+        assert saved.json()["quick_actions"] == [action]
+        assert saved.json()["quick_ask_selection"] is False
+        empty = await client.put("/settings", json={**current, "quick_actions": [{**action, "prompt": ""}]}, headers=AUTH)
+        assert empty.status_code == 422
+        too_many = [{**action, "id": f"a{i}"} for i in range(21)]
+        assert (await client.put("/settings", json={**current, "quick_actions": too_many}, headers=AUTH)).status_code == 422
+    finally:
+        await client.put("/settings", json=current, headers=AUTH)
+
+
 async def test_the_shortcut_can_be_changed_and_switched_off(client):
     current = (await client.get("/settings", headers=AUTH)).json()
     try:

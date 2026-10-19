@@ -5,17 +5,22 @@
  * It's a real chat — it shows up in the chat list like any other, and "Open in Rafiq"
  * takes the conversation to the main window. Esc (or the shortcut again) puts the box
  * away; clicking elsewhere does too, as long as there's nothing on it to lose.
+ *
+ * When text was selected in the program in front, the box opens on it: one press of
+ * translate, fix, rephrase, summarise, reply — or the user's own actions — or a question
+ * about it.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { createChat, listModels, sendChatMessage, stopChat } from "../lib/api";
-import type { LlmModel } from "../lib/types";
+import { createChat, getSettings, listModels, sendChatMessage, stopChat } from "../lib/api";
+import type { LlmModel, QuickAction } from "../lib/types";
+import { actionMessage, builtinActions, questionAbout } from "../lib/quickAsk";
 import { applyEvent, textOf, type Draft } from "../features/chat/draft";
 import { MODEL_KEY, savedModel } from "../features/chat/constants";
 import { Markdown } from "../components/Markdown";
 import { Logo } from "../components/Logo";
-import { CopyIcon, ExternalIcon, PlusIcon, StopIcon } from "../components/Icons";
+import { CopyIcon, ExternalIcon, PlusIcon, StopIcon, XIcon } from "../components/Icons";
 import { useTheme } from "../lib/theme";
 import { useCurrentWorkspaceId } from "../lib/workspace";
 import { messageDir } from "../lib/bidi";
@@ -45,10 +50,14 @@ export function QuickAsk() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selection, setSelection] = useState<string | null>(null);
+  const streamingRef = useRef(false);
+  const [mine, setMine] = useState<QuickAction[]>([]);
   const box = useRef<HTMLTextAreaElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
   const usable = useMemo(() => models.filter((m) => m.verify_ok !== false), [models]);
+  const actions = useMemo(() => [...builtinActions(), ...mine], [mine]);
 
   useEffect(() => {
     listModels()
@@ -65,6 +74,7 @@ export function QuickAsk() {
     setChatId(null);
     setTurns([]);
     setText("");
+    setSelection(null);
     box.current?.focus();
   }, []);
 
@@ -73,6 +83,42 @@ export function QuickAsk() {
   const idle = turns.length === 0 && !streaming;
   const idleRef = useRef(idle);
   idleRef.current = idle;
+
+  // What was selected when the shortcut was pressed, handed over once by the native side.
+  // New text starts a new question; no text keeps what's on the box (a reply in progress
+  // stays), but an unused selection from last time doesn't linger.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    const pick = async () => {
+      getSettings()
+        .then((s) => setMine(s.quick_actions ?? []))
+        .catch(() => undefined);
+      const invoke = await tauri();
+      // Dev builds in a browser: «?selection=…» stands in for text selected elsewhere.
+      const preview = import.meta.env.DEV ? new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("selection") : null;
+      if (!invoke && !preview) return;
+      const picked = invoke ? await invoke<string | null>("take_quick_selection").catch(() => null) : preview;
+      if (picked) {
+        if (!streamingRef.current) {
+          setChatId(null);
+          setTurns([]);
+          setText("");
+          setSelection(picked);
+        }
+      } else if (idleRef.current) {
+        setSelection(null);
+      }
+      box.current?.focus();
+    };
+    void pick();
+    void (async () => {
+      const { isTauri } = await import("@tauri-apps/api/core");
+      if (!isTauri()) return;
+      const { listen } = await import("@tauri-apps/api/event");
+      off = await listen("rafiq://quick-opened", () => void pick());
+    })();
+    return () => off?.();
+  }, []);
   useEffect(() => {
     let off: (() => void) | undefined;
     void (async () => {
@@ -116,11 +162,26 @@ export function QuickAsk() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  async function ask() {
+  function ask() {
     const question = text.trim();
-    if (!question || streaming || !modelId) return;
+    if (!question) return;
+    // The first question about a selection carries it; later ones are in the same chat.
+    const about = selection && turns.length === 0 ? selection : null;
+    void send(question, about ? questionAbout(question, about) : question);
+  }
+
+  /** An action on the selected text, or on what's typed when nothing was selected. */
+  function act(action: QuickAction) {
+    const target = selection ?? text.trim();
+    if (!target) return;
+    void send(action.label, actionMessage(action.prompt, target));
+  }
+
+  async function send(question: string, message: string) {
+    if (streaming || !modelId) return;
     setText("");
     setStreaming(true);
+    streamingRef.current = true;
     setTurns((prev) => [...prev, { question, answer: { parts: [], reasoning: "" }, done: false }]);
     const update = (fn: (turn: Turn) => Turn) =>
       setTurns((prev) => prev.map((turn, i) => (i === prev.length - 1 ? fn(turn) : turn)));
@@ -130,7 +191,7 @@ export function QuickAsk() {
         id = (await createChat(modelId, null, workspaceId)).id;
         setChatId(id);
       }
-      await sendChatMessage(id, question, modelId, [], (ev) => {
+      await sendChatMessage(id, message, modelId, [], (ev) => {
         if (ev.type === "error") update((turn) => ({ ...turn, error: ev.message }));
         else update((turn) => ({ ...turn, answer: applyEvent(turn.answer, ev) }));
       });
@@ -139,6 +200,7 @@ export function QuickAsk() {
     } finally {
       update((turn) => ({ ...turn, done: true }));
       setStreaming(false);
+      streamingRef.current = false;
       box.current?.focus();
     }
   }
@@ -149,6 +211,13 @@ export function QuickAsk() {
     if (invoke) await invoke("open_in_main", { route: `/chat/${chatId}` });
     else window.location.hash = `#/chat/${chatId}`;
     reset();
+  }
+
+  /** Settings → General, where the user's own actions are kept. */
+  async function openSettings() {
+    const invoke = await tauri();
+    if (invoke) await invoke("open_in_main", { route: "/settings?tab=general" });
+    else window.location.hash = "#/settings?tab=general";
   }
 
   async function copyLast() {
@@ -204,7 +273,31 @@ export function QuickAsk() {
             {t("ما في نموذج شغّال — أضف واحد من صفحة النماذج.")}
           </p>
         )}
-        {turns.length === 0 && usable.length > 0 && (
+        {selection && (
+          <div className="mb-1 mt-1 rounded-xl border px-3 py-2" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}>
+            <div className="mb-1 flex items-center gap-2">
+              <span className="flex-1 text-[11px] font-medium" style={muted}>
+                {t("النص المحدد · {0} حرف", { 0: String(selection.length) })}
+              </span>
+              <button
+                onClick={() => {
+                  setSelection(null);
+                  box.current?.focus();
+                }}
+                disabled={streaming}
+                aria-label={t("شيل النص المحدد")}
+                className="rounded p-0.5 transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-40"
+                style={muted}
+              >
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <p className="line-clamp-3 whitespace-pre-wrap text-xs leading-relaxed" dir="auto" style={{ color: "var(--color-ink)" }}>
+              {selection}
+            </p>
+          </div>
+        )}
+        {turns.length === 0 && !selection && usable.length > 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-2 pb-4 text-center">
             <p className="text-sm" style={{ color: "var(--color-ink)" }}>
               {t("اسأل، وخلّي شغلك مفتوح.")}
@@ -256,6 +349,31 @@ export function QuickAsk() {
         <div ref={bottom} />
       </div>
 
+      {/* One press on the selected text — or on what's typed, when nothing was selected. */}
+      {(selection || (turns.length === 0 && text.trim())) && !streaming && modelId && (
+        <div className="mx-2 mb-1.5 flex shrink-0 flex-wrap gap-1.5 px-1" role="group" aria-label={t("أوامر سريعة")}>
+          {actions.map((action) => (
+            <button
+              key={action.id}
+              onClick={() => act(action)}
+              title={action.prompt}
+              className="rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-[var(--color-surface-2)]"
+              style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
+              dir="auto"
+            >
+              {action.label}
+            </button>
+          ))}
+          <button
+            onClick={() => void openSettings()}
+            className="rounded-full border border-dashed px-2.5 py-1 text-[11px] transition-colors hover:bg-[var(--color-surface-2)]"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
+          >
+            {t("+ أمر خاص فيك")}
+          </button>
+        </div>
+      )}
+
       <div className="m-2 mt-0 shrink-0 rounded-xl px-3 pb-2.5 pt-2" style={{ background: "var(--color-surface-2)" }}>
         {turns.length > 0 && (
           <div className="mb-2 flex items-center gap-1">
@@ -288,10 +406,10 @@ export function QuickAsk() {
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
-              void ask();
+              ask();
             }
           }}
-          placeholder={turns.length ? t("كمّل السؤال…") : t("اسأل رفيق أي شي…")}
+          placeholder={turns.length ? t("كمّل السؤال…") : selection ? t("اسأل عن النص المحدد…") : t("اسأل رفيق أي شي…")}
           aria-label={t("اسأل رفيق أي شي…")}
           disabled={!modelId}
           className="max-h-32 w-full resize-none bg-transparent px-1 text-[0.9375rem] outline-none"

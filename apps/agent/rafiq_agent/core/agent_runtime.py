@@ -34,6 +34,7 @@ from rafiq_agent.tools.filesystem import (
     FilesystemReadTool,
     FilesystemWriteTool,
 )
+from rafiq_agent.tools.office import WordWriteTool
 from rafiq_agent.tools.process import ProcessKillTool, ProcessListTool
 from rafiq_agent.tools.shell import ShellRunTool
 from rafiq_agent.tools.skills import skill_tools
@@ -44,6 +45,7 @@ log = logging.getLogger(__name__)
 PERMISSION_KEY_BY_TOOL = {
     "filesystem_write": "filesystem_write",
     "filesystem_delete": "filesystem_write",
+    "word_write": "filesystem_write",
     "shell_run": "shell",
     "process_kill": "process",
     "issue_comment": "issue_write",
@@ -143,6 +145,7 @@ async def build_registry(
             FilesystemReadTool(working_dir),
             FilesystemWriteTool(working_dir),
             FilesystemDeleteTool(working_dir),
+            WordWriteTool(working_dir),
             ShellRunTool(working_dir),
             ProcessListTool(),
             ProcessKillTool(),
