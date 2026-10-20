@@ -454,6 +454,22 @@ export function FileMenu({
   useEffect(() => setActive(0), [query]);
   useKeyNav(files.length, active, setActive, () => files[active] && onPick(files[active]), onClose, registerKeyHandler);
 
+  // Keep the highlighted file in view as the arrow keys walk the tree — scrolling the list
+  // only, never the chat behind it.
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = list.current;
+    const row = box?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!box || !row) return;
+    const pad = 6;
+    const top = row.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+    const bottom = top + row.offsetHeight;
+    let next: number | null = null;
+    if (top - pad < box.scrollTop) next = top - pad;
+    else if (bottom + pad > box.scrollTop + box.clientHeight) next = bottom + pad - box.clientHeight;
+    if (next !== null) box.scrollTo({ top: Math.max(0, next) });
+  }, [active, files]);
+
   if (!dir) {
     return (
       <MenuShell>
@@ -471,7 +487,7 @@ export function FileMenu({
           {loading ? t("جارِ البحث…") : t("ما في ملفات مطابقة")}
         </p>
       ) : (
-        <div className="max-h-72 overflow-y-auto p-1.5">
+        <div ref={list} className="max-h-72 overflow-y-auto overscroll-contain p-1.5">
           <FileTree
             paths={files.map((f) => f.path)}
             selected={files[active]?.path ?? null}

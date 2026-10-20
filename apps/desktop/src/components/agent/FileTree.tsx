@@ -1,13 +1,14 @@
 /**
- * Files and folders as a tree, each file with a small badge in its language's colour, the
+ * Files and folders as a tree, each file with the icon its default app shows in Explorer, the
  * current path highlighted, folders folding open. (After the "File Tree" component on
  * 21st.dev, written for Rafiq.)
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { systemFileIcon } from "../../lib/fileIcons";
 
-/** Extension → [badge text, colour]. */
+/** Extension → [badge text, colour]: the fallback where the OS has no icon (the Vite preview). */
 const KINDS: Record<string, [string, string]> = {
   ts: ["TS", "#3178c6"],
   tsx: ["TSX", "#3178c6"],
@@ -60,6 +61,21 @@ export function FileGlyph({ name, folder = false, open = false }: { name: string
       </svg>
     );
   }
+  return <SystemIcon name={name} />;
+}
+
+/** The icon of the file's default app, as Explorer shows it; a language badge until it loads. */
+function SystemIcon({ name }: { name: string }) {
+  const [icon, setIcon] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setIcon(null);
+    systemFileIcon(name).then((url) => alive && setIcon(url));
+    return () => {
+      alive = false;
+    };
+  }, [name]);
+  if (icon) return <img src={icon} alt="" className="h-4 w-4 shrink-0" draggable={false} />;
   const ext = name.toLowerCase().split(".").pop() ?? "";
   const [text, color] = KINDS[ext] ?? ["·", "#7d8590"];
   return (
