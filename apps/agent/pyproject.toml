@@ -1,6 +1,6 @@
 [project]
 name = "rafiq-agent"
-version = "0.5.2"
+version = "0.5.3"
 description = "Rafiq local agent runtime (FastAPI sidecar)"
 requires-python = ">=3.11"
 dependencies = [
@@ -31,6 +31,8 @@ dependencies = [
   "jsonschema>=4.23",
   "uharfbuzz>=0.50",
   "fonttools[woff]>=4.55",
+  # Reading and writing spreadsheets (tools/sheets.py).
+  "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]

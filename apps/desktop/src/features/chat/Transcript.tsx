@@ -4,9 +4,8 @@
  * summary marker. No data fetching lives here — it all arrives as props.
  */
 
-import { memo, useLayoutEffect, useRef, useState } from "react";
+import { memo, useState } from "react";
 import { StudioCard } from "./StudioCard";
-import { ShimmerText, TextSwap } from "../../components/LiveText";
 import { AnimatePresence, motion } from "motion/react";
 import type { ChatMessage, ChatPart, LlmModel, TaskStatus, TurnUsage } from "../../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../../lib/motion";
@@ -31,6 +30,8 @@ import { StarButton } from "./bookmarks";
 
 import { Link } from "react-router-dom";
 import { t } from "../../i18n";
+import { ThoughtChain } from "../../components/agent/ThoughtChain";
+import { useSmoothText } from "../../lib/smoothText";
 import type { PermissionAnswer } from "../../lib/permissions";
 /** First screen of an empty chat: what رفيق can do, in one glance. */
 export function Welcome({ hasModels, onPick, onModels }: { hasModels: boolean; onPick: (text: string) => void; onModels: () => void }) {
@@ -348,7 +349,7 @@ export function AssistantBlock({
         )}
       </motion.div>
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        {reasoning && <Reasoning text={reasoning} live={live && !text} />}
+        {reasoning && <ThoughtChain text={reasoning} live={live && !text} />}
         {groupTasks(visible).map((item) => (
           <motion.div
             key={item.key}
@@ -364,7 +365,7 @@ export function AssistantBlock({
               )
             ) : item.part.kind === "text" ? (
               <div>
-                <Markdown text={item.part.text} live={live && item.last} />
+                <StreamedMarkdown text={item.part.text} live={live && item.last} />
                 {live && item.last && <span className="stream-caret" aria-hidden />}
               </div>
             ) : item.part.kind === "tool" ? (
@@ -372,6 +373,7 @@ export function AssistantBlock({
                 tool={item.part.tool}
                 args={item.part.args}
                 result={item.part.ok === undefined ? undefined : { ok: item.part.ok, output: item.part.output ?? "" }}
+                interrupted={!live && item.part.ok === undefined}
               />
             ) : item.part.kind === "permission" ? (
               <PermissionPart part={item.part} onResolve={onResolve} />
@@ -560,59 +562,10 @@ function TaskGroup({ tasks, onOpen, fresh }: { tasks: TaskRef[]; onOpen: (id: st
   );
 }
 
-/**
- * The model's thinking. While it thinks, a window of fixed height that follows the newest
- * thoughts *inside itself* — so the conversation doesn't grow and slide down with every
- * thought. Scroll up in it and it stays put. Folded away once the answer starts.
- */
-function Reasoning({ text, live }: { text: string; live: boolean }) {
-  const [open, setOpen] = useState(false);
-  const expanded = live || open;
-  const box = useRef<HTMLParagraphElement>(null);
-  const follow = useRef(true);
-  useLayoutEffect(() => {
-    const el = box.current;
-    if (el && live && follow.current) el.scrollTop = el.scrollHeight;
-  }, [text, live]);
-  return (
-    <div>
-      <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-        {/* thinking → thought: the label swaps in place when the answer starts */}
-        <TextSwap text={live ? t("عم يفكّر…") : expanded ? t("إخفاء التفكير ▴") : t("عرض التفكير ▾")}>
-          {live ? <ShimmerText>{t("عم يفكّر…")}</ShimmerText> : undefined}
-        </TextSwap>
-      </button>
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: easeOutExpo }}
-            className="overflow-hidden"
-          >
-            <p
-              ref={box}
-              onScroll={(e) => {
-                const el = e.currentTarget;
-                follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 16;
-              }}
-              className={`mt-1 overflow-y-auto whitespace-pre-wrap rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${live ? "h-28" : "max-h-48"}`}
-              style={{
-                background: "var(--color-surface)",
-                color: "var(--color-ink-muted)",
-                // the oldest thoughts fade out at the top while new ones come in below
-                maskImage: live ? "linear-gradient(to bottom, transparent, black 1.75rem)" : undefined,
-              }}
-              dir="auto"
-            >
-              {text}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+/** A reply still streaming, revealed word by word at an even pace. */
+function StreamedMarkdown({ text, live }: { text: string; live: boolean }) {
+  const shown = useSmoothText(text, live);
+  return <Markdown text={shown} live={live} />;
 }
 
 /** Marks where the older turns were folded into a summary, and shows what was kept. */

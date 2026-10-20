@@ -5,7 +5,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../components/ui";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { TemplatesDialog } from "../components/TemplatesDialog";
 import { motion } from "motion/react";
 import { getSettings, getUsage, listChats, listDesigns, listIntegrations, listIssues, listModels, listSchedules, listTasks, quietly } from "../lib/api";
 import { GooeyMenu } from "../components/easy/gooey-menu";
@@ -21,7 +22,8 @@ import { fieldDir } from "../lib/bidi";
 import { BigNumber, Block, BracketLabel, LedBar, Wireframe } from "../components/brand";
 import { ArrowDownIcon, ChatIcon, FolderIcon, ModelsIcon } from "../components/Icons";
 import { BrandMark } from "../components/BrandMark";
-import { rememberModel, savedModel } from "../features/chat/constants";
+import { rememberEffort, rememberModel, savedEffort, savedModel } from "../features/chat/constants";
+import { EffortPicker, type Effort } from "../components/EffortPicker";
 import { Illustration } from "../components/Illustration";
 import { t } from "../i18n";
 
@@ -86,6 +88,11 @@ export function HomePage() {
   const [text, setText] = useState("");
   // The last model the user chatted with, until they pick another one here.
   const [modelId, setModelId] = useState<string>(() => savedModel() ?? "");
+  const [effort, setEffort] = useState<Effort>(savedEffort);
+  // Ready-made documents (also opened from Ctrl+K with ?templates=1).
+  const [params, setParams] = useSearchParams();
+  const templatesOpen = params.get("templates") === "1";
+  const setTemplatesOpen = (on: boolean) => setParams(on ? { templates: "1" } : {}, { replace: true });
   const [cities, setCities] = useState<ClockCity[]>(savedCities);
   const [shortcut, setShortcut] = useState<string | null>(null);
 
@@ -225,6 +232,14 @@ export function HomePage() {
           />
           {!text.trim() && (
             <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("أفكار للبداية")}>
+              <button
+                type="button"
+                onClick={() => setTemplatesOpen(true)}
+                className="rounded-full border px-3 py-1 text-xs font-medium transition-colors hover:bg-[var(--color-surface-2)]"
+                style={{ borderColor: "var(--color-accent)", color: "var(--color-ink)" }}
+              >
+                {t("قوالب جاهزة: بحث، سيرة ذاتية، فاتورة…")}
+              </button>
               {starters().map((s) => (
                 <button
                   key={s}
@@ -247,6 +262,15 @@ export function HomePage() {
               ariaLabel={t("النموذج")}
               empty={t("أضف نموذج شغّال أولاً")}
               width={250}
+              footer={
+                <EffortPicker
+                  value={effort}
+                  onChange={(e) => {
+                    setEffort(e);
+                    rememberEffort(e);
+                  }}
+                />
+              }
             />
             <div className="flex items-center gap-2">
               {!chosen && text.trim() && (
@@ -380,6 +404,21 @@ export function HomePage() {
           </Block>
         </button>
       </motion.div>
+
+      <TemplatesDialog
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        onStart={(prompt) => {
+          if (!chosen) {
+            setTemplatesOpen(false);
+            setText(prompt);
+            return;
+          }
+          rememberModel(chosen.id);
+          queueChatSend(prompt, chosen.id);
+          navigate("/chat");
+        }}
+      />
 
       {/* The time here and where the people you work with are — a departures board. */}
       <motion.div variants={listItem}>

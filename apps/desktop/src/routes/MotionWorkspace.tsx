@@ -4,11 +4,12 @@ import { Badge } from "../components/arc/badge/badge";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { getMotionProject, patchMotionScene, renameMotionProject, type MotionProject, quietly } from "../lib/api";
-import { snappy } from "../lib/motion";
+import { easeOutExpo, snappy } from "../lib/motion";
+import { setLayout, useLayout } from "../lib/layout";
 import { Button } from "../components/ui";
 import { Resizer } from "../components/Resizer";
 import { usePageMenu } from "../components/ContextMenu";
-import { AlertIcon, MaximizeIcon, MovieIcon, PauseIcon, PlayIcon, VolumeIcon, PencilIcon } from "../components/Icons";
+import { AlertIcon, ChatIcon, MaximizeIcon, MovieIcon, PauseIcon, PlayIcon, VolumeIcon, PencilIcon } from "../components/Icons";
 import { ChatPage } from "../features/chat";
 import { ScenePlayer, type ScenePlayerHandle } from "../features/motion/ScenePlayer";
 import { VersionsPane } from "../features/motion/VersionsPane";
@@ -52,6 +53,7 @@ export function MotionWorkspace() {
   const [selected, setSelectedRaw] = useState<string | null>(null);
   const [zoom, setZoom] = useState(80);
   const [chatWidth, setChatWidth] = useState(380);
+  const chatHidden = useLayout().motionChatHidden;
   const [panelWidth, setPanelWidth] = useState(380);
   const [timelineHeight, setTimelineHeight] = useState(260);
   const [safe, setSafe] = useState(true);
@@ -277,6 +279,10 @@ export function MotionWorkspace() {
             </button>
           </div>
         )}
+        <Button variant="ghost" onClick={() => setLayout({ motionChatHidden: !chatHidden })} aria-pressed={!chatHidden} title={chatHidden ? t("افتح الشات") : t("اطوِ الشات")}>
+          <ChatIcon className="h-4 w-4" />
+          {chatHidden ? t("افتح الشات") : t("اطوِ الشات")}
+        </Button>
         <div className="flex shrink-0 items-center gap-1 rounded-full p-1" style={{ background: "var(--color-surface)" }}>
           {(["stage", "versions"] as View[]).map((key) => (
             <button key={key} onClick={() => setView(key)} className="relative rounded-full px-3 py-1 text-xs" style={{ color: view === key ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}>
@@ -312,7 +318,17 @@ export function MotionWorkspace() {
       )}
 
       <div className="flex min-h-0 flex-1">
-        <div className="flex min-h-0 shrink-0 flex-col" style={{ width: chatWidth }}>
+        {/* The chat folds away for more room to edit; it stays mounted, so a reply keeps
+            streaming while it's hidden. */}
+        <motion.div
+          className="flex min-h-0 shrink-0 flex-col overflow-hidden"
+          initial={false}
+          animate={{ width: chatHidden ? 0 : chatWidth, opacity: chatHidden ? 0 : 1 }}
+          transition={{ duration: 0.28, ease: easeOutExpo }}
+          aria-hidden={chatHidden}
+          inert={chatHidden || undefined}
+        >
+          <div className="flex min-h-0 flex-1 flex-col" style={{ width: chatWidth }}>
           <ChatPage
             chatId={project.chat_id}
             embedded
@@ -327,8 +343,23 @@ export function MotionWorkspace() {
               return true;
             }}
           />
-        </div>
-        <Resizer value={chatWidth} min={300} max={640} onChange={setChatWidth} onDoubleClick={() => setChatWidth(380)} label={t("عرض الشات")} />
+          </div>
+        </motion.div>
+        {chatHidden ? (
+          <button
+            type="button"
+            onClick={() => setLayout({ motionChatHidden: false })}
+            title={t("افتح الشات")}
+            aria-label={t("افتح الشات")}
+            className="m-2 me-0 flex w-9 shrink-0 flex-col items-center gap-2 rounded-2xl py-3 transition-colors hover:bg-[var(--color-surface-2)]"
+            style={{ background: "var(--color-surface)", color: "var(--color-ink-muted)" }}
+          >
+            <ChatIcon className="h-4 w-4" />
+            <span className="text-[11px] [writing-mode:vertical-rl]">{t("الشات")}</span>
+          </button>
+        ) : (
+          <Resizer value={chatWidth} min={300} max={640} onChange={setChatWidth} onDoubleClick={() => setChatWidth(380)} label={t("عرض الشات")} />
+        )}
 
         <div className="m-2 ms-0 flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)" }}>
           {view === "versions" ? (

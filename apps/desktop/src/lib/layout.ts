@@ -15,6 +15,10 @@ export interface LayoutPrefs {
   reading: ReadingWidth;
   /** Width of the side panel with the model's files and commands. */
   activity: number;
+  /** The slowly turning globe behind the pages. */
+  globe: boolean;
+  /** The motion editor's chat folded away, for more room to edit. */
+  motionChatHidden: boolean;
 }
 
 export type ReadingWidth = "narrow" | "medium" | "wide" | "full";
@@ -24,6 +28,8 @@ export const DEFAULT_LAYOUT: LayoutPrefs = {
   listHidden: false,
   reading: "medium",
   activity: 440,
+  globe: true,
+  motionChatHidden: false,
 };
 
 export const LIST_MIN = 190;
@@ -62,6 +68,8 @@ function load(): LayoutPrefs {
       listHidden: saved.listHidden ?? DEFAULT_LAYOUT.listHidden,
       reading: saved.reading ?? DEFAULT_LAYOUT.reading,
       activity: clamp(saved.activity ?? DEFAULT_LAYOUT.activity, ACTIVITY_MIN, ACTIVITY_MAX),
+      globe: saved.globe ?? DEFAULT_LAYOUT.globe,
+      motionChatHidden: saved.motionChatHidden ?? DEFAULT_LAYOUT.motionChatHidden,
     };
   } catch {
     return DEFAULT_LAYOUT;

@@ -1,7 +1,7 @@
 {
   "name": "rafiq-desktop",
   "private": true,
-  "version": "0.5.2",
+  "version": "0.5.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -46,6 +46,7 @@
     "@tauri-apps/plugin-notification": "^2.4.0",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.11.0",
+    "cobe": "0.6.4",
     "lottie-web": "5.13.0",
     "mediabunny": "1.61.3",
     "motion": "^13.2.0",

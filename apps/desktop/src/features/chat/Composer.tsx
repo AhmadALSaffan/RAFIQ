@@ -18,6 +18,7 @@ import { TokenText } from "../../components/TokenText";
 import { UploadChips, useUploads } from "../../components/Attachments";
 import { ChevronDownIcon, ModelsIcon, PaperclipIcon, StopIcon } from "../../components/Icons";
 import { CommandMenu, FileMenu, IssueMenu, readTrigger, replaceTrigger, type CommandDef, type ChatMode } from "../../components/ComposerMenus";
+import { EffortPicker, type Effort } from "../../components/EffortPicker";
 import { MicButton } from "./MicButton";
 
 import { t } from "../../i18n";
@@ -39,6 +40,8 @@ export function Composer({
   prefill,
   webSearch,
   onWebSearch,
+  effort,
+  onEffort,
   extraCommands,
   mode = "chat",
 }: {
@@ -66,6 +69,9 @@ export function Composer({
   webSearch?: boolean;
   /** Absent when there's no chat yet, so there's nothing to save the choice on. */
   onWebSearch?: (on: boolean) => void;
+  /** How hard the model thinks: this chat's level, or the default for a new one. */
+  effort?: Effort;
+  onEffort?: (effort: Effort) => void;
 }) {
   const reading = READING_WIDTHS[useLayout().reading];
   const [text, setText] = useState(() => takeChatMessage() ?? "");
@@ -272,6 +278,8 @@ export function Composer({
               openSignal={openModelMenu}
               webSearch={webSearch}
               onWebSearch={onWebSearch}
+              effort={effort}
+              onEffort={onEffort}
             />
           </div>
           <AnimatePresence mode="wait" initial={false}>
@@ -325,6 +333,8 @@ function ModelMenu({
   openSignal,
   webSearch,
   onWebSearch,
+  effort,
+  onEffort,
 }: {
   models: LlmModel[];
   value: string;
@@ -332,6 +342,8 @@ function ModelMenu({
   openSignal: number;
   webSearch?: boolean;
   onWebSearch?: (on: boolean) => void;
+  effort?: Effort;
+  onEffort?: (effort: Effort) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -410,6 +422,13 @@ function ModelMenu({
                 </button>
               </motion.li>
             ))}
+
+            {/* How hard the model thinks: this chat's own level, or new chats' default. */}
+            {onEffort && (
+              <li className="mt-1 border-t pt-1" style={{ borderColor: "var(--color-border)" }}>
+                <EffortPicker value={effort ?? null} onChange={onEffort} />
+              </li>
+            )}
 
             {/* Rafiq's own search tool for this chat. A model that searches the web itself
                 (Copilot) starts with this off and uses its own; switching it on hands it

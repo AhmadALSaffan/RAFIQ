@@ -38,12 +38,13 @@ import { ActivityPanel, collectActivity, type ActivityTab } from "./ActivityPane
 import { AssistantBlock, startsNewDay, TranscriptRow, Welcome, type RowActions } from "./Transcript";
 import { earlierStart, firstStart, NEAR_TOP, startIncluding } from "./transcriptWindow";
 import { applyEvent, textOf, type Draft } from "./draft";
-import { DEFAULT_REPLY_SETTINGS, MODEL_KEY, savedModel } from "./constants";
+import { DEFAULT_REPLY_SETTINGS, MODEL_KEY, rememberEffort, savedEffort, savedModel } from "./constants";
 
 import { t } from "../../i18n";
 import { showGuide } from "../../lib/guides";
 import { permissionLabelOf, type PermissionAnswer } from "../../lib/permissions";
 import { Skeleton } from "../../components/easy/skeleton";
+import { FoldThoughts } from "../../components/agent/ThoughtChain";
 export function ChatPage({
   chatId,
   embedded = false,
@@ -102,6 +103,8 @@ export function ChatPage({
   const { current: workspace, currentId: workspaceId } = useWorkspaces();
   // Bumping this asks the composer's model dropdown to open (that's what /نموذج does).
   const [openModelMenu, setOpenModelMenu] = useState(0);
+  // The reasoning level a chat that doesn't exist yet will start with.
+  const [newEffort, setNewEffort] = useState(savedEffort);
   const [summarizing, setSummarizing] = useState(false);
   const [loadingChats, setLoadingChats] = useState(true);
   const [atBottom, setAtBottom] = useState(true);
@@ -441,7 +444,10 @@ export function ChatPage({
     let chatId = routeId;
     if (!chatId) {
       try {
-        const chat = await createChat(modelId, newChatFolder ?? workspace?.working_dir ?? null, workspaceId);
+        let chat = await createChat(modelId, newChatFolder ?? workspace?.working_dir ?? null, workspaceId);
+        // The reasoning level picked before the chat existed (here or on Home) is its first setting.
+        const effort = savedEffort();
+        if (effort) chat = { ...chat, ...(await updateChatSettings(chat.id, { ...(chat.settings ?? DEFAULT_REPLY_SETTINGS), reasoning_effort: effort }).catch(() => chat)) };
         chatId = chat.id;
         skipLoadRef.current = chat.id;
         setChats((prev) => [chat, ...prev]);
@@ -846,6 +852,8 @@ export function ChatPage({
   };
 
   return (
+    // In a design or motion session the model's thinking stays folded until asked for.
+    <FoldThoughts.Provider value={mode === "design" || mode === "motion"}>
     <div className="flex h-full">
       {!embedded && !layout.listHidden && (
         <>
@@ -1129,6 +1137,14 @@ export function ChatPage({
           mode={mode}
           onIssueMentioned={setLastIssue}
           prefill={prefill}
+          effort={routeId ? (current?.settings?.reasoning_effort ?? null) : newEffort}
+          onEffort={(effort) => {
+            if (routeId) void saveSettings({ ...(current?.settings ?? DEFAULT_REPLY_SETTINGS), reasoning_effort: effort });
+            else {
+              setNewEffort(effort);
+              rememberEffort(effort);
+            }
+          }}
           webSearch={current?.settings?.web_search ?? undefined}
           onWebSearch={
             routeId
@@ -1218,5 +1234,6 @@ export function ChatPage({
         )}
       </AnimatePresence>
     </div>
+    </FoldThoughts.Provider>
   );
 }

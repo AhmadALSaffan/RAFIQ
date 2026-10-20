@@ -86,6 +86,7 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     "motion/local_models.py": {"_try_voice"},
     # Character classes that tell Arabic runs and numbers apart in a Word document.
     "tools/office.py": {"ARABIC_RANGE", "_table"},
+    "tools/slides.py": {"_table"},
 }
 
 

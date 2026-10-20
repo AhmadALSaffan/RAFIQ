@@ -67,6 +67,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## cobe
+
+The globe behind the pages (`apps/desktop/src/components/agent/GlobeBackdrop.tsx`) is drawn
+with [cobe](https://github.com/shuding/cobe), installed from npm under the MIT license —
+Copyright (c) 2021 Shu Ding. Its license ships with the package.
+
+The agent components in `apps/desktop/src/components/agent/` (commit summary, file tree,
+thought chain, streaming text and the tool-card states) were written for Rafiq after the
+descriptions of components on [21st.dev](https://21st.dev); no code was copied from them.
+
 ## Radix UI primitives
 
 `@radix-ui/react-tabs` and `@radix-ui/react-dialog` (used by the tabs and the drawer) are

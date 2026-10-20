@@ -12,7 +12,7 @@ import type { ChangesState, CommitDescription, TaskChanges, TaskStatus } from ".
 import { easeOutExpo } from "../../lib/motion";
 import { Button } from "../../components/ui";
 import { AlertIcon, CopyIcon, GitIcon, SpinnerIcon } from "../../components/Icons";
-import { DiffView } from "../../components/DiffView";
+import { CommitSummary } from "../../components/agent/CommitSummary";
 import { fieldDir } from "../../lib/bidi";
 import { t } from "../../i18n";
 
@@ -26,7 +26,6 @@ const STATE: Record<ChangesState, { label: string; color: string }> = {
   error: { label: t("صار خطأ بـ git"), color: "var(--color-danger)" },
 };
 
-const FILE_STATUS: Record<string, string> = { added: "A", deleted: "D", renamed: "R", modified: "M" };
 
 export function ChangesPanel({ taskId, status }: { taskId: string; status: TaskStatus }) {
   const [changes, setChanges] = useState<TaskChanges | null>(null);
@@ -246,25 +245,8 @@ export function ChangesPanel({ taskId, status }: { taskId: string; status: TaskS
                   {t("ما في ملفات متغيّرة.")}
                 </p>
               ) : (
-                <ul className="flex flex-col gap-0.5" dir="ltr">
-                  {changes.files.map((file) => (
-                    <li key={file.path} className="flex items-center gap-2 font-mono text-xs">
-                      <span className="w-4 text-center font-semibold" style={{ color: file.status === "added" ? "var(--color-success)" : file.status === "deleted" ? "var(--color-danger)" : "var(--color-accent)" }}>
-                        {FILE_STATUS[file.status] ?? "M"}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate">{file.path}</span>
-                      {file.binary ? (
-                        <span style={{ color: "var(--color-ink-muted)" }}>bin</span>
-                      ) : (
-                        <span className="tabular-nums">
-                          <span style={{ color: "var(--color-success)" }}>+{file.additions}</span> <span style={{ color: "var(--color-danger)" }}>−{file.deletions}</span>
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                <CommitSummary files={changes.files} diff={changes.diff} />
               )}
-              {changes.diff && <DiffView diff={changes.diff} />}
               {changes.truncated && (
                 <p className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
                   {t("الفرق طويل — انعرض أوله بس.")}

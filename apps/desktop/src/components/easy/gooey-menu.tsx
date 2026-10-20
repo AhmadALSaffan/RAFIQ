@@ -32,6 +32,7 @@ export function GooeyMenu({
   width = 260,
   ariaLabel,
   empty,
+  footer,
 }: {
   options: GooeyOption[];
   value: string;
@@ -41,6 +42,8 @@ export function GooeyMenu({
   ariaLabel: string;
   /** Shown in the list when there are no options. */
   empty?: string;
+  /** Something below the options (a setting for the chosen one); the liquid grows to fit it. */
+  footer?: ReactNode;
 }) {
   const uid = useId().replace(/:/g, "");
   const reduced = useReducedMotion() ?? false;
@@ -48,6 +51,18 @@ export function GooeyMenu({
   const current = options.find((o) => o.id === value);
   const [active, setActive] = useState(0);
   const box = useRef<HTMLDivElement>(null);
+  const foot = useRef<HTMLLIElement>(null);
+  const [footH, setFootH] = useState(0);
+
+  useEffect(() => {
+    const node = foot.current;
+    if (!open || !node) return;
+    const measure = () => setFootH(node.offsetHeight);
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(node);
+    return () => watch.disconnect();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -60,7 +75,7 @@ export function GooeyMenu({
   }, [open, options, value]);
 
   const rows = Math.max(1, Math.min(options.length, MAX_ROWS));
-  const panelH = rows * ROW_H + PAD * 2;
+  const panelH = rows * ROW_H + PAD * 2 + (footer ? footH + 4 : 0);
   const panelY = PILL_H + GAP;
 
   function choose(i: number) {
@@ -93,7 +108,8 @@ export function GooeyMenu({
     }
   }
 
-  const fill = { background: "var(--color-inverse)" };
+  // A surface in both themes, so every brand mark — dark ones and white ones — stays visible.
+  const fill = { background: "var(--color-surface-2)" };
   return (
     <div ref={box} className="relative select-none" style={{ width, height: PILL_H }}>
       <svg width="0" height="0" aria-hidden className="absolute">
@@ -126,7 +142,7 @@ export function GooeyMenu({
         onClick={() => setOpen((o) => !o)}
         onKeyDown={onKey}
         className="absolute start-0 top-0 z-40 flex items-center justify-between gap-2 px-4 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
-        style={{ width, height: PILL_H, borderRadius: PILL_H / 2, color: "var(--color-on-inverse)" }}
+        style={{ width, height: PILL_H, borderRadius: PILL_H / 2, color: "var(--color-ink)" }}
       >
         <span className="flex min-w-0 items-center gap-2 text-[13px] font-medium">
           {current?.icon}
@@ -144,7 +160,7 @@ export function GooeyMenu({
             aria-label={ariaLabel}
             aria-activedescendant={options[active] ? `${uid}-${active}` : undefined}
             className="absolute start-0 z-40 m-0 list-none overflow-y-auto p-0"
-            style={{ top: panelY, width, maxHeight: panelH, paddingBlock: PAD, color: "var(--color-on-inverse)" }}
+            style={{ top: panelY, width, maxHeight: panelH, paddingBlock: PAD, color: "var(--color-ink)" }}
             initial="closed"
             animate="open"
             exit="closed"
@@ -168,13 +184,18 @@ export function GooeyMenu({
                 onClick={() => choose(i)}
                 variants={{ open: { opacity: 1, y: 0, transition: ROW }, closed: { opacity: 0, y: -8, transition: SNAP } }}
                 className="mx-1.5 flex cursor-pointer items-center gap-2 rounded-xl px-3 text-[13px] transition-colors"
-                style={{ height: ROW_H, background: i === active ? "color-mix(in oklch, var(--color-on-inverse) 14%, transparent)" : "transparent" }}
+                style={{ height: ROW_H, background: i === active ? "color-mix(in oklch, var(--color-ink) 8%, transparent)" : "transparent" }}
               >
                 {option.icon}
                 <span className="min-w-0 flex-1 truncate">{option.label}</span>
                 {option.id === value && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--color-accent)" }} />}
               </motion.li>
             ))}
+            {footer && (
+              <li ref={foot} className="mx-1.5 mt-1 border-t pt-1" style={{ borderColor: "color-mix(in oklch, var(--color-ink) 12%, transparent)" }}>
+                {footer}
+              </li>
+            )}
           </motion.ul>
         )}
       </AnimatePresence>

@@ -33,6 +33,8 @@ import { ToastStack, type Toast } from "./Toasts";
 import { Logo } from "./Logo";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { GuideDialog } from "./GuideDialog";
+import { GlobeBackdrop } from "./agent/GlobeBackdrop";
+import { useLayout } from "../lib/layout";
 import { PageErrorBoundary } from "../routes/NotFoundPage";
 
 import { t } from "../i18n";
@@ -181,6 +183,14 @@ function useTaskWatcher(currentPath: string, navigate: (to: string) => void) {
 
 export function Shell() {
   const { theme, toggle } = useTheme();
+  const layout = useLayout();
+  // The globe scales with the window, so a narrow one isn't all globe.
+  const [globeSize, setGlobeSize] = useState(() => Math.round(Math.min(720, Math.max(320, window.innerWidth * 0.38))));
+  useEffect(() => {
+    const fit = () => setGlobeSize(Math.round(Math.min(720, Math.max(320, window.innerWidth * 0.38))));
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
   // The motion engine answers the agent from here, whichever page is open.
   useMotionEngineHost();
   const location = useLocation();
@@ -433,12 +443,18 @@ export function Shell() {
             </div>
           </nav>
 
-          <main className={`min-w-0 flex-1 ${fullHeight ? "overflow-hidden" : "overflow-y-auto"}`}>
+          <main className={`relative min-w-0 flex-1 ${fullHeight ? "overflow-hidden" : "overflow-y-auto"}`}>
+            {/* The globe behind the pages (not behind the full-height workspaces, which cover it). */}
+            {layout.globe && !fullHeight && (
+              <div aria-hidden className="pointer-events-none fixed z-0" style={{ opacity: theme === "dark" ? 0.75 : 0.6, bottom: -globeSize * 0.28, insetInlineEnd: -globeSize * 0.22 }}>
+                <GlobeBackdrop dark={theme === "dark"} size={globeSize} />
+              </div>
+            )}
             <motion.div
               // Chat keeps one instance across /chat → /chat/:id so a reply streaming into a
               // just-created conversation isn't torn down by the route change.
               key={section === "/chat" ? section : location.pathname}
-              className={fullHeight ? "h-full" : undefined}
+              className={fullHeight ? "relative z-[1] h-full" : "relative z-[1]"}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, ease: easeOutExpo }}

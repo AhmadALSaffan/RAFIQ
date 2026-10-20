@@ -33,6 +33,27 @@ export function savedModel(): string | null {
   }
 }
 
+export const EFFORT_KEY = "rafiq-chat-effort";
+
+/** The reasoning level new chats start with (picked on Home or before a chat exists). */
+export function savedEffort(): ReplySettings["reasoning_effort"] {
+  try {
+    const v = localStorage.getItem(EFFORT_KEY);
+    return v === "low" || v === "medium" || v === "high" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function rememberEffort(effort: ReplySettings["reasoning_effort"]): void {
+  try {
+    if (effort) localStorage.setItem(EFFORT_KEY, effort);
+    else localStorage.removeItem(EFFORT_KEY);
+  } catch {
+    // convenience only
+  }
+}
+
 /** Remember the model for the next new chat (convenience only — storage may be unavailable). */
 export function rememberModel(id: string): void {
   try {

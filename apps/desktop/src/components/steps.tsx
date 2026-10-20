@@ -9,6 +9,7 @@ import { Button, DrawnCheck } from "./ui";
 
 import { t } from "../i18n";
 import { canAlwaysAllow, permissionLabelOf, type PermissionAnswer } from "../lib/permissions";
+import { doing } from "../features/chat/WorkStatus";
 
 export function formatArgs(args: Record<string, unknown>): string {
   const entries = Object.entries(args);
@@ -73,22 +74,82 @@ function Clamped({ text, maxRem, className, style, dir }: { text: string; maxRem
   );
 }
 
-/** One tool step: what was called, then its output sliding open when it lands. */
+/** The arguments in one line, keys sorted: "path: notes.md · query: payment". */
+export function argsSubtitle(args: Record<string, unknown>): string {
+  return Object.keys(args)
+    .sort()
+    .map((k) => {
+      const v = args[k];
+      const text = typeof v === "string" ? v : JSON.stringify(v);
+      return `${k}: ${text.length > 48 ? `${text.slice(0, 47)}…` : text}`;
+    })
+    .join(" · ");
+}
+
+/** A tool's output, pretty-printed when it's JSON. */
+export function prettyOutput(output: string): { text: string; json: boolean } {
+  const trimmed = output.trim();
+  if (!/^[[{]/.test(trimmed)) return { text: output, json: false };
+  try {
+    return { text: JSON.stringify(JSON.parse(trimmed), null, 2), json: true };
+  } catch {
+    return { text: output, json: false };
+  }
+}
+
+type ToolState = "running" | "ok" | "fail" | "interrupted";
+
+/**
+ * One tool step. While it runs, it says what it's doing in the present ("reading
+ * notes.md…"); once done, what it did. A line of its arguments (keys sorted) under the
+ * name, the full arguments a click away, and the output — pretty-printed when it's JSON —
+ * sliding open when it lands. A step that never got an answer (the reply stopped) says
+ * so. (The states follow 21st.dev's "MCP Tool" component, written for Rafiq.)
+ */
 export function ToolCard({
   tool,
   args,
   result,
+  interrupted = false,
 }: {
   tool: string;
   args?: Record<string, unknown>;
   result?: { ok: boolean; output: string };
+  /** The reply ended without this call's result. */
+  interrupted?: boolean;
 }) {
-  const state = !result ? "running" : result.ok ? "ok" : "fail";
+  const state: ToolState = result ? (result.ok ? "ok" : "fail") : interrupted ? "interrupted" : "running";
+  const [inputs, setInputs] = useState(false);
+  const hasArgs = Boolean(args && Object.keys(args).length);
+  const out = result ? prettyOutput(result.output) : null;
+  const color = state === "ok" ? "var(--color-success)" : state === "fail" ? "var(--color-danger)" : state === "interrupted" ? "var(--color-pending)" : "var(--color-ink-muted)";
 
   return (
     <div className="overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)" }}>
-      <div className="flex items-center justify-between gap-2 px-4 py-2.5">
-        <ToolTitle name={tool} />
+      <div className="flex items-start justify-between gap-2 px-4 py-2.5">
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="flex min-w-0 items-center gap-2 text-xs">
+            <TerminalIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={state === "running" ? "doing" : "done"}
+                initial={{ opacity: 0, y: 4, filter: "blur(2px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18 }}
+                className={`truncate font-medium ${state === "running" ? "shimmer-text" : ""}`}
+                style={state === "running" ? undefined : { color: "var(--color-ink)" }}
+              >
+                {state === "running" ? doing(tool, args ?? {}) : toolLabel(tool)}
+              </motion.span>
+            </AnimatePresence>
+          </span>
+          {hasArgs && (
+            <span className="truncate ps-[22px] font-mono text-[11px]" style={{ color: "var(--color-ink-muted)" }} dir="ltr" title={argsSubtitle(args!)}>
+              {argsSubtitle(args!)}
+            </span>
+          )}
+        </span>
         <AnimatePresence mode="wait" initial={false}>
           <motion.span
             key={state}
@@ -97,20 +158,37 @@ export function ToolCard({
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.18 }}
             className="flex shrink-0 items-center gap-1 text-xs"
-            style={{ color: state === "ok" ? "var(--color-success)" : state === "fail" ? "var(--color-danger)" : "var(--color-ink-muted)" }}
+            style={{ color }}
           >
             {state === "running" && <SpinnerIcon className="h-3.5 w-3.5" />}
             {state === "ok" && <DrawnCheck className="h-3.5 w-3.5" />}
-            {state === "fail" && <AlertIcon className="h-3.5 w-3.5" />}
-            {state === "running" ? t("عم ينفّذ") : state === "ok" ? t("تم") : t("ما نجح")}
+            {(state === "fail" || state === "interrupted") && <AlertIcon className="h-3.5 w-3.5" />}
+            {state === "running" ? t("عم ينفّذ") : state === "ok" ? t("تم") : state === "fail" ? t("ما نجح") : t("انقطع")}
           </motion.span>
         </AnimatePresence>
       </div>
-      {args && Object.keys(args).length > 0 && (
-        <Clamped text={formatArgs(args)} maxRem={4.5} className="whitespace-pre-wrap break-words px-4 pb-2.5 font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr" />
+      {hasArgs && (
+        <>
+          <button
+            type="button"
+            onClick={() => setInputs((v) => !v)}
+            aria-expanded={inputs}
+            className="w-full border-t px-4 py-1 text-start text-[11px] transition-colors hover:bg-[var(--color-surface-2)]"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
+          >
+            {t("المدخلات")} {inputs ? "▴" : "▾"}
+          </button>
+          <AnimatePresence initial={false}>
+            {inputs && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+                <Clamped text={JSON.stringify(args, Object.keys(args!).sort(), 2)} maxRem={10} className="whitespace-pre-wrap break-words px-4 pb-2.5 font-mono text-xs" style={{ color: "var(--color-ink-muted)" }} dir="ltr" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
       <AnimatePresence initial={false}>
-        {result && (
+        {result && out && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -118,7 +196,12 @@ export function ToolCard({
             className="border-t"
             style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)" }}
           >
-            <Clamped text={result.output} maxRem={8} className="whitespace-pre-wrap break-words px-4 py-3 font-mono text-xs" style={{ color: result.ok ? "var(--color-ink)" : "var(--color-danger)" }} dir="auto" />
+            {out.json && (
+              <span className="block px-4 pt-2 font-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--color-ink-muted)" }}>
+                json
+              </span>
+            )}
+            <Clamped text={out.text} maxRem={8} className="whitespace-pre-wrap break-words px-4 py-3 font-mono text-xs" style={{ color: result.ok ? "var(--color-ink)" : "var(--color-danger)" }} dir={out.json ? "ltr" : "auto"} />
           </motion.div>
         )}
       </AnimatePresence>

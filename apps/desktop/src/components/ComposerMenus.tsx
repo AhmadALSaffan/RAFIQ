@@ -41,11 +41,11 @@ import {
   TerminalIcon,
   WandIcon,
 } from "./Icons";
-import { systemFileIcon } from "../lib/fileIcons";
 import { fieldDir } from "../lib/bidi";
 import { Button, DrawnCheck } from "./ui";
 
 import { t } from "../i18n";
+import { FileTree, treeOrder } from "./agent/FileTree";
 export type CommandId =
   | "task"
   | "file"
@@ -413,22 +413,6 @@ export function CommandMenu({
   );
 }
 
-/** Explorer's own icon for this file type, with our generic glyph as the fallback. */
-function FileTypeIcon({ path }: { path: string }) {
-  const [icon, setIcon] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    setIcon(null);
-    systemFileIcon(path).then((url) => alive && setIcon(url));
-    return () => {
-      alive = false;
-    };
-  }, [path]);
-
-  if (icon) return <img src={icon} alt="" className="h-4 w-4 shrink-0" draggable={false} />;
-  return <FileIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-ink-muted)" }} />;
-}
 
 export function FileMenu({
   dir,
@@ -453,7 +437,11 @@ export function FileMenu({
     setLoading(true);
     const id = setTimeout(() => {
       listWorkspaceFiles(dir, query, 40)
-        .then((f) => alive && setFiles(f))
+        .then((f) => {
+          // In the order the tree shows them, so the arrow keys walk the tree top to bottom.
+          const order = treeOrder(f.map((x) => x.path));
+          if (alive) setFiles([...f].sort((a, b) => order.indexOf(a.path) - order.indexOf(b.path)));
+        })
         .catch(() => alive && setFiles([]))
         .finally(() => alive && setLoading(false));
     }, 120);
@@ -478,26 +466,23 @@ export function FileMenu({
 
   return (
     <MenuShell>
-      <Rows
-        items={files}
-        active={active}
-        onHover={setActive}
-        onPick={onPick}
-        empty={loading ? t("جارِ البحث…") : t("ما في ملفات مطابقة")}
-        render={(file) => (
-          <span className="flex items-center justify-between gap-3">
-            <span className="flex min-w-0 items-center gap-2">
-              <FileTypeIcon path={file.path} />
-              <span className="truncate font-mono text-xs" dir="ltr">
-                {file.path}
-              </span>
-            </span>
-            <span className="shrink-0 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
-              {file.size < 1024 ? `${file.size} B` : `${Math.round(file.size / 1024)} KB`}
-            </span>
-          </span>
-        )}
-      />
+      {files.length === 0 ? (
+        <p className="px-4 py-4 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
+          {loading ? t("جارِ البحث…") : t("ما في ملفات مطابقة")}
+        </p>
+      ) : (
+        <div className="max-h-72 overflow-y-auto p-1.5">
+          <FileTree
+            paths={files.map((f) => f.path)}
+            selected={files[active]?.path ?? null}
+            openDepth={99}
+            onPick={(path) => {
+              const file = files.find((f) => f.path === path);
+              if (file) onPick(file);
+            }}
+          />
+        </div>
+      )}
     </MenuShell>
   );
 }

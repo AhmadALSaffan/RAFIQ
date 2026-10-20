@@ -34,10 +34,13 @@ from rafiq_agent.tools.filesystem import (
     FilesystemReadTool,
     FilesystemWriteTool,
 )
+from rafiq_agent.tools.image_view import ImageViewTool
 from rafiq_agent.tools.office import WordWriteTool
 from rafiq_agent.tools.process import ProcessKillTool, ProcessListTool
+from rafiq_agent.tools.sheets import ExcelReadTool, ExcelWriteTool
 from rafiq_agent.tools.shell import ShellRunTool
 from rafiq_agent.tools.skills import skill_tools
+from rafiq_agent.tools.slides import SlidesWriteTool
 
 # Maps a tool name to the settings permission key that gates it.
 log = logging.getLogger(__name__)
@@ -46,6 +49,8 @@ PERMISSION_KEY_BY_TOOL = {
     "filesystem_write": "filesystem_write",
     "filesystem_delete": "filesystem_write",
     "word_write": "filesystem_write",
+    "slides_write": "filesystem_write",
+    "excel_write": "filesystem_write",
     "shell_run": "shell",
     "process_kill": "process",
     "issue_comment": "issue_write",
@@ -145,10 +150,23 @@ async def build_registry(
             FilesystemReadTool(working_dir),
             FilesystemWriteTool(working_dir),
             FilesystemDeleteTool(working_dir),
-            WordWriteTool(working_dir),
             ShellRunTool(working_dir),
             ProcessListTool(),
             ProcessKillTool(),
+        ]
+    if "files" in groups:
+        # Office documents and pictures work in any chat: without a folder they go to
+        # Documents\Rafiq\documents, so "write me a report" never needs a folder first.
+        from rafiq_agent.core.workspace import workspace_root
+
+        office_dir = working_dir if working_dir is not None else workspace_root() / "documents"
+        office_dir.mkdir(parents=True, exist_ok=True)
+        tools += [
+            WordWriteTool(office_dir),
+            SlidesWriteTool(office_dir),
+            ExcelReadTool(office_dir),
+            ExcelWriteTool(office_dir),
+            ImageViewTool(office_dir),
         ]
     if "web" in groups and (search := search_tool(settings)):
         tools.append(search)

@@ -184,6 +184,13 @@ function LayoutSection() {
           </div>
         </div>
 
+        <ToggleRow
+          label={t("الكرة الأرضية بالخلفية")}
+          hint={t("كرة بتلف على مهل ورا الصفحات، ومدن المنطقة عم تنبض عليها. بتوقف لما النافذة مخفية.")}
+          checked={layout.globe}
+          onChange={(globe) => setLayout({ globe })}
+        />
+
         <div className="rounded-2xl px-4 py-3" style={{ background: "var(--color-surface)" }}>
           <p className="text-sm font-medium">{t("عرض المحادثة")}</p>
           <p className="mb-2.5 mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>

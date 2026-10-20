@@ -35,7 +35,7 @@ export interface Activity {
 }
 export type ActivityTab = "files" | "commands";
 
-const WRITES = new Set(["filesystem_write", "word_write"]);
+const WRITES = new Set(["filesystem_write", "word_write", "slides_write", "excel_write"]);
 const RUNS = new Set(["shell_run"]);
 
 const stateOf = (ok: boolean | undefined): ActivityState => (ok === undefined ? "running" : ok ? "ok" : "fail");
