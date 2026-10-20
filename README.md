@@ -93,25 +93,14 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 | Settings | About |
 |:---:|:---:|
 | <img src="docs/screenshots/settings.webp" width="100%"> | <img src="docs/screenshots/about.webp" width="100%"> |
-| Language, layout, where your files live, backups, and every permission, each section saying what's inside it. | What Rafiq is, what it can do, and who made it. |
+| Language, layout, the quick-ask shortcut and your own quick actions, backups, and every permission — with a path at the top. | What Rafiq is, what it can do, and who made it. |
 
-### Dark mode
-
-| Home | Chat |
+| Suggestions | |
 |:---:|:---:|
-| <img src="docs/screenshots/home-dark.webp" width="100%"> | <img src="docs/screenshots/chat-dark.webp" width="100%"> |
+| <img src="docs/screenshots/feedback.webp" width="100%"> | |
+| An idea or a problem, sent as a GitHub issue ready to post or as an email — nothing leaves until you send it. | |
 
-| Tasks | One task |
-|:---:|:---:|
-| <img src="docs/screenshots/tasks-dark.webp" width="100%"> | <img src="docs/screenshots/task-dark.webp" width="100%"> |
-
-| Designs | Skill editor |
-|:---:|:---:|
-| <img src="docs/screenshots/design-dark.webp" width="100%"> | <img src="docs/screenshots/skills-dark.webp" width="100%"> |
-
-| Models | Schedules |
-|:---:|:---:|
-| <img src="docs/screenshots/models-dark.webp" width="100%"> | <img src="docs/screenshots/schedules-dark.webp" width="100%"> |
+<sub>Screenshots of Rafiq 0.5.1 in the dark theme; the app has a light theme too.</sub>
 
 </div>
 
@@ -232,7 +221,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.1_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.2_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)
