@@ -93,6 +93,44 @@ export function avcLevel(width: number, height: number, fps: number): { level: s
   return { level: fit[0], codec: `avc1.6400${fit[3]}` };
 }
 
+export interface EncoderChoice {
+  /** The full avc1 string: profile and level. */
+  codec: string;
+  hardwareAcceleration: HardwareAcceleration;
+}
+
+export type EncoderProbe = (config: VideoEncoderConfig) => Promise<boolean>;
+
+const browserProbe: EncoderProbe = async (config) => {
+  if (typeof VideoEncoder === "undefined") return false;
+  try {
+    return (await VideoEncoder.isConfigSupported(config)).supported === true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The first H.264 setup this machine's encoder takes. GPUs differ: one won't do High
+ * profile at a portrait 1080×1920, another wants a higher level, a laptop's may refuse the
+ * hardware path for a size it can still do in software. So: the GPU first (High, then Main,
+ * then Baseline, each at the level the size needs or a higher one), then whatever the
+ * browser prefers, then software. Null = nothing here encodes it.
+ */
+export async function pickEncoder(width: number, height: number, fps: number, bitrate: number, probe: EncoderProbe = browserProbe): Promise<EncoderChoice | null> {
+  const needed = avcLevel(width, height, fps).codec.slice(-2);
+  const levels = [needed, "33", "34", "3C"].filter((l, i, all) => all.indexOf(l) === i && parseInt(l, 16) >= parseInt(needed, 16));
+  for (const hardwareAcceleration of ["prefer-hardware", "no-preference", "prefer-software"] as HardwareAcceleration[]) {
+    for (const profile of ["6400", "4D00", "4200"]) {
+      for (const level of levels) {
+        const codec = `avc1.${profile}${level}`;
+        if (await probe({ codec, width, height, bitrate, framerate: fps, hardwareAcceleration, avc: { format: "avc" } })) return { codec, hardwareAcceleration };
+      }
+    }
+  }
+  return null;
+}
+
 export function bitrateFor(width: number, height: number, fps: number, codec: "h264" | "h265", quality: "auto" | "high" = "auto"): number {
   const bpp = codec === "h265" ? 0.06 : 0.1;
   const bits = width * height * fps * bpp * (quality === "high" ? 1.6 : 1);
@@ -144,18 +182,16 @@ export async function exportMp4(
   const { width, height } = outputSize(comp.width, comp.height, settings.size);
   const frames = Math.max(1, Math.round(comp.duration * fps));
   const bitrate = bitrateFor(width, height, fps, settings.codec, settings.quality);
-  const avc = avcLevel(width, height, fps);
   const wantsAudio = hasAudio(engine.scene);
 
   // What this machine can do, before anything is written.
   const viaFfmpeg = settings.encoder === "ffmpeg" || settings.codec === "h265";
   const videoCodec = "avc" as const;
-  if (!viaFfmpeg) {
-    const ok = await canEncodeVideo(videoCodec, { width, height, bitrate, frameRate: fps, fullCodecString: avc.codec } as never);
-    if (!ok) throw new NeedsFfmpeg(`H.264 ${width}×${height}@${fps} isn't supported by this GPU's encoder`);
-  } else if (!io.transcode) {
-    throw new NeedsFfmpeg("H.265 export needs FFmpeg");
-  }
+  if (viaFfmpeg && !io.transcode) throw new NeedsFfmpeg("H.265 export needs FFmpeg");
+  // An intermediate for FFmpeg is encoded at a high rate so the second pass loses little.
+  const intermediateRate = viaFfmpeg ? Math.min(160e6, bitrate * 3) : bitrate;
+  const avc = await pickEncoder(width, height, fps, intermediateRate);
+  if (!avc) throw new NeedsFfmpeg(`H.264 ${width}×${height}@${fps} isn't supported by this computer's encoder`);
   const aac = wantsAudio ? await canEncodeAudio("aac", { numberOfChannels: 2, sampleRate: 48000, bitrate: 192000 }) : false;
   if (wantsAudio && !aac && !io.transcode) throw new NeedsFfmpeg("AAC audio isn't supported here");
 
@@ -186,13 +222,11 @@ export async function exportMp4(
     });
     const canvas = makeCanvas(width, height);
     const ctx = canvas.getContext("2d", { alpha: false }) as Ctx;
-    // An intermediate for FFmpeg is encoded at a high rate so the second pass loses little.
-    const intermediateRate = viaFfmpeg ? Math.min(160e6, bitrate * 3) : bitrate;
     const video = new CanvasSource(canvas, {
       codec: videoCodec,
       bitrate: intermediateRate,
       keyFrameInterval: 2,
-      hardwareAcceleration: "prefer-hardware",
+      hardwareAcceleration: avc.hardwareAcceleration,
       fullCodecString: avc.codec,
       latencyMode: "quality",
     } as never);
@@ -254,7 +288,7 @@ export async function exportMp4(
     onProgress({ frame: frames, frames, fraction: 1, eta: 0, stage: "checking" });
     const expect = { width, height, fps, duration: frames / fps, audio: !!audioSource };
     if (viaFfmpeg || (wantsAudio && !aac)) return await io.transcode!(render.id, settings, { ...expect, audio: wantsAudio });
-    return await io.finish(render.id, expect, `webcodecs ${avc.codec} @ ${(bitrate / 1e6).toFixed(1)} Mbps`);
+    return await io.finish(render.id, expect, `webcodecs ${avc.codec} (${avc.hardwareAcceleration}) @ ${(bitrate / 1e6).toFixed(1)} Mbps`);
   } catch (error) {
     if (!failed) {
       await io.fail(render.id, error instanceof Error ? error.message : String(error), false).catch(() => {});
@@ -276,8 +310,7 @@ export async function capabilities(width: number, height: number): Promise<Recor
   for (const size of ["720p", "1080p", "1440p", "2160p"] as ExportSize[]) {
     for (const fps of [30, 60, 120]) {
       const o = outputSize(width, height, size);
-      const avc = avcLevel(o.width, o.height, fps);
-      out[`${size}@${fps}`] = await canEncodeVideo("avc", { width: o.width, height: o.height, bitrate: bitrateFor(o.width, o.height, fps, "h264"), frameRate: fps, fullCodecString: avc.codec } as never).catch(() => false);
+      out[`${size}@${fps}`] = (await pickEncoder(o.width, o.height, fps, bitrateFor(o.width, o.height, fps, "h264")).catch(() => null)) !== null;
     }
   }
   out.hevc = await canEncodeVideo("hevc", { width: 1920, height: 1080, bitrate: 8e6 } as never).catch(() => false);
