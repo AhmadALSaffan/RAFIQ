@@ -14,6 +14,7 @@ import {
   SearchIcon,
   SettingsIcon,
   SparkIcon,
+  PencilIcon,
   MovieIcon,
   SunIcon,
   TasksIcon,
@@ -32,6 +33,7 @@ import { ToastStack, type Toast } from "./Toasts";
 import { Logo } from "./Logo";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { GuideDialog } from "./GuideDialog";
+import { PageErrorBoundary } from "../routes/NotFoundPage";
 
 import { t } from "../i18n";
 import { useIssueNotices } from "../lib/issueNotices";
@@ -417,6 +419,7 @@ export function Shell() {
               {[
                 { to: "/settings", label: t("الإعدادات"), Icon: SettingsIcon },
                 { to: "/guide", label: t("كيف بيشتغل رفيق"), Icon: HelpIcon },
+                { to: "/feedback", label: t("اقتراحاتك"), Icon: PencilIcon },
                 { to: "/about", label: t("من نحن"), Icon: InfoIcon },
               ].map(({ to, label, Icon }) => {
                 const active = section === to;
@@ -440,7 +443,10 @@ export function Shell() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, ease: easeOutExpo }}
             >
-              <Outlet />
+              {/* A page that throws shows what went wrong; moving to another page clears it. */}
+              <PageErrorBoundary key={location.pathname}>
+                <Outlet />
+              </PageErrorBoundary>
             </motion.div>
           </main>
         </div>

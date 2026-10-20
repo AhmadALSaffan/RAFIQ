@@ -20,6 +20,8 @@ import { TaskDetailPage } from "./features/tasks/TaskDetailPage";
 import { SettingsPage } from "./routes/SettingsPage";
 import { AboutPage } from "./routes/AboutPage";
 import { GuidePage } from "./routes/GuidePage";
+import { NotFoundPage } from "./routes/NotFoundPage";
+import { FeedbackPage } from "./routes/FeedbackPage";
 import { QuickAsk } from "./routes/QuickAsk";
 import { HomePage } from "./routes/HomePage";
 
@@ -51,6 +53,7 @@ export function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/guide" element={<GuidePage />} />
+            <Route path="/feedback" element={<FeedbackPage />} />
             {DesignSystemPage && (
               <Route
                 path="/design-system"
@@ -61,6 +64,8 @@ export function App() {
                 }
               />
             )}
+            {/* Any address that leads nowhere. */}
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
         {/* A new version must be installed before the app carries on. */}

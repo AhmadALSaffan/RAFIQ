@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "../../components/ui";
+import { RainbowButton } from "../../components/easy/rainbow-button";
 import { DownloadIcon, ExternalIcon, RefreshIcon, SpinnerIcon } from "../../components/Icons";
 import { Markdown } from "../../components/Markdown";
 import { Logo } from "../../components/Logo";
@@ -176,10 +177,10 @@ export function ForcedUpdate() {
               )}
               <div className="flex flex-wrap items-center gap-2">
                 {stage.kind === "found" && (
-                  <Button onClick={() => void install()}>
+                  <RainbowButton onClick={() => void install()}>
                     <DownloadIcon className="h-4 w-4" />
                     {t("نزّل وثبّت هلّق")}
-                  </Button>
+                  </RainbowButton>
                 )}
                 {stage.kind === "downloading" && (
                   <Button disabled>

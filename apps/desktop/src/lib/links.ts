@@ -19,6 +19,17 @@ export async function openExternal(url: string): Promise<void> {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+/** Opens a mailto: link in the user's mail program (a suggestion, a problem report). */
+export async function openMail(url: string): Promise<void> {
+  if (!/^mailto:/i.test(url)) return;
+  const { isTauri, invoke } = await import("@tauri-apps/api/core");
+  if (isTauri()) {
+    await invoke("open_external", { url });
+    return;
+  }
+  window.location.href = url;
+}
+
 /**
  * One document-level listener instead of a wrapper on every <a>: links inside chat
  * markdown, tracker issues and docs all go out the same door, including ones added later.

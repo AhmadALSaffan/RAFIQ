@@ -3,11 +3,15 @@
  * Every number here is real — today's tasks, today's spending, the next schedule.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../components/ui";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
-import { getUsage, listChats, listDesigns, listIntegrations, listIssues, listModels, listSchedules, listTasks, quietly } from "../lib/api";
+import { getSettings, getUsage, listChats, listDesigns, listIntegrations, listIssues, listModels, listSchedules, listTasks, quietly } from "../lib/api";
+import { GooeyMenu } from "../components/easy/gooey-menu";
+import { MatrixClock, MAX_CLOCK_CITIES, CLOCK_CITIES, type ClockCity } from "../components/easy/matrix-clock";
+import { SkeletonRows } from "../components/easy/skeleton";
+import { TypewriterButton } from "../components/easy/typewriter-button";
 import type { ChatSummary, DesignSummary, LlmModel, Schedule, TaskSummary, UsageSummary } from "../lib/types";
 import { useCurrentWorkspaceId } from "../lib/workspace";
 import { queueChatSend } from "../lib/handoff";
@@ -15,7 +19,7 @@ import { listContainer, listItem } from "../lib/motion";
 import { bigClock, parseUtc, timeAgo } from "../lib/time";
 import { fieldDir } from "../lib/bidi";
 import { BigNumber, Block, BracketLabel, LedBar, Wireframe } from "../components/brand";
-import { ArrowDownIcon, ChatIcon, ChevronDownIcon, FolderIcon, ModelsIcon } from "../components/Icons";
+import { ArrowDownIcon, ChatIcon, FolderIcon, ModelsIcon } from "../components/Icons";
 import { BrandMark } from "../components/BrandMark";
 import { rememberModel, savedModel } from "../features/chat/constants";
 import { Illustration } from "../components/Illustration";
@@ -40,6 +44,30 @@ export function nextSchedule(schedules: Schedule[]): Schedule | null {
   );
 }
 
+/** Ready-made first messages, for when the box is empty and nothing comes to mind. */
+function starters(): string[] {
+  return [
+    t("اكتبلي تقرير بملف Word عن…"),
+    t("رتّبلي مجلد التنزيلات حسب النوع"),
+    t("لخّصلي ملف PDF"),
+    t("صمّملي صفحة هبوط لـ…"),
+    t("ذكّرني كل يوم الصبح بـ…"),
+  ];
+}
+
+const CLOCK_KEY = "rafiq-clock-cities";
+
+/** The cities beside the user's own clock, remembered on this computer. */
+function savedCities(): ClockCity[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CLOCK_KEY) ?? "null") as unknown;
+    if (Array.isArray(raw)) return raw.filter((c): c is ClockCity => typeof c === "string" && c in CLOCK_CITIES).slice(0, MAX_CLOCK_CITIES);
+  } catch {
+    // a convenience only
+  }
+  return ["london", "new_york"];
+}
+
 function greeting(now = new Date()): string {
   const h = now.getHours();
   return h < 12 ? t("صباح الخير.") : h < 18 ? t("نهارك سعيد.") : t("مسا الخير.");
@@ -58,6 +86,23 @@ export function HomePage() {
   const [text, setText] = useState("");
   // The last model the user chatted with, until they pick another one here.
   const [modelId, setModelId] = useState<string>(() => savedModel() ?? "");
+  const [cities, setCities] = useState<ClockCity[]>(savedCities);
+  const [shortcut, setShortcut] = useState<string | null>(null);
+
+  function changeCities(next: ClockCity[]) {
+    setCities(next);
+    try {
+      localStorage.setItem(CLOCK_KEY, JSON.stringify(next));
+    } catch {
+      // a convenience only
+    }
+  }
+
+  useEffect(() => {
+    getSettings()
+      .then((s) => setShortcut(s.quick_ask_shortcut ?? null))
+      .catch(() => setShortcut(null));
+  }, []);
 
   useEffect(() => {
     listTasks(workspaceId).then(setTasks).catch(() => setTasks([]));
@@ -178,8 +223,31 @@ export function HomePage() {
             className="min-w-0 bg-transparent px-1 text-base outline-none"
             dir={fieldDir(text)}
           />
+          {!text.trim() && (
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("أفكار للبداية")}>
+              {starters().map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setText(s.replace(/…$/, " "))}
+                  className="rounded-full border px-3 py-1 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
+                  style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2">
-            <ModelPicker models={usable} value={chosen?.id ?? ""} onChange={setModelId} />
+            <GooeyMenu
+              options={usable.map((m) => ({ id: m.id, label: m.name, icon: <BrandMark provider={m.provider} className="h-4 w-4 shrink-0" /> }))}
+              value={chosen?.id ?? ""}
+              onChange={setModelId}
+              placeholder={t("اختار نموذج")}
+              ariaLabel={t("النموذج")}
+              empty={t("أضف نموذج شغّال أولاً")}
+              width={250}
+            />
             <div className="flex items-center gap-2">
               {!chosen && text.trim() && (
                 <span className="text-xs" style={{ color: "var(--color-pending)" }}>
@@ -207,7 +275,7 @@ export function HomePage() {
         <Block className="flex h-full min-h-80 flex-col p-5">
           <BracketLabel>{t("آخر المحادثات")}</BracketLabel>
           {chats === null ? (
-            <div className="shimmer mt-3 h-24 rounded-lg" />
+            <SkeletonRows rows={5} height={41} className="mt-2" />
           ) : chats.length === 0 ? (
             <div className="mt-3">
               <EmptyState compact scene="chat" text={t("ما في محادثات لسا. اكتب فوق وبلّش.")} />
@@ -283,7 +351,9 @@ export function HomePage() {
           <Block className="flex h-full min-h-40 gap-4 p-5">
             <div className="min-w-0 flex-1">
               <BracketLabel>{t("المهام")}</BracketLabel>
-              {tasks && tasks.length ? (
+              {tasks === null ? (
+                <SkeletonRows rows={3} height={41} className="mt-2" />
+              ) : tasks.length ? (
                 <ul className="mt-2">
                   {tasks.slice(0, 3).map((x) => (
                     <li key={x.id} className="flex items-center justify-between gap-3 border-b py-2.5 text-sm last:border-b-0" style={{ borderColor: "var(--color-border)" }}>
@@ -310,74 +380,66 @@ export function HomePage() {
           </Block>
         </button>
       </motion.div>
-    </motion.div>
-  );
-}
 
-/** Which model the new chat runs on — chosen here, before anything is sent. */
-function ModelPicker({ models, value, onChange }: { models: LlmModel[]; value: string; onChange: (id: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const current = models.find((m) => m.id === value);
+      {/* The time here and where the people you work with are — a departures board. */}
+      <motion.div variants={listItem}>
+        <Block className="h-full min-h-56 p-5">
+          <BracketLabel>{t("الساعة")}</BracketLabel>
+          <div className="mt-2">
+            <MatrixClock cities={cities} onChange={changeCities} />
+          </div>
+        </Block>
+      </motion.div>
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
+      {/* This month's spending against the limit, when there is one. */}
+      <motion.div variants={listItem}>
+        <button onClick={() => navigate("/settings?tab=usage")} className="block h-full w-full text-start">
+          <Block className="flex h-full min-h-56 flex-col p-5">
+            <BracketLabel>{t("هالشهر")}</BracketLabel>
+            <BigNumber value={usage?.month_usd ?? 0} decimals={2} prefix="$" size={44} className="mt-3" />
+            <p className="mt-1 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              {usage?.monthly_budget_usd ? t("من حد {0}$ بالشهر", { 0: usage.monthly_budget_usd.toFixed(0) }) : t("ما في حد شهري — فيك تحطّ واحد")}
+            </p>
+            {usage?.monthly_budget_usd ? (
+              <LedBar value={Math.min(1, usage.month_usd / usage.monthly_budget_usd)} className="mt-auto pt-4" label={t("الصرف من الحد الشهري")} />
+            ) : (
+              <p className="mt-auto pt-4 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+                {t("الإجمالي: {0}$", { 0: (usage?.total_usd ?? 0).toFixed(2) })}
+              </p>
+            )}
+          </Block>
+        </button>
+      </motion.div>
 
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
-        style={{ borderColor: current ? "var(--color-border)" : "var(--color-pending)", color: current ? "var(--color-ink)" : "var(--color-pending)" }}
-      >
-        {current ? <BrandMark provider={current.provider} className="h-3.5 w-3.5" /> : <ModelsIcon className="h-3.5 w-3.5" />}
-        <span className="max-w-48 truncate">{current?.name ?? t("اختار نموذج")}</span>
-        <ChevronDownIcon className="h-3 w-3" />
-      </button>
-      {open && (
-        <motion.ul
-          role="listbox"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="absolute start-0 top-full z-30 mt-2 max-h-72 w-64 overflow-y-auto rounded-2xl border p-1 shadow-lg"
-          style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
-        >
-          {models.length === 0 ? (
-            <li className="px-3 py-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
-              {t("أضف نموذج شغّال أولاً")}
-            </li>
+      {/* Rafiq inside the other programs: the shortcut, and what it does with selected text. */}
+      <motion.div variants={listItem}>
+        <Block tone="alt" className="flex h-full min-h-56 flex-col p-5">
+          <BracketLabel>{t("من أي برنامج")}</BracketLabel>
+          <p className="mt-3 text-[17px] font-bold leading-snug" style={{ fontFamily: "var(--font-display)" }}>
+            {t("حدّد نص واكبس")}
+          </p>
+          {shortcut ? (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5" dir="ltr">
+              {shortcut.split("+").map((key, i) => (
+                <span key={i} className="num rounded-lg border px-2.5 py-1 text-xs font-semibold" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", borderBottomWidth: 3 }}>
+                  {key}
+                </span>
+              ))}
+            </div>
           ) : (
-            models.map((m) => (
-              <li key={m.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={m.id === value}
-                  onClick={() => {
-                    onChange(m.id);
-                    setOpen(false);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-start text-sm transition-colors hover:bg-[var(--color-surface-2)]"
-                  style={{ background: m.id === value ? "var(--color-surface-2)" : undefined }}
-                >
-                  <BrandMark provider={m.provider} className="h-4 w-4 shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">{m.name}</span>
-                </button>
-              </li>
-            ))
+            <p className="mt-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              {t("الاختصار مطفي.")}
+            </p>
           )}
-        </motion.ul>
-      )}
-    </div>
+          <p className="mt-3 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
+            {t("ترجم، صحّح، لخّص، أو رد على رسالة — بدون ما تترك البرنامج اللي فيه.")}
+          </p>
+          <button onClick={() => navigate("/settings?tab=general")} className="mt-auto pt-3 text-start text-xs font-medium hover:underline" style={{ color: "var(--color-ink)" }}>
+            {t("أوامرك الخاصة ←")}
+          </button>
+        </Block>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -401,6 +463,9 @@ function FirstRun({ onModels, onChat }: { onModels: () => void; onChat: () => vo
         <p className="relative mt-2 max-w-sm text-sm" style={{ opacity: 0.8 }}>
           {t("تلات خطوات وبتكون عم تحكي معه.")}
         </p>
+        <div className="relative mt-4">
+          <TypewriterButton onClick={onModels}>{t("أضف أول نموذج")}</TypewriterButton>
+        </div>
       </motion.div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {steps.map((step) => (

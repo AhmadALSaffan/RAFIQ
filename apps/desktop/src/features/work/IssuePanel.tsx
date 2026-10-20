@@ -45,6 +45,7 @@ import { ActionProgress, CompletionSweep } from "../../components/Feedback";
 import { CATEGORY_COLOR, CATEGORY_LABEL, dateLabel, isOverdue, StatusChip } from "./pieces";
 
 import { t } from "../../i18n";
+import { Skeleton } from "../../components/easy/skeleton";
 type Busy = "comment" | "status" | "complete" | "task" | null;
 type Tab = "details" | "comments" | "work" | "history";
 
@@ -279,9 +280,9 @@ export function IssuePanel({
           {tab === "details" ? (
             detail === null && !error ? (
               <div className="flex flex-col gap-2">
-                <div className="shimmer h-4 w-3/4 rounded" />
-                <div className="shimmer h-4 w-full rounded" />
-                <div className="shimmer h-4 w-2/3 rounded" />
+                <Skeleton className="h-4 w-3/4 rounded" />
+                <Skeleton className="h-4 w-full rounded" />
+                <Skeleton className="h-4 w-2/3 rounded" />
               </div>
             ) : editing === "description" ? (
               <div className="flex flex-col gap-2">
@@ -330,7 +331,7 @@ export function IssuePanel({
             detail ? (
               <IssueWork detail={detail} account={account} onReload={reload} onAddSubtask={onAddSubtask ? () => onAddSubtask(issue) : undefined} />
             ) : (
-              <div className="shimmer h-24 rounded-lg" />
+              <Skeleton className="h-24 rounded-lg" />
             )
           ) : (
             <IssueHistory integrationId={issue.integration_id} issueKey={issue.key} />
@@ -636,7 +637,7 @@ function Comments({
     return (
       <div className="flex flex-col gap-2">
         {[0, 1].map((i) => (
-          <div key={i} className="shimmer h-14 rounded-lg" />
+          <Skeleton key={i} className="h-14 rounded-lg" />
         ))}
       </div>
     );

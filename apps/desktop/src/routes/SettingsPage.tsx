@@ -33,7 +33,7 @@ import { TEXT_SCALE, TEXT_SIZES, TEXT_SIZE_LABELS, setTextSize, useTextSize } fr
 
 import { LOCALES, locale, setLocale, t } from "../i18n";
 import { roving } from "../lib/keyboard";
-import { Breadcrumb } from "../components/arc/breadcrumb/breadcrumb";
+import { Breadcrumb } from "../components/easy/breadcrumb";
 import { MODE_LABEL, PERMISSION_ROWS } from "../lib/permissions";
 const permissionRows = PERMISSION_ROWS;
 const modeLabel = MODE_LABEL;

@@ -339,8 +339,10 @@ fn reveal_path(path: String) -> Result<(), String> {
 #[tauri::command]
 fn open_external(url: String) -> Result<(), String> {
     let lower = url.to_ascii_lowercase();
-    if !(lower.starts_with("https://") || lower.starts_with("http://")) {
-        return Err("بس روابط http و https".into());
+    // Web pages, and a mailto: for the suggestions page (it opens the user's mail program
+    // with the message ready; nothing is sent until they send it).
+    if !(lower.starts_with("https://") || lower.starts_with("http://") || lower.starts_with("mailto:")) {
+        return Err("بس روابط http و https و mailto".into());
     }
     if url.chars().any(|c| c.is_whitespace() || c == '"' || c.is_control()) {
         return Err("الرابط فيه رموز مش مسموحة".into());

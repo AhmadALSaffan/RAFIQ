@@ -13,6 +13,7 @@ import { ArchiveIcon, CompressIcon, FolderIcon, PencilIcon, PinIcon, PlusIcon, S
 import { useElementMenu } from "./ContextMenu";
 
 import { t } from "../i18n";
+import { Skeleton } from "./easy/skeleton";
 /** Buckets conversations the way the user thinks about them: pinned first, then recency. */
 function bucketOf(chat: ChatSummary, now: number): string {
   if (chat.pinned) return t("مثبّتة");
@@ -230,7 +231,7 @@ export function ChatList({
         {loading && chats.length === 0 && (
           <div className="flex flex-col gap-2 px-1">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="shimmer h-12 rounded-[10px]" />
+              <Skeleton key={i} className="h-12 rounded-[10px]" />
             ))}
           </div>
         )}
@@ -344,7 +345,7 @@ function SearchResults({
       {results === null && searching && (
         <div className="flex flex-col gap-2 px-1 pt-1">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="shimmer h-14 rounded-[10px]" />
+            <Skeleton key={i} className="h-14 rounded-[10px]" />
           ))}
         </div>
       )}

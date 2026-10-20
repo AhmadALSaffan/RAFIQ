@@ -11,6 +11,7 @@ import type { ScheduleRun, ScheduleRunStatus } from "../../lib/types";
 import { listContainer, listItem } from "../../lib/motion";
 import { clockTime, dayLabel } from "../../lib/time";
 import { t } from "../../i18n";
+import { Skeleton } from "../../components/easy/skeleton";
 
 const TONE: Record<string, string> = {
   completed: "var(--color-success)",
@@ -94,7 +95,7 @@ export function ScheduleHistory({ scheduleId }: { scheduleId: string }) {
       });
   }, [scheduleId]);
 
-  if (runs === null) return <div className="shimmer mt-3 h-16 rounded-lg" />;
+  if (runs === null) return <Skeleton className="mt-3 h-16 rounded-lg" />;
   if (error) {
     return (
       <p className="mt-3 text-xs" style={{ color: "var(--color-danger)" }} role="alert">

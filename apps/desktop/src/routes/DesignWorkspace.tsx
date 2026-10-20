@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "../components/arc/tabs/tabs";
-import { Breadcrumb } from "../components/arc/breadcrumb/breadcrumb";
+import { Breadcrumb } from "../components/easy/breadcrumb";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {

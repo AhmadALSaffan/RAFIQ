@@ -46,6 +46,7 @@
   --danger: #c2412d;
   --success: #256b43; /* AA as text on every light surface */
   --pending: #a95a17; /* the brand orange, darkened to pass AA as text on white */
+  --skeleton-sweep: rgb(255 255 255 / 0.65);
 }
 
 /* Dark theme via OS preference, unless the user picked light explicitly. */
@@ -65,6 +66,7 @@
     --danger: #f07a66;
     --success: #6fcf97;
     --pending: #e68835;
+    --skeleton-sweep: rgb(255 255 255 / 0.07);
   }
 }
 
@@ -84,6 +86,7 @@
   --danger: #f07a66;
   --success: #6fcf97;
   --pending: #e68835;
+  --skeleton-sweep: rgb(255 255 255 / 0.07);
 }
 
 html,
@@ -402,4 +405,60 @@ h3 {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* EasyUI rainbow button (Suraj Maurya, MIT — see THIRD_PARTY_NOTICES.md): a dark button
+   with a slowly turning rainbow edge and a soft glow underneath. Dark in both themes. */
+.rainbow-button {
+  --rb-1: hsl(0 100% 63%);
+  --rb-2: hsl(270 100% 63%);
+  --rb-3: hsl(210 100% 63%);
+  --rb-4: hsl(195 100% 63%);
+  --rb-5: hsl(90 100% 63%);
+  color: #f6f6f3;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(#121212, #121212) padding-box,
+    linear-gradient(#121212 50%, rgb(18 18 18 / 0.6) 80%, rgb(18 18 18 / 0)) border-box,
+    linear-gradient(90deg, var(--rb-1), var(--rb-5), var(--rb-3), var(--rb-4), var(--rb-2)) border-box;
+  background-size: 200% 100%;
+  animation: rainbow-pan 3s linear infinite;
+  transition: filter 0.2s ease;
+}
+.rainbow-button:hover {
+  filter: brightness(1.12);
+}
+.rainbow-button::before {
+  content: "";
+  position: absolute;
+  bottom: -22%;
+  left: 50%;
+  z-index: -1;
+  height: 30%;
+  width: 75%;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, var(--rb-1), var(--rb-5), var(--rb-3), var(--rb-4), var(--rb-2));
+  background-size: 200% 100%;
+  animation: rainbow-pan 3s linear infinite;
+  filter: blur(12px);
+  opacity: 0.8;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+.rainbow-button:hover::before {
+  opacity: 1;
+  filter: blur(16px);
+}
+@keyframes rainbow-pan {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 200% 50%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rainbow-button,
+  .rainbow-button::before {
+    animation: none;
+  }
 }

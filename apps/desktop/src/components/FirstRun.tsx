@@ -20,6 +20,7 @@ import { NewModelForm } from "../routes/ModelsPage";
 import { FolderPicker } from "./FolderPicker";
 import { Illustration, type Scene } from "./Illustration";
 import { Button } from "./ui";
+import { TypewriterButton } from "./easy/typewriter-button";
 import { ExternalIcon, FolderIcon, GitIcon, LockIcon, ModelsIcon } from "./Icons";
 
 type Step = 0 | 1 | 2 | 3;
@@ -160,9 +161,9 @@ function Welcome({ models, onModels, onDone }: { models: LlmModel[]; onModels: (
                     ))}
                   </div>
                   <div className="mt-8 flex gap-2">
-                    <Button variant="accent" onClick={() => setStep(1)}>
+                    <TypewriterButton tone="accent" onClick={() => setStep(1)}>
                       {t("يلا نبلّش")}
-                    </Button>
+                    </TypewriterButton>
                   </div>
                 </>
               )}

@@ -31,6 +31,7 @@ import {
   SearchIcon,
   SettingsIcon,
   SparkIcon,
+  PencilIcon,
   StarIcon,
   SunIcon,
   TasksIcon,
@@ -203,6 +204,7 @@ export function CommandPalette({
       { id: "p-integrations", label: t("الربط"), Icon: LinkIcon, keywords: "integrations connect jira linear github", run: go("/integrations") },
       { id: "p-settings", label: t("الإعدادات"), Icon: SettingsIcon, keywords: "settings preferences options", run: go("/settings") },
       { id: "p-guide", label: t("كيف بيشتغل رفيق"), Icon: HelpIcon, keywords: "guide help how start tutorial", run: go("/guide") },
+      { id: "p-feedback", label: t("اقتراحاتك"), Icon: PencilIcon, keywords: "feedback suggestion idea bug report", run: go("/feedback") },
       { id: "p-about", label: t("من نحن"), Icon: InfoIcon, keywords: "about version updates", run: go("/about") },
     ];
     const settings = t("الإعدادات");

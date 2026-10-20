@@ -18,6 +18,7 @@ import { Switch } from "../settings/controls";
 import { RecentRuns, ScheduleHistory } from "./scheduleHistory";
 import { variablesOf } from "../../lib/variables";
 import { intlLocale, t } from "../../i18n";
+import { Skeleton } from "../../components/easy/skeleton";
 
 export type TemplateSeed = { title: string; prompt: string; model_id?: string | null; working_dir?: string | null };
 
@@ -245,7 +246,7 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
       </Reveal>
 
       {schedules === null ? (
-        <div className="shimmer h-24 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
       ) : schedules.length === 0 ? (
         !editing && <EmptyState scene="schedule" text={t("ما في مهام مجدولة. مثلاً: «كل يوم الساعة 9 لخّصلي مهامي الجديدة»، أو «كل جمعة راجع التبعيات».")} />
       ) : (
@@ -479,7 +480,7 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
               )}
             </div>
             {!catalog ? (
-              <div className="shimmer h-16 rounded-lg" />
+              <Skeleton className="h-16 rounded-lg" />
             ) : catalog.templates.length === 0 ? (
               <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
                 {t("القائمة فاضية.")}
@@ -554,7 +555,7 @@ export function TemplatesPanel({ models, onUse }: { models: LlmModel[]; onUse: (
       </Reveal>
 
       {templates === null ? (
-        <div className="shimmer h-24 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
       ) : (
         <motion.ul variants={listContainer} initial="hidden" animate="show" className="grid gap-2 sm:grid-cols-2">
           {all.map((template) => {

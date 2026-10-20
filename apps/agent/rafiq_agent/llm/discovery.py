@@ -60,7 +60,7 @@ def _raise_for_status(resp: httpx.Response) -> None:
     raise DiscoveryError(tr("المزوّد رجّع خطأ ({0}).", resp.status_code), kind=kind)
 
 
-def _openai_style(data: list[dict], name_key: str | None = None) -> list[DiscoveredModel]:
+def _openai_style(data: list[dict]) -> list[DiscoveredModel]:
     from rafiq_agent.llm.pricing import from_openrouter
 
     models = []
@@ -69,10 +69,13 @@ def _openai_style(data: list[dict], name_key: str | None = None) -> list[Discove
         if not model_id or any(marker in model_id.lower() for marker in _NON_CHAT_MARKERS):
             continue
         listed = from_openrouter(m.get("pricing")) if isinstance(m.get("pricing"), dict) else None
+        # A readable name when the provider sends one (OpenRouter, DeepSeek: "DeepSeek-V4.1-Flash"
+        # for "deepseek-flash"); otherwise the id is the name.
+        name = m.get("name") or m.get("display_name")
         models.append(
             DiscoveredModel(
                 id=model_id,
-                display_name=m.get(name_key, model_id) if name_key else model_id,
+                display_name=name.strip() if isinstance(name, str) and name.strip() else model_id,
                 price=listed.as_dict() if listed else None,
             )
         )
@@ -187,7 +190,7 @@ async def discover_models(
             payload = resp.json()
             # Together answers with a bare list; everyone else wraps it in {"data": [...]}.
             data = payload if isinstance(payload, list) else payload.get("data", [])
-            models = _openai_style(data, name_key="name" if provider == "openrouter" else None)
+            models = _openai_style(data)
             if provider == "openai":
                 created = {m.get("id"): m.get("created", 0) for m in data}
                 models.sort(key=lambda m: created.get(m.id, 0), reverse=True)

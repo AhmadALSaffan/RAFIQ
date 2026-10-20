@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Breadcrumb } from "../components/arc/breadcrumb/breadcrumb";
+import { Breadcrumb } from "../components/easy/breadcrumb";
 import { Badge } from "../components/arc/badge/badge";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";

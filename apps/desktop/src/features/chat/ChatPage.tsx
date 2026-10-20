@@ -43,6 +43,7 @@ import { DEFAULT_REPLY_SETTINGS, MODEL_KEY, savedModel } from "./constants";
 import { t } from "../../i18n";
 import { showGuide } from "../../lib/guides";
 import { permissionLabelOf, type PermissionAnswer } from "../../lib/permissions";
+import { Skeleton } from "../../components/easy/skeleton";
 export function ChatPage({
   chatId,
   embedded = false,
@@ -959,8 +960,8 @@ export function ChatPage({
               <Welcome hasModels={usable.length > 0} onPick={(s) => send(s, [])} onModels={() => navigate("/models")} />
             ) : loadingChat ? (
               <div className="flex flex-col gap-4">
-                <div className="shimmer h-12 w-2/3 self-end rounded-2xl" />
-                <div className="shimmer h-24 rounded-2xl" />
+                <Skeleton className="h-12 w-2/3 self-end rounded-2xl" />
+                <Skeleton className="h-24 rounded-2xl" />
               </div>
             ) : (
               <>

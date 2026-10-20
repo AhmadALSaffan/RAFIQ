@@ -6,7 +6,7 @@
  * run lands while the user is watching, the completion sweep plays once.
  */
 
-import { Breadcrumb } from "../../components/arc/breadcrumb/breadcrumb";
+import { Breadcrumb } from "../../components/easy/breadcrumb";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -47,6 +47,7 @@ import { permissionLabelOf, type PermissionAnswer } from "../../lib/permissions"
 import { notify } from "../../lib/toast";
 import { openExternal } from "../../lib/links";
 import { GitIcon as BranchIcon, PullRequestIcon } from "../../components/Icons";
+import { Skeleton } from "../../components/easy/skeleton";
 type Block =
   | { kind: "message"; key: string; text: string }
   | { kind: "tool"; key: string; call?: ToolCall; tool: string; result?: { ok: boolean; output: string } }
@@ -221,9 +222,9 @@ export function TaskDetailPage() {
       <div className="mx-auto max-w-3xl px-8 py-10">
         <BackLink onClick={() => navigate("/tasks")} />
         <div className="mt-6 flex flex-col gap-3">
-          <div className="shimmer h-7 w-2/3 rounded-md" />
-          <div className="shimmer h-16 rounded-lg" />
-          <div className="shimmer h-24 rounded-lg" />
+          <Skeleton className="h-7 w-2/3 rounded-md" />
+          <Skeleton className="h-16 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
         </div>
       </div>
     );

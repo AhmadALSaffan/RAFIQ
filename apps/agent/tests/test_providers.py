@@ -89,6 +89,14 @@ def fake_http(monkeypatch):
     return routes
 
 
+async def test_a_listed_model_shows_the_name_the_provider_gives_it(fake_http):
+    fake_http["https://api.deepseek.com/models"] = httpx.Response(
+        200, json={"data": [{"id": "deepseek-flash", "name": "DeepSeek-V4.1-Flash"}, {"id": "deepseek-v4-pro", "name": " "}]}
+    )
+    found = await discovery.discover_models("deepseek", "k", None)
+    assert [(m.id, m.display_name) for m in found] == [("deepseek-flash", "DeepSeek-V4.1-Flash"), ("deepseek-v4-pro", "deepseek-v4-pro")]
+
+
 async def test_listing_models_from_the_new_endpoints(fake_http):
     fake_http[f"{PRESET_BASES['together_ai']}/models"] = httpx.Response(200, json=[{"id": "meta-llama/Llama-3.3-70B"}])
     fake_http[f"{PRESET_BASES['cerebras']}/models"] = httpx.Response(200, json={"data": [{"id": "llama-4-scout"}]})

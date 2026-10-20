@@ -22,6 +22,7 @@ import { accountLabel } from "./labels";
 import { AuthAICard } from "./AuthAICard";
 
 import { t } from "../../i18n";
+import { Skeleton } from "../../components/easy/skeleton";
 // AuthAI fronts several services; the user picks which account to sign in with.
 const AUTHAI_TARGETS = [
   { id: "openai", label: "ChatGPT" },
@@ -62,7 +63,7 @@ export function ConnectedAccountsSection() {
       </p>
 
       {loading ? (
-        <div className="shimmer h-16 rounded-lg" />
+        <Skeleton className="h-16 rounded-lg" />
       ) : (
         <motion.div variants={listContainer} initial="hidden" animate="show" className="flex flex-col gap-2">
           {providers

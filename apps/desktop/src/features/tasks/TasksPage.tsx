@@ -39,6 +39,7 @@ import { STATUS_COLOR, statusFilterLabel } from "./pieces";
 import { BigNumber, Block, BracketLabel, LedBar } from "../../components/brand";
 import { t } from "../../i18n";
 import { roving } from "../../lib/keyboard";
+import { Skeleton } from "../../components/easy/skeleton";
 type Filter = "all" | "active" | "planned" | "queued" | "completed" | "failed";
 type View = "tasks" | "schedules" | "templates";
 
@@ -333,7 +334,7 @@ export function TasksPage() {
       {loading ? (
         <div className="flex flex-col gap-2">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="shimmer h-[62px] rounded-2xl" />
+            <Skeleton key={i} className="h-[62px] rounded-2xl" />
           ))}
         </div>
       ) : tasks.length === 0 && !composing ? (

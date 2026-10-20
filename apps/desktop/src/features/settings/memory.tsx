@@ -13,6 +13,7 @@ import { Button, EmptyState } from "../../components/ui";
 import { PlusIcon, TrashIcon } from "../../components/Icons";
 import { Hint, Section, Switch, ToggleRow } from "./controls";
 import { t } from "../../i18n";
+import { Skeleton } from "../../components/easy/skeleton";
 
 type Persist = (next: AppSettings) => void;
 
@@ -77,7 +78,7 @@ export function MemorySettings({ settings, persist }: { settings: AppSettings; p
       </div>
 
       {memories === null ? (
-        <div className="shimmer h-16 rounded-lg" />
+        <Skeleton className="h-16 rounded-lg" />
       ) : memories.length === 0 ? (
         <EmptyState compact scene="thinking" text={t("ما في شي محفوظ بعد. بأي محادثة قله «تذكّر إنو…» وبيحفظها هون، وبيرجعلها بالمحادثات الجاية.")} />
       ) : (
