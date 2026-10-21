@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { getSettings, getWorkspace, updateSettings } from "../lib/api";
-import { revealPath } from "../lib/folders";
+import { getSettings, getWorkspace, notesTree, updateSettings } from "../lib/api";
+import { pickFolder, revealPath } from "../lib/folders";
 import { Button, DrawnCheck } from "../components/ui";
 import { PageHeader, StatusStripe } from "../components/Page";
 import { GlobeIcon, LinkIcon, MovieIcon, PinIcon, PlugIcon, SettingsIcon, ShieldIcon, TasksIcon, TerminalIcon, WalletIcon } from "../components/Icons";
@@ -84,7 +84,116 @@ function StorageSection() {
           </p>
         )}
       </div>
+      <NotesFolderSection />
     </section>
+  );
+}
+
+/** Where the notes live: Documents/Rafiq/notes, or a folder the user picks (OneDrive, say). */
+function NotesFolderSection() {
+  const [root, setRoot] = useState<string | null>(null);
+  const [custom, setCustom] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const load = () =>
+    notesTree()
+      .then((tree) => {
+        setRoot(tree.root);
+        setCustom(tree.root !== tree.default_root);
+      })
+      .catch(() => setRoot(null));
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function choose(dir: string | null) {
+    setBusy(true);
+    try {
+      const settings = await getSettings();
+      await updateSettings({ ...settings, notes_dir: dir });
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-2xl px-4 py-3" style={{ background: "var(--color-surface)" }}>
+      <p className="text-sm font-medium">{t("مجلد الملاحظات")}</p>
+      <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
+        {t("كل ملاحظة ملف Markdown هون. اختار مجلد على OneDrive مثلاً لتوصل لملاحظاتك من أي جهاز.")}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <code className="md-inline min-w-0 truncate text-xs" dir="ltr" title={root ?? ""}>
+          {root ?? "…"}
+        </code>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onClick={async () => {
+              const picked = await pickFolder(root ?? undefined);
+              if (picked) await choose(picked);
+            }}
+          >
+            {t("غيّر")}
+          </Button>
+          {custom && (
+            <Button variant="ghost" disabled={busy} onClick={() => void choose(null)}>
+              {t("رجّع الافتراضي")}
+            </Button>
+          )}
+          <Button variant="ghost" disabled={!root} onClick={() => root && void revealPath(root)}>
+            {t("افتح المجلد")}
+          </Button>
+        </div>
+      </div>
+      <OpenModeRow />
+    </div>
+  );
+}
+
+/** How a Markdown file opened from Windows opens: ask, the light window, or the full app. */
+function OpenModeRow() {
+  const [mode, setMode] = useState<string | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const { isTauri, invoke } = await import("@tauri-apps/api/core");
+      if (isTauri()) setMode(await invoke<string>("get_md_open_mode").catch(() => "ask"));
+    })();
+  }, []);
+  if (mode === null) return null;
+  const options: [string, string][] = [
+    ["ask", t("اسألني كل مرة")],
+    ["lite", t("نافذة خفيفة")],
+    ["full", t("رفيق كامل")],
+  ];
+  return (
+    <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--color-border)" }}>
+      <p className="text-sm font-medium">{t("ملف Markdown من الويندوز بينفتح بـ")}</p>
+      <div className="mt-2 inline-flex gap-1 rounded-xl p-1" style={{ background: "var(--color-surface-2)" }} role="radiogroup">
+        {options.map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={mode === id}
+            onClick={async () => {
+              setMode(id);
+              const { invoke } = await import("@tauri-apps/api/core");
+              await invoke("set_md_open_mode", { mode: id }).catch(() => undefined);
+            }}
+            className="rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors"
+            style={mode === id ? { background: "var(--color-surface)", color: "var(--color-ink)" } : { color: "var(--color-ink-muted)" }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1.5 text-[11px] leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
+        {t("وبكليك يمين على أي ملف Markdown بتلاقي «Rafiq Lite» للتعديل السريع.")}
+      </p>
+    </div>
   );
 }
 

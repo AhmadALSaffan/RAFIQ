@@ -22,6 +22,8 @@ from rafiq_agent.api.memory import router as memory_router
 from rafiq_agent.api.models import router as models_router
 from rafiq_agent.api.motion import files_router as motion_files_router
 from rafiq_agent.api.motion import router as motion_router
+from rafiq_agent.api.notes import raw_router as notes_raw_router
+from rafiq_agent.api.notes import router as notes_router
 from rafiq_agent.api.settings import router as settings_router
 from rafiq_agent.api.tasks import router as tasks_router
 from rafiq_agent.api.tasks import ws_router as tasks_ws_router
@@ -173,6 +175,8 @@ app.include_router(attachments_router)
 app.include_router(integrations_router)
 app.include_router(files_router)
 app.include_router(files_raw_router)
+app.include_router(notes_router)
+app.include_router(notes_raw_router)
 app.include_router(designs_router)
 app.include_router(motion_router)
 app.include_router(motion_files_router)

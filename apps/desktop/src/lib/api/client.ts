@@ -98,7 +98,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
       // A failure the user can fix (Copilot off, a blocked country, no credit…) opens the
       // guide that says how (lib/guides.ts).
       if (detail?.kind) showGuide({ kind: detail.kind, provider: detail.provider });
-      throw Object.assign(new Error(detail?.detail ?? `${res.status} ${res.statusText}`), { kind: detail?.kind ?? null });
+      throw Object.assign(new Error(detail?.detail ?? `${res.status} ${res.statusText}`), { kind: detail?.kind ?? null, status: res.status });
     }
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;

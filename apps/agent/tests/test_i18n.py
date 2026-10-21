@@ -87,6 +87,8 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     # Character classes that tell Arabic runs and numbers apart in a Word document.
     "tools/office.py": {"ARABIC_RANGE", "_table"},
     "tools/slides.py": {"_table"},
+    # Arabic punctuation trimmed off a note mention; the note text it adds is for the model.
+    "core/notes.py": {"with_mentions"},
 }
 
 

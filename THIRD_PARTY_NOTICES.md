@@ -77,6 +77,14 @@ The agent components in `apps/desktop/src/components/agent/` (commit summary, fi
 thought chain, streaming text and the tool-card states) were written for Rafiq after the
 descriptions of components on [21st.dev](https://21st.dev); no code was copied from them.
 
+## CodeMirror and Lezer
+
+The notes editor (`apps/desktop/src/components/notes/NoteEditor.tsx`) is built on
+[CodeMirror](https://codemirror.net) (`@codemirror/state`, `view`, `commands`, `language`,
+`lang-markdown`) and [Lezer](https://lezer.codemirror.net) (`@lezer/highlight`), installed
+from npm under the MIT license — Copyright (C) 2018-2021 by Marijn Haverbeke and others.
+Their licenses ship with the packages.
+
 ## Radix UI primitives
 
 `@radix-ui/react-tabs` and `@radix-ui/react-dialog` (used by the tabs and the drawer) are

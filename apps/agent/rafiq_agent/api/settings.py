@@ -33,6 +33,8 @@ async def update_settings(body: AppSettings, session: AsyncSession = Depends(get
     # The brand kit is saved (and checked) through /motion/kit only; a settings page holding
     # an older copy mustn't put it back.
     body.brand_kit = (row.value or {}).get("brand_kit") if row else None
+    # Pins likewise change through /notes/pin only.
+    body.notes_pinned = list((row.value or {}).get("notes_pinned") or []) if row else []
     if row:
         row.value = body.model_dump()
     else:

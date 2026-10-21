@@ -52,6 +52,25 @@ Var RafiqExe
   ${EndIf}
   ; Apps & features lists the app under the same name.
   WriteRegStr SHCTX "${UNINSTKEY}" "DisplayName" "$RafiqLnkTo"
+
+  ; "Open with → Rafiq" for Markdown files. Only offered in the list: the program Windows
+  ; opens .md files with by default stays whatever the user chose.
+  WriteRegStr SHCTX "Software\Classes\Rafiq.Markdown" "" "Markdown"
+  WriteRegStr SHCTX "Software\Classes\Rafiq.Markdown\DefaultIcon" "" "$INSTDIR\${MAINBINARYNAME}.exe,0"
+  WriteRegStr SHCTX "Software\Classes\Rafiq.Markdown\shell\open\command" "" '"$INSTDIR\${MAINBINARYNAME}.exe" "%1"'
+  WriteRegStr SHCTX "Software\Classes\.md\OpenWithProgids" "Rafiq.Markdown" ""
+  WriteRegStr SHCTX "Software\Classes\.markdown\OpenWithProgids" "Rafiq.Markdown" ""
+  WriteRegStr SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe\SupportedTypes" ".md" ""
+  WriteRegStr SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe\SupportedTypes" ".markdown" ""
+  WriteRegStr SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe" "FriendlyAppName" "$RafiqLnkTo"
+  ; Right-click → "Rafiq Lite": the file alone in a light editing window.
+  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\.md\shell\RafiqLite" "MUIVerb" "Rafiq Lite"
+  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\.md\shell\RafiqLite" "Icon" "$INSTDIR\${MAINBINARYNAME}.exe,0"
+  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\.md\shell\RafiqLite\command" "" '"$INSTDIR\${MAINBINARYNAME}.exe" --lite "%1"'
+  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\.markdown\shell\RafiqLite" "MUIVerb" "Rafiq Lite"
+  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\.markdown\shell\RafiqLite" "Icon" "$INSTDIR\${MAINBINARYNAME}.exe,0"
+  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\.markdown\shell\RafiqLite\command" "" '"$INSTDIR\${MAINBINARYNAME}.exe" --lite "%1"'
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   ; The Start menu shortcut exists by now (and the desktop one, for silent and passive
   ; installs); a desktop shortcut ticked on the finish page is renamed in .onGUIEnd.
   !insertmacro RAFIQ_NAME_SHORTCUTS
@@ -77,6 +96,14 @@ FunctionEnd
       !insertmacro UnpinShortcut "$DESKTOP\Rafiq.lnk"
       Delete "$DESKTOP\Rafiq.lnk"
     ${EndIf}
+    ; The "Open with" entry for Markdown files.
+    DeleteRegValue SHCTX "Software\Classes\.md\OpenWithProgids" "Rafiq.Markdown"
+    DeleteRegValue SHCTX "Software\Classes\.markdown\OpenWithProgids" "Rafiq.Markdown"
+    DeleteRegKey SHCTX "Software\Classes\Rafiq.Markdown"
+    DeleteRegKey SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe"
+    DeleteRegKey SHCTX "Software\Classes\SystemFileAssociations\.md\shell\RafiqLite"
+    DeleteRegKey SHCTX "Software\Classes\SystemFileAssociations\.markdown\shell\RafiqLite"
+    System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   ${EndIf}
 !macroend
 

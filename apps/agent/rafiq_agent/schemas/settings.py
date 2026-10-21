@@ -23,6 +23,9 @@ PermissionKey = Literal[
     "git_publish",
     # Posting to the team's Slack, Teams or Discord channels.
     "notify_send",
+    # The model writing a new note, and changing one the user already has.
+    "notes_new",
+    "notes",
 ]
 
 DEFAULT_PERMISSIONS: dict[PermissionKey, PermissionMode] = {
@@ -39,6 +42,8 @@ DEFAULT_PERMISSIONS: dict[PermissionKey, PermissionMode] = {
     "task_create": "ask",
     "git_publish": "ask",
     "notify_send": "ask",
+    "notes_new": "auto",
+    "notes": "ask",
 }
 
 WebSearchProvider = Literal["none", "brave", "tavily", "searxng"]
@@ -111,6 +116,10 @@ class AppSettings(BaseModel):
     # Voice-overs: which provider speaks (keys stay in the keychain) and with which voice.
     tts_provider: str = "none"  # none | openai | azure | elevenlabs | local
     tts_voice: str | None = None
+    # Where the notes are kept (core/notes.py). None = Documents/Rafiq/notes.
+    notes_dir: str | None = None
+    # Notes pinned to the top of the list, by their path in the notes folder.
+    notes_pinned: list[str] = Field(default_factory=list, max_length=200)
 
     def model_post_init(self, __context: object) -> None:
         # Settings saved before a permission existed get its default, not a validation error.

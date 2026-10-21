@@ -6,7 +6,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PriceTag } from "../../components/PriceTag";
 import { AnimatePresence, motion } from "motion/react";
-import { providerLabel } from "../../lib/api";
+import { noteMention, providerLabel } from "../../lib/api";
 import type { LlmModel, TrackerIssue } from "../../lib/types";
 import { isolate, messageDir } from "../../lib/bidi";
 import { stripBidi } from "../../lib/bidi";
@@ -178,6 +178,7 @@ export function Composer({
               dir={folder}
               query={trigger.query}
               onPick={(file) => insert(`${isolate(`@${file.path}`)} `)}
+              onPickNote={(notePath) => insert(`${noteMention(notePath)} `)}
               onClose={() => setDismissed({ kind: trigger.kind, start: trigger.start })}
               registerKeyHandler={(h) => (menuKeys.current = h)}
             />

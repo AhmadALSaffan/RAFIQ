@@ -7,10 +7,13 @@ import { ContextMenuProvider } from "./components/ContextMenu";
 import { BootGate } from "./components/BootGate";
 import { TopProgress } from "./components/TopProgress";
 import { FirstRun } from "./components/FirstRun";
+import { WhatsNew } from "./features/updates/WhatsNew";
 import { ChatPage } from "./features/chat";
 import { ModelsPage } from "./routes/ModelsPage";
 import { IntegrationsPage } from "./routes/IntegrationsPage";
 import { WorkPage } from "./features/work";
+import NotesPage from "./features/notes/NotesPage";
+import LiteNote from "./features/notes/LiteNote";
 import { DesignsPage } from "./routes/DesignsPage";
 import { DesignWorkspace } from "./routes/DesignWorkspace";
 import { MotionPage } from "./routes/MotionPage";
@@ -37,6 +40,8 @@ export function App() {
         <Routes>
           {/* The quick-ask window (global shortcut): no sidebar, just the box. */}
           <Route path="/quick" element={<QuickAsk />} />
+          {/* Rafiq Lite: one Markdown file in a window of its own (opened from Windows). */}
+          <Route path="/lite" element={<LiteNote />} />
           <Route element={<Shell />}>
             <Route index element={<HomePage />} />
             {/* One optional-param route so /chat → /chat/:id never remounts the page mid-stream. */}
@@ -45,6 +50,7 @@ export function App() {
             <Route path="/tasks/:id" element={<TaskDetailPage />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/work" element={<WorkPage />} />
+            <Route path="/notes" element={<NotesPage />} />
             <Route path="/designs" element={<DesignsPage />} />
             <Route path="/designs/:id" element={<DesignWorkspace />} />
             <Route path="/motion" element={<MotionPage />} />
@@ -71,6 +77,7 @@ export function App() {
         {/* A new version must be installed before the app carries on. */}
         <ForcedUpdate />
         <FirstRun />
+        <WhatsNew />
       </BootGate>
     </ContextMenuProvider>
     </Toasts>

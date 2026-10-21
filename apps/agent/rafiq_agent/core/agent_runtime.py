@@ -51,6 +51,8 @@ PERMISSION_KEY_BY_TOOL = {
     "word_write": "filesystem_write",
     "slides_write": "filesystem_write",
     "excel_write": "filesystem_write",
+    "note_create": "notes_new",
+    "note_edit": "notes",
     "shell_run": "shell",
     "process_kill": "process",
     "issue_comment": "issue_write",
@@ -168,6 +170,11 @@ async def build_registry(
             ExcelWriteTool(office_dir),
             ImageViewTool(office_dir),
         ]
+        # The user's notes, in every chat too: "save this as a note", "what did I write about…".
+        from rafiq_agent.core.notes import notes_root
+        from rafiq_agent.tools.notes import note_tools
+
+        tools += note_tools(notes_root(settings.notes_dir))
     if "web" in groups and (search := search_tool(settings)):
         tools.append(search)
     for tool in tools:

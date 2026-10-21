@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from rafiq_agent.auth.resolve import helper_llm, llm_for
+from rafiq_agent.core import notes as notes_mod
 from rafiq_agent.core.agent_runtime import (
     allow_always,
     build_registry,
@@ -530,11 +531,13 @@ class ChatTurn:
 
         described = await describe_attachments(list(by_id.values())) if vision is False else {}
         replies = self._replies(self.past, getattr(self, "design_mode", False))
+        notes_root = notes_mod.notes_root(self.settings.notes_dir)
         history: list[dict[str, Any]] = []
         for m, reply in zip(self.past, replies, strict=True):
             if m.role == "user":
                 files = [by_id[a["id"]] for a in (m.attachments or []) if a["id"] in by_id]
-                history.append({"role": "user", "content": build_user_content(m.content, files, vision, described)})
+                text = notes_mod.with_mentions(m.content, notes_root)
+                history.append({"role": "user", "content": build_user_content(text, files, vision, described)})
             elif getattr(self, "motion_mode", False) and (done := _tools_done(m.parts)):
                 # The scene itself is in the project note; this is what the model already
                 # looked up and changed, so a «continue» picks up instead of starting over.
@@ -749,7 +752,8 @@ class ChatTurn:
         registry, system = await self._tools(system)
         vision = supports_vision(self.llm.model)
         described = await describe_attachments(self.new_attachments) if vision is False else {}
-        content = build_user_content(self.content, self.new_attachments, vision, described)
+        text = notes_mod.with_mentions(self.content, notes_mod.notes_root(self.settings.notes_dir))
+        content = build_user_content(text, self.new_attachments, vision, described)
         # The design as it stands rides with the newest message: last in the request, so
         # everything before it stays the same from one turn to the next (and cached).
         if getattr(self, "design_mode", False) and (design := current_documents(getattr(self, "design_files", []))):

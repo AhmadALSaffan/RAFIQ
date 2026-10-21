@@ -16,6 +16,8 @@ export const PERMISSION_ROWS: { key: PermissionKey; label: string; hint: string 
   { key: "notify_send", label: t("الإرسال لقنوات الفريق"), hint: t("رسائل لـ Slack أو Teams أو Discord") },
   { key: "mcp", label: t("أدوات MCP"), hint: t("استدعاء أدوات خوادم MCP اللي ربطتها") },
   { key: "memory", label: t("الذاكرة"), hint: t("حفظ شي يتذكّره رفيق بالمحادثات الجاية") },
+  { key: "notes_new", label: t("ملاحظة جديدة"), hint: t("الموديل يكتب ملاحظة جديدة بملاحظاتك (ما بيغيّر شي موجود)") },
+  { key: "notes", label: t("تعديل ملاحظاتك"), hint: t("الموديل يغيّر ملاحظة موجودة — بيوريك الفرق قبل") },
   { key: "motion", label: t("تعديل الفيديوهات"), hint: t("تعديل مشهد الفيديو، فحصه، ورسم إطاراته — كله داخل المشروع") },
   { key: "media", label: t("الصوت والصور"), hint: t("تعليق صوتي، تفريغ كلام، صور من Unsplash/Pexels، توليد صور — بيروح لخدمة برّا") },
 ];
@@ -45,6 +47,8 @@ const BY_TOOL: Record<string, PermissionKey> = {
   task_cancel: "task_create",
   task_publish: "git_publish",
   notify_post: "notify_send",
+  note_create: "notes_new",
+  note_edit: "notes",
 };
 const BY_PREFIX: [string, PermissionKey][] = [
   ["issue_", "issue_write"],

@@ -39,6 +39,14 @@ export function doing(tool: string, args: Record<string, unknown>): string {
       return t("عم يكتب جدول Excel: {0}…", { 0: shortPath(args.path) });
     case "image_view":
       return t("عم يتفرّج على {0}…", { 0: shortPath(args.path) });
+    case "notes_list":
+      return t("عم يدوّر بملاحظاتك…");
+    case "note_read":
+      return t("عم يقرأ ملاحظتك {0}…", { 0: shortPath(args.path) });
+    case "note_create":
+      return t("عم يكتب ملاحظة: {0}…", { 0: shortCommand(args.title) });
+    case "note_edit":
+      return t("عم يعدّل ملاحظتك {0}…", { 0: shortPath(args.path) });
     case "filesystem_list":
       return t("عم يتفرّج على الملفات…");
     case "filesystem_delete":

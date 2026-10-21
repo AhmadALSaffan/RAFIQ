@@ -19,7 +19,7 @@ import { useCurrentWorkspaceId } from "../lib/workspace";
 import { fieldDir } from "../lib/bidi";
 import { timeAgo } from "../lib/time";
 import { easeOutExpo } from "../lib/motion";
-import {
+import { NotebookIcon,
   ChatIcon,
   InboxIcon,
   HelpIcon,
@@ -206,6 +206,8 @@ export function CommandPalette({
       { id: "p-settings", label: t("الإعدادات"), Icon: SettingsIcon, keywords: "settings preferences options", run: go("/settings") },
       { id: "p-guide", label: t("كيف بيشتغل رفيق"), Icon: HelpIcon, keywords: "guide help how start tutorial", run: go("/guide") },
       { id: "p-templates", label: t("قوالب جاهزة"), Icon: FileIcon, keywords: "templates cv resume invoice report research slides word excel", run: go("/?templates=1") },
+      { id: "p-notes", label: t("ملاحظات"), Icon: NotebookIcon, keywords: "notes markdown md write ideas journal", run: go("/notes") },
+      { id: "p-new-note", label: t("ملاحظة جديدة"), Icon: NotebookIcon, keywords: "new note markdown write", run: go("/notes?new=1") },
       { id: "p-feedback", label: t("اقتراحاتك"), Icon: PencilIcon, keywords: "feedback suggestion idea bug report", run: go("/feedback") },
       { id: "p-about", label: t("من نحن"), Icon: InfoIcon, keywords: "about version updates", run: go("/about") },
     ];

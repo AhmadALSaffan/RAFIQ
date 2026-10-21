@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { completeIssue, commentOnIssue, listIssues, listWorkspaceFiles } from "../lib/api";
+import { completeIssue, commentOnIssue, listIssues, listWorkspaceFiles, notesTree, type NoteEntry } from "../lib/api";
 import type { TrackerIssue, WorkspaceFile } from "../lib/types";
 import { easeOutExpo } from "../lib/motion";
 import { BrandMark } from "./BrandMark";
@@ -20,6 +20,7 @@ import {
   CopyIcon,
   DownloadIcon,
   FileIcon,
+  NotebookIcon,
   FolderIcon,
   ForkIcon,
   GlobeIcon,
@@ -418,21 +419,27 @@ export function FileMenu({
   dir,
   query,
   onPick,
+  onPickNote,
   onClose,
   registerKeyHandler,
 }: {
   dir: string | null;
   query: string;
   onPick: (file: WorkspaceFile) => void;
+  /** A note picked from the "My notes" tab (its path in the notes folder). */
+  onPickNote?: (path: string) => void;
   onClose: () => void;
   registerKeyHandler: (handler: (e: React.KeyboardEvent) => boolean) => void;
 }) {
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
+  // The folder's files, or the user's notes (the only choice in a chat without a folder).
+  const [tab, setTab] = useState<"files" | "notes">(dir ? "files" : "notes");
+  const [notes, setNotes] = useState<NoteEntry[] | null>(null);
 
   useEffect(() => {
-    if (!dir) return;
+    if (!dir || tab !== "files") return;
     let alive = true;
     setLoading(true);
     const id = setTimeout(() => {
@@ -449,10 +456,32 @@ export function FileMenu({
       alive = false;
       clearTimeout(id);
     };
-  }, [dir, query]);
+  }, [dir, query, tab]);
 
-  useEffect(() => setActive(0), [query]);
-  useKeyNav(files.length, active, setActive, () => files[active] && onPick(files[active]), onClose, registerKeyHandler);
+  useEffect(() => {
+    if (tab !== "notes" || notes) return;
+    notesTree()
+      .then((tree) => setNotes(tree.items.filter((e) => e.kind === "note").sort((a, b) => b.mtime - a.mtime)))
+      .catch(() => setNotes([]));
+  }, [tab, notes]);
+
+  const needle = query.trim().toLowerCase();
+  const shownNotes = (notes ?? []).filter((n) => !needle || n.title.toLowerCase().includes(needle) || n.path.toLowerCase().includes(needle)).slice(0, 30);
+  const count = tab === "files" ? files.length : shownNotes.length;
+
+  useEffect(() => setActive(0), [query, tab]);
+  useKeyNav(
+    count,
+    active,
+    setActive,
+    () => {
+      if (tab === "files") {
+        if (files[active]) onPick(files[active]);
+      } else if (shownNotes[active]) onPickNote?.(shownNotes[active].path);
+    },
+    onClose,
+    registerKeyHandler,
+  );
 
   // Keep the highlighted file in view as the arrow keys walk the tree — scrolling the list
   // only, never the chat behind it.
@@ -470,9 +499,62 @@ export function FileMenu({
     if (next !== null) box.scrollTo({ top: Math.max(0, next) });
   }, [active, files]);
 
+  const tabs = onPickNote ? (
+    <div className="flex gap-1 border-b px-2 pt-2" style={{ borderColor: "var(--color-border)" }} role="tablist">
+      {(
+        [
+          ["files", t("ملفات المجلد")],
+          ["notes", t("ملاحظاتي")],
+        ] as const
+      ).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={tab === id}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setTab(id)}
+          className="-mb-px rounded-t-lg border-b-2 px-3 py-1.5 text-xs font-medium"
+          style={{ borderColor: tab === id ? "var(--color-accent)" : "transparent", color: tab === id ? "var(--color-ink)" : "var(--color-ink-muted)" }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  if (tab === "notes") {
+    return (
+      <MenuShell>
+        {tabs}
+        <Rows
+          items={shownNotes}
+          active={active}
+          onHover={setActive}
+          onPick={(n) => onPickNote?.(n.path)}
+          empty={notes === null ? t("جارِ البحث…") : t("ما في ملاحظات مطابقة")}
+          render={(n) => (
+            <span className="flex min-w-0 items-center gap-2">
+              <NotebookIcon className="h-4 w-4 shrink-0" style={{ color: "var(--color-accent)" }} />
+              <span className="min-w-0">
+                <span className="block truncate text-sm" dir="auto">
+                  {n.title}
+                </span>
+                <span className="block truncate text-[11px]" style={{ color: "var(--color-ink-muted)" }} dir="auto">
+                  {n.path.replace(/\.(md|markdown)$/i, "")}
+                </span>
+              </span>
+            </span>
+          )}
+        />
+      </MenuShell>
+    );
+  }
+
   if (!dir) {
     return (
       <MenuShell>
+        {tabs}
         <p className="px-4 py-4 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
           {t("حدد مجلد للمحادثة أول (من زر المجلد فوق) عشان تقدر تشاور على ملفاته.")}
         </p>
@@ -482,6 +564,7 @@ export function FileMenu({
 
   return (
     <MenuShell>
+      {tabs}
       {files.length === 0 ? (
         <p className="px-4 py-4 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
           {loading ? t("جارِ البحث…") : t("ما في ملفات مطابقة")}

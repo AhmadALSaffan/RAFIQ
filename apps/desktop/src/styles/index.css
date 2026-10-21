@@ -271,6 +271,89 @@ h3 {
   font-weight: 500;
 }
 
+/* Notes (features/notes): a note reads like a document, each block in its own direction. */
+.note-md {
+  font-size: 1rem;
+  line-height: 1.9;
+}
+.note-md h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-top: 0.4em;
+}
+.note-md h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-top: 1.3em;
+}
+.note-md h3 {
+  font-size: 1.12rem;
+  font-weight: 650;
+}
+.note-md :is(p, li, h1, h2, h3, h4, h5, h6, td, th)[dir="rtl"] {
+  text-align: right;
+}
+.note-md :is(p, li, h1, h2, h3, h4, h5, h6, td, th)[dir="ltr"] {
+  text-align: left;
+}
+.note-md li.task-list-item {
+  list-style: none;
+  margin-inline-start: -1.2em;
+}
+.note-md .note-task,
+.note-md li.task-list-item > input {
+  margin-inline-end: 0.5em;
+  accent-color: var(--color-accent);
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.12em;
+  cursor: pointer;
+}
+.note-md .note-image {
+  max-width: 100%;
+  border-radius: 12px;
+  margin-block: 0.4em;
+}
+.note-md .note-link {
+  color: var(--color-accent);
+  text-decoration: underline dashed;
+  text-underline-offset: 3px;
+}
+.note-md blockquote {
+  border-inline-start: 3px solid var(--color-accent);
+  border-radius: 4px 14px 14px 4px;
+}
+.note-md bdi.bidi-run {
+  unicode-bidi: isolate;
+}
+
+/* Printing a note (Export → PDF): only the note, black on white. */
+.note-print-root {
+  display: none;
+}
+@media print {
+  body > *:not(.note-print-root) {
+    display: none !important;
+  }
+  .note-print-root {
+    display: block;
+    color: #111;
+    background: #fff;
+    padding: 0;
+    --color-ink: #111;
+    --color-ink-muted: #555;
+    --color-surface: #f4f4f4;
+    --color-surface-2: #eee;
+    --color-border: #ddd;
+  }
+  .note-print-root .md-table {
+    overflow: visible;
+  }
+  @page {
+    margin: 18mm;
+  }
+}
+
 /* Blinking caret at the end of a reply that's still streaming. */
 @keyframes caret-blink {
   50% {
@@ -461,4 +544,15 @@ h3 {
   .rainbow-button::before {
     animation: none;
   }
+}
+
+/* A note's lines keep their own direction inside a paragraph (lib/notesRehype.ts). */
+.note-md .note-line {
+  display: block;
+}
+.note-md .note-line[dir="rtl"] {
+  text-align: right;
+}
+.note-md .note-line[dir="ltr"] {
+  text-align: left;
 }

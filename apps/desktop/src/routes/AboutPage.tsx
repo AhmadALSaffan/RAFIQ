@@ -29,6 +29,7 @@ import { DrawnCheck } from "../components/ui";
 import { UpdateCard } from "../features/updates/UpdateCard";
 
 import { locale, t } from "../i18n";
+import { newsFor, OPEN_EVENT } from "../lib/whatsNew";
 const DEVELOPER = {
   // The name in the UI's language; the second line shows it in the other script.
   name: t("أحمد عليوي السفان"),
@@ -131,6 +132,16 @@ export function AboutPage() {
         >
           v{__APP_VERSION__}
         </motion.span>
+        {newsFor(__APP_VERSION__) && (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
+            className="mt-2 text-xs font-medium underline-offset-4 hover:underline"
+            style={{ color: "var(--color-accent)" }}
+          >
+            {t("شو الجديد بهالنسخة")}
+          </button>
+        )}
       </section>
 
       <section className="mt-8">

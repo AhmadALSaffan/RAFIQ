@@ -4,11 +4,14 @@
   "description": "enables the default permissions",
   "windows": [
     "main",
-    "quick"
+    "quick",
+    "lite-*"
   ],
   "permissions": [
     "core:default",
     "dialog:allow-open",
+    "dialog:allow-save",
+    "core:window:allow-close",
     "core:window:allow-set-title",
     "core:window:allow-start-dragging",
     "core:window:allow-set-focus",

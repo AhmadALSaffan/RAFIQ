@@ -19,6 +19,7 @@ import {
   SunIcon,
   TasksIcon,
   XIcon,
+  NotebookIcon,
 } from "./Icons";
 import { CommandPalette, usePaletteShortcut } from "./CommandPalette";
 import { useTheme } from "../lib/theme";
@@ -46,6 +47,7 @@ const navItems = [
   { to: "/designs", label: t("التصاميم"), Icon: SparkIcon },
   { to: "/motion", label: t("موشن"), Icon: MovieIcon },
   { to: "/work", label: t("شغلي"), Icon: InboxIcon },
+  { to: "/notes", label: t("ملاحظات"), Icon: NotebookIcon },
   { to: "/models", label: t("النماذج"), Icon: ModelsIcon },
   { to: "/integrations", label: t("الربط"), Icon: LinkIcon },
 ];
@@ -217,12 +219,16 @@ export function Shell() {
       if (!isTauri()) return;
       const { listen } = await import("@tauri-apps/api/event");
       off = await listen<string>("rafiq://navigate", (event) => navigate(event.payload));
+      // Started to open a Markdown file ("Open with → Rafiq"): straight to the notes page.
+      const { invoke } = await import("@tauri-apps/api/core");
+      const route = await invoke<string | null>("take_launch_file").catch(() => null);
+      if (route) navigate(route);
     })();
     return () => off?.();
   }, [navigate]);
   const section = "/" + (location.pathname.split("/")[1] ?? "");
   // Chat and the design workspace fill the window and scroll their own panes.
-  const fullHeight = section === "/chat" || /^\/(designs|motion)\/.+/.test(location.pathname);
+  const fullHeight = section === "/chat" || section === "/notes" || /^\/(designs|motion)\/.+/.test(location.pathname);
 
   // Every chat, task or design the user opens gets a tab along the top.
   const tabs = useTabs();

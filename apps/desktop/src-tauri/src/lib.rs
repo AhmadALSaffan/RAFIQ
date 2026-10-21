@@ -44,7 +44,12 @@ struct TrayItems {
     quit: MenuItem<Wry>,
 }
 
+/// Whether the main window has been shown in this run. Rafiq started only to edit a
+/// Markdown file in the light window quits when that window closes; one in use doesn't.
+static MAIN_SHOWN: AtomicBool = AtomicBool::new(false);
+
 fn show_main(app: &AppHandle) {
+    MAIN_SHOWN.store(true, Ordering::Relaxed);
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
@@ -366,12 +371,146 @@ fn open_external(url: String) -> Result<(), String> {
     }
 }
 
+/// A Markdown file Windows asked Rafiq to open ("Open with → Rafiq", the right-click
+/// "Rafiq Lite", or a double-click when Rafiq is the default): the first argument that
+/// names one. Relative paths are resolved against the folder the program was started in.
+fn markdown_arg(args: &[String], cwd: &str) -> Option<String> {
+    let found = args.iter().skip(1).find(|arg| {
+        let lower = arg.to_ascii_lowercase();
+        !arg.starts_with("--") && (lower.ends_with(".md") || lower.ends_with(".markdown"))
+    })?;
+    let path = PathBuf::from(found);
+    let full = if path.is_absolute() { path } else { PathBuf::from(cwd).join(path) };
+    Some(full.to_string_lossy().into_owned())
+}
+
+/// The way a Markdown file opens: "--lite" or "--full" on the command line (the right-
+/// click entries), or else the user's choice (Settings), "ask" until they make one.
+fn open_mode(app: &AppHandle, args: &[String]) -> String {
+    if args.iter().any(|a| a == "--lite") {
+        return "lite".into();
+    }
+    if args.iter().any(|a| a == "--full") {
+        return "full".into();
+    }
+    read_open_mode(app)
+}
+
+fn mode_file(app: &AppHandle) -> Option<PathBuf> {
+    app.path().app_config_dir().ok().map(|dir| dir.join("md-open-mode"))
+}
+
+fn read_open_mode(app: &AppHandle) -> String {
+    mode_file(app)
+        .and_then(|file| std::fs::read_to_string(file).ok())
+        .map(|m| m.trim().to_string())
+        .filter(|m| m == "lite" || m == "full" || m == "ask")
+        .unwrap_or_else(|| "ask".into())
+}
+
+/// How a Markdown file opens from Windows: "ask", "lite" or "full".
+#[tauri::command]
+fn get_md_open_mode(app: AppHandle) -> String {
+    read_open_mode(&app)
+}
+
+#[tauri::command]
+fn set_md_open_mode(app: AppHandle, mode: String) -> Result<(), String> {
+    if !["ask", "lite", "full"].contains(&mode.as_str()) {
+        return Err("unknown mode".into());
+    }
+    let file = mode_file(&app).ok_or("no config folder")?;
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(file, mode).map_err(|e| e.to_string())
+}
+
+/// A path, percent-encoded for a query string.
+fn encode_query(path: &str) -> String {
+    let mut encoded = String::new();
+    for byte in path.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => encoded.push(byte as char),
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
+}
+
+/// The notes page route for a file.
+fn note_route(path: &str) -> String {
+    format!("/notes?path={}", encode_query(path))
+}
+
+/// The light window: one Markdown file, the editor only — no sidebar, no chats. Each file
+/// gets its own window; `ask` first offers the choice between it and the full app.
+static LITE_COUNT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn open_lite(app: &AppHandle, path: &str, ask: bool) {
+    let n = LITE_COUNT.fetch_add(1, Ordering::Relaxed);
+    let route = format!("/lite?path={}{}", encode_query(path), if ask { "&ask=1" } else { "" });
+    let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let built = WebviewWindowBuilder::new(app, format!("lite-{n}"), WebviewUrl::App(format!("index.html#{route}").into()))
+        .title(format!("{name} — Rafiq Lite"))
+        .inner_size(980.0, 760.0)
+        .min_inner_size(520.0, 420.0)
+        .center()
+        .focused(true)
+        .build();
+    if let Ok(window) = built {
+        let _ = window.set_focus();
+    }
+}
+
+/// Opens a Markdown file the way the user wants it: in the notes page of the full app, or
+/// in a light window.
+fn open_markdown(app: &AppHandle, path: &str, mode: &str) {
+    if mode == "full" {
+        show_main(app);
+        let _ = app.emit_to("main", "rafiq://navigate", note_route(path));
+    } else {
+        open_lite(app, path, mode == "ask");
+    }
+}
+
+/// From the light window: carry on with this file in the full app.
+#[tauri::command]
+fn open_note_in_main(app: AppHandle, path: String) {
+    // The main page may still be starting: it also takes the file once it's up.
+    if let Ok(mut slot) = app.state::<LaunchFile>().0.lock() {
+        *slot = Some(path.clone());
+    }
+    show_main(&app);
+    let _ = app.emit_to("main", "rafiq://navigate", note_route(&path));
+}
+
+/// The file Rafiq was started with, kept until the page asks for it once it's ready
+/// (an event sent during startup would arrive before anything listens).
+#[derive(Default)]
+struct LaunchFile(Mutex<Option<String>>);
+
+#[tauri::command]
+fn take_launch_file(state: State<LaunchFile>) -> Option<String> {
+    state.0.lock().ok()?.take().map(|path| note_route(&path))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         // Opening Rafiq again (Start menu, desktop icon) brings up the one already running
         // — possibly hidden in the tray — instead of starting a second app and agent.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            if let Some(path) = markdown_arg(&args, &cwd) {
+                // A Markdown file opened while Rafiq runs: the notes page or a light window.
+                // Off the event loop's thread: building a window on it can hang on Windows.
+                let mode = open_mode(app, &args);
+                let app = app.clone();
+                std::thread::spawn(move || open_markdown(&app, &path, &mode));
+                return;
+            }
+            show_main(app);
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
@@ -398,10 +537,15 @@ pub fn run() {
             take_quick_selection,
             open_in_main,
             installer_language,
+            take_launch_file,
+            get_md_open_mode,
+            set_md_open_mode,
+            open_note_in_main,
             update::check_update,
             update::install_update
         ])
         .manage(update::Pending::default())
+        .manage(LaunchFile::default())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -455,8 +599,24 @@ pub fn run() {
             tray.build(app)?;
             app.manage(TrayItems { open, quit: quit_item });
 
+            let args: Vec<String> = std::env::args().collect();
+            let cwd = std::env::current_dir().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default();
+            let mut lite = false;
+            if let Some(path) = markdown_arg(&args, &cwd) {
+                if open_mode(app.handle(), &args) == "full" {
+                    if let Ok(mut slot) = app.state::<LaunchFile>().0.lock() {
+                        *slot = Some(path);
+                    }
+                } else {
+                    // Only the light window: the main one stays hidden until asked for.
+                    let ask = open_mode(app.handle(), &args) == "ask";
+                    open_lite(app.handle(), &path, ask);
+                    lite = true;
+                }
+            }
+
             // Started with Windows (autostart passes --hidden): stay in the tray.
-            if !std::env::args().any(|arg| arg == "--hidden") {
+            if !lite && !std::env::args().any(|arg| arg == "--hidden") {
                 show_main(app.handle());
             }
             Ok(())
@@ -470,6 +630,8 @@ pub fn run() {
                 api.prevent_close();
                 let _ = window.hide();
             }
+            // A light window closes for real.
+            tauri::WindowEvent::CloseRequested { .. } if window.label().starts_with("lite-") => {}
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if RUN_IN_BACKGROUND.load(Ordering::Relaxed) {
                     api.prevent_close();
@@ -477,8 +639,30 @@ pub fn run() {
                 }
             }
             tauri::WindowEvent::Destroyed if window.label() == "main" => quit(window.app_handle()),
+            // Started just to edit a file: the last light window closing ends Rafiq.
+            tauri::WindowEvent::Destroyed if window.label().starts_with("lite-") => {
+                let app = window.app_handle();
+                let others = app.webview_windows().keys().any(|label| label.starts_with("lite-") && label != window.label());
+                if !others && !MAIN_SHOWN.load(Ordering::Relaxed) {
+                    quit(app);
+                }
+            }
             _ => {}
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{markdown_arg, note_route};
+
+    #[test]
+    fn a_markdown_file_on_the_command_line_opens_in_notes() {
+        let args = vec!["Rafiq.exe".to_string(), "--hidden".to_string(), r"C:\notes\خطة.md".to_string()];
+        assert_eq!(markdown_arg(&args, r"C:\"), Some(r"C:\notes\خطة.md".to_string()));
+        assert_eq!(markdown_arg(&["Rafiq.exe".to_string()], r"C:\"), None);
+        assert_eq!(note_route("a b.md"), "/notes?path=a%20b.md");
+        assert_eq!(markdown_arg(&["Rafiq.exe".to_string(), "--lite".to_string(), "notes.md".to_string()], r"C:\w"), Some(r"C:\w\notes.md".to_string()));
+    }
 }

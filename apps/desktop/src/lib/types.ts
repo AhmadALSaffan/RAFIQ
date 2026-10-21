@@ -580,7 +580,9 @@ export type PermissionKey =
   | "media"
   | "task_create"
   | "git_publish"
-  | "notify_send";
+  | "notify_send"
+  | "notes_new"
+  | "notes";
 
 export type WebSearchProvider = "none" | "brave" | "tavily" | "searxng";
 
@@ -636,6 +638,9 @@ export interface AppSettings {
   /** Who reads the voice-overs in motion projects. */
   tts_provider: "none" | "openai" | "elevenlabs" | "azure" | "local";
   tts_voice: string | null;
+  /** Where the notes are kept; null = Documents/Rafiq/notes. */
+  notes_dir?: string | null;
+  notes_pinned?: string[];
 }
 
 /** What a backup holds, read from its manifest (see agent core/backup.py). */

@@ -4,6 +4,7 @@
  * summary marker. No data fetching lives here — it all arrives as props.
  */
 
+import { useNavigate } from "react-router-dom";
 import { memo, useState } from "react";
 import { StudioCard } from "./StudioCard";
 import { AnimatePresence, motion } from "motion/react";
@@ -18,6 +19,7 @@ import { AttachmentGallery } from "../../components/Attachments";
 import { PermissionCard, ToolCard } from "../../components/steps";
 import { WorkStatus } from "./WorkStatus";
 import { CompressIcon, ForkIcon, ModelsIcon, TasksIcon } from "../../components/Icons";
+import { saveAsNote } from "../notes/saveAsNote";
 import { Button } from "../../components/ui";
 import { Logo } from "../../components/Logo";
 import { Illustration } from "../../components/Illustration";
@@ -315,6 +317,8 @@ export function AssistantBlock({
   // and let the ordinary "thinking" state cover the wait.
   const visible = parts.filter((p) => !(p.kind === "tool" && (SILENT_TOOLS.has(p.tool) || (CARD_TOOLS.has(p.tool) && p.ok !== false))));
   const text = textOf(visible);
+  const navigate = useNavigate();
+  const openNote = (path: string) => navigate(`/notes?${new URLSearchParams({ path })}`);
 
   return (
     // A new reply unfolds from beside the avatar (its start corner) — the answer to the bubble above.
@@ -326,6 +330,7 @@ export function AssistantBlock({
       className="group flex gap-3"
       onContextMenu={menu(() => [
         { id: "copy-reply", label: t("انسخ الرد"), disabled: !text, onSelect: () => void navigator.clipboard.writeText(text) },
+        { id: "save-note", label: t("احفظ كملاحظة"), disabled: !text, onSelect: () => void saveAsNote(text, openNote) },
         ...(onBookmark ? [{ id: "bookmark", label: bookmarked ? t("شيل العلامة") : t("علّم الرسالة"), onSelect: onBookmark }] : []),
       ])}
     >
@@ -403,6 +408,15 @@ export function AssistantBlock({
           >
             {copied ? t("انتسخ ✓") : t("نسخ الرد")}
           </button>
+          )}
+          {text && (
+            <button
+              onClick={() => void saveAsNote(text, openNote)}
+              className="rounded-md px-2 py-1 text-xs opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] focus-visible:opacity-100 group-hover:opacity-100"
+              style={{ color: "var(--color-ink-muted)" }}
+            >
+              {t("احفظ كملاحظة")}
+            </button>
           )}
           </div>
         )}

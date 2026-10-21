@@ -61,6 +61,7 @@ import {
   IconLayersSubtract,
   IconPhoto,
   IconPaperclip,
+  IconNotebook,
   IconPencil,
   IconPin,
   IconPlayerStop,
@@ -128,6 +129,7 @@ export const CompressIcon = make(IconArrowsDiagonalMinimize2);
 export const CollapseIcon = make(IconLayoutSidebar);
 export const PinIcon = make(IconPin);
 export const PencilIcon = make(IconPencil);
+export const NotebookIcon = make(IconNotebook);
 export const ArrowDownIcon = make(IconArrowDown);
 export const InfoIcon = make(IconInfoCircle);
 export const ExternalIcon = make(IconExternalLink);

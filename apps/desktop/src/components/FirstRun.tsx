@@ -56,7 +56,7 @@ export function FirstRun() {
     };
   }, []);
 
-  if (!show || location.pathname === "/quick") return null;
+  if (!show || ["/quick", "/lite"].includes(location.pathname)) return null;
   return <Welcome models={models} onModels={setModels} onDone={() => setShow(false)} />;
 }
 
