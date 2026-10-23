@@ -85,7 +85,7 @@ export function BrandMark({ provider, className = "h-4 w-4" }: { provider: strin
     );
   }
 
-  const brand = BRAND_PATHS[provider];
+  const brand = BRAND_PATHS[provider === "chatgpt" ? "openai" : provider];
   if (brand) {
     return (
       <svg role="img" viewBox={brand.viewBox} className={className} fill={safeColor(brand.hex)} aria-label={brand.title}>

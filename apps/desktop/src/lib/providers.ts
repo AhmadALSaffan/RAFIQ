@@ -69,6 +69,15 @@ export const PROVIDERS: ProviderMeta[] = [
     hint: t("بتسجّل دخول بحساب GitHub عليه اشتراك Copilot — بدون مفتاح."),
   },
   {
+    value: "chatgpt",
+    label: "ChatGPT",
+    group: "main",
+    needsKey: false,
+    needsBaseUrl: false,
+    account: true,
+    hint: t("بتسجّل دخول بحساب ChatGPT (Plus أو Pro) وبتستخدم خطتك — بدون مفتاح ولا دفع إضافي."),
+  },
+  {
     value: "azure",
     label: "Azure OpenAI",
     group: "cloud",

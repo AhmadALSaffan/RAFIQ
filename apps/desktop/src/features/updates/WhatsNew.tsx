@@ -90,7 +90,11 @@ export function WhatsNew() {
               <IconX size={16} />
             </button>
 
-            <Video news={news} />
+            {news.image ? (
+              <img src={news.image} alt="" className="aspect-video w-full shrink-0 object-cover" draggable={false} />
+            ) : (
+              <Video news={news} />
+            )}
 
             <div className="min-h-0 overflow-y-auto px-7 pb-6 pt-5">
               <p className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--color-accent)" }}>

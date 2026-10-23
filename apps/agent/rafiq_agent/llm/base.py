@@ -35,6 +35,10 @@ def litellm_model_string(provider: str, model_id: str) -> str:
     if provider in ("custom", "authai"):
         # OpenAI-compatible endpoints (a local server, or an experimental relay).
         return f"openai/{model_id}"
+    if provider == "chatgpt":
+        # A ChatGPT plan (llm/chatgpt.py), never litellm's own "chatgpt" provider: asking
+        # litellm anything about "chatgpt/…" starts its blocking device sign-in.
+        return f"chatgpt-plan/{model_id}"
     if provider == "ollama":
         # ollama_chat uses /api/chat, which supports tool calling; plain ollama/ does not.
         return f"ollama_chat/{model_id}"

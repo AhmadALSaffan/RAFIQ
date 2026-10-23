@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 # still finishes on a valid token.
 RENEW_BEFORE = timedelta(minutes=45)
 # How often the background loop looks. Well under RENEW_BEFORE, so nothing slips through.
-CHECK_EVERY = 10 * 60
+CHECK_EVERY = 5 * 60
 
 _locks: dict[str, asyncio.Lock] = {}
 
@@ -48,11 +48,16 @@ def _aware(moment: datetime | None) -> datetime | None:
 
 
 def due(account: AuthAccount, now: datetime | None = None) -> bool:
-    """Whether this account's access token should be renewed now."""
+    """Whether this account's access token should be renewed now. An adapter can ask for a
+    shorter window (ChatGPT's tokens last an hour, and renewing too early is refused)."""
+    from rafiq_agent.auth.registry import adapter_for
+
     expires = _aware(account.expires_at)
     if expires is None or not account.refresh_ref:
         return False
-    return (now or datetime.now(UTC)) >= expires - RENEW_BEFORE
+    seconds = getattr(adapter_for(account.provider), "renew_before", None)
+    window = timedelta(seconds=seconds) if seconds else RENEW_BEFORE
+    return (now or datetime.now(UTC)) >= expires - window
 
 
 def apply_pair(account: AuthAccount, pair: TokenPair, now: datetime | None = None) -> None:
@@ -110,7 +115,12 @@ async def fresh_token(account_id: str, *, force: bool = False) -> str | None:
         if adapter is None or not hasattr(adapter, "refresh") or not refresh_token:
             return get_api_key(account.secret_ref)
         try:
-            pair = await adapter.refresh(refresh_token)
+            import inspect
+
+            if "subject" in inspect.signature(adapter.refresh).parameters:
+                pair = await adapter.refresh(refresh_token, subject=account.external_id)
+            else:
+                pair = await adapter.refresh(refresh_token)
         except RefreshRejected:
             rejected = True
         except AuthError:

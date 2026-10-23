@@ -21,6 +21,7 @@ import { ActionProgress } from "../../components/Feedback";
 import { CopyIcon, ExternalIcon, SpinnerIcon } from "../../components/Icons";
 import { Button, DrawnCheck } from "../../components/ui";
 import { accountLabel } from "./labels";
+import { notify } from "../../lib/toast";
 
 import { t } from "../../i18n";
 type Phase =
@@ -66,6 +67,15 @@ export function ConnectAccount({
       if (result.status === "complete" && result.account) {
         if (timer) clearTimeout(timer);
         showGuide({ kind: result.kind });
+        if (result.kind === "chatgpt_welcome") {
+          notify({
+            type: "success",
+            title: t("صرت تستخدم خطة ChatGPT تبعك"),
+            description: t("طلبات رفيق بتنحسب من استخدام خطتك. بتقدر تشوف الحد وتغيّره من إعدادات ChatGPT."),
+            action: { label: t("إدارة الاستخدام"), onClick: () => void openExternal("https://chatgpt.com/settings/usage") },
+            duration: 12000,
+          });
+        }
         setPhase({ kind: "done", account: result.account });
         timer = setTimeout(() => done.current(result.account!), 900);
         return true;
@@ -186,7 +196,11 @@ export function ConnectAccount({
             <div className="flex flex-wrap items-center gap-2">
               <Button variant={phase.kind === "verifying" ? "soft" : "primary"} onClick={() => openProvider(phase.flow)}>
                 <ExternalIcon className="h-4 w-4" />
-                {phase.flow.kind === "device" ? t("انسخ الرمز وافتح {0}", { 0: providerName }) : t("افتح {0}", { 0: providerName })}
+                {phase.flow.kind === "device"
+                  ? t("انسخ الرمز وافتح {0}", { 0: providerName })
+                  : provider === "chatgpt"
+                    ? t("المتابعة بـ ChatGPT")
+                    : t("افتح {0}", { 0: providerName })}
               </Button>
               {phase.kind === "verifying" && (
                 <Button variant="accent" onClick={() => void checkNow(phase.flow)} disabled={checking}>

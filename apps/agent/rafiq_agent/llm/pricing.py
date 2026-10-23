@@ -18,7 +18,7 @@ from typing import Any
 PRICES_URL = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 REFRESH_EVERY = 24 * 3600
 LOCAL_PROVIDERS = {"ollama", "lm_studio"}
-SUBSCRIPTION_PROVIDERS = {"github_copilot"}
+SUBSCRIPTION_PROVIDERS = {"github_copilot", "chatgpt"}
 
 
 @dataclass

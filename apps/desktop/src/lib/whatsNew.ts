@@ -9,6 +9,7 @@
  */
 
 import { t, type Locale } from "../i18n";
+import chatgptPicture from "../assets/whats-new/0.5.6.webp";
 
 // The version whose dialog the user closed. (A new key: the first builds marked a version
 // seen as soon as it opened, shown or not.)
@@ -21,11 +22,24 @@ export interface ReleaseNews {
   /** The video in each language (a direct .mp4 link or a YouTube link). A language without
    *  its own gets the Arabic one; none at all = the release's whats-new.mp4. */
   videos?: Partial<Record<Locale, string>>;
+  /** A picture instead of a video (shipped with the app, so it shows offline too). */
+  image?: string;
   title: () => string;
   points: () => string[];
 }
 
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.6",
+    image: chatgptPicture,
+    title: () => t("سجّل دخول بـ ChatGPT واستخدم خطتك"),
+    points: () => [
+      t("ربط حساب ChatGPT (Plus أو Pro) من الإعدادات ← الحسابات المتصلة، أو وأنت عم تضيف موديل"),
+      t("طلبات رفيق بتنحسب من خطتك — بدون مفتاح API ولا دفع إضافي"),
+      t("بتختار أي موديل متاح بخطتك، وبيشتغل بالمحادثات والمهام"),
+      t("الدخول من صفحة OpenAI نفسها — رفيق ما بيشوف كلمة السر"),
+    ],
+  },
   {
     version: "0.5.5",
     videos: {

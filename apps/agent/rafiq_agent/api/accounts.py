@@ -164,6 +164,10 @@ async def disconnect(account_id: str, session: AsyncSession = Depends(get_sessio
         raise HTTPException(status_code=404, detail="account not found")
 
     adapter = adapter_for(account.provider)
+    revoke_refresh = getattr(adapter, "revoke_refresh", None)
+    refresh_token = get_api_key(account.refresh_ref) if revoke_refresh else None
+    if revoke_refresh and refresh_token:
+        await revoke_refresh(refresh_token)  # best effort — the local copy is deleted regardless
     revoke = getattr(adapter, "revoke", None)
     token = get_api_key(account.secret_ref) if revoke else None
     if revoke and token:

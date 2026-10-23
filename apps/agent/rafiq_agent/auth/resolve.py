@@ -88,6 +88,15 @@ def _provider_for(
         if adapter is not None and hasattr(adapter, "request_headers"):
             base_url = adapter.base_url()
             headers = adapter.request_headers()
+    if model.provider == "chatgpt":
+        from rafiq_agent.llm.chatgpt import ChatGPTProvider
+
+        return ChatGPTProvider(
+            account_id=creds.account_id or "",
+            token=creds.api_key or "",
+            model_id=model.model_id,
+            reasoning_effort=reasoning_effort,
+        )
     if model.provider == "github_copilot":
         from rafiq_agent.llm.copilot import CopilotProvider, sdk_available
 

@@ -1,12 +1,14 @@
 """Which providers support account sign-in. Adding one = one adapter class + one line here."""
 
 from rafiq_agent.auth.base import AccountAdapter
+from rafiq_agent.auth.chatgpt import ChatGPTAdapter
 from rafiq_agent.auth.github_copilot import GitHubCopilotAdapter
 from rafiq_agent.auth.openrouter import OpenRouterAdapter
 
 ADAPTERS: dict[str, AccountAdapter] = {
     "github_copilot": GitHubCopilotAdapter(),
     "openrouter": OpenRouterAdapter(),
+    "chatgpt": ChatGPTAdapter(),
 }
 
 

@@ -1,6 +1,6 @@
 [project]
 name = "rafiq-agent"
-version = "0.5.5"
+version = "0.5.6"
 description = "Rafiq local agent runtime (FastAPI sidecar)"
 requires-python = ">=3.11"
 dependencies = [
@@ -33,6 +33,8 @@ dependencies = [
   "fonttools[woff]>=4.55",
   # Reading and writing spreadsheets (tools/sheets.py).
   "openpyxl>=3.1",
+  # Verifying the ID token of a ChatGPT sign-in (auth/chatgpt.py).
+  "PyJWT[crypto]>=2.8",
 ]
 
 [project.optional-dependencies]

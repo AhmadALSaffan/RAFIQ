@@ -20,6 +20,7 @@ export type Provider =
   | "ollama"
   | "custom"
   | "github_copilot"
+  | "chatgpt"
   | "authai";
 
 export interface LlmModel {
