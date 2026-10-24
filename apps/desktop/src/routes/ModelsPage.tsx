@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PriceTag } from "../components/PriceTag";
 import { describePrice, priceRank } from "../lib/price";
 import { AnimatePresence, motion } from "motion/react";
@@ -36,7 +37,10 @@ import { roving } from "../lib/keyboard";
 export function ModelsPage() {
   const [models, setModels] = useState<LlmModel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [formOpen, setFormOpen] = useState(false);
+  // `/models?add=<provider>` (from a connected account) opens the form on that provider.
+  const [params] = useSearchParams();
+  const addFor = PROVIDERS.find((p) => p.value === params.get("add"))?.value;
+  const [formOpen, setFormOpen] = useState(Boolean(addFor));
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [accounts, setAccounts] = useState<AuthAccount[]>([]);
@@ -97,6 +101,8 @@ export function ModelsPage() {
 
       <Reveal open={formOpen}>
         <NewModelForm
+          key={addFor ?? "new"}
+          initialProvider={addFor}
           onCancel={() => setFormOpen(false)}
           onCreated={(m) => {
             setModels((prev) => [...prev, m]);
@@ -503,8 +509,22 @@ export function NewModelForm({
 
   useEffect(() => {
     listAccounts()
-      .then(setAccounts)
+      .then((list) => {
+        setAccounts(list);
+        // Opened on a sign-in provider (the welcome, or "Add a model" on an account):
+        // its account is picked and its models listed straight away, as a click would.
+        if (!providerMeta(initialProvider).account) return;
+        const first = list.find((a) => a.provider === initialProvider && a.status === "connected");
+        if (first) {
+          setAccountId(first.id);
+          void fetchModels(initialProvider, first.id, true);
+        } else {
+          setConnecting(true);
+        }
+      })
       .catch(() => setAccounts([]));
+    // Once, on open: later changes of provider go through selectProvider.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function selectProvider(p: Provider) {

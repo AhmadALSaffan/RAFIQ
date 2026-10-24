@@ -15,6 +15,8 @@ Provider = Literal[
     "ollama",
     "custom",
     "github_copilot",
+    # A ChatGPT Plus/Pro plan (auth/chatgpt.py, llm/chatgpt.py).
+    "chatgpt",
     # Enterprise clouds
     "azure",
     "bedrock",

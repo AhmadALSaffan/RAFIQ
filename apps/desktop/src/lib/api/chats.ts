@@ -2,7 +2,7 @@ import { locale } from "../../i18n";
 /** Conversations, their settings, and the streaming send. */
 
 import { getApiConfig } from "../config";
-import { request } from "./client";
+import { errorText, request } from "./client";
 import type { Bookmark, ChatDetail, ChatMessage, ChatSearchResult, ChatSummary, ReplySettings, Resolution, SummarizeResult, TaskStatus, ToolCall } from "../types";
 
 /** Chats whose messages or titles hold every word of `q`; Arabic is folded on the agent. */
@@ -178,7 +178,7 @@ export async function stopChat(chatId: string): Promise<boolean> {
 async function readEvents(res: Response, onEvent: (event: ChatStreamEvent) => void): Promise<void> {
   if (!res.ok || !res.body) {
     const detail = await res.json().catch(() => null);
-    throw new Error(detail?.detail ?? `${res.status} ${res.statusText}`);
+    throw new Error(errorText(detail?.detail) ?? `${res.status} ${res.statusText}`);
   }
 
   const reader = res.body.getReader();

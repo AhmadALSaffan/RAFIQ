@@ -8,8 +8,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useNavigate } from "react-router-dom";
 import { disconnectAccount, listAccountProviders, listAccounts } from "../../lib/api";
-import { PROVIDERS } from "../../lib/providers";
+import { PROVIDERS, providerMeta } from "../../lib/providers";
 import type { AccountProvider, AuthAccount, Provider } from "../../lib/types";
 import { listContainer, listItem } from "../../lib/motion";
 import { timeAgo } from "../../lib/time";
@@ -211,7 +212,10 @@ function AccountLine({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
   const connected = account.status === "connected";
+  // A connected account no agent uses yet: one click to the model list it offers.
+  const canAdd = connected && !account.used_by.length && Boolean(providerMeta(account.provider as Provider).account);
 
   async function disconnect() {
     setBusy(true);
@@ -252,6 +256,12 @@ function AccountLine({
         {!connected && (
           <Button variant="ghost" className="px-2 py-1 text-xs" onClick={onReconnect}>
             {t("أعد الربط")}
+          </Button>
+        )}
+        {canAdd && !confirming && (
+          <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => navigate(`/models?add=${account.provider}`)}>
+            <PlusIcon className="h-3.5 w-3.5" />
+            {t("أضف نموذج")}
           </Button>
         )}
         {connected &&

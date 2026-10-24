@@ -1,7 +1,7 @@
 /** Motion projects: scenes, versions, assets, exports, brand kits, and the engine channel. */
 
 import { getApiConfig } from "../config";
-import { request, tracked } from "./client";
+import { errorText, request, tracked } from "./client";
 import type { BrandKit, Scene } from "../../features/motion/engine/types";
 
 export interface MotionProjectSummary {
@@ -141,7 +141,7 @@ export async function uploadMotionAsset(projectId: string, file: File, extra: { 
   for (const [k, v] of Object.entries(extra)) if (v !== undefined) form.append(k, String(v));
   return tracked(
     fetch(`${baseUrl}/motion/projects/${projectId}/assets`, { method: "POST", body: form, headers: { Authorization: `Bearer ${token}` } }).then(async (res) => {
-      if (!res.ok) throw new Error((await res.json().catch(() => null))?.detail ?? res.statusText);
+      if (!res.ok) throw new Error(errorText((await res.json().catch(() => null))?.detail) ?? res.statusText);
       return res.json() as Promise<MotionAsset>;
     }),
   );

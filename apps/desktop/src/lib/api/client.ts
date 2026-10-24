@@ -73,6 +73,27 @@ export async function waitForBackend(signal?: AbortSignal): Promise<void> {
   }
 }
 
+/** An error's `detail` as text: the agent's own message, or a validation error's list
+ *  (FastAPI answers a rejected request with [{ loc, msg }]), never "[object Object]". */
+export function errorText(detail: unknown): string | null {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const lines = detail.map((d) => {
+      if (typeof d === "string") return d;
+      const item = d as { loc?: unknown[]; msg?: unknown };
+      const where = Array.isArray(item.loc) ? item.loc.filter((p) => p !== "body").join(".") : "";
+      const msg = typeof item.msg === "string" ? item.msg : JSON.stringify(d);
+      return where ? `${where}: ${msg}` : msg;
+    });
+    return lines.join(" · ") || null;
+  }
+  if (detail && typeof detail === "object") {
+    const msg = (detail as { message?: unknown }).message;
+    return typeof msg === "string" ? msg : JSON.stringify(detail);
+  }
+  return null;
+}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Read before the first await: quietly() only covers what starts synchronously inside it.
   const counted = quietDepth === 0;
@@ -98,7 +119,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
       // A failure the user can fix (Copilot off, a blocked country, no credit…) opens the
       // guide that says how (lib/guides.ts).
       if (detail?.kind) showGuide({ kind: detail.kind, provider: detail.provider });
-      throw Object.assign(new Error(detail?.detail ?? `${res.status} ${res.statusText}`), { kind: detail?.kind ?? null, status: res.status });
+      throw Object.assign(new Error(errorText(detail?.detail) ?? `${res.status} ${res.statusText}`), { kind: detail?.kind ?? null, status: res.status });
     }
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;

@@ -161,8 +161,11 @@ async def discover(
 
         adapter = adapter_for(account.provider)
         if adapter is not None and hasattr(adapter, "list_models"):
+            from rafiq_agent.auth.refresh import fresh_token
+
             try:
-                listed = await adapter.list_models(get_api_key(account.secret_ref) or "")
+                # Renewed first: a ChatGPT access token lasts an hour.
+                listed = await adapter.list_models(await fresh_token(account.id) or "")
             except Exception as exc:  # noqa: BLE001
                 raise GuidedError.of(exc, account.provider) from exc
             return _priced(

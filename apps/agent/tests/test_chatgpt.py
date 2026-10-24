@@ -116,3 +116,74 @@ async def test_the_sign_in_listens_once_and_a_refusal_is_a_refusal(tmp_path, mon
     # The listener has given its one answer.
     with pytest.raises(httpx.HTTPError):
         await _get(f"{redirect}?state={state}&code=again")
+
+
+# ── Adding an agent on a ChatGPT plan ────────────────────────────────────────────────
+
+
+def test_every_provider_the_app_offers_is_accepted_by_the_api():
+    """The desktop's providers, and every sign-in adapter, pass the API's schema — one
+    missing (as "chatgpt" was) turns fetching models and saving into a 422."""
+    import re
+    import typing
+    from pathlib import Path
+
+    from rafiq_agent.auth.registry import ADAPTERS
+    from rafiq_agent.schemas.models import Provider
+
+    accepted = set(typing.get_args(Provider))
+    assert set(ADAPTERS) <= accepted
+    types = Path(__file__).resolve().parents[2] / "desktop" / "src" / "lib" / "types.ts"
+    union = re.search(r"export type Provider =(.*?);", types.read_text(encoding="utf-8"), re.S)
+    assert union is not None
+    assert set(re.findall(r'"([a-z_]+)"', union.group(1))) == accepted
+
+
+@pytest.fixture()
+def keychain(monkeypatch):
+    vault: dict[tuple[str, str], str] = {}
+    monkeypatch.setattr("keyring.set_password", lambda s, k, v: vault.__setitem__((s, k), v))
+    monkeypatch.setattr("keyring.get_password", lambda s, k: vault.get((s, k)))
+    monkeypatch.setattr("keyring.delete_password", lambda s, k: vault.pop((s, k), None))
+    return vault
+
+
+async def test_a_chatgpt_account_lists_its_models_and_saves_an_agent(monkeypatch, keychain):
+    from httpx import ASGITransport
+
+    from rafiq_agent.auth import registry
+    from rafiq_agent.config import AUTH_TOKEN
+    from rafiq_agent.main import app
+    from rafiq_agent.storage.db import SessionLocal, init_db
+    from rafiq_agent.storage.models import AuthAccount
+    from rafiq_agent.storage.secrets import store_api_key
+
+    def models(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/models"
+        assert request.headers["authorization"] == "Bearer plan-token"
+        return httpx.Response(200, json={"models": [
+            {"slug": "gpt-6.1-sol", "display_name": "GPT-6.1 Sol", "visibility": "list"},
+            {"slug": "internal-only", "display_name": "Hidden", "visibility": "hide"},
+        ]})
+
+    monkeypatch.setitem(registry.ADAPTERS, "chatgpt", auth.ChatGPTAdapter(transport=httpx.MockTransport(models)))
+    await init_db()
+    async with SessionLocal() as session:
+        account = AuthAccount(provider="chatgpt", external_id="user-1", label="me@example.com", secret_ref=store_api_key("plan-token"))
+        session.add(account)
+        await session.commit()
+        account_id = account.id
+
+    headers = {"authorization": f"Bearer {AUTH_TOKEN}"}
+    async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        found = await client.post("/models/discover", headers=headers, json={"provider": "chatgpt", "account_id": account_id})
+        assert found.status_code == 200, found.text
+        assert [(m["id"], m["display_name"]) for m in found.json()] == [("gpt-6.1-sol", "GPT-6.1 Sol")]
+
+        body = {"name": "Sol", "provider": "chatgpt", "model_id": "gpt-6.1-sol", "auth_method": "oauth", "account_id": account_id}
+        created = await client.post("/models", headers=headers, json=body)
+        assert created.status_code == 201, created.text
+        assert created.json()["provider"] == "chatgpt" and created.json()["auth_method"] == "oauth"
+
+        refused = await client.post("/models", headers=headers, json={**body, "model_id": "internal-only"})
+        assert refused.status_code == 400 and isinstance(refused.json()["detail"], str)

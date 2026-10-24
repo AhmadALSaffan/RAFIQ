@@ -8,7 +8,7 @@
 
 import { getApiConfig } from "../config";
 import { locale } from "../../i18n";
-import { request, tracked } from "./client";
+import { errorText, request, tracked } from "./client";
 import type { BackupManifest, BackupSaved, RestoreResult } from "../types";
 
 export function saveBackup(path: string): Promise<BackupSaved> {
@@ -32,7 +32,7 @@ async function raw(path: string, init: RequestInit): Promise<Response> {
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
-    throw new Error(detail?.detail ?? `${res.status} ${res.statusText}`);
+    throw new Error(errorText(detail?.detail) ?? `${res.status} ${res.statusText}`);
   }
   return res;
 }

@@ -1,6 +1,7 @@
 /** Uploads: images and documents a message or a task carries. */
 
 import { getApiConfig } from "../config";
+import { errorText } from "./client";
 import type {
   Attachment,
 } from "../types";
@@ -27,7 +28,7 @@ export async function uploadAttachment(
         // non-JSON error body
       }
       if (xhr.status >= 200 && xhr.status < 300) resolve(body as Attachment);
-      else reject(new Error((body as { detail?: string } | null)?.detail ?? t("فشل الرفع ({0})", { 0: xhr.status })));
+      else reject(new Error(errorText((body as { detail?: unknown } | null)?.detail) ?? t("فشل الرفع ({0})", { 0: xhr.status })));
     };
     xhr.onerror = () => reject(new Error(t("ما قدرت أرفع الملف")));
     signal?.addEventListener("abort", () => {

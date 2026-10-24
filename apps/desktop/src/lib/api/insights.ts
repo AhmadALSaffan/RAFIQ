@@ -1,6 +1,6 @@
 /** Spending, the diagnostics report, and the logs. */
 
-import { request } from "./client";
+import { errorText, request } from "./client";
 import { getApiConfig } from "../config";
 import { locale } from "../../i18n";
 import type { Diagnostics, LogInfo, LogOut, UsageSource, UsageSummary } from "../types";
@@ -40,7 +40,7 @@ export async function exportUsage(filter: UsageFilter): Promise<string> {
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
-    throw new Error(detail?.detail ?? `HTTP ${res.status}`);
+    throw new Error(errorText(detail?.detail) ?? `HTTP ${res.status}`);
   }
   return res.text();
 }
@@ -71,6 +71,6 @@ export async function transcribe(audio: Blob): Promise<string> {
     body: form,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(errorText(data.detail) ?? `HTTP ${res.status}`);
   return (data.text ?? "") as string;
 }
