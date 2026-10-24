@@ -28,7 +28,22 @@ export interface ReleaseNews {
   points: () => string[];
 }
 
+// The 0.5.8 videos ride on the release itself (assets of v0.5.8), not on a video host.
+const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/AhmadALSaffan/RAFIQ/releases/download/v${version}/whats-new-${lang}.mp4`;
+
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.8",
+    videos: { ar: RELEASE_VIDEO("0.5.8", "ar"), en: RELEASE_VIDEO("0.5.8", "en"), ru: RELEASE_VIDEO("0.5.8", "ru") },
+    title: () => t("3D جوا الموشن، وموسيقى لكل فيديو"),
+    points: () => [
+      t("الموديلات صارت تبني مشاهد 3D جوا الموشن: كواكب بخرائط حقيقية، نص عربي مجسّم، جزيئات، كاميرا وإضاءة"),
+      t("موسيقى بيألّفها الموديل لكل فيديو، وما في صوت إلا إذا طلبته"),
+      t("المركز الإبداعي: التصاميم والموشن والملاحظات ورا زر واحد"),
+      t("دائرة جنب موديل ChatGPT بتعرض استخدام خطتك، وتنبيه واضح لما توصل للحد"),
+      t("لودر جديد بيطلع من زر الإرسال، والموديلات القوية بتبدع على راحتها"),
+    ],
+  },
   {
     version: "0.5.6",
     image: chatgptPicture,

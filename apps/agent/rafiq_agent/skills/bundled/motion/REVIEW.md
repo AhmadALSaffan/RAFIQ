@@ -27,7 +27,7 @@ patch at random: go shot by shot, find what's wrong against the list below, and 
 | **Everything enters at once** | Hero first, the rest 0.1–0.2 s apart; lists stagger 0.08–0.15 s. |
 | **Same entrance everywhere** | Vary per shot: `maskReveal`, `wordPop`, `slideIn` + rotation settle, `scaleIn` `outBack`, `blurIn`, `typewriter`. |
 | **Slow transitions** (a panel over 0.6 s) | The panel crosses in ±0.28 s around the cut; the next shot starts under it. |
-| **Hard cuts with no transition** | A colour panel, a zoom-through, or a mask wipe on every cut, with a `whoosh`. |
+| **Hard cuts with no transition** | A colour panel, a zoom-through, or a mask wipe on every cut (and a `whoosh` if the video has sound). |
 | **Flat background** | A radial or linear gradient in the palette's darks, plus one big soft shape (blob path or circle, 6–12 % opacity) drifting or rotating slowly all video. |
 | **Default colours and fonts** | Choose for the idea: `scene.palette` (5–7 hex) and `scene.fonts` (a display face with character + a clean body face). |
 | **Busy** (more than ~12 things on screen) | One idea per shot: split it, or cut decoration that doesn't serve the message. |
@@ -35,7 +35,7 @@ patch at random: go shot by shot, find what's wrong against the list below, and 
 | **Text on a busy picture** | A pill (`background`) or a dark gradient behind it. |
 | **Icons floating alone** | Set each on a soft circle (the accent at 15–20 % opacity) 1.8× its size, with a label under it. |
 | **Ending without an ask** | A last shot with the call to action as a pill button that pops and pulses, and where to find it. |
-| **Silent** | Music under everything (−18 dB, fades), and 2–4 effects on the key hits. |
+| **Silent when the user asked for sound** | Music under everything (−18 dB, fades), and 2–4 effects on the key hits. A silent video the user didn't ask sound for is fine — don't add any. |
 
 ## Compare with the example
 

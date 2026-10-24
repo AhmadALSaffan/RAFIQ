@@ -7,7 +7,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { t } from "../../i18n";
 import { BracketLabel } from "../../components/brand";
-import { AdjustIcon, BoltIcon, IconsIcon, LayersIcon, MusicIcon, PhotoIcon, PlayIcon, PlusIcon, TrashIcon } from "../../components/Icons";
+import { AdjustIcon, BoltIcon, CubeIcon, IconsIcon, LayersIcon, MusicIcon, PhotoIcon, PlayIcon, PlusIcon, TrashIcon } from "../../components/Icons";
+import { RECIPES } from "./engine/three/recipes";
+import { RECIPE_LABELS, RECIPE_USES } from "./scene3dLabels";
 import { arcPath, arrowPath, ellipsePath, heartPath, polygonPath, rectPath, ringPath, starPath, trianglePath, type Polyline } from "./engine/paths";
 import { iconNames, loadIcons, searchIcons } from "./engine/icons";
 import { ICON_SETS, isColourIcon } from "./engine/iconSets";
@@ -155,6 +157,23 @@ function AddTab({ scene, kit, time, onSelect, onChange }: PanelProps) {
           {(["bar", "line", "pie", "number"] as const).map((chart) => (
             <button key={chart} type="button" className={tile} style={tileStyle} onClick={() => add(newLayer(scene, "chart", time, { chart, ...(chart === "number" ? { data: { values: [42], unit: "%" } } : {}) }), chart)}>
               {chart}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <BracketLabel>{t("3D")}</BracketLabel>
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
+          {RECIPES.map((recipe) => (
+            <button
+              key={recipe}
+              type="button"
+              className={tile}
+              style={tileStyle}
+              onClick={() => add(newLayer(scene, "scene3d", time, { scene3d: { recipe, params: RECIPE_USES[recipe].text === "lines" ? { lines: [t("رفيق"), t("موشن 3D")] } : RECIPE_USES[recipe].text ? { text: t("رفيق") } : {} } }), RECIPE_LABELS[recipe])}
+            >
+              <CubeIcon className="h-5 w-5" />
+              {RECIPE_LABELS[recipe]}
             </button>
           ))}
         </div>
@@ -383,7 +402,7 @@ function AudioTab({ scene, time, selected, onSelect, onChange }: PanelProps) {
               </label>
             </>
           )}
-          {current.source !== "procedural" && current.source !== "sfx" && (
+          {current.source !== "procedural" && current.source !== "compose" && current.source !== "sfx" && (
             <label className="flex flex-col gap-1 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
               {t("وطّي هالمسار لما يحكي")}
               <select value={current.duck ?? ""} onChange={(e) => setTrack("duck", e.target.value || undefined, t("غيّرت التوطية"))} className="rounded-lg border px-2 py-1 text-xs" style={inputStyle}>

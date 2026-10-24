@@ -5,7 +5,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { RaySpinner, ShimmerText, TextSwap } from "../../components/LiveText";
+import { ShimmerText, TextSwap } from "../../components/LiveText";
+import { WorkOrb } from "../../components/Orb";
 import { t } from "../../i18n";
 import { toolLabel } from "../../lib/tools";
 import type { ChatPart } from "../../lib/types";
@@ -121,15 +122,13 @@ export function WorkStatus({ parts }: { parts: ChatPart[] }) {
   return (
     <div
       className="flex max-w-full items-center gap-2 self-start rounded-full py-1.5 pe-3 ps-2.5 text-[13px]"
-      // contain: paint — the turning spinner's rotated box would otherwise count toward the
-      // chat's scroll height, and following the bottom would chase it every turn.
+      // contain: paint — the orb's glow would otherwise count toward the chat's scroll
+      // height, and following the bottom would chase it every turn.
       style={{ background: "var(--color-surface)", color: "var(--color-ink-muted)", contain: "paint" }}
       role="status"
       aria-live="polite"
     >
-      <span className="flex h-3.5 w-3.5 shrink-0 overflow-hidden" style={{ color: "var(--color-accent)" }}>
-        <RaySpinner size={14} />
-      </span>
+      <WorkOrb size={16} />
       <TextSwap text={text} className="min-w-0">
         <ShimmerText>{text}</ShimmerText>
       </TextSwap>

@@ -199,6 +199,7 @@ export function CommandPalette({
     const pages: Item[] = [
       { id: "p-chat", label: t("المحادثات"), Icon: ChatIcon, keywords: "chats chat conversations", run: go("/chat") },
       { id: "p-work", label: t("شغلي"), Icon: InboxIcon, keywords: "my work issues jira linear github inbox", run: go("/work") },
+      { id: "p-create", label: t("المركز الإبداعي"), Icon: SparkIcon, keywords: "creative hub create studio designs motion notes", run: go("/create") },
       { id: "p-designs", label: t("التصاميم"), Icon: SparkIcon, keywords: "designs design ui", run: go("/designs") },
       { id: "p-tasks", label: t("المهام"), Icon: TasksIcon, keywords: "tasks task jobs", run: go("/tasks") },
       { id: "p-models", label: t("النماذج"), Icon: ModelsIcon, keywords: "models model agents keys api", run: go("/models") },

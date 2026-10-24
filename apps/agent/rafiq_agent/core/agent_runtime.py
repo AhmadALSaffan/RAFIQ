@@ -71,6 +71,7 @@ PERMISSION_KEY_BY_TOOL = {
     "motion_transcribe": "media",
     "motion_stock": "media",
     "motion_image": "media",
+    "motion_fetch_image": "media",
 }
 PERMISSION_KEY_BY_PREFIX = {"issue_": "issue_write", "browser_": "browser_navigate", "desktop_": "desktop_control", "mcp__": "mcp", "motion_": "motion"}
 

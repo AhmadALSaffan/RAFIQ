@@ -23,7 +23,7 @@ import {
 } from "../../lib/api";
 import { BracketLabel } from "../../components/brand";
 import { Button } from "../../components/ui";
-import { PhotoIcon, SpinnerIcon, TrashIcon, UploadIcon, VolumeIcon } from "../../components/Icons";
+import { CubeIcon, PhotoIcon, SpinnerIcon, TrashIcon, UploadIcon, VolumeIcon } from "../../components/Icons";
 import type { Scene } from "./engine/types";
 import { VideoClip } from "./engine/video";
 import { addAssetOps, addAudioOps, addLayerOps, newLayer, uniqueId, type Op } from "./sceneEdit";
@@ -123,6 +123,9 @@ export function AssetsPane({ projectId, scene, time, onChange }: { projectId: st
     const base = { ...scene, assets: { ...(scene.assets ?? {}), [key]: entry(asset) } } as Scene;
     if (asset.kind === "audio") {
       ops.push(...addAudioOps(base, { id: uniqueId(base, asset.source === "tts" ? "vo" : "music"), source: "asset", asset: key, at: Math.round(time * 10) / 10, gain: asset.source === "tts" ? -6 : -18 }));
+    } else if (asset.kind === "model") {
+      // a 3D model comes in turning on a pedestal; the look is changed in its properties
+      ops.push(...addLayerOps(base, newLayer(base, "scene3d", time, { scene3d: { recipe: "productSpin", params: { asset: key } } })));
     } else {
       const kind = asset.kind === "video" ? "video" : asset.kind === "lottie" ? "image" : "image";
       const layer = newLayer(base, kind, time, { asset: key, ...(asset.kind === "lottie" ? { type: "lottie" } : {}) } as never);
@@ -157,7 +160,7 @@ export function AssetsPane({ projectId, scene, time, onChange }: { projectId: st
       await load();
       const key = assetKey(scene, asset);
       const base = { ...scene, assets: { ...(scene.assets ?? {}), [key]: entry(asset) } } as Scene;
-      const music = (scene.audio ?? []).find((a) => a.source === "procedural" || /music/i.test(a.id));
+      const music = (scene.audio ?? []).find((a) => a.source === "procedural" || a.source === "compose" || /music/i.test(a.id));
       onChange(
         [...addAssetOps(scene, key, entry(asset)), ...addAudioOps(base, { id: uniqueId(base, "vo"), source: "asset", asset: key, at: Math.round(time * 10) / 10, gain: -6, ...(music ? { duck: music.id } : {}) })],
         t("ضفت تعليق صوتي"),
@@ -207,7 +210,7 @@ export function AssetsPane({ projectId, scene, time, onChange }: { projectId: st
       >
         {busy && busy !== "tts" && busy !== "stock" ? <SpinnerIcon className="h-5 w-5" /> : <UploadIcon className="h-5 w-5" />}
         {t("افلت صور، فيديو، صوت أو Lottie هون — أو اضغط تختار")}
-        <input ref={input} type="file" multiple accept="image/*,video/*,audio/*,.json,.lottie" className="hidden" onChange={(e) => e.target.files && void upload(e.target.files)} />
+        <input ref={input} type="file" multiple accept="image/*,video/*,audio/*,.json,.lottie,.glb,.gltf" className="hidden" onChange={(e) => e.target.files && void upload(e.target.files)} />
       </div>
 
       {error && (
@@ -232,6 +235,8 @@ export function AssetsPane({ projectId, scene, time, onChange }: { projectId: st
                 <video src={urls[asset.id]} muted preload="metadata" className="h-full w-full object-cover" />
               ) : asset.kind === "audio" ? (
                 <VolumeIcon className="h-5 w-5" />
+              ) : asset.kind === "model" ? (
+                <CubeIcon className="h-5 w-5" />
               ) : (
                 <PhotoIcon className="h-5 w-5" />
               )}

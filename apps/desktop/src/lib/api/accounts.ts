@@ -11,6 +11,22 @@ export async function listAccounts(): Promise<AuthAccount[]> {
   return request<AuthAccount[]>("/accounts");
 }
 
+/** What Rafiq knows about a ChatGPT plan's usage (llm/plan_usage.py on the agent). */
+export interface PlanUsage {
+  /** The highest window's figure OpenAI reported, or null when it reports none. */
+  used_percent: number | null;
+  windows: { name: string; used_percent: number; window_minutes: number | null; resets_in_seconds: number | null }[];
+  limited: boolean;
+  /** Epoch seconds of the last limit error. */
+  limit_at: number | null;
+  today: { requests: number; tokens: number };
+  week: { requests: number; tokens: number };
+}
+
+export async function getPlanUsage(accountId: string): Promise<PlanUsage> {
+  return request<PlanUsage>(`/accounts/${encodeURIComponent(accountId)}/plan-usage`);
+}
+
 /** Starts a sign-in; the user finishes it in their browser. `target` picks the upstream
  * service for adapters that front several (AuthAI: "openai" | "xai" | "github"). */
 export async function startConnect(provider: Provider, target?: string): Promise<ConnectStart> {

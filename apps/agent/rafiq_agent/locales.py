@@ -517,6 +517,7 @@ EN: dict[str, str] = {
     "ضيف نموذج من صفحة النماذج أول.": "Add a model on the Models page first.",
     "ChatGPT رجّع تسجيل دخول ناقص.": "ChatGPT returned an incomplete sign-in.",
     "ChatGPT رجّع خطأ: {0}": "ChatGPT returned an error: {0}",
+    "ChatGPT وقّف الرد بدون ما يقول السبب — جرّب مرة تانية، أو كمّل بموديل تاني.": "ChatGPT stopped the reply without saying why — try again, or carry on with another model.",
     "ChatGPT رفض الطلب ({0}).": "ChatGPT refused the request ({0}).",
     "ChatGPT رفض الطلب: {0}": "ChatGPT refused the request: {0}",
     "ChatGPT رفض تسجيل الدخول ({0}).": "ChatGPT refused the sign-in ({0}).",
@@ -542,7 +543,7 @@ EN: dict[str, str] = {
     "ما وافقت على ربط ChatGPT برفيق.": "You didn't approve connecting ChatGPT to Rafiq.",
     "مش موجود": "Not found",
     "هالرابط مش من تسجيل الدخول الحالي": "This link isn't from the current sign-in",
-    "وصلت لحد استخدام خطة ChatGPT تبعك لهالفترة. بتقدر تشوفه وتعدّله من إعدادات ChatGPT ← الاستخدام.": "You've reached your ChatGPT plan's usage limit for now. See and adjust it in ChatGPT settings → Usage.",
+    "OpenAI وقّفت طلبات رفيق على خطة ChatGPT لهلق (حد الخطة أو الحد اللي حاطّه لرفيق). التفاصيل بإعدادات ChatGPT ← الاستخدام.": "OpenAI has paused Rafiq's requests on your ChatGPT plan for now (the plan's limit, or the one you set for Rafiq). Details in ChatGPT settings → Usage.",
 }
 
 RU: dict[str, str] = {
@@ -1061,6 +1062,7 @@ RU: dict[str, str] = {
     "ضيف نموذج من صفحة النماذج أول.": "Сначала добавьте модель на странице «Модели».",
     "ChatGPT رجّع تسجيل دخول ناقص.": "ChatGPT вернул неполные данные входа.",
     "ChatGPT رجّع خطأ: {0}": "ChatGPT вернул ошибку: {0}",
+    "ChatGPT وقّف الرد بدون ما يقول السبب — جرّب مرة تانية، أو كمّل بموديل تاني.": "ChatGPT прервал ответ без объяснения — попробуйте ещё раз или продолжите с другой моделью.",
     "ChatGPT رفض الطلب ({0}).": "ChatGPT отклонил запрос ({0}).",
     "ChatGPT رفض الطلب: {0}": "ChatGPT отклонил запрос: {0}",
     "ChatGPT رفض تسجيل الدخول ({0}).": "ChatGPT отклонил вход ({0}).",
@@ -1086,5 +1088,5 @@ RU: dict[str, str] = {
     "ما وافقت على ربط ChatGPT برفيق.": "Вы не разрешили подключить ChatGPT к Rafiq.",
     "مش موجود": "Не найдено",
     "هالرابط مش من تسجيل الدخول الحالي": "Эта ссылка не от текущего входа",
-    "وصلت لحد استخدام خطة ChatGPT تبعك لهالفترة. بتقدر تشوفه وتعدّله من إعدادات ChatGPT ← الاستخدام.": "Вы достигли лимита плана ChatGPT. Посмотреть и изменить его можно в настройках ChatGPT → Использование.",
+    "OpenAI وقّفت طلبات رفيق على خطة ChatGPT لهلق (حد الخطة أو الحد اللي حاطّه لرفيق). التفاصيل بإعدادات ChatGPT ← الاستخدام.": "OpenAI временно остановила запросы Rafiq по плану ChatGPT (лимит плана или лимит, заданный для Rafiq). Подробности — в настройках ChatGPT → Использование.",
 }

@@ -50,6 +50,7 @@ export async function inspectFrames(engine: MotionEngine, times: number[], known
       const near = issues.filter((i) => i.layer === item.id && (i.t === null || Math.abs(i.t - t) < 1.5));
       const parts = [`- ${item.id}`];
       if (item.textValue !== undefined && item.type === "text") parts.push(`"${item.textValue.slice(0, 40)}"`);
+      else if (item.type === "scene3d") parts.push(`(scene3d ${item.layer.scene3d?.recipe ?? (item.layer.scene3d?.objects ?? []).map((o) => o.kind).slice(0, 5).join("+")})`);
       else parts.push(`(${item.type}${item.layer.icon ? ` ${item.layer.icon}` : ""})`);
       parts.push(fmt(item.bounds));
       if (item.layer.style) parts.push(`style ${item.layer.style}`);

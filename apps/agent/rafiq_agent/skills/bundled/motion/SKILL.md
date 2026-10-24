@@ -39,6 +39,9 @@ out, draws every frame, checks it, and exports it. Full field list: `schema.json
 
 - **Time is seconds.** A layer shows for `start ≤ t < end`. The engine snaps to frames,
   so the same scene exports at 30, 60 or 120 fps unchanged.
+- **Everything stays inside the video.** A layer ends by `composition.duration`; its keys
+  and animations sit between its own `start` and `end`. Anything outside is pulled back
+  in when you save (the patch result lists what moved) — place it right the first time.
 - **Layer ids** are short ASCII (`title`, `price`, `cta`). Reference them in layout.
 - `direction: "rtl"` (default) makes `start` = right and `x` positive = leftwards.
 
@@ -55,6 +58,7 @@ out, draws every frame, checks it, and exports it. Full field list: `schema.json
 | `captions` | `words` or `source` | word timing from `motion_transcribe`; `captionStyle` pop/highlight/karaoke; `maxWords` per card |
 | `group` | `children` | children are laid out inside the group's box and move with it |
 | `lottie` | `asset` | an imported Lottie file, played on the scene's clock |
+| `scene3d` | `scene3d` | a 3D scene (three.js) — recipes, objects, camera, lights; see «3D» below |
 
 ## 3. Layout — no pixels
 
@@ -134,19 +138,133 @@ out, draws every frame, checks it, and exports it. Full field list: `schema.json
 
 ## 6. Audio
 
+**Only when the user asks for it** (sound, music, effects, a voice-over). Otherwise
+`audio` stays `[]`: no music, no effects.
+
 ```jsonc
 { "id": "music", "source": "procedural", "pattern": "warm-lofi", "tempo": 96, "gain": -18 },
 { "id": "w1", "source": "sfx", "kind": "whoosh", "at": 1.4 },
 { "id": "vo", "source": "asset", "asset": "vo", "at": 0.5, "gain": -6, "duck": "music" }
 ```
 
-- Patterns: `warm-lofi, upbeat, cinematic, minimal, corporate` (+ `tempo`, `key` like `Am`).
-- SFX kinds: `whoosh, pop, click, riser, impact, swoosh, tick, ding, typing`. Put one on an
-  important entrance or a cut, not on everything.
+- **Compose your own music** (`source: "compose"`) — the sound is yours to design for
+  this video, like its colours: tempo, key, chords, a melody, a bassline, the drums, which
+  instruments and how they sound. Beats count from the track's `at`.
+
+  ```jsonc
+  { "id": "score", "source": "compose", "tempo": 92, "gain": -16, "reverb": 0.6, "swing": 0.15,
+    "parts": [
+      { "instrument": "keys", "notes": [{ "t": 0, "n": "Dm9", "d": 4 }, { "t": 4, "n": "Gm9", "d": 4 }], "loop": 8 },
+      { "instrument": "bass", "notes": [{ "t": 0, "n": "D2", "d": 1.5 }, { "t": 4, "n": "G2", "d": 1.5 }], "loop": 8, "from": 4 },
+      { "instrument": "bell", "notes": [{ "t": 0, "n": "A5" }, { "t": 1.5, "n": "F5" }, { "t": 3, "n": "D6", "d": 2 }], "loop": 8, "from": 8 },
+      { "drum": "kick", "steps": "x.....x...x.....", "from": 4 },
+      { "drum": "snare", "steps": "....x.......x...", "from": 4, "reverb": 0.3 },
+      { "drum": "hat", "steps": "x.x.x.x.x.x.x.xx", "from": 8, "gain": -6 }
+    ] }
+  ```
+
+  Instruments: `pad, strings, piano, keys, pluck, guitar, bell, marimba, bass, sub, 808,
+  lead, synth, arp, brass, organ, choir, flute` — shape any of them: `wave` (sine, saw,
+  square, triangle, fm, noise, string, piano, organ), `attack, decay, sustain, release`,
+  `cutoff, resonance, detune, vibrato, octave, reverb, gain, pan`. Drums: `kick, snare,
+  clap, hat, openhat, rim, tom, shaker, crash, ride, snap, cowbell, conga, perc` with `hits`
+  (beats) or `steps` (16ths, `x` hit, `X` accent, `.` rest), `tune`, `decay`. `loop`
+  repeats a part, `from`/`to` (beats) bring it in and out, `sidechain` (default on) ducks
+  the chords under the kick.
+- Ready-made patterns too (`source: "procedural"`): `warm-lofi, upbeat, cinematic,
+  minimal, corporate` (+ `tempo`, `key` like `Am`) — the same few beds for everyone; compose
+  when the video deserves its own sound.
+- SFX kinds: `whoosh, pop, click, riser, impact, swoosh, tick, ding, typing` — each can be
+  `tune`d (semitones) and stretched (`length`), and a composed part can be an effect too (a
+  single `bell` hit, a `crash`, an `808` drop). Put one on an important entrance or a cut,
+  not on everything.
 - Levels: music about −18 dB, effects −12, voice −6. `duck` lowers music under a voice.
 - The mix is limited to −1 dBTP and normalised to −14 LUFS automatically.
 - Voice-over only with `motion_tts`, and only if it works (a voice provider is set). If
-  it doesn't, don't promise one: use captions, music and effects.
+  it doesn't, don't promise one: use captions.
+
+## 3D — `scene3d` layers
+
+A `scene3d` layer is a 3D scene (three.js) drawn into the layer's box — by default the
+whole frame, transparent, so 2D layers can sit behind and in front of it (titles in 2D
+over a 3D background, captions on top). Arabic 3D text is shaped properly (joined, RTL).
+
+```jsonc
+{ "id": "hero", "type": "scene3d", "start": 0, "end": 8,
+  "scene3d": {
+    "recipe": "logoReveal", "params": { "text": "رفيق", "material": "chrome", "mood": "night" },
+    // anything below is optional and goes on top of the recipe
+    "camera": { "position": [0, 0.4, 7.5], "fov": 32, "move": { "type": "orbit", "amount": 30 } },
+    "objects": [ { "id": "ring", "kind": "torus", "radius": 2.4, "thickness": 0.03, "material": "glow",
+                   "color": "brand.accent", "animate": [{ "preset": "turntable", "at": 0, "amount": 40, "axis": "z" }] } ],
+    "post": { "bloom": 0.6, "vignette": 0.3 }
+  } }
+```
+
+**Recipes** (a complete look from a few params): `logoReveal` (text | svg | icon,
+material, mood, color) · `particleText` (text, from, colors, count) · `kineticType3D`
+(lines, style stack|tunnel|wave, material) · `galaxy` (arms, colors, count, spin) ·
+`solarSystem` (planets: [{color, radius, orbit, speed}], sun) · `globeArcs` (points
+[[lat, lon]…], hub, style dots|wire|solid, color, spin) · `voxelCity` (size, palette) ·
+`chromeBlob` (noise, speed, colors, material) · `productSpin` (asset = a .glb, or shape,
+material, turns, pedestal) · `cardStack` (images [asset…], layout fan|stack|carousel) ·
+`bars3D` (data {values, labels}, material, color) · `physicsDrop` (of, count, colors).
+Moods: `night, studio, sunset, dawn, city`. Or skip the recipe and build `objects` yourself.
+
+**Units.** World units, y up; the camera sits about 7 from the origin looking at it; a
+title is about 1 tall; rotations in degrees. Times (`at`, key `t`) are scene seconds,
+inside the layer.
+
+**Objects** (`kind`): `box` (width/height/depth, radius = rounded corners), `sphere`,
+`cylinder`, `cone`, `torus`, `torusKnot`, `capsule`, `plane`, `ring` (thin circle),
+`icosahedron` · `text3d` (text, size, depth, bevel, font display|body|latin, split
+words|letters for staggered parts, fit) · `extrude` (svg path data, or a one-colour
+icon) · `model` (asset: an uploaded .glb; size, animation) · `image` (asset, height,
+cornerRadius) · `particles` (count, shape sphere|shell|disc|ring|cube|galaxy|grid|wave|
+helix|text|image, `to` another shape + `morph` keys 0→1, toText, colors, size, drift,
+glow) · `instances` (of box|sphere|…, layout grid|wall|ring|spiral|helix|random|city|line,
+rows, cols, count, gap, colors) · `tube` (points, radius; draws with `trim`) · `globe`
+(radius, style, arcs [{from:[lat,lon], to, at}], markers, atmosphere) · `blob` (noise,
+speed) · `ground` (catches shadows; `color` makes it a floor) · `group` (children).
+Every object: `position`, `rotation`, `scale`, `material`, `color`, `opacity`, `shadow`,
+`pivot: "bottom"` (grows up from its base), `animate`, `keyframes`.
+
+**Materials:** `chrome, gold, metal, glass, frosted, plastic, clay, rubber, matte, neon,
+holographic, toon, wire, glow` — or an object `{ preset, color, metalness, roughness,
+transmission, clearcoat, iridescence, emissive, emissiveIntensity, opacity }`.
+
+**Pictures on surfaces (textures).** Bring the picture in first — `motion_fetch_image`
+with the image's own link (a planet's equirectangular map, a label, a logo), or
+`motion_stock` — then name its asset: `"texture": "earth"` on a `sphere` or a `globe`
+(`style: "texture"`) wraps it around; on a box or plane it covers the face. More maps in
+the material object: `bumpMap` (+ `bumpScale`), `normalMap`, `roughnessMap`, `emissiveMap`
+(what glows by itself — a planet's night lights). Planet rings: a `ring` with `radius`,
+`width` and a `texture` running from the inner edge out (transparent PNG keeps the gaps).
+
+```jsonc
+{ "id": "earth", "kind": "sphere", "radius": 1.6, "texture": "earth",
+  "material": { "bumpMap": "earthBump", "emissiveMap": "earthNight", "emissiveIntensity": 0.8 },
+  "rotation": [0, 0, 23.4], "animate": [{ "preset": "turntable", "at": 0, "amount": 12 }] },
+{ "id": "rings", "kind": "ring", "radius": 2.3, "width": 1.8, "texture": "saturnRings", "rotation": [26, 0, 0] }
+```
+
+**Motion.** `animate` presets: `rise, drop, pop, spinIn, flip, slideIn, zoomIn, fadeIn,
+fadeOut, float, turntable, orbit, pulse, grow, assemble, scatter, draw` (+ `duration`,
+`ease` incl. `bounce`, `amount`, `axis`, `stagger` — on the parts: words or letters,
+instances, a group's children). `keyframes`: `position | rotation | scale` (an [x,y,z]
+or one axis: `rotation.y`), `opacity, color, glow, morph, trim`.
+
+**Camera:** `position`, `target`, `fov`, `move` {type orbit|dolly|push|crane|handheld,
+amount, ease, at, duration}, or `keyframes` {position, target, fov}. **Lights:** `key,
+fill, rim, ambient, point, spot, hemisphere` (color, intensity, position, shadow) — none
+given = a key, a rim in brand.primary, a fill and ambient. **environment:** `studio, city,
+sunset, night, dawn, none` (reflections; chrome and glass need one). **fog**, **background**
+(a paint behind the 3D, inside the layer's box), **exposure**, **post** {bloom 0–3,
+vignette, grain}.
+
+Limits: 100k particles a scene, 10k instances an object. 3D can't go to Lottie (MP4 only).
+Look at it with `motion_render_frames` — a 3D scene's mistakes (too dark, cut off, the
+camera inside something) only show in the picture.
 
 ## 7. Checks and fixes
 
@@ -172,10 +290,10 @@ Export refuses M002/M003/M004 unless the user says to go ahead.
 
 **Reel 9:16, 8–15 s.** Hook in the first second (display word, `pop`), 3–4 beats of
 2–3 s, one idea each, captions or short lines, end card with the call to action in
-`primary`, logo small at `bottom`. Music + 2–3 effects.
+`primary`, logo small at `bottom`. (Music + 2–3 effects if the user wants sound.)
 
 **Logo intro, 3–5 s.** Shape `drawOn` → logo `scaleIn` (`spring`) → name `fadeUp`
-`below` it → hold → fade out. One `riser` into an `impact` on the logo.
+`below` it → hold → fade out. (With sound: one `riser` into an `impact` on the logo.)
 
 **Explainer 16:9, 20–40 s.** Title beat, then three points: each point is a `headline`
 with an `icon` `beside` it and a `body` `below`, `lineReveal`; numbers as `countUp`.
@@ -194,5 +312,5 @@ for a light grade (`contrast: 1.08, saturation: 1.1, warmth: 0.15`).
 ## 9. A complete example (passes every check)
 
 See `examples/reel.json` — a 9:16 reel with a hook, a counting number, an icon row, an
-end card, music and two effects. `examples/intro.json` is a 4 s logo intro;
+end card, music and two effects (this one was asked for sound). `examples/intro.json` is a 4 s logo intro;
 `examples/chart.json` an animated bar chart.

@@ -15,6 +15,7 @@ the same surface as `LlmProvider`: `model`, `stream_chat`, `complete`, `aclose`.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -22,9 +23,11 @@ import httpx
 
 from rafiq_agent.auth.chatgpt import MANAGE_USAGE_URL, RESOURCE
 from rafiq_agent.i18n import tr
+from rafiq_agent.llm import plan_usage
 from rafiq_agent.llm.base import StreamEvent, ToolCallDelta
 
 RESPONSES_URL = f"{RESOURCE}/responses"
+log = logging.getLogger(__name__)
 
 
 class ChatGPTError(Exception):
@@ -36,12 +39,32 @@ class ChatGPTError(Exception):
         self.code = code
 
 
+def _fields(data: Any) -> tuple[str | None, str]:
+    """An error's code and message wherever the event keeps them: at its top, under
+    `error`, or under `response.error` (the stream nests them differently by event)."""
+    places = [data]
+    if isinstance(data, dict):
+        places += [data.get("error"), (data.get("response") or {}).get("error") if isinstance(data.get("response"), dict) else None]
+    code: str | None = None
+    message = ""
+    for place in places:
+        if not isinstance(place, dict):
+            continue
+        code = code or (place.get("code") if isinstance(place.get("code"), str) else None) or (place.get("type") if place.get("type") not in (None, "error", "response.failed") else None)
+        message = message or (place.get("message") if isinstance(place.get("message"), str) else "")
+    return code, message
+
+
+_LIMIT_WORDS = ("usage limit", "usage_limit", "rate limit", "rate_limit", "quota", "limit exceeded", "too many requests")
+
+
 def _error(code: str | None, status: int | None, detail: str = "") -> ChatGPTError:
     """OpenAI's plan-usage error codes, as the docs ask each one to be handled."""
-    if code == "subscription_sharing_usage_limit_exceeded" or status == 429:
+    said = f"{code or ''} {detail}".lower()
+    if code == "subscription_sharing_usage_limit_exceeded" or status == 429 or any(w in said for w in _LIMIT_WORDS):
         return ChatGPTError(
             tr(
-                "وصلت لحد استخدام خطة ChatGPT تبعك لهالفترة. بتقدر تشوفه وتعدّله من إعدادات ChatGPT ← الاستخدام."
+                "OpenAI وقّفت طلبات رفيق على خطة ChatGPT لهلق (حد الخطة أو الحد اللي حاطّه لرفيق). التفاصيل بإعدادات ChatGPT ← الاستخدام."
             ),
             "chatgpt_usage_limit",
             code,
@@ -69,7 +92,10 @@ def _error(code: str | None, status: int | None, detail: str = "") -> ChatGPTErr
         return ChatGPTError(
             tr("ChatGPT رفض الطلب: {0}", detail or code or "403"), "chatgpt_not_eligible", code
         )
-    return ChatGPTError(tr("ChatGPT رجّع خطأ: {0}", detail or code or status), None, code)
+    reason = detail or code or (f"HTTP {status}" if status else "")
+    if not reason:
+        return ChatGPTError(tr("ChatGPT وقّف الرد بدون ما يقول السبب — جرّب مرة تانية، أو كمّل بموديل تاني."), "cant_reach", code)
+    return ChatGPTError(tr("ChatGPT رجّع خطأ: {0}", reason), None, code)
 
 
 # ── Chat Completions → Responses ──────────────────────────────────────────────────────
@@ -193,6 +219,12 @@ class ChatGPTProvider:
     def __repr__(self) -> str:
         return f"ChatGPTProvider(model={self._model_id!r}, account_id={self._account_id!r})"
 
+    def _noted(self, error: ChatGPTError) -> ChatGPTError:
+        """A limit error is remembered for the account (the usage ring shows it)."""
+        if error.kind == "chatgpt_usage_limit":
+            plan_usage.limit_hit(self._account_id)
+        return error
+
     def _body(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None) -> dict[str, Any]:
         instructions, items = to_responses(messages)
         body: dict[str, Any] = {
@@ -267,7 +299,9 @@ class ChatGPTProvider:
                             body.pop("tool_choice", None)
                             body.pop("parallel_tool_calls", None)
                         continue
-                    raise _error(code, resp.status_code, str(detail)[:300])
+                    plan_usage.observe(self._account_id, dict(resp.headers))
+                    raise self._noted(_error(code, resp.status_code, str(detail)[:300]))
+                plan_usage.observe(self._account_id, dict(resp.headers))
                 kind = ""
                 async for line in resp.aiter_lines():
                     if line.startswith("event:"):
@@ -315,17 +349,20 @@ class ChatGPTProvider:
             elif kind == "response.completed":
                 finished = True
                 usage.record(self.model, _usage(data))
+                spent = _usage(data) or {}
+                plan_usage.record(self._account_id, spent.get("prompt_tokens", 0), spent.get("completion_tokens", 0))
+                plan_usage.ok(self._account_id)
             elif kind == "response.incomplete":
                 finished = True
                 truncated = (
                     ((data.get("response") or {}).get("incomplete_details") or {}).get("reason")
                 ) == "max_output_tokens"
                 usage.record(self.model, _usage(data))
-            elif kind == "response.failed":
-                error = ((data.get("response") or {}).get("error")) or {}
-                raise _error(error.get("code"), None, error.get("message") or "")
-            elif kind == "error":
-                raise _error(data.get("code"), None, data.get("message") or "")
+            elif kind in ("response.failed", "error"):
+                code, message = _fields(data)
+                if not code and not message:
+                    log.warning("ChatGPT stream error without a code: %s", json.dumps(data)[:400])
+                raise self._noted(_error(code, None, message))
         if not finished:
             # The stream ended without its terminal event: not a complete answer.
             raise ChatGPTError(tr("انقطع رد ChatGPT قبل ما يخلص — جرّب مرة تانية."), "cant_reach")

@@ -10,6 +10,7 @@
 
 import { t } from "../../../i18n";
 import type { Issue } from "./lint";
+import { ScoreTrack } from "./score";
 import type { AudioTrack, Layer, Scene } from "./types";
 
 export const SAMPLE_RATE = 48000;
@@ -177,6 +178,18 @@ const SFX: Record<string, (r: () => number) => Float32Array> = {
     return out;
   },
 };
+
+/** `sig` played `rate` times as fast (higher and shorter above 1), linear interpolation. */
+function resample(sig: Float32Array, rate: number): Float32Array {
+  const out = new Float32Array(Math.max(1, Math.floor(sig.length / rate)));
+  for (let i = 0; i < out.length; i++) {
+    const x = i * rate;
+    const j = Math.floor(x);
+    const f = x - j;
+    out[i] = (sig[j] ?? 0) * (1 - f) + (sig[j + 1] ?? 0) * f;
+  }
+  return out;
+}
 
 function sweep(dur: number, base: number, span: number, r: () => number): Float32Array {
   const n = Math.round(dur * SAMPLE_RATE);
@@ -714,6 +727,7 @@ export class MixStream {
   readonly length: number;
   private readers = new Map<string, AudioReader | null>();
   private music = new Map<string, MusicTrack>();
+  private scores = new Map<string, ScoreTrack>();
   private sfx = new Map<string, Float32Array>();
   private follow = new Map<string, number>();
   private gain = 1;
@@ -745,6 +759,9 @@ export class MixStream {
       if (!sig) {
         sig = SFX[track.kind]?.(rng(`sfx:${track.id}`));
         if (!sig) return null;
+        // the same effect, higher or lower and shorter or longer: resampled
+        const rate = 2 ** ((track.tune ?? 0) / 12) / Math.max(0.25, Math.min(4, track.length ?? 1));
+        if (Math.abs(rate - 1) > 1e-3) sig = resample(sig, rate);
         this.sfx.set(track.id, sig);
       }
       if (at + sig.length <= i0 || at >= i0 + n) return null;
@@ -764,6 +781,13 @@ export class MixStream {
       src = m.window(from - at, to - from);
       length = Math.min(this.length, Math.round(((track.end ?? duration) - (track.at ?? 0)) * SAMPLE_RATE));
       fadeOut = track.fadeOut ?? 1.2;
+    } else if (track.source === "compose") {
+      const seconds = Math.min(this.length, Math.round(((track.end ?? duration) - (track.at ?? 0)) * SAMPLE_RATE)) / SAMPLE_RATE;
+      let score = this.scores.get(track.id);
+      if (!score) this.scores.set(track.id, (score = new ScoreTrack(track, seconds)));
+      src = score.window(from - at, to - from);
+      length = Math.round(seconds * SAMPLE_RATE);
+      fadeOut = track.fadeOut ?? 0.8;
     } else if ((track.source === "asset" || track.source === "tts") && track.asset) {
       const reader = await this.reader(track.asset);
       if (!reader) return null;
@@ -883,7 +907,7 @@ export class MixStream {
     const tracks = this.input.scene.audio ?? [];
     // A003: loud music under a voice with no duck
     const voices = tracks.filter((tr) => tr.source === "tts" || (tr.source === "asset" && /^vo|voice/i.test(tr.id)));
-    for (const music of tracks.filter((tr) => tr.source === "procedural" || /music/i.test(tr.id))) {
+    for (const music of tracks.filter((tr) => tr.source === "procedural" || tr.source === "compose" || /music/i.test(tr.id))) {
       for (const voice of voices) {
         if (voice.duck === music.id) continue;
         if ((music.gain ?? 0) > (voice.gain ?? 0) - 10) {

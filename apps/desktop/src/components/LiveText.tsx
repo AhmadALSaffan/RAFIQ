@@ -70,25 +70,3 @@ export function TextSwap({ text, id, children, className }: { text: string; id?:
     </motion.span>
   );
 }
-
-/** Eight rays turning, the brightest one leading. */
-export function RaySpinner({ size = 14, className }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className={`ray-spinner ${className ?? ""}`} aria-hidden>
-      {Array.from({ length: 8 }, (_, i) => (
-        <line
-          key={i}
-          x1="12"
-          y1="3"
-          x2="12"
-          y2="7.5"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          transform={`rotate(${i * 45} 12 12)`}
-          style={{ opacity: 0.18 + (i / 7) * 0.82 }}
-        />
-      ))}
-    </svg>
-  );
-}

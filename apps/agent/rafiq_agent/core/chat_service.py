@@ -497,6 +497,10 @@ class ChatTurn:
             self.native_tools = native_tools(model.provider, model.model_id)
             self.design_mode = chat.mode == "design"
             self.motion_mode = chat.mode == "motion"
+            # A strong model directs a motion video its own way; a weaker one gets the guides.
+            from rafiq_agent.motion.tiers import guided
+
+            self.motion_guided = guided(model.provider, model.model_id)
 
     async def _fold(self) -> None:
         """Fold the older turns into the chat's summary, if this turn owes one. A failed
@@ -559,9 +563,9 @@ class ChatTurn:
 
     def _system_prompt(self) -> str:
         if getattr(self, "motion_mode", False):
-            from rafiq_agent.core.motion import MOTION_SYSTEM_PROMPT
+            from rafiq_agent.core.motion import system_prompt
 
-            system = MOTION_SYSTEM_PROMPT
+            system = system_prompt(getattr(self, "motion_guided", True))
         else:
             system = DESIGN_SYSTEM_PROMPT if self.design_mode else CHAT_SYSTEM_PROMPT
             if self.design_mode:
@@ -687,11 +691,12 @@ class ChatTurn:
         async def changed(number: int) -> None:
             self._emit({"type": "motion_changed", "project_id": project_id, "version": number})
 
-        for tool in motion_tools(project_id, changed, getattr(self.llm, "model", None)):
+        guided = getattr(self, "motion_guided", True)
+        for tool in motion_tools(project_id, changed, getattr(self.llm, "model", None), guided=guided):
             registry.register(tool)
         # The motion skill comes with the prompt, so a turn starts working instead of reading
         # files — and a «continue» doesn't read them all again.
-        notes = [motion_service.skill_note(), note]
+        notes = [motion_service.skill_note(guided), note]
         if "web_fetch" in registry.names() or "web_search" in registry.names():
             notes.append(WEB_NOTE)
         return registry, system + "".join(f"\n\n{n}" for n in notes)

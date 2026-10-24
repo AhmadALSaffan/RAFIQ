@@ -79,6 +79,26 @@ async def test_plan_errors_are_explained():
         [e async for e in provider.stream_chat([{"role": "user", "content": "hi"}], [])]
 
 
+async def test_a_limit_inside_the_stream_is_read_wherever_it_is_and_never_says_none():
+    events = [
+        {"type": "error", "error": {"code": "subscription_sharing_usage_limit_exceeded", "message": "You've hit your usage limit."}},
+        {"type": "response.failed", "response": {"error": {"code": "subscription_sharing_usage_limit_exceeded"}}},
+        {"type": "error", "error": {"type": "usage_limit_reached", "message": "The usage limit has been reached"}},
+        {"type": "error"},
+    ]
+    kinds = []
+    for event in events:
+        def stream(_request: httpx.Request, event=event) -> httpx.Response:
+            return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=_sse(event))
+
+        provider = ChatGPTProvider("acc", "tok", "gpt-5.5", transport=httpx.MockTransport(stream))
+        with pytest.raises(ChatGPTError) as err:
+            [e async for e in provider.stream_chat([{"role": "user", "content": "hi"}], [])]
+        assert "None" not in str(err.value)
+        kinds.append(err.value.kind)
+    assert kinds == ["chatgpt_usage_limit", "chatgpt_usage_limit", "chatgpt_usage_limit", "cant_reach"]
+
+
 async def _get(url: str) -> int:
     async with httpx.AsyncClient() as http:
         return (await http.get(url)).status_code
@@ -187,3 +207,28 @@ async def test_a_chatgpt_account_lists_its_models_and_saves_an_agent(monkeypatch
 
         refused = await client.post("/models", headers=headers, json={**body, "model_id": "internal-only"})
         assert refused.status_code == 400 and isinstance(refused.json()["detail"], str)
+
+
+def test_plan_usage_keeps_only_what_it_sees(tmp_path, monkeypatch):
+    from rafiq_agent.llm import plan_usage
+
+    monkeypatch.setattr(plan_usage, "DATA_DIR", tmp_path)
+    # nothing seen yet: no figure invented
+    assert plan_usage.summary("acc")["used_percent"] is None
+    # the codex header family
+    windows = plan_usage.windows_from({"X-Codex-Primary-Used-Percent": "37.5", "x-codex-primary-window-minutes": "300", "x-codex-primary-reset-after-seconds": "1200"})
+    assert windows == [{"name": "primary", "used_percent": 37.5, "window_minutes": 300.0, "resets_in_seconds": 1200.0}]
+    # the usual rate-limit pair
+    pair = plan_usage.windows_from({"x-ratelimit-limit-requests": "100", "x-ratelimit-remaining-requests": "25", "x-ratelimit-reset-requests": "1m30s"})
+    assert pair[0]["used_percent"] == 75 and pair[0]["resets_in_seconds"] == 90
+    assert plan_usage.windows_from({"content-type": "text/event-stream"}) == []
+
+    plan_usage.observe("acc", {"x-codex-primary-used-percent": "62"})
+    plan_usage.record("acc", 1000, 200)
+    plan_usage.record("acc", 10, 5)
+    s = plan_usage.summary("acc")
+    assert s["used_percent"] == 62 and s["today"] == {"requests": 2, "tokens": 1215} and s["week"]["requests"] == 2
+    plan_usage.limit_hit("acc")
+    assert plan_usage.summary("acc")["limited"] is True
+    plan_usage.ok("acc")
+    assert plan_usage.summary("acc")["limited"] is False

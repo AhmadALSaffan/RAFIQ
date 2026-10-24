@@ -80,8 +80,9 @@ class MotionPatchSceneTool(_ProjectTool):
             project = await self._project(session)
             if not project:
                 return ToolResult(ok=False, output="project not found")
+            moved: list[str] = []
             try:
-                scene, version = await service.change(session, project, patch or [], "model", str(args.get("summary") or ""))
+                scene, version = await service.change(session, project, patch or [], "model", str(args.get("summary") or ""), moved)
             except service.MotionChangeError as exc:
                 detail = "\n".join(f"{e['path']}: {e['message']}" for e in exc.errors)
                 return ToolResult(ok=False, output=f"nothing changed — {exc}\n{detail}".strip())
@@ -91,7 +92,12 @@ class MotionPatchSceneTool(_ProjectTool):
         if self.on_change:
             await self.on_change(version.number)
         engine = "" if result["engine"] else " (structural checks only — the app window isn't open)"
-        return ToolResult(ok=True, output=f"v{version.number} saved.\ncheck{engine}:\n{service.format_issues(result['issues'])}")
+        fitted = (
+            "\nkept inside the video (nothing may sit past a layer's end or the video's duration):\n- " + "\n- ".join(moved[:12])
+            if moved
+            else ""
+        )
+        return ToolResult(ok=True, output=f"v{version.number} saved.{fitted}\ncheck{engine}:\n{service.format_issues(result['issues'])}")
 
 
 class MotionLintTool(_ProjectTool):
@@ -136,6 +142,11 @@ class MotionInspectTool(_ProjectTool):
 
 
 class MotionReviewTool(_ProjectTool):
+    def __init__(self, project_id: str, guided: bool = True) -> None:
+        super().__init__(project_id)
+        # A strong model gets the measurements alone and decides; a weaker one the method too.
+        self.guided = guided
+
     name = "motion_review"
     category = "read_only"
     description = (
@@ -156,7 +167,8 @@ class MotionReviewTool(_ProjectTool):
             report = await service.review(scene, kit)
         except (bridge.EngineUnavailable, bridge.EngineError) as exc:
             return ToolResult(ok=False, output=f"can't measure the shots now ({exc}) — the app window has to be open")
-        return ToolResult(ok=True, output=_clip(f"{report}\n\n{service.review_guide()}"))
+        guide = f"\n\n{service.review_guide()}" if self.guided else ""
+        return ToolResult(ok=True, output=_clip(f"{report}{guide}"))
 
 
 class MotionRenderFramesTool(_ProjectTool):
@@ -263,7 +275,7 @@ class MotionAnalyzeVideoTool(_ProjectTool):
         return ToolResult(ok=True, output=json.dumps(result, ensure_ascii=False, indent=1)[:MAX_OUTPUT], images=images)
 
 
-def motion_tools(project_id: str, on_change: Any = None, chat_model: str | None = None) -> list[Tool]:
+def motion_tools(project_id: str, on_change: Any = None, chat_model: str | None = None, *, guided: bool = True) -> list[Tool]:
     from rafiq_agent.tools.motion_media import media_tools
 
     return [
@@ -271,7 +283,7 @@ def motion_tools(project_id: str, on_change: Any = None, chat_model: str | None 
         MotionPatchSceneTool(project_id, on_change),
         MotionLintTool(project_id),
         MotionInspectTool(project_id),
-        MotionReviewTool(project_id),
+        MotionReviewTool(project_id, guided),
         MotionRenderFramesTool(project_id, chat_model),
         MotionRenderTool(project_id),
         MotionAnalyzeVideoTool(project_id),

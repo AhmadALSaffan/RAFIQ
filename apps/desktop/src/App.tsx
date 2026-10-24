@@ -17,6 +17,7 @@ import LiteNote from "./features/notes/LiteNote";
 import { DesignsPage } from "./routes/DesignsPage";
 import { DesignWorkspace } from "./routes/DesignWorkspace";
 import { MotionPage } from "./routes/MotionPage";
+import { CreativePage } from "./routes/CreativePage";
 import { MotionWorkspace } from "./routes/MotionWorkspace";
 import { TasksPage } from "./features/tasks/TasksPage";
 import { TaskDetailPage } from "./features/tasks/TaskDetailPage";
@@ -50,6 +51,7 @@ export function App() {
             <Route path="/tasks/:id" element={<TaskDetailPage />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/work" element={<WorkPage />} />
+            <Route path="/create" element={<CreativePage />} />
             <Route path="/notes" element={<NotesPage />} />
             <Route path="/designs" element={<DesignsPage />} />
             <Route path="/designs/:id" element={<DesignWorkspace />} />

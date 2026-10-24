@@ -167,6 +167,7 @@ function intrinsic(layer: Layer, p: Prepared, container: Box, measure: Measure):
     case "video":
     case "image":
     case "lottie":
+    case "scene3d":
     case "group":
       // Pictures fill the frame unless told otherwise.
       return L.width === undefined && L.height === undefined
@@ -272,7 +273,7 @@ export function prepare(scene: Scene, kit: BrandKit = DEFAULT_KIT, measure: Meas
         y = r.y + (r.h - h) / 2;
       }
     } else {
-      const fill = (layer.type === "video" || layer.type === "image" || layer.type === "lottie" || layer.type === "group") && L.width === undefined && L.height === undefined;
+      const fill = (layer.type === "video" || layer.type === "image" || layer.type === "lottie" || layer.type === "scene3d" || layer.type === "group") && L.width === undefined && L.height === undefined;
       const at = fill ? { x: 0, y: 0 } : anchorAt(L.anchor ?? "center", w, h, container, rtl);
       x = at.x;
       y = at.y;

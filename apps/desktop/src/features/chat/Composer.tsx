@@ -20,6 +20,8 @@ import { ChevronDownIcon, ModelsIcon, PaperclipIcon, StopIcon } from "../../comp
 import { CommandMenu, FileMenu, IssueMenu, readTrigger, replaceTrigger, type CommandDef, type ChatMode } from "../../components/ComposerMenus";
 import { EffortPicker, type Effort } from "../../components/EffortPicker";
 import { MicButton } from "./MicButton";
+import { launchOrb } from "../../components/Orb";
+import { PlanUsageRing } from "./PlanUsage";
 
 import { t } from "../../i18n";
 export function Composer({
@@ -82,7 +84,11 @@ export function Composer({
   const ref = useRef<HTMLTextAreaElement>(null);
   const mirror = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const sendButton = useRef<HTMLButtonElement>(null);
   const menuKeys = useRef<((e: React.KeyboardEvent) => boolean) | null>(null);
+  // a ChatGPT plan: its usage ring sits beside the model
+  const current = models.find((m) => m.id === modelId);
+  const planAccount = current?.provider === "chatgpt" ? current.account_id : null;
   const canSend = (text.trim().length > 0 || uploads.ready.length > 0) && !uploads.busy && !streaming && !disabled;
 
   const trigger = readTrigger(text, caret);
@@ -143,6 +149,8 @@ export function Composer({
 
   function submit() {
     if (!canSend) return;
+    // In motion, the working orb rises out of the send button.
+    if (mode === "motion") launchOrb(sendButton.current);
     // The isolate characters are a display concern — the model never sees them.
     onSend(stripBidi(text));
     setText("");
@@ -282,6 +290,7 @@ export function Composer({
               effort={effort}
               onEffort={onEffort}
             />
+            {planAccount && <PlanUsageRing accountId={planAccount} refreshKey={streaming} />}
           </div>
           <AnimatePresence mode="wait" initial={false}>
             {streaming ? (
@@ -308,6 +317,7 @@ export function Composer({
                 exit={{ scale: 0.6, opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
                 whileTap={{ scale: 0.88, y: -2 }}
+                ref={sendButton}
                 onClick={submit}
                 disabled={!canSend}
                 aria-label={t("إرسال")}

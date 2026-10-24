@@ -7,6 +7,7 @@ reference and a display label, and no response here ever includes a credential.
 import asyncio
 import inspect
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -153,6 +154,18 @@ async def _poll(flow_id: str, now: bool, session: AsyncSession) -> ConnectPollOu
     return ConnectPollOut(
         status="complete", account=await _to_out(session, account), message=outcome.message, kind=outcome.kind
     )
+
+
+@router.get("/{account_id}/plan-usage")
+async def plan_usage(account_id: str, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+    """What Rafiq knows about a ChatGPT plan's usage: the figure OpenAI reports in its
+    responses (when it does), Rafiq's own requests and tokens, and a recent limit."""
+    from rafiq_agent.llm import plan_usage as usage
+
+    account = await session.get(AuthAccount, account_id)
+    if not account or account.provider != "chatgpt":
+        raise HTTPException(status_code=404, detail="account not found")
+    return usage.summary(account_id)
 
 
 @router.delete("/{account_id}", status_code=204)

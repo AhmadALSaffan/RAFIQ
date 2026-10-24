@@ -86,7 +86,10 @@ export function tracksFromScene(scene: Scene): MotionTrack[] {
             ...(layer.animate ?? []).map((a) => round(a.at)),
             ...Object.values(layer.keyframes ?? {}).flatMap((keys) => (keys ?? []).map((k) => round(k.t))),
           ]),
-        ].filter((x) => x >= layer.start && x <= layer.end),
+        ]
+          .filter((x) => x >= layer.start && x <= layer.end)
+          // The timeline reads them from the clip's start (they travel with it on a drag).
+          .map((x) => round(x - layer.start)),
       });
       if (layer.children?.length) walk(layer.children, depth + 1);
     }
@@ -97,8 +100,8 @@ export function tracksFromScene(scene: Scene): MotionTrack[] {
     const start = track.at ?? 0;
     const end = track.end ?? (track.source === "sfx" ? Math.min(d, start + 0.6) : d);
     const beats: number[] = [];
-    if (track.source === "procedural") {
-      const beat = 60 / (track.tempo ?? 96);
+    if (track.source === "procedural" || track.source === "compose") {
+      const beat = 60 / (track.tempo ?? (track.source === "compose" ? 100 : 96));
       for (let x = start; x < end; x += beat * 4) beats.push(round(x));
     }
     rows.push({
@@ -139,11 +142,15 @@ export function clipPatch(scene: Scene, trackId: string, start: number, end: num
   if (moved && layer.animate?.length) {
     ops.push({ op: "replace", path: `${path}/animate`, value: layer.animate.map((a) => ({ ...a, at: round(a.at + shift) })) });
   }
+  if (moved && layer.keyframes && Object.keys(layer.keyframes).length) {
+    const keyframes = Object.fromEntries(Object.entries(layer.keyframes).map(([prop, keys]) => [prop, (keys ?? []).map((k) => ({ ...k, t: round(k.t + shift) }))]));
+    ops.push({ op: "replace", path: `${path}/keyframes`, value: keyframes });
+  }
   return { ops, summary: moved ? t("حرّكت {id} لـ {s} ث", { id: trackId, s }) : t("غيّرت مدة {id} ({s}–{e} ث)", { id: trackId, s, e }) };
 }
 
 /** A new layer from the add menu, placed in the middle of the scene's current moment. */
-export function newLayer(scene: Scene, kind: "text" | "shape" | "icon" | "image" | "video" | "chart" | "captions", at: number, extra: Partial<Layer> = {}): Layer {
+export function newLayer(scene: Scene, kind: "text" | "shape" | "icon" | "image" | "video" | "chart" | "captions" | "scene3d", at: number, extra: Partial<Layer> = {}): Layer {
   const d = scene.composition.duration;
   const start = round(Math.min(Math.max(0, at), Math.max(0, d - 1)));
   const end = round(Math.min(d, start + 3));
@@ -157,6 +164,9 @@ export function newLayer(scene: Scene, kind: "text" | "shape" | "icon" | "image"
       return { ...base, type: "icon", icon: "tabler:sparkles", color: "brand.primary", layout: { anchor: "center", width: 16, height: 16 }, animate: [{ preset: "pop", at: start }], ...extra };
     case "chart":
       return { ...base, type: "chart", chart: "bar", color: "brand.primary", data: { labels: ["A", "B", "C"], values: [3, 5, 8] }, layout: { anchor: "center", width: 80, height: 48 }, ...extra };
+    case "scene3d":
+      // a 3D look fills the frame from here to the end (up to 8 s)
+      return { ...base, end: round(Math.min(d, start + 8)), type: "scene3d", scene3d: { recipe: "logoReveal", params: { text: t("رفيق") } }, ...extra };
     case "captions":
       return { ...base, start: 0, end: d, type: "captions", style: "title", captionStyle: "pop", maxWords: 4, layout: { anchor: "bottom", y: -24 }, ...extra };
     default:

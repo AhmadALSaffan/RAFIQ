@@ -213,7 +213,8 @@
             "svg",
             "video",
             "audio",
-            "lottie"
+            "lottie",
+            "model"
           ]
         },
         "src": {
@@ -425,7 +426,8 @@
             "lottie",
             "chart",
             "captions",
-            "group"
+            "group",
+            "scene3d"
           ]
         },
         "name": {
@@ -876,6 +878,9 @@
           "minimum": 12,
           "maximum": 600,
           "description": "An exact size for this text, px on a 1080 short side, over its style's (a hero word at 260, say)."
+        },
+        "scene3d": {
+          "$ref": "#/$defs/scene3d"
         }
       },
       "unevaluatedProperties": false
@@ -896,7 +901,8 @@
             "procedural",
             "sfx",
             "asset",
-            "tts"
+            "tts",
+            "compose"
           ]
         },
         "pattern": {
@@ -905,8 +911,8 @@
         },
         "tempo": {
           "type": "number",
-          "minimum": 60,
-          "maximum": 180
+          "minimum": 40,
+          "maximum": 220
         },
         "key": {
           "type": "string",
@@ -973,6 +979,42 @@
         },
         "loop": {
           "type": "boolean"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scorePart"
+          },
+          "maxItems": 24,
+          "description": "compose: the score."
+        },
+        "reverb": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "compose: room size."
+        },
+        "sidechain": {
+          "type": "boolean",
+          "description": "compose: pads and chords duck under the kick (default true)."
+        },
+        "swing": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.5,
+          "description": "compose: off-beat 8ths pushed late."
+        },
+        "tune": {
+          "type": "number",
+          "minimum": -24,
+          "maximum": 24,
+          "description": "sfx: semitones up or down."
+        },
+        "length": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 4,
+          "description": "sfx: length factor (2 = twice as long and lower)."
         }
       }
     },
@@ -1059,6 +1101,1121 @@
           "type": "number",
           "minimum": 0,
           "maximum": 1
+        }
+      }
+    },
+    "vec3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "key3": {
+      "type": "object",
+      "required": [
+        "t",
+        "v"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "t": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Scene seconds, like every key."
+        },
+        "v": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/vec3"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "A number, an [x, y, z], or a colour."
+        },
+        "ease": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ease"
+            },
+            {
+              "const": "bounce"
+            }
+          ]
+        }
+      }
+    },
+    "anim3": {
+      "type": "object",
+      "required": [
+        "preset",
+        "at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "preset": {
+          "enum": [
+            "rise",
+            "drop",
+            "pop",
+            "spinIn",
+            "flip",
+            "slideIn",
+            "zoomIn",
+            "fadeIn",
+            "fadeOut",
+            "float",
+            "turntable",
+            "orbit",
+            "pulse",
+            "grow",
+            "assemble",
+            "scatter",
+            "draw"
+          ]
+        },
+        "at": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 60
+        },
+        "ease": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ease"
+            },
+            {
+              "const": "bounce"
+            }
+          ]
+        },
+        "amount": {
+          "type": "number",
+          "description": "Distance (rise, drop, slideIn, zoomIn, float, pulse) or degrees per second (turntable, orbit)."
+        },
+        "stagger": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Runs on the parts one after another (words or letters of a text3d, instances, a group's children)."
+        },
+        "axis": {
+          "enum": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        "dir": {
+          "enum": [
+            "start",
+            "end",
+            "up",
+            "down"
+          ]
+        }
+      }
+    },
+    "material3": {
+      "anyOf": [
+        {
+          "enum": [
+            "chrome",
+            "gold",
+            "metal",
+            "glass",
+            "frosted",
+            "plastic",
+            "clay",
+            "rubber",
+            "matte",
+            "neon",
+            "holographic",
+            "toon",
+            "wire",
+            "glow"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "preset": {
+              "enum": [
+                "chrome",
+                "gold",
+                "metal",
+                "glass",
+                "frosted",
+                "plastic",
+                "clay",
+                "rubber",
+                "matte",
+                "neon",
+                "holographic",
+                "toon",
+                "wire",
+                "glow"
+              ]
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "metalness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "roughness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "transmission": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "ior": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 2.4
+            },
+            "thickness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "clearcoat": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "iridescence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "emissive": {
+              "$ref": "#/$defs/color"
+            },
+            "emissiveIntensity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20
+            },
+            "opacity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "wireframe": {
+              "type": "boolean"
+            },
+            "flat": {
+              "type": "boolean"
+            },
+            "map": {
+              "$ref": "#/$defs/id",
+              "description": "An image asset's name."
+            },
+            "bumpMap": {
+              "$ref": "#/$defs/id",
+              "description": "An image asset's name."
+            },
+            "normalMap": {
+              "$ref": "#/$defs/id",
+              "description": "An image asset's name."
+            },
+            "roughnessMap": {
+              "$ref": "#/$defs/id",
+              "description": "An image asset's name."
+            },
+            "emissiveMap": {
+              "$ref": "#/$defs/id",
+              "description": "An image asset's name."
+            },
+            "bumpScale": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20
+            }
+          }
+        }
+      ]
+    },
+    "object3": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "description": "One thing in a 3D scene. World units: the camera sits about 7 away; a title is about 1 tall.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "box",
+            "sphere",
+            "cylinder",
+            "cone",
+            "torus",
+            "torusKnot",
+            "capsule",
+            "plane",
+            "ring",
+            "icosahedron",
+            "text3d",
+            "extrude",
+            "model",
+            "image",
+            "particles",
+            "instances",
+            "tube",
+            "globe",
+            "ground",
+            "blob",
+            "group"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/$defs/vec3"
+        },
+        "rotation": {
+          "$ref": "#/$defs/vec3",
+          "description": "Degrees."
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/vec3"
+            }
+          ]
+        },
+        "material": {
+          "$ref": "#/$defs/material3"
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "shadow": {
+          "type": "boolean"
+        },
+        "pivot": {
+          "enum": [
+            "center",
+            "bottom"
+          ]
+        },
+        "size": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 200
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 200
+        },
+        "depth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 200
+        },
+        "radius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 200
+        },
+        "thickness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "segments": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 256
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "font": {
+          "enum": [
+            "display",
+            "body",
+            "latin"
+          ]
+        },
+        "weight": {
+          "enum": [
+            400,
+            500,
+            600,
+            700,
+            800
+          ]
+        },
+        "bevel": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "align": {
+          "enum": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "split": {
+          "enum": [
+            "none",
+            "words",
+            "letters"
+          ]
+        },
+        "fit": {
+          "type": "boolean",
+          "description": "Shrinks to stay inside the frame's width."
+        },
+        "svg": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "SVG path data, or a whole <svg> — extruded into a 3D mark."
+        },
+        "icon": {
+          "type": "string",
+          "description": "A one-colour icon (set:name), extruded."
+        },
+        "asset": {
+          "$ref": "#/$defs/id"
+        },
+        "animation": {
+          "type": "string",
+          "description": "model: the name of an animation inside the file (default: its first)."
+        },
+        "cornerRadius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        "shape": {
+          "enum": [
+            "sphere",
+            "shell",
+            "disc",
+            "ring",
+            "cube",
+            "galaxy",
+            "grid",
+            "wave",
+            "random",
+            "helix",
+            "text",
+            "image",
+            "point"
+          ]
+        },
+        "to": {
+          "enum": [
+            "sphere",
+            "shell",
+            "disc",
+            "ring",
+            "cube",
+            "galaxy",
+            "grid",
+            "wave",
+            "random",
+            "helix",
+            "text",
+            "image",
+            "point"
+          ]
+        },
+        "toText": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "colors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/color"
+          },
+          "maxItems": 12
+        },
+        "drift": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "arms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "glow": {
+          "type": "boolean"
+        },
+        "of": {
+          "enum": [
+            "box",
+            "sphere",
+            "cylinder",
+            "cone",
+            "icosahedron",
+            "torus",
+            "capsule"
+          ]
+        },
+        "layout": {
+          "enum": [
+            "grid",
+            "wall",
+            "ring",
+            "spiral",
+            "random",
+            "city",
+            "line",
+            "helix"
+          ]
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "gap": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/vec3"
+          },
+          "minItems": 2,
+          "maxItems": 200
+        },
+        "style": {
+          "enum": [
+            "dots",
+            "wire",
+            "solid",
+            "texture"
+          ]
+        },
+        "arcs": {
+          "type": "array",
+          "maxItems": 60,
+          "items": {
+            "type": "object",
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "to": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "color": {
+                "$ref": "#/$defs/color"
+              },
+              "at": {
+                "type": "number",
+                "minimum": 0
+              },
+              "duration": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            }
+          }
+        },
+        "markers": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "maxItems": 200
+        },
+        "atmosphere": {
+          "$ref": "#/$defs/color"
+        },
+        "noise": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "reflect": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/object3"
+          },
+          "maxItems": 100
+        },
+        "animate": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/anim3"
+          },
+          "maxItems": 24
+        },
+        "keyframes": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "position, rotation, scale ([x,y,z] or one axis like rotation.y), opacity, color, glow, morph (particles 0→1), trim (tubes 0→1).",
+          "patternProperties": {
+            "^(position|rotation|scale)(\\.(x|y|z))?$|^(opacity|color|glow|morph|trim)$": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/key3"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "texture": {
+          "$ref": "#/$defs/id",
+          "description": "An image asset wrapped on the surface — a planet's equirectangular map on a sphere or globe, a band across a ring with width."
+        }
+      }
+    },
+    "scene3d": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A 3D scene drawn into the layer's box. Start from a `recipe` with `params`, or build `objects` yourself; what you add goes on top of the recipe.",
+      "properties": {
+        "recipe": {
+          "enum": [
+            "logoReveal",
+            "productSpin",
+            "particleText",
+            "galaxy",
+            "solarSystem",
+            "globeArcs",
+            "cardStack",
+            "voxelCity",
+            "kineticType3D",
+            "chromeBlob",
+            "bars3D",
+            "physicsDrop"
+          ]
+        },
+        "params": {
+          "type": "object",
+          "description": "The recipe's settings (text, material, mood, color, colors, lines, points, data, images, asset, shape…)."
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "background": {
+          "$ref": "#/$defs/paint"
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "enum": [
+                "studio",
+                "city",
+                "sunset",
+                "night",
+                "dawn",
+                "none"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "preset"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "preset": {
+                  "enum": [
+                    "studio",
+                    "city",
+                    "sunset",
+                    "night",
+                    "dawn",
+                    "none"
+                  ]
+                },
+                "intensity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 5
+                },
+                "rotation": {
+                  "type": "number"
+                }
+              }
+            }
+          ]
+        },
+        "fog": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "near": {
+              "type": "number",
+              "minimum": 0
+            },
+            "far": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "exposure": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 4
+        },
+        "camera": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fov": {
+              "type": "number",
+              "minimum": 5,
+              "maximum": 120
+            },
+            "position": {
+              "$ref": "#/$defs/vec3"
+            },
+            "target": {
+              "$ref": "#/$defs/vec3"
+            },
+            "move": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "enum": [
+                    "orbit",
+                    "dolly",
+                    "push",
+                    "crane",
+                    "handheld",
+                    "none"
+                  ]
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "ease": {
+                  "$ref": "#/$defs/ease"
+                },
+                "at": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "duration": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            },
+            "keyframes": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "position": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/key3"
+                  },
+                  "minItems": 1
+                },
+                "target": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/key3"
+                  },
+                  "minItems": 1
+                },
+                "fov": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/key3"
+                  },
+                  "minItems": 1
+                }
+              }
+            }
+          }
+        },
+        "lights": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "key",
+                  "fill",
+                  "rim",
+                  "ambient",
+                  "point",
+                  "spot",
+                  "hemisphere"
+                ]
+              },
+              "color": {
+                "$ref": "#/$defs/color"
+              },
+              "ground": {
+                "$ref": "#/$defs/color"
+              },
+              "intensity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 500
+              },
+              "position": {
+                "$ref": "#/$defs/vec3"
+              },
+              "shadow": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/object3"
+          },
+          "maxItems": 200
+        },
+        "post": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bloom": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3
+            },
+            "vignette": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "grain": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    },
+    "scoreNote": {
+      "type": "object",
+      "required": [
+        "t",
+        "n"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "t": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Beat from the track's start."
+        },
+        "n": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "maxLength": 12
+                }
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "maxLength": 12
+                  }
+                ]
+              },
+              "maxItems": 8
+            }
+          ],
+          "description": "A pitch (\"C4\", \"F#3\", MIDI 60), a chord (\"Am7\", \"Fmaj7\", \"G/3\"), or a list."
+        },
+        "d": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 64,
+          "description": "Beats held."
+        },
+        "v": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "How hard."
+        }
+      }
+    },
+    "scorePart": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "An instrument with notes, or a drum with hits or steps.",
+      "properties": {
+        "instrument": {
+          "enum": [
+            "pad",
+            "strings",
+            "piano",
+            "keys",
+            "pluck",
+            "guitar",
+            "bell",
+            "marimba",
+            "bass",
+            "sub",
+            "808",
+            "lead",
+            "synth",
+            "arp",
+            "brass",
+            "organ",
+            "choir",
+            "flute"
+          ]
+        },
+        "drum": {
+          "enum": [
+            "kick",
+            "snare",
+            "clap",
+            "hat",
+            "openhat",
+            "rim",
+            "tom",
+            "shaker",
+            "crash",
+            "ride",
+            "snap",
+            "cowbell",
+            "conga",
+            "perc"
+          ]
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scoreNote"
+          },
+          "maxItems": 512
+        },
+        "hits": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "maxItems": 512,
+          "description": "Drum: beats to hit on."
+        },
+        "steps": {
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[xX.\\-\\s|]+$",
+          "description": "Drum: one character per 16th — x hit, X accent, . rest; repeats at its own length."
+        },
+        "loop": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 256,
+          "description": "Repeat every this many beats."
+        },
+        "from": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Play only from this beat…"
+        },
+        "to": {
+          "type": "number",
+          "minimum": 0,
+          "description": "…to this beat."
+        },
+        "octave": {
+          "type": "integer",
+          "minimum": -4,
+          "maximum": 4
+        },
+        "gain": {
+          "type": "number",
+          "minimum": -40,
+          "maximum": 12,
+          "description": "dB"
+        },
+        "pan": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "reverb": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "wave": {
+          "enum": [
+            "sine",
+            "saw",
+            "square",
+            "triangle",
+            "fm",
+            "noise",
+            "string",
+            "piano",
+            "organ"
+          ]
+        },
+        "attack": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "decay": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "sustain": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "release": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "cutoff": {
+          "type": "number",
+          "minimum": 40,
+          "maximum": 20000
+        },
+        "resonance": {
+          "type": "number",
+          "minimum": 0.3,
+          "maximum": 12
+        },
+        "detune": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Cents between two voices."
+        },
+        "vibrato": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Semitones."
+        },
+        "tune": {
+          "type": "number",
+          "minimum": -24,
+          "maximum": 24,
+          "description": "Drum: semitones."
         }
       }
     }

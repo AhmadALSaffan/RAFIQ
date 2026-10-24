@@ -163,7 +163,8 @@ export function Timeline({
             </button>
           )}
         </div>
-        <div className="relative" style={{ width: width + 24 }}>
+        {/* Nothing in a row reaches past the video's end, so the time never scrolls on into nothing. */}
+        <div className="relative overflow-hidden" style={{ width: width + 24 }}>
           {track.clips.map((clip) => {
             const on = selected === clip.id;
             return (
@@ -219,7 +220,7 @@ export function Timeline({
               </div>
             );
           })}
-          {track.keyframes?.map((k) => (
+          {track.keyframes?.filter((k) => k >= 0 && (track.clips[0]?.start ?? 0) + k <= duration).map((k) => (
             <span
               key={k}
               className="pointer-events-none absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45"

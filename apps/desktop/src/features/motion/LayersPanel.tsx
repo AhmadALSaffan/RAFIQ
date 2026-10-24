@@ -10,7 +10,7 @@ import { useRef, useState } from "react";
 import { t } from "../../i18n";
 import { fieldDir } from "../../lib/bidi";
 import { BracketLabel } from "../../components/brand";
-import { ArrowDownIcon, ArrowUpIcon, ChartIcon, CopyIcon, EyeIcon, EyeOffIcon, GripIcon, IconsIcon, LayersIcon, LockIcon, MovieIcon, MusicIcon, PhotoIcon, ShapeIcon, TextIcon, TrashIcon, UnlockIcon } from "../../components/Icons";
+import { ArrowDownIcon, ArrowUpIcon, ChartIcon, CopyIcon, CubeIcon, EyeIcon, EyeOffIcon, GripIcon, IconsIcon, LayersIcon, LockIcon, MovieIcon, MusicIcon, PhotoIcon, ShapeIcon, TextIcon, TrashIcon, UnlockIcon } from "../../components/Icons";
 import type { Layer, Scene } from "./engine/types";
 import { duplicateLayerOps, layerLabel, layerRows, layerSlot, moveLayerOps, removeLayerOps, setField, type Op } from "./sceneEdit";
 
@@ -32,7 +32,9 @@ export function LayerTypeIcon({ type, className = "h-3.5 w-3.5" }: { type: strin
                 ? ChartIcon
                 : type === "group"
                   ? LayersIcon
-                  : MusicIcon;
+                  : type === "scene3d"
+                    ? CubeIcon
+                    : MusicIcon;
   return <Icon className={className} />;
 }
 

@@ -106,6 +106,7 @@ export class MotionEngine {
   /** The workspace's kit, before the scene's own palette and fonts are put on top. */
   private baseKit: BrandKit;
   lottie?: { draw: NonNullable<Resources["lottie"]>; load: (scene: Scene, loader: AssetLoader) => Promise<void> };
+  three?: import("./three/player").ThreePlayer;
 
   /** `preview`: videos are decoded no wider than 1280 px — plenty for the stage, and a 4K
    * source plays smoothly. Exports leave it off. */
@@ -233,6 +234,15 @@ export class MotionEngine {
       await this.lottie.load(this.scene, this.loader);
       this.resources.lottie = this.lottie.draw;
     }
+    if (layers.some((l) => l.type === "scene3d")) {
+      // three.js loads only for a scene that has 3D in it
+      if (!this.three) {
+        const mod = await import("./three/player");
+        this.three = mod.threePlayer();
+      }
+      this.missingAssets.push(...(await this.three.load(this.scene, kit, this.loader)));
+      this.resources.three = this.three.draw;
+    }
     this.prepared = prepare(this.scene, kit, measureText);
     this.resources.unit = this.prepared.unit;
   }
@@ -240,6 +250,8 @@ export class MotionEngine {
   dispose(): void {
     for (const clip of this.clips.values()) clip.dispose();
     this.clips.clear();
+    this.three?.dispose();
+    this.three = undefined;
   }
 
   /** Swap in an edited scene without reloading what's already loaded. */

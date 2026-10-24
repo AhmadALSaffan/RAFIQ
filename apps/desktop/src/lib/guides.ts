@@ -14,7 +14,8 @@ export type GuideKind =
   | "rate_limited"
   | "local_server_down"
   | "cant_reach"
-  | "model_not_found";
+  | "model_not_found"
+  | "chatgpt_usage_limit";
 
 const KINDS: ReadonlySet<string> = new Set<GuideKind>([
   "copilot_not_enabled",
@@ -25,6 +26,7 @@ const KINDS: ReadonlySet<string> = new Set<GuideKind>([
   "local_server_down",
   "cant_reach",
   "model_not_found",
+  "chatgpt_usage_limit",
 ]);
 
 export interface GuideRequest {

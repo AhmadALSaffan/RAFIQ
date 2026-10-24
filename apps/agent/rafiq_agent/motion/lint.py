@@ -96,7 +96,7 @@ def structural(scene: dict[str, Any], kit: dict[str, Any] | None = None, target:
                     break
 
         if target == "lottie":
-            if layer["type"] in ("video", "image", "captions"):
+            if layer["type"] in ("video", "image", "captions", "scene3d"):
                 issues.append(_issue("L001", lid, f"طبقة {layer['type']} ما بتنصدّر لـ Lottie"))
             if layer.get("blend") not in (None, "normal") or layer.get("shadow"):
                 issues.append(_issue("L001", lid, "blend أو shadow ما بينصدّروا لـ Lottie"))

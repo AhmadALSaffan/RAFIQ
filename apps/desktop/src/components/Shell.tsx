@@ -19,7 +19,6 @@ import {
   SunIcon,
   TasksIcon,
   XIcon,
-  NotebookIcon,
 } from "./Icons";
 import { CommandPalette, usePaletteShortcut } from "./CommandPalette";
 import { useTheme } from "../lib/theme";
@@ -44,13 +43,15 @@ const navItems = [
   { to: "/", label: t("الرئيسية"), Icon: HomeIcon },
   { to: "/chat", label: t("المحادثات"), Icon: ChatIcon },
   { to: "/tasks", label: t("المهام"), Icon: TasksIcon },
-  { to: "/designs", label: t("التصاميم"), Icon: SparkIcon },
-  { to: "/motion", label: t("موشن"), Icon: MovieIcon },
+  // designs, motion and notes live behind one door: the creative hub
+  { to: "/create", label: t("المركز الإبداعي"), Icon: SparkIcon },
   { to: "/work", label: t("شغلي"), Icon: InboxIcon },
-  { to: "/notes", label: t("ملاحظات"), Icon: NotebookIcon },
   { to: "/models", label: t("النماذج"), Icon: ModelsIcon },
   { to: "/integrations", label: t("الربط"), Icon: LinkIcon },
 ];
+
+/** The sections the creative hub's rail button stands for. */
+const CREATIVE = ["/create", "/designs", "/motion", "/notes"];
 
 /** The slim rail's width — also where the chat's slide-over list starts. */
 export const RAIL = 60;
@@ -354,7 +355,7 @@ export function Shell() {
               <WorkspaceSwitcher collapsed />
             </div>
             {navItems.map(({ to, label, Icon }) => {
-              const active = to === "/" ? location.pathname === "/" : section === to;
+              const active = to === "/" ? location.pathname === "/" : to === "/create" ? CREATIVE.includes(section) : section === to;
               return (
                 <NavLink key={to} to={to} className={railButton} style={{ color: active ? "var(--color-ink)" : "var(--color-ink-muted)" }} title={label} aria-label={label}>
                   {active && <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-xl" style={{ background: "var(--color-surface)" }} transition={snappy} />}

@@ -20,8 +20,9 @@ Write it to the user in 5–7 short lines, then build exactly that:
    `scene.fonts` (`{"display": "Lalezar", "body": "Almarai", "latin": "Poppins"}`), and the
    video's own type scale in `scene.type` (see §4 for the sizes that read on a phone).
 4. **Shots** — 4–8 shots with times, each a *different* shot type from §3, with what
-   moves and the sound on its cut.
-5. **Sound** — music pattern and tempo; which 2–4 moments get an effect.
+   moves on its cut.
+5. **Sound** — only when the user asked for sound, music or a voice-over; otherwise
+   the video is silent (`audio: []`) and you don't add any.
 
 The workspace kit is only a default. Choose freely; the checks still guard contrast.
 
@@ -70,7 +71,7 @@ Pick a different one for each beat. Each lists what it is for and how to build i
 1–3 words, `display`, centred a little above the middle. `wordPop` (Arabic word by word) or
 `pop` with `spring`, then a `zoomPunch` at the end of the line. Under it, a short accent
 bar (`shape: rect`, width 16–24, height 1, fill accent) that grows: keyframes
-`scale` 0→1 with `outExpo`. One `pop` or `impact` sound.
+`scale` 0→1 with `outExpo`. (With sound: one `pop` or `impact`.)
 
 **B. Split statement** — a setup and a punchline.
 Line 1 in `muted` slides in from `start`; line 2 (the punchline) in the accent slides in
@@ -91,8 +92,8 @@ accent, and a short label `below`. Same icon set and style for all. Items `pop` 
 **E. Big number** — a stat that must land.
 The number `display` in the accent, `{count}` + `countUp` over 1.2–1.6 s (`outExpo`).
 Around it a `ring` (thin, muted at 30 %) and over it an `arc` in the accent that draws
-(`drawOn`) with the count. Label `below` in `muted`. A `tick` sound on the start, `ding` on
-landing.
+(`drawOn`) with the count. Label `below` in `muted`. (With sound: a `tick` on the start, `ding` on
+landing.)
 
 **F. Steps / timeline** — a process.
 Numbered nodes (small circles, accent fill, number in `onPrimary`), joined by a `line`
@@ -123,7 +124,7 @@ popping beside the feature they point at.
 
 **L. Logo sting** — opening or closing.
 A ring `drawOn` → the mark `scaleIn` with `spring` → the name `maskReveal` → a hold of
-0.8 s. `riser` into `impact`.
+0.8 s. (With sound: `riser` into `impact`.)
 
 **M. End card / CTA** — what to do next.
 The ask in `headline`; the action as a pill (`text` with `background` in the accent,
@@ -199,9 +200,17 @@ idea needs:
 
 ## 6. Sound
 
-Music always (pattern by mood: `upbeat` energy, `cinematic` premium, `warm-lofi`
-lifestyle, `corporate` business, `minimal` tech), about −18 dB with fade in/out.
-Effects on 2–4 moments only: `whoosh`/`swoosh` on transitions, `pop` on the hook, `tick`
+**No sound unless the user asked for it** (sound, music, effects or a voice-over). A
+silent video is a finished video; the user adds music in the editor when they want.
+When they did ask: **compose** a score for this video (`source: "compose"`, see the
+format reference) — not the same bed every time. Start from the mood:
+- tech / product: 118–126 bpm, `synth` or `arp` 16ths, `sub` bass, four-on-the-floor `kick`, `hat` off-beats;
+- premium / luxury: 70–85 bpm, `strings` or `pad` with maj7/9 chords, `piano` notes, almost no drums;
+- warm / lifestyle: 85–95 bpm, `keys` m9 chords, `bass`, laid-back `kick`/`snare`, `swing` 0.15;
+- energy / sport: 130–150 bpm, `808` + `kick` steps, `clap`, `lead` hook;
+- epic / cinematic: 60–80 bpm, `choir` + `strings`, `tom` and `crash` on the big moments.
+Change the key, the chords and the instruments from video to video; bring parts in with
+`from` so it builds with the edit; about −16 dB with fade in/out. Effects on 2–4 moments only: `whoosh`/`swoosh` on transitions, `pop` on the hook, `tick`
 then `ding` on a number, `riser`→`impact` on a logo, `click` on a button.
 
 ## 7. Before you say it's done
@@ -235,5 +244,5 @@ then `ding` on a number, `riser`→`impact` on a logo, `click` on a button.
 `examples/pro-reel.json` (it comes right after these guides) is a 15 s 9:16 reel built
 this way: its own palette, Lalezar + Almarai, a 300 px hero with a drawn swoosh, a chat
 card, task rows with checks, an icon trio, a CTA, colour-panel cuts, decor that lives the
-whole video, music and effects. Study how it sizes, places, staggers and transitions —
+whole video. Study how it sizes, places, staggers and transitions —
 then make *your* video for *its* idea, with its own colours, fonts and shots.

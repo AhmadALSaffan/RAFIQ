@@ -17,6 +17,7 @@ import {
   IconArrowsMaximize,
   IconGripVertical,
   IconChartBar,
+  IconCube,
   IconIcons,
   IconAdjustmentsHorizontal,
   IconBolt,
@@ -173,6 +174,7 @@ export const ArrowUpIcon = make(IconArrowUp);
 export const MaximizeIcon = make(IconArrowsMaximize);
 export const GripIcon = make(IconGripVertical);
 export const ChartIcon = make(IconChartBar);
+export const CubeIcon = make(IconCube);
 export const IconsIcon = make(IconIcons);
 export const AdjustIcon = make(IconAdjustmentsHorizontal);
 export const BoltIcon = make(IconBolt);

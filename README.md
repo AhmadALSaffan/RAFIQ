@@ -31,24 +31,29 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 ---
 
-## What's new · v0.5.6
+## What's new · v0.5.8
 
 <!-- Every release: replace docs/whats-new/latest.webp with the release's picture (the same
      one the app's What's new dialog shows) and update the version, points and link below. -->
 
 <div align="center">
 
-<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq and ChatGPT: Continue with ChatGPT">
+<a href="https://github.com/AhmadALSaffan/RAFIQ/releases/download/v0.5.8/whats-new-en.mp4"><img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.8: 3D inside motion — a video made in Rafiq with GPT-6.1 Sol on a ChatGPT Plus plan"></a>
+
+<sub>The picture opens the 45-second video (also in <a href="https://github.com/AhmadALSaffan/RAFIQ/releases/download/v0.5.8/whats-new-ar.mp4">Arabic</a> and <a href="https://github.com/AhmadALSaffan/RAFIQ/releases/download/v0.5.8/whats-new-ru.mp4">Russian</a>).</sub>
 
 </div>
 
-**Sign in with ChatGPT.** Connect a ChatGPT Plus or Pro account and Rafiq runs on your plan,
-with no API key and nothing extra to pay.
-- Sign in on OpenAI's own page: Settings → Connected accounts, or while adding a model.
-- Pick any model your plan offers, for chats and tasks.
-- OpenAI's documented flow for open-source apps (OAuth + PKCE, the Responses API). Tokens stay in the Windows keychain.
+**3D inside motion.** Models build whole 3D scenes in a video: planets wrapped in real maps,
+3D Arabic type that joins and reads right to left, particles, globes with flight arcs,
+cameras and lights — from twelve ready looks or from scratch.
+- **Music composed for each video:** the model writes the score (tempo, chords, melody,
+  18 instruments, drums), and adds no sound unless you ask.
+- **The creative hub:** designs, motion and notes behind one button in the rail.
+- **Your ChatGPT plan in sight:** a ring beside the model shows usage, with a clear alert at the limit.
+- Strong models direct freely; lighter ones get a step-by-step guide.
 
-Full notes: [v0.5.6](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.6) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
+Full notes: [v0.5.8](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.8) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
 
 ---
 
@@ -242,7 +247,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.7_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.8_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)

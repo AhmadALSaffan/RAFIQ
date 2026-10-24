@@ -167,7 +167,6 @@ export function reviewScene(engine: MotionEngine): { shots: Shot[]; overall: str
   if (shots.length < 3 && duration >= 8) overall.push(`only ${shots.length} shot${shots.length === 1 ? "" : "s"} in ${r1(duration)}s — reels cut every 2–4s. Split the idea into more shots.`);
   const long = shots.filter((s) => s.end - s.start > 5.5);
   if (long.length) overall.push(`shot${long.length > 1 ? "s" : ""} ${long.map((s) => s.index).join(", ")} hold${long.length > 1 ? "" : "s"} over 5.5s — cut sooner or add a second beat inside.`);
-  if (!(scene.audio ?? []).length) overall.push("silent — add music and a few sound effects on the key hits (pop, whoosh on cuts).");
   return { shots, overall };
 }
 

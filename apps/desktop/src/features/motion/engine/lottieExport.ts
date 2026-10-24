@@ -20,7 +20,7 @@ type Json = Record<string, unknown>;
 
 /** Why this layer can't go into a Lottie file (null = it can). */
 export function lottieBlocker(layer: Layer): string | null {
-  if (layer.type === "video" || layer.type === "image" || layer.type === "lottie") return "picture";
+  if (layer.type === "video" || layer.type === "image" || layer.type === "lottie" || layer.type === "scene3d") return "picture";
   if (layer.type === "icon" && isColourIcon(layer.icon)) return "picture";
   if (layer.type === "captions") return "captions";
   if (layer.type === "chart" && (layer.chart === "pie" || layer.chart === "number")) return "chart";

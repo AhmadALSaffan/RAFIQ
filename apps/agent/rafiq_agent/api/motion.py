@@ -459,6 +459,8 @@ async def restore_version(project_id: str, number: int, session: AsyncSession = 
 def _kind_of(mime: str, name: str) -> str:
     if name.lower().endswith(".json") or name.lower().endswith(".lottie"):
         return "lottie"
+    if name.lower().endswith((".glb", ".gltf")):
+        return "model"
     if mime == "image/svg+xml":
         return "svg"
     return KINDS.get(mime.split("/")[0], "image")

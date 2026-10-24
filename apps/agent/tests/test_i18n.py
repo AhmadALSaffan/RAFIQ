@@ -76,7 +76,7 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     # Motion: the tools, their prompts and notes, and the structural check are read by the
     # model (the app shows the engine's own, translated checks). The rest are character
     # classes, and the word the local voice is tried with.
-    "core/motion.py": {"VISION_PROMPT", "describe_frames", "MOTION_SYSTEM_PROMPT", "kit_summary", "project_note", "skill_note"},
+    "core/motion.py": {"VISION_PROMPT", "describe_frames", "MOTION_SYSTEM_PROMPT", "FREE_SYSTEM_PROMPT", "kit_summary", "project_note", "skill_note"},
     "motion/brand.py": {"design_note"},
     "motion/lint.py": "*",
     "tools/motion.py": "*",

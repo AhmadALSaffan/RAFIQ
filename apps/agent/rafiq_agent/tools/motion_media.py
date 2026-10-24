@@ -265,6 +265,84 @@ class MotionImageTool(_MediaTool):
         return ToolResult(ok=True, output=f"v{number}: asset «{key}» ({w}×{h}). Use it in an image layer.")
 
 
+MAX_IMAGE = 30 * 1024 * 1024
+IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
+
+
+class MotionFetchImageTool(_MediaTool):
+    name = "motion_fetch_image"
+    category = "write"
+    description = (
+        "نزّل صورة من رابط (http/https، حتى 30MB) وضيفها للمشهد كأصل — مثلاً خريطة كوكب (equirectangular) "
+        "تلفّها على كرة 3D بـ texture، أو صورة لطبقة image. اكتب credit و license إذا الصورة إلها مصدر."
+    )
+    parameters = {
+        "type": "object",
+        "properties": {
+            "url": {"type": "string", "description": "رابط الصورة نفسها (jpg, png, webp)"},
+            "name": {"type": "string", "description": "اسم قصير للأصل بالإنجليزي (earth, mars, saturn-rings…)"},
+            "credit": {"type": "string"},
+            "license": {"type": "string"},
+        },
+        "required": ["url"],
+    }
+
+    async def run(self, args: dict[str, Any]) -> ToolResult:
+        import httpx
+
+        from rafiq_agent.tools.web import _public_only
+
+        url = str(args.get("url") or "").strip()
+        if why := await _public_only(url):
+            return ToolResult(ok=False, output=why)
+        try:
+            async with httpx.AsyncClient(timeout=60, follow_redirects=True) as http, http.stream("GET", url, headers={"User-Agent": "Rafiq"}) as resp:
+                if resp.status_code >= 400:
+                    return ToolResult(ok=False, output=f"the server answered {resp.status_code}")
+                if why := await _public_only(str(resp.url)):
+                    return ToolResult(ok=False, output=why)
+                mime = resp.headers.get("content-type", "").split(";")[0].strip().lower()
+                if mime not in IMAGE_TYPES:
+                    return ToolResult(ok=False, output=f"not an image ({mime or 'unknown type'}) — give the link to the image file itself")
+                chunks: list[bytes] = []
+                size = 0
+                async for chunk in resp.aiter_bytes():
+                    size += len(chunk)
+                    if size > MAX_IMAGE:
+                        return ToolResult(ok=False, output="the image is bigger than 30MB")
+                    chunks.append(chunk)
+        except httpx.HTTPError as exc:
+            return ToolResult(ok=False, output=f"couldn't download it: {exc}")
+        data = b"".join(chunks)
+        width = height = None
+        try:
+            import io
+
+            from PIL import Image
+
+            with Image.open(io.BytesIO(data)) as img:
+                width, height = img.size
+        except Exception:  # noqa: BLE001 - the engine reads the size again when it opens it
+            pass
+        base = "".join(c for c in str(args.get("name") or "image") if c.isalnum() or c in "-_")[:30] or "image"
+        async with SessionLocal() as session:
+            project = await session.get(MotionProject, self.project_id)
+            if not project:
+                return ToolResult(ok=False, output="project not found")
+            asset = await media.store(
+                session, project, data, f"{base}{IMAGE_TYPES[mime]}", mime, "image", "web",
+                credit=(str(args["credit"])[:200] if args.get("credit") else None),
+                license=(str(args["license"])[:80] if args.get("license") else None),
+                meta={"url": url}, width=width, height=height,
+            )
+            key, number = await _attach(session, project, asset, base, summary=f"image from {url[:80]}")
+            await session.commit()
+        if self.on_change:
+            await self.on_change(number)
+        size_note = f" ({width}×{height})" if width else ""
+        return ToolResult(ok=True, output=f"v{number}: asset «{key}»{size_note}. Use it as an image layer, or as a 3D texture: \"texture\": \"{key}\".")
+
+
 def media_tools(project_id: str, on_change: Any = None) -> list[Tool]:
     return [
         MotionTtsTool(project_id, on_change),
@@ -272,4 +350,5 @@ def media_tools(project_id: str, on_change: Any = None) -> list[Tool]:
         MotionAssetsTool(project_id, on_change),
         MotionStockTool(project_id, on_change),
         MotionImageTool(project_id, on_change),
+        MotionFetchImageTool(project_id, on_change),
     ]

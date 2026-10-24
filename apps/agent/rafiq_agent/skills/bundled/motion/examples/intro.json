@@ -26,8 +26,5 @@
       "animate": [ { "preset": "fadeIn", "at": 1.9, "duration": 0.6 }, { "preset": "fadeOut", "at": 4.0, "duration": 0.4 } ]
     }
   ],
-  "audio": [
-    { "id": "rise", "source": "sfx", "kind": "riser", "at": 0.1, "gain": -14 },
-    { "id": "hit", "source": "sfx", "kind": "impact", "at": 0.9, "gain": -10 }
-  ]
+  "audio": []
 }

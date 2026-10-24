@@ -67,14 +67,23 @@ async def save_version(
 
 
 async def change(
-    session: AsyncSession, project: MotionProject, patch: list[dict[str, Any]], author: str, summary: str
+    session: AsyncSession,
+    project: MotionProject,
+    patch: list[dict[str, Any]],
+    author: str,
+    summary: str,
+    notes: list[str] | None = None,
 ) -> tuple[dict[str, Any], MotionVersion]:
     """Applies a JSON Patch, validates the result, and stores it as a new version. A patch
-    that fails or leaves an invalid scene changes nothing."""
+    that fails or leaves an invalid scene changes nothing. Whatever it put outside the
+    video's time is pulled back in (`notes` gets what moved)."""
     try:
         new_scene = apply_patch(project.scene, patch)
     except PatchError as exc:
         raise MotionChangeError(str(exc)) from exc
+    moved = rms.keep_in_time(new_scene)
+    if notes is not None:
+        notes.extend(moved)
     errors = rms.validate(new_scene)
     if errors:
         raise MotionChangeError("the patched scene isn't valid", errors)
@@ -176,9 +185,9 @@ MOTION_SYSTEM_PROMPT = (
     "متل شغل استوديو موشن محترف، مش شرائح نص.\n\n"
     "القواعد:\n"
     "1. تحت بهالرسالة في دليلين: «إخراج الموشن» (كيف بيفكّر المصمم المحترف: البريف، اللقطات، الألوان، الخطوط، "
-    "الحركة، الصوت) و«مرجع الصيغة». اشتغل منهم مباشرة وما تقرأ ملفات بالبداية. "
+    "الحركة) و«مرجع الصيغة». اشتغل منهم مباشرة وما تقرأ ملفات بالبداية. "
     "schema.json بـ skill_read بس إذا احتجت تفصيل خاصية مش موجود.\n"
-    "2. قبل أول تعديل اكتب البريف (الفكرة، الألوان بالـ hex، الخطوط، قائمة اللقطات بالتوقيت، الصوت) — "
+    "2. قبل أول تعديل اكتب البريف (الفكرة، الألوان بالـ hex، الخطوط، قائمة اللقطات بالتوقيت) — "
     "إنت اللي بتقرر كل شي حسب فكرة الفيديو، ولكل فيديو هوية خاصة فيه. الألوان والخطوط مفتوحة بالكامل: "
     "حط ألوانك بـ scene.palette وخطوطك بـ scene.fonts (أي خط من Google Fonts بالاسم)، والـ brand kit "
     "مجرد افتراضي. المواقع بوحدات الشبكة والأحجام من سلّم الخط، وانتبه للتباين.\n"
@@ -191,26 +200,55 @@ MOTION_SYSTEM_PROMPT = (
     "  إذا طلب المستخدم مراجعة أو تحسين («راجع وحسّن»): ابدأ بـ motion_review واتبع طريقة المراجعة اللي "
     "بترجع معه.\n"
     "5. اكتب للمستخدم بالعربي شو عملت وليش، بجمل قصيرة. ما تلصق المشهد كامل بالرد.\n"
-    "6. إذا ما في مزوّد صوت، لا تعرض تعليق صوتي — استعمل كابشن نصي وموسيقى ومؤثرات.\n"
+    "6. الصوت (موسيقى، مؤثرات، تعليق صوتي) بس إذا المستخدم طلبه — غير هيك الفيديو بلا صوت (audio: []). "
+    "إذا ما في مزوّد صوت، لا تعرض تعليق صوتي — استعمل كابشن نصي.\n"
     "7. التصدير بيعمله المستخدم من زر «تصدير»، أو إنت بـ motion_render إذا طلب صراحة."
 )
 
 
-def skill_note() -> str:
-    """The motion skill, as the model reads it with every turn of a motion chat: how a
-    professional directs (DIRECTOR.md), then the scene format (SKILL.md). A weak model makes
-    good videos from the first message because both are there before the user writes."""
+FREE_SYSTEM_PROMPT = (
+    "أنت مخرج ومصمم موشن قرافك داخل تطبيق رفيق. بتبني فيديوهات بكتابة **مشهد** بصيغة RMS v1، والإنجن بيرسم "
+    "كل فريم — 2D و 3D (طبقات scene3d). إنت صاحب القرار الإبداعي بالكامل: الفكرة، الألوان، الخطوط، اللقطات، "
+    "الإيقاع، الكاميرا والـ 3D. ما في أسلوب مفروض عليك؛ اعمل الفيديو اللي بتشوفه أحسن شي لطلب المستخدم.\n\n"
+    "اللي لازم:\n"
+    "1. تحت في «مرجع الصيغة» (الحقول والأدوات). schema.json بـ skill_read إذا احتجت تفصيل.\n"
+    "2. بتعدّل المشهد بس بـ motion_patch_scene. كل patch نسخة وبترجع مع الفحص — صلّح الأخطاء.\n"
+    "3. كل شي جوا وقت الفيديو: الطبقة بتخلص قبل composition.duration، ومفاتيحها وحركاتها بين start و end تبعها.\n"
+    "4. الصوت (موسيقى، مؤثرات، تعليق صوتي) بس إذا المستخدم طلبه — غير هيك audio: [].\n"
+    "5. motion_render_frames و motion_inspect و motion_review موجودين لما بدك تتأكد بعينك أو بالأرقام.\n"
+    "6. اكتب للمستخدم بالعربي شو عملت، بجمل قصيرة، بدون ما تلصق المشهد.\n"
+    "7. التصدير من زر «تصدير»، أو motion_render إذا طلب صراحة."
+)
+
+
+def system_prompt(guided: bool) -> str:
+    """A weaker model gets the full method; a strong one the rules and its own judgment."""
+    return MOTION_SYSTEM_PROMPT if guided else FREE_SYSTEM_PROMPT
+
+
+def skill_note(guided: bool = True) -> str:
+    """The motion skill, as the model reads it with every turn of a motion chat.
+
+    Guided (a weaker model): how a professional directs (DIRECTOR.md), the scene format
+    (SKILL.md), a finished example and the 3D steps (GUIDE-3D.md) — good videos from the
+    first message. Free (a strong model): the format reference alone, without the recipes
+    or the example, so it designs its own way."""
     folder = rms.SCHEMA_PATH.parent
     text = (folder / "SKILL.md").read_text(encoding="utf-8")
     if text.startswith("---"):
         text = text.split("---", 2)[2]
+    if not guided:
+        reference = text.split("## 8. Recipes", 1)[0].strip()
+        return "مرجع صيغة المشهد (مهارة motion — الحقول والأدوات، مش أسلوب):\n" + reference
     director = (folder / "DIRECTOR.md").read_text(encoding="utf-8")
     example = (folder / "examples" / "pro-reel.json").read_text(encoding="utf-8")
+    three_d = (folder / "GUIDE-3D.md").read_text(encoding="utf-8")
     return (
         "دليل إخراج الموشن:\n" + director.strip()
         + "\n\nمرجع صيغة المشهد (مهارة motion):\n" + text.strip()
         + "\n\nمثال لفيديو احترافي منتهي (examples/pro-reel.json) — تعلّم منه الأحجام والتوزيع والتتابع "
         "والانتقالات، وما تنسخ محتواه ولا ألوانه:\n" + example.strip()
+        + "\n\n" + three_d.strip()
     )
 
 

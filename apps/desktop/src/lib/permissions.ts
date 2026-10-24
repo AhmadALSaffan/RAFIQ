@@ -40,6 +40,7 @@ const BY_TOOL: Record<string, PermissionKey> = {
   motion_transcribe: "media",
   motion_stock: "media",
   motion_image: "media",
+  motion_fetch_image: "media",
   create_tasks: "task_create",
   schedule_create: "task_create",
   schedule_update: "task_create",

@@ -8,6 +8,7 @@ import { AlertIcon, ShieldIcon, SpinnerIcon, TerminalIcon } from "./Icons";
 import { Button, DrawnCheck } from "./ui";
 
 import { t } from "../i18n";
+import { Orb } from "./Orb";
 import { canAlwaysAllow, permissionLabelOf, type PermissionAnswer } from "../lib/permissions";
 import { doing } from "../features/chat/WorkStatus";
 
@@ -309,17 +310,7 @@ export function PermissionCard({
 export function ThinkingDots({ label = t("رفيق عم يفكّر…") }: { label?: string }) {
   return (
     <div className="flex items-center gap-2.5 py-1 text-sm" style={{ color: "var(--color-ink-muted)" }} role="status">
-      <span className="flex items-center gap-1">
-        {[0, 1, 2].map((i) => (
-          <motion.span
-            key={i}
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ background: "var(--color-accent)" }}
-            animate={{ opacity: [0.25, 1, 0.25], y: [0, -3, 0] }}
-            transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.16, ease: "easeInOut" }}
-          />
-        ))}
-      </span>
+      <Orb size={16} label={label} />
       {label}
     </div>
   );

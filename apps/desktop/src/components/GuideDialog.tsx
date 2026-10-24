@@ -558,6 +558,29 @@ function contentFor({ kind, provider }: GuideRequest): GuideContent {
           },
         ],
       };
+    case "chatgpt_usage_limit":
+      return {
+        title: t("وصلت لحد استخدام ChatGPT"),
+        why: t(
+          "OpenAI وقّفت طلبات رفيق على خطتك لهلق: يا خلص الاستخدام المسموح للخطة، يا الحد اللي حاطّه لرفيق بالذات. حسابك سليم وما في شي خربان.",
+        ),
+        steps: [
+          {
+            title: t("شوف شو اللي خلص"),
+            body: t("صفحة الاستخدام بـ ChatGPT بتقلك إذا خلص حد الخطة أو حد رفيق، وإيمتى بيرجع."),
+            art: <ClockArt />,
+          },
+          {
+            title: t("كمّل بموديل تاني هلق"),
+            body: t("غيّر الموديل من القائمة تحت بالمحادثة، أو خلّي إله موديل احتياطي: النماذج ← الموديل ← «احتياطي»."),
+          },
+          {
+            title: t("شوف حدّ رفيق بـ ChatGPT"),
+            body: t("إذا الحد اللي حاطّه لرفيق هو اللي خلص، بتقدر ترفعه من إعدادات ChatGPT ← الاستخدام."),
+          },
+        ],
+        link: { label: t("افتح صفحة الاستخدام"), url: "https://chatgpt.com/settings/usage" },
+      };
     case "local_server_down":
       return {
         title: t("{0} مش شغّال", { 0: who }),

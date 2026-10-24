@@ -1,7 +1,7 @@
 {
   "name": "rafiq-desktop",
   "private": true,
-  "version": "0.5.7",
+  "version": "0.5.8",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -62,7 +62,8 @@
     "react-peeps": "0.1.10",
     "react-router-dom": "^7.1.1",
     "remark-gfm": "^4.0.1",
-    "simple-icons": "^16.30.0"
+    "simple-icons": "^16.30.0",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -71,6 +72,7 @@
     "@tauri-apps/cli": "^2.2.4",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
+    "@types/three": "0.186.0",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^10.10.0",

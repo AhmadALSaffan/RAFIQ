@@ -46,7 +46,7 @@ export interface MotionVersion {
 
 export interface MotionAsset {
   id: string;
-  kind: "image" | "svg" | "video" | "audio" | "lottie";
+  kind: "image" | "svg" | "video" | "audio" | "lottie" | "model";
   name: string;
   mime: string;
   size: number;

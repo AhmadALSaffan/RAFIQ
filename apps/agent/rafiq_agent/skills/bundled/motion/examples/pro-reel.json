@@ -38,17 +38,5 @@
   {"id":"s5cta","type":"text","text":"حمّله الآن","style":"title","size":60,"color":"brand.onPrimary","start":12.0,"end":15.0,"background":{"color":"brand.primary","padding":4,"radius":3},"layout":{"below":"s5sub","gap":8},"animate":[{"preset":"scaleIn","at":13.0,"duration":0.5,"ease":"outBack"},{"preset":"pulse","at":13.7}]},
   {"id":"s5url","type":"text","text":"github.com/AhmadALSaffan/RAFIQ","style":"caption","size":32,"font":"latin","color":"brand.muted","start":12.0,"end":15.0,"layout":{"below":"s5cta","gap":6},"animate":[{"preset":"fadeIn","at":13.4,"duration":0.5}]}
  ],
- "audio":[
-  {"id":"music","source":"procedural","pattern":"upbeat","tempo":112,"key":"Am","gain":-18,"fadeIn":0.4,"fadeOut":1.2},
-  {"id":"a1","source":"sfx","kind":"pop","at":0.35,"gain":-12},
-  {"id":"w1","source":"sfx","kind":"whoosh","at":2.4,"gain":-12},
-  {"id":"c1","source":"sfx","kind":"click","at":3.55,"gain":-14},
-  {"id":"w2","source":"sfx","kind":"whoosh","at":5.8,"gain":-12},
-  {"id":"t0","source":"sfx","kind":"tick","at":7.6,"gain":-14},
-  {"id":"t1","source":"sfx","kind":"tick","at":7.95,"gain":-14},
-  {"id":"t2","source":"sfx","kind":"tick","at":8.3,"gain":-14},
-  {"id":"w3","source":"sfx","kind":"whoosh","at":9.2,"gain":-12},
-  {"id":"w4","source":"sfx","kind":"whoosh","at":11.8,"gain":-12},
-  {"id":"d1","source":"sfx","kind":"ding","at":13.0,"gain":-12}
- ]
+ "audio":[]
 }

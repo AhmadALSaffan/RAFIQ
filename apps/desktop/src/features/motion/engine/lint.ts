@@ -109,7 +109,7 @@ export function structuralIssues(scene: Scene, kitTypes: Record<string, number>,
       if ((kitTypes[style] ?? 32) < 28) out.push(issue("M012", layer.id, t("حجم {s} بالـ kit أصغر من المقروء", { s: style })));
     }
     if (target === "lottie") {
-      if (layer.type === "video" || layer.type === "image" || layer.type === "captions") out.push(issue("L001", layer.id, t("طبقة {k} ما بتنصدّر لـ Lottie", { k: layer.type })));
+      if (layer.type === "video" || layer.type === "image" || layer.type === "captions" || layer.type === "scene3d") out.push(issue("L001", layer.id, t("طبقة {k} ما بتنصدّر لـ Lottie", { k: layer.type })));
       if ((layer.blend && layer.blend !== "normal") || layer.shadow) out.push(issue("L001", layer.id, t("blend أو shadow ما بينصدّروا لـ Lottie")));
       if (layer.keyframes?.blur || (layer.animate ?? []).some((a) => a.preset === "kenBurns")) out.push(issue("L001", layer.id, t("blur و kenBurns ما بينصدّروا لـ Lottie")));
       if (layer.filters) out.push(issue("L001", layer.id, t("فلاتر الألوان ما بتنصدّر لـ Lottie")));
@@ -256,7 +256,7 @@ export async function lintScene(engine: MotionEngine, options: LintOptions = {})
       const visible = item.opacity > 0.5;
       const box = (item.type === "text" || item.type === "captions") && item.lines?.length ? textBounds(item)! : item.bounds;
       if (!box) continue;
-      const fillsFrame = (item.type === "video" || item.type === "image" || item.type === "group") && !layer.layout?.width && !layer.layout?.height;
+      const fillsFrame = (item.type === "video" || item.type === "image" || item.type === "scene3d" || item.type === "group") && !layer.layout?.width && !layer.layout?.height;
 
       if (visible && (item.type === "text" || item.type === "captions") && item.lines?.length) {
         texts.push({ item, box });

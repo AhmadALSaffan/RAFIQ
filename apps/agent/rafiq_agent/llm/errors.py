@@ -167,7 +167,7 @@ def message_for(kind: str, provider: str | None = None) -> str:
         "local_server_down": tr("{0} مش شغّال على جهازك.", who),
         "cant_reach": tr("ما قدرت أوصل لـ {0}.", who),
         "model_not_found": tr("{0} ما عنده هالموديل، أو حسابك ما بيوصله.", who),
-        "chatgpt_usage_limit": tr("وصلت لحد استخدام خطة ChatGPT تبعك لهالفترة. بتقدر تشوفه وتعدّله من إعدادات ChatGPT ← الاستخدام."),
+        "chatgpt_usage_limit": tr("OpenAI وقّفت طلبات رفيق على خطة ChatGPT لهلق (حد الخطة أو الحد اللي حاطّه لرفيق). التفاصيل بإعدادات ChatGPT ← الاستخدام."),
         "chatgpt_not_eligible": tr("حساب ChatGPT هاد ما بيقدر يستخدم خطته بتطبيقات تانية (الخطة أو المنطقة)."),
         "chatgpt_signed_out": tr("تسجيل الدخول بـ ChatGPT انتهى — سجّل دخول من جديد من الإعدادات ← الحسابات المتصلة."),
         "chatgpt_plan_off": tr("تسجيل الدخول زبط، بس ما سمحت لرفيق يستخدم خطة ChatGPT. جرّب مرة تانية ووافق على «استخدام خطتك»."),

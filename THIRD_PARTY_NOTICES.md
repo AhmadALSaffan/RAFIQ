@@ -85,6 +85,13 @@ The notes editor (`apps/desktop/src/components/notes/NoteEditor.tsx`) is built o
 from npm under the MIT license — Copyright (C) 2018-2021 by Marijn Haverbeke and others.
 Their licenses ship with the packages.
 
+## three.js
+
+The motion page's 3D layers (`apps/desktop/src/features/motion/engine/three/`) are drawn with
+[three.js](https://threejs.org) and its add-ons (RoomEnvironment, RoundedBoxGeometry,
+GLTFLoader, SVGLoader, BufferGeometryUtils, SkeletonUtils), installed from npm under the MIT
+license — Copyright © 2010-2026 three.js authors. Its license ships with the package.
+
 ## Radix UI primitives
 
 `@radix-ui/react-tabs` and `@radix-ui/react-dialog` (used by the tabs and the drawer) are

@@ -21,6 +21,8 @@ export interface Resources {
   video?: (layer: Layer, sourceTime: number) => ImageLike | null;
   /** Lottie layers draw themselves (lottie-web), given the layer's local time. */
   lottie?: (layer: Layer, ctx: Ctx, box: { x: number; y: number; w: number; h: number }, localTime: number) => void;
+  /** 3D layers draw themselves too (three.js, engine/three/player.ts), given the layer's local time. */
+  three?: (layer: Layer, ctx: Ctx, box: { x: number; y: number; w: number; h: number }, localTime: number) => void;
 }
 
 const BLEND: Record<string, GlobalCompositeOperation> = { normal: "source-over", multiply: "multiply", screen: "screen", overlay: "overlay" };
@@ -439,6 +441,9 @@ function drawItem(ctx: Ctx, item: DrawItem, res: Resources, t: number) {
     }
     case "lottie":
       res.lottie?.(layer, ctx, item.box, t - layer.start);
+      break;
+    case "scene3d":
+      res.three?.(layer, ctx, item.box, t - layer.start);
       break;
     case "chart":
       drawChart(ctx, item, res, t);

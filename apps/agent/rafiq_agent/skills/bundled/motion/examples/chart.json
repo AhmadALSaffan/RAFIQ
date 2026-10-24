@@ -28,8 +28,5 @@
       "animate": [ { "preset": "fadeIn", "at": 2.8, "duration": 0.5 } ]
     }
   ],
-  "audio": [
-    { "id": "music", "source": "procedural", "pattern": "corporate", "tempo": 104, "gain": -18 },
-    { "id": "t", "source": "sfx", "kind": "tick", "at": 1.2, "gain": -14 }
-  ]
+  "audio": []
 }

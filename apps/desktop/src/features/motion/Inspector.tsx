@@ -12,7 +12,9 @@ import { BracketLabel } from "../../components/brand";
 import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, CopyIcon, EyeIcon, EyeOffIcon, LockIcon, TrashIcon, UnlockIcon } from "../../components/Icons";
 import { loadIcons, searchIcons } from "./engine/icons";
 import { IconPreview } from "./IconPreview";
-import type { Animation, BrandKit, Layer, PresetName, Scene, ShadowSpec } from "./engine/types";
+import type { Animation, BrandKit, Layer, Material3Name, PresetName, Recipe3, Scene, Scene3D, ShadowSpec } from "./engine/types";
+import { RECIPES } from "./engine/three/recipes";
+import { MATERIAL_LABELS, MOOD_LABELS, MOVE_LABELS, RECIPE_LABELS, RECIPE_USES } from "./scene3dLabels";
 import { ColorField, SolidPicker } from "./ColorField";
 import { duplicateLayerOps, layerLabel, moveLayerOps, removeLayerOps, setField, type Op } from "./sceneEdit";
 import { roving } from "../../lib/keyboard";
@@ -504,6 +506,8 @@ export function Inspector({
         </Section>
       )}
 
+      {layer.type === "scene3d" && <Scene3DFields layer={layer} onSet={(value, summary) => set("scene3d", value, summary)} />}
+
       <Section title={t("المظهر")}>
         <Field label={t("الشفافية")}>
           <Slider value={layer.opacity ?? 1} min={0} max={1} step={0.05} format={(v) => `${Math.round(v * 100)}%`} onCommit={(v) => set("opacity", v >= 1 ? undefined : v, t("غيّرت شفافية {id}", { id }))} />
@@ -689,5 +693,75 @@ export function AnimationList({ layer, time, onChange }: { layer: Layer; time: n
         </div>
       ))}
     </div>
+  );
+}
+
+/** A 3D layer's look: which recipe, its text, material and mood, the camera's move, the glow. */
+function Scene3DFields({ layer, onSet }: { layer: Layer; onSet: (value: Scene3D, summary: string) => void }) {
+  const spec: Scene3D = layer.scene3d ?? {};
+  const recipe = spec.recipe;
+  const params = spec.params ?? {};
+  const uses = recipe ? RECIPE_USES[recipe] : {};
+  const textValue = uses.text === "lines" ? (Array.isArray(params.lines) ? (params.lines as string[]).join("\n") : String(params.text ?? "")) : String(params.text ?? "");
+  const [text, setText] = useState(textValue);
+  useEffect(() => setText(textValue), [layer.id, textValue]);
+  const setParam = (key: string, value: unknown, summary: string) => onSet({ ...spec, params: { ...params, [key]: value } }, summary);
+  const id = layer.id;
+  return (
+    <Section title={t("مشهد 3D")}>
+      <Field label={t("الشكل")}>
+        <select
+          value={recipe ?? ""}
+          onChange={(e) => onSet({ ...spec, recipe: (e.target.value || undefined) as Recipe3 | undefined }, t("غيّرت شكل {id}", { id }))}
+          className="rounded-lg border px-2 py-1 text-xs"
+          style={inputStyle}
+        >
+          {!recipe && <option value="">{t("مخصّص (من الموديل)")}</option>}
+          {RECIPES.map((r) => (
+            <option key={r} value={r}>
+              {RECIPE_LABELS[r]}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {uses.text && (
+        <Field label={uses.text === "lines" ? t("السطور (سطر بكل سطر)") : t("النص")}>
+          <textarea
+            value={text}
+            rows={uses.text === "lines" ? 3 : 2}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={() => {
+              if (text === textValue) return;
+              if (uses.text === "lines") setParam("lines", text.split("\n").map((l) => l.trim()).filter(Boolean), t("غيّرت نص {id}", { id }));
+              else setParam("text", text, t("غيّرت نص {id}", { id }));
+            }}
+            className="rounded-lg border px-2 py-1 text-sm outline-none"
+            style={inputStyle}
+            dir={fieldDir(text)}
+          />
+        </Field>
+      )}
+      {uses.material && (
+        <Field label={t("الخامة")}>
+          <Chips items={Object.keys(MATERIAL_LABELS) as Material3Name[]} value={(params.material as Material3Name | undefined) ?? "chrome"} label={(m) => MATERIAL_LABELS[m] ?? m} onPick={(m) => setParam("material", m, t("غيّرت خامة {id}", { id }))} />
+        </Field>
+      )}
+      {uses.mood && (
+        <Field label={t("الجو")}>
+          <Chips items={Object.keys(MOOD_LABELS)} value={(params.mood as string | undefined) ?? "night"} label={(m) => MOOD_LABELS[m] ?? m} onPick={(m) => setParam("mood", m, t("غيّرت جو {id}", { id }))} />
+        </Field>
+      )}
+      <Field label={t("حركة الكاميرا")}>
+        <Chips
+          items={Object.keys(MOVE_LABELS)}
+          value={spec.camera?.move?.type}
+          label={(m) => MOVE_LABELS[m] ?? m}
+          onPick={(m) => onSet({ ...spec, camera: { ...spec.camera, move: { ...spec.camera?.move, type: m as NonNullable<NonNullable<Scene3D["camera"]>["move"]>["type"] } } }, t("غيّرت حركة كاميرا {id}", { id }))}
+        />
+      </Field>
+      <Field label={t("التوهّج")}>
+        <Slider value={spec.post?.bloom ?? 0.5} min={0} max={2} step={0.05} format={(v) => v.toFixed(2)} onCommit={(v) => onSet({ ...spec, post: { ...spec.post, bloom: v } }, t("غيّرت توهّج {id}", { id }))} />
+      </Field>
+    </Section>
   );
 }
