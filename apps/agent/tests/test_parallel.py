@@ -2,6 +2,7 @@
 on, and a chat reply keeps going when the page that asked for it goes away."""
 
 import asyncio
+import contextlib
 import os
 
 import httpx
@@ -12,7 +13,7 @@ from rafiq_agent.config import AUTH_TOKEN
 from rafiq_agent.core.manager import Claim, TaskManager
 from rafiq_agent.llm.base import StreamEvent
 from rafiq_agent.main import app
-from rafiq_agent.storage.db import SessionLocal, init_db
+from rafiq_agent.storage.db import SessionLocal, engine, init_db
 from rafiq_agent.storage.models import LlmModel, Task, TaskEvent
 
 AUTH = {"authorization": f"Bearer {AUTH_TOKEN}"}
@@ -60,10 +61,15 @@ async def _task(model_id: str, working_dir: str) -> str:
         return task.id
 
 
+# Every harness a test made, closed when the test ends (the `db` fixture).
+_HARNESSES: list["Harness"] = []
+
+
 class Harness:
     """A manager whose runner holds each task open until the test releases it."""
 
     def __init__(self, limit: int = 100) -> None:
+        _HARNESSES.append(self)
         self.manager = TaskManager()
         self.gates: dict[str, asyncio.Event] = {}
         self.outcome: dict[str, str] = {}
@@ -94,9 +100,32 @@ class Harness:
         return self.running()
 
     async def finish(self, task_id: str, status: str = "completed") -> None:
+        """Releases a task and waits until it's really done: its last status written and
+        out of the running set. A fixed pause let a slow runner end the test mid-write,
+        leaving that write's transaction open and every later test's database locked."""
         self.outcome[task_id] = status
         self.gates.setdefault(task_id, asyncio.Event()).set()
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + 10
+        while self.manager.is_running(task_id) and loop.time() < deadline:
+            await asyncio.sleep(0.01)
         await settle()
+
+    async def close(self) -> None:
+        """Lets whatever still runs finish, then stops the scheduler — nothing of this test
+        is left writing when the next one starts."""
+        for gate in self.gates.values():
+            gate.set()
+        for task_id in list(self.manager._running):
+            self.gates.setdefault(task_id, asyncio.Event()).set()
+        running = list(self.manager._running.values())
+        if running:
+            await asyncio.wait(running, timeout=10)
+        scheduler = self.manager._scheduler
+        if scheduler is not None:
+            scheduler.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await scheduler
 
 
 async def settle() -> None:
@@ -107,6 +136,11 @@ async def settle() -> None:
 @pytest.fixture()
 async def db():
     await init_db()
+    yield
+    while _HARNESSES:
+        await _HARNESSES.pop().close()
+    # no connection outlives the test's event loop
+    await engine.dispose()
 
 
 async def test_unrelated_tasks_run_at_the_same_time(db, tmp_path):
