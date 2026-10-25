@@ -21,6 +21,8 @@ particles, a globe, a galaxy, a city, a product that turns, 3D bars…). Don't d
 | screenshots or pictures floating in 3D | `cardStack` | `images` = asset names, `layout` |
 | numbers, a comparison, growth | `bars3D` | `data` {values, labels} |
 | pieces falling and bouncing | `physicsDrop` | `of`, `colors` |
+| a heart, a star, a bolt, a cloud, a gear… as a 3D object | no recipe: `objects` with `{ "kind": "extrude", "outline": "heart" }` | `outline`, `material`, `color`, `size` |
+| a vase, a bottle, a cup | no recipe: `objects` with `{ "kind": "lathe" }` | `profile` (optional) |
 | none of these | `logoReveal` with the video's title | `text` |
 
 Materials to choose from: `chrome` (silver), `gold`, `glass`, `holographic`, `neon`,
@@ -65,6 +67,20 @@ Call `motion_render_frames` at `[1, 3, 6]`. Then fix **one** problem per patch:
 ## Step 5 — finish
 
 Run `motion_lint`; fix errors. Tell the user in two or three short lines what the 3D shows.
+
+## A 3D shape without a recipe (a heart, a star, a gem)
+
+```json
+{ "id": "heart3d", "type": "scene3d", "start": 0, "end": 6,
+  "scene3d": { "mood": "night", "environment": "studio",
+    "objects": [ { "id": "heart", "kind": "extrude", "outline": "heart", "size": 2.6, "depth": 0.8, "bevel": 0.12,
+                   "material": "glass", "color": "#ff3b5c",
+                   "animate": [{ "preset": "pop", "at": 0.2 }, { "preset": "pulse", "at": 1.2 }, { "preset": "turntable", "at": 0, "amount": 30 }] } ],
+    "camera": { "move": { "type": "orbit", "amount": 20 } }, "post": { "bloom": 0.5 } } }
+```
+
+Never write HTML, CSS, JavaScript or three.js code for 3D — the engine draws it from the
+layer above; code in a reply never reaches the video.
 
 ## Rules
 

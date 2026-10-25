@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "../components/arc/tabs/tabs";
 import { Breadcrumb } from "../components/easy/breadcrumb";
 import { useNavigate, useParams } from "react-router-dom";
@@ -15,6 +15,7 @@ import {
   readDesignDocument,
   readSkill,
   renameDesign,
+  saveDesignBoard,
   setDesignFolder,
 } from "../lib/api";
 import type { AgentSkill, ChatSummary, Design, DesignDocument, LlmModel } from "../lib/types";
@@ -23,7 +24,11 @@ import { queueChatMessage } from "../lib/handoff";
 import { fieldDir } from "../lib/bidi";
 import { guarded } from "../features/design/preview";
 import { HistoryPane } from "../features/design/HistoryPane";
-import { folderName, pickFolder } from "../lib/folders";
+import { Board } from "../features/design/Board";
+import { boardHtml, boardItems } from "../features/design/boardLayout";
+import { notify } from "../lib/toast";
+
+import { folderName, pickFolder, revealPath } from "../lib/folders";
 import { openExternal } from "../lib/links";
 import { FolderChip } from "../components/FolderPicker";
 import { Markdown } from "../components/Markdown";
@@ -37,10 +42,19 @@ import { SLOP_REQUEST } from "../components/ComposerMenus";
 
 import { t } from "../i18n";
 const DEVICES = [
+  { id: "board", label: t("لوحة"), width: 0 },
   { id: "mobile", label: t("موبايل"), width: 390 },
   { id: "tablet", label: t("تابلت"), width: 820 },
   { id: "desktop", label: t("شاشة"), width: 0 },
 ] as const;
+
+/** Which way the designed product reads, from the brief's answer ("عربي RTL", "English LTR"…). */
+function briefDir(brief: Record<string, string | string[]> | null): "rtl" | "ltr" {
+  const answer = String(brief?.direction ?? "");
+  if (/ltr/i.test(answer) && !/rtl/i.test(answer)) return "ltr";
+  if (/rtl/i.test(answer)) return "rtl";
+  return document.documentElement.dir === "ltr" ? "ltr" : "rtl";
+}
 
 type Tab = "preview" | "history" | "spec" | "skills";
 
@@ -79,6 +93,14 @@ export function DesignWorkspace() {
     void refresh();
   }, [id, refresh]);
 
+  // An app's design opens on its board.
+  const boardOpened = useRef(false);
+  useEffect(() => {
+    if (!design?.board || boardOpened.current) return;
+    boardOpened.current = true;
+    setDevice("board");
+  }, [design?.board]);
+
   // The newest document of the conversation is the default — the one the model just wrote.
   const newest = [...documents].reverse().find((d) => d.source === "chat") ?? documents[documents.length - 1] ?? null;
   const active = documents.find((d) => documentKey(d) === picked) ?? newest;
@@ -87,6 +109,34 @@ export function DesignWorkspace() {
       ? (folderHtml[active.path ?? ""] ?? null)
       : (design?.files?.find((f) => f.name === active.name)?.html ?? design?.preview_html ?? null)
     : null;
+
+  // The board shows every document: the chat's, and the HTML files in the design's folder
+  // (a model may write its screens there with its own tools). All of them are read for it.
+  const onBoard = device === "board";
+  useEffect(() => {
+    if (!onBoard) return;
+    const unread = documents.filter((d) => d.source === "folder" && d.path && folderHtml[d.path] === undefined);
+    if (!unread.length) return;
+    let alive = true;
+    void Promise.all(
+      unread.map((d) =>
+        readDesignDocument(id, d.path as string)
+          .then((doc) => [d.path as string, doc.html] as const)
+          .catch(() => [d.path as string, ""] as const),
+      ),
+    ).then((read) => alive && setFolderHtml((all) => ({ ...all, ...Object.fromEntries(read) })));
+    return () => {
+      alive = false;
+    };
+  }, [onBoard, documents, folderHtml, id]);
+  const boardFiles = useMemo(() => {
+    const files = design?.files ?? [];
+    const named = new Set(files.map((f) => f.name.toLowerCase()));
+    const fromFolder = documents
+      .filter((d) => d.source === "folder" && d.path && folderHtml[d.path] && !named.has(d.name.toLowerCase()))
+      .map((d) => ({ name: d.name, html: folderHtml[d.path as string] }));
+    return [...files, ...fromFolder];
+  }, [design?.files, documents, folderHtml]);
 
   // Read a folder file the first time it's opened.
   useEffect(() => {
@@ -123,7 +173,7 @@ export function DesignWorkspace() {
       disabled: !design?.preview_html && !design?.spec,
       onSelect: () => setHandoffOpen(true),
     },
-    { id: "designs", label: t("كل التصاميم"), onSelect: () => navigate("/designs") },
+    { id: "designs", label: t("كل التصاميم"), onSelect: () => navigate(design?.board ? "/designs?type=board" : "/designs") },
   ]);
 
   if (error) {
@@ -173,7 +223,14 @@ export function DesignWorkspace() {
         ) : (
           <div className="group/title flex min-w-0 flex-1 items-center gap-1">
             <h1 onDoubleClick={() => setRenaming(true)} title={t("دبل كليك لإعادة التسمية")} className="min-w-0 truncate text-[15px]">
-              <Breadcrumb items={[{ label: t("التصاميم"), onClick: () => navigate("/designs") }, { label: design.title }]} />
+              <Breadcrumb
+                items={[
+                  design.board
+                    ? { label: t("تصميم تطبيقات"), onClick: () => navigate("/designs?type=board") }
+                    : { label: t("التصاميم"), onClick: () => navigate("/designs") },
+                  { label: design.title },
+                ]}
+              />
             </h1>
             <button
               type="button"
@@ -264,6 +321,8 @@ export function DesignWorkspace() {
         <div className="m-2 ms-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)" }}>
           {tab === "preview" && (
             <PreviewPane
+              design={design}
+              boardFiles={boardFiles}
               documents={documents}
               active={active}
               html={activeHtml}
@@ -331,6 +390,8 @@ function documentKey(doc: DesignDocument): string {
 }
 
 function PreviewPane({
+  design,
+  boardFiles,
   documents,
   active,
   html,
@@ -341,6 +402,8 @@ function PreviewPane({
   onRefresh,
   onCopied,
 }: {
+  design: Design;
+  boardFiles: { name: string; html: string }[];
   documents: DesignDocument[];
   active: DesignDocument | null;
   html: string | null;
@@ -353,6 +416,23 @@ function PreviewPane({
 }) {
   const savedPath = active?.path ?? null;
   const [nonce, setNonce] = useState(0);
+  const onBoard = device === "board";
+  const [exporting, setExporting] = useState(false);
+
+  async function exportBoard() {
+    setExporting(true);
+    try {
+      const items = boardItems(boardFiles);
+      const screens = items.filter((i) => i.kind === "screen").length;
+      const html = boardHtml(design.title, items, briefDir(design.brief), t("{0} شاشة", { 0: screens }));
+      const saved = await saveDesignBoard(design.id, html);
+      notify({ type: "success", title: t("انحفظت اللوحة"), description: saved.path, action: { label: t("افتح المجلد"), onClick: () => void revealPath(saved.path) } });
+    } catch (e) {
+      notify({ type: "error", title: t("ما قدرت أحفظ اللوحة"), description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setExporting(false);
+    }
+  }
   const [missing, setMissing] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
 
@@ -382,7 +462,7 @@ function PreviewPane({
     <>
       {/* One row per concern: which document, then how it's shown. The document row only
           appears once there's more than one to choose between. */}
-      {documents.length > 1 && (
+      {documents.length > 1 && !onBoard && (
         <div className="flex items-center gap-1 overflow-x-auto border-b px-4 py-1.5" style={{ borderColor: "var(--color-border)" }}>
           <FileIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
           {documents.map((doc) => {
@@ -416,21 +496,28 @@ function PreviewPane({
       )}
 
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2" style={{ borderColor: "var(--color-border)" }}>
-        <div className="flex items-center gap-1 rounded-full p-0.5" style={{ background: "var(--color-surface-2)" }}>
-          {DEVICES.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => onDevice(d.id)}
-              className="rounded-full px-2.5 py-1 text-xs transition-colors"
-              style={{
-                background: device === d.id ? "var(--color-surface)" : "transparent",
-                color: device === d.id ? "var(--color-ink)" : "var(--color-ink-muted)",
-              }}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
+        {design.board ? (
+          // an app board is only ever a board: no device sizes to switch between
+          <span className="px-1 text-xs font-semibold" style={{ color: "var(--color-ink-muted)" }}>
+            {t("{0} شاشة", { 0: boardItems(boardFiles).filter((i) => i.kind === "screen").length })}
+          </span>
+        ) : (
+          <div className="flex items-center gap-1 rounded-full p-0.5" style={{ background: "var(--color-surface-2)" }}>
+            {DEVICES.filter((d) => d.id !== "board").map((d) => (
+              <button
+                key={d.id}
+                onClick={() => onDevice(d.id)}
+                className="rounded-full px-2.5 py-1 text-xs transition-colors"
+                style={{
+                  background: device === d.id ? "var(--color-surface)" : "transparent",
+                  color: device === d.id ? "var(--color-ink)" : "var(--color-ink-muted)",
+                }}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex min-w-0 items-center gap-1">
           <AnimatePresence>
             {missing && (
@@ -462,6 +549,12 @@ function PreviewPane({
           >
             <RefreshIcon className="h-3.5 w-3.5" />
           </IconButton>
+          {onBoard && (
+            <Button variant="ghost" onClick={() => void exportBoard()} disabled={exporting || !boardFiles.length}>
+              <ArrowDownIcon className="h-3.5 w-3.5" />
+              {exporting ? t("عم يحفظ…") : t("صدّر اللوحة HTML")}
+            </Button>
+          )}
           <IconButton
             label={t("انسخ كود الواجهة")}
             disabled={!html}
@@ -474,6 +567,11 @@ function PreviewPane({
         </div>
       </div>
 
+      {onBoard ? (
+        <div className="min-h-0 flex-1">
+          <Board title={design.title} files={boardFiles} dir={briefDir(design.brief)} nonce={nonce} />
+        </div>
+      ) : (
       <div className="min-h-0 flex-1 overflow-auto p-4" style={{ background: "var(--color-surface-2)" }}>
         {html ? (
           <div
@@ -500,6 +598,7 @@ function PreviewPane({
           </div>
         )}
       </div>
+      )}
     </>
   );
 }

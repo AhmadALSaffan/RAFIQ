@@ -149,8 +149,8 @@ export function Composer({
 
   function submit() {
     if (!canSend) return;
-    // In motion, the working orb rises out of the send button.
-    if (mode === "motion") launchOrb(sendButton.current);
+    // The working orb rises out of the send button.
+    launchOrb(sendButton.current);
     // The isolate characters are a display concern — the model never sees them.
     onSend(stripBidi(text));
     setText("");

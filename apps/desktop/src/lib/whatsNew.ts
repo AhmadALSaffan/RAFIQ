@@ -10,6 +10,7 @@
 
 import { t, type Locale } from "../i18n";
 import chatgptPicture from "../assets/whats-new/0.5.6.webp";
+import boardPicture from "../assets/whats-new/0.5.9.webp";
 
 // The version whose dialog the user closed. (A new key: the first builds marked a version
 // seen as soon as it opened, shown or not.)
@@ -32,6 +33,18 @@ export interface ReleaseNews {
 const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/AhmadALSaffan/RAFIQ/releases/download/v${version}/whats-new-${lang}.mp4`;
 
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.9",
+    image: boardPicture,
+    title: () => t("صمّم تطبيقك على لوحة وحدة"),
+    points: () => [
+      t("تصميم تطبيقات: كل شاشة بإطار جوال على لوحة وحدة، والهوية أولاً"),
+      t("صدّر اللوحة ملف HTML واحد، بينفتح بأي متصفح"),
+      t("أشكال جديدة بالموشن: 12 شكل 2D، وقلب ونجمة وبرق وأحجار ومزهريات 3D"),
+      t("موسيقى بـ 12 ستايل جاهز، وآلات عربية: عود وقانون وناي ودربكة"),
+      t("8 مؤثرات صوتية جديدة"),
+    ],
+  },
   {
     version: "0.5.8",
     videos: { ar: RELEASE_VIDEO("0.5.8", "ar"), en: RELEASE_VIDEO("0.5.8", "en"), ru: RELEASE_VIDEO("0.5.8", "ru") },

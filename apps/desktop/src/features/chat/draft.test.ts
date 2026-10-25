@@ -11,6 +11,17 @@ describe("applyEvent", () => {
     expect(textOf(b.parts)).toBe("مرحبا");
   });
 
+  it("takes back the text of an answer that was sent back to be redone", () => {
+    let draft = applyEvent(empty, { type: "delta", text: "عملت المشهد. " });
+    draft = applyEvent(draft, { type: "delta", text: "هاد الكود:" });
+    draft = applyEvent(draft, { type: "retract", text: "هاد الكود:" });
+    expect(textOf(draft.parts)).toBe("عملت المشهد. ");
+    draft = applyEvent(draft, { type: "retract", text: "عملت المشهد. " });
+    expect(draft.parts).toEqual([]);
+    // text that isn't there (already gone) changes nothing
+    expect(applyEvent(draft, { type: "retract", text: "x" })).toBe(draft);
+  });
+
   it("starts a new text part after a tool step", () => {
     let draft = applyEvent(empty, { type: "delta", text: "قبل" });
     draft = applyEvent(draft, { type: "tool_call", id: "1", tool: "shell_run", args: {} });

@@ -488,6 +488,7 @@ export function MotionWorkspace() {
                     tracks={tracks}
                     duration={comp.duration}
                     time={time}
+                    playing={playing}
                     onSeek={(s) => {
                       setPlaying(false);
                       setTime(s);

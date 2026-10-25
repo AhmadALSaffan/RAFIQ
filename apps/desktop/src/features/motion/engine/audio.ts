@@ -177,6 +177,116 @@ const SFX: Record<string, (r: () => number) => Float32Array> = {
     }
     return out;
   },
+  // a rising cluster of soft bells: something appears, magic
+  shimmer: (r) => {
+    const n = Math.round(1.4 * SAMPLE_RATE);
+    const out = new Float32Array(n);
+    const notes = [84, 88, 91, 95, 96, 100];
+    notes.forEach((m, k) => {
+      const at = Math.round(k * 0.07 * SAMPLE_RATE);
+      const f = note(m) * (1 + (r() - 0.5) * 0.004);
+      for (let i = 0; at + i < n; i++) {
+        const s = i / SAMPLE_RATE;
+        out[at + i] += Math.sin(2 * Math.PI * f * s) * Math.min(1, s / 0.004) * Math.exp(-s / 0.5) * 0.18;
+      }
+    });
+    return out;
+  },
+  // quick bright pings scattered over a moment: sparkles, stars
+  sparkle: (r) => {
+    const n = Math.round(0.8 * SAMPLE_RATE);
+    const out = new Float32Array(n);
+    for (let k = 0; k < 9; k++) {
+      const at = Math.round(r() * 0.55 * SAMPLE_RATE);
+      const f = note(96 + Math.floor(r() * 14));
+      for (let i = 0; at + i < n && i < 0.25 * SAMPLE_RATE; i++) {
+        const s = i / SAMPLE_RATE;
+        out[at + i] += Math.sin(2 * Math.PI * f * s) * Math.min(1, s / 0.002) * Math.exp(-s / 0.06) * 0.22;
+      }
+    }
+    return out;
+  },
+  // lub-dub
+  heartbeat: () => {
+    const n = Math.round(0.8 * SAMPLE_RATE);
+    const out = new Float32Array(n);
+    for (const [at, gain] of [[0, 1], [0.22, 0.7]] as const) {
+      const i0 = Math.round(at * SAMPLE_RATE);
+      let ph = 0;
+      for (let i = 0; i0 + i < n && i < 0.3 * SAMPLE_RATE; i++) {
+        const s = i / SAMPLE_RATE;
+        ph += (2 * Math.PI * (48 + 30 * Math.exp(-s / 0.03))) / SAMPLE_RATE;
+        out[i0 + i] += Math.sin(ph) * Math.min(1, s / 0.004) * Math.exp(-s / 0.07) * gain;
+      }
+    }
+    return out;
+  },
+  // a digital stutter: chopped, crushed noise and a buzz
+  glitch: (r) => {
+    const n = Math.round(0.45 * SAMPLE_RATE);
+    const out = new Float32Array(n);
+    const slice = Math.round(0.028 * SAMPLE_RATE);
+    for (let c = 0; c * slice < n; c++) {
+      if (r() < 0.3) continue;
+      const f = 200 + r() * 2400;
+      const hold = 4 + Math.floor(r() * 24);
+      let held = 0;
+      for (let i = 0; i < slice && c * slice + i < n; i++) {
+        if (i % hold === 0) held = (r() * 2 - 1) * 0.5 + (Math.sin((2 * Math.PI * f * i) / SAMPLE_RATE) > 0 ? 0.3 : -0.3);
+        out[c * slice + i] = held * 0.6;
+      }
+    }
+    return out;
+  },
+  // a deep cinematic hit with a long tail
+  boom: (r) => {
+    const n = Math.round(2.6 * SAMPLE_RATE);
+    const out = new Float32Array(n);
+    const nz = biquad(noise(n, r), "low", 500);
+    let ph = 0;
+    for (let i = 0; i < n; i++) {
+      const s = i / SAMPLE_RATE;
+      ph += (2 * Math.PI * (32 + 60 * Math.exp(-s / 0.09))) / SAMPLE_RATE;
+      out[i] = Math.tanh(1.4 * Math.sin(ph)) * Math.min(1, s / 0.003) * Math.exp(-s / 0.9) + nz[i] * Math.exp(-s / 0.35) * 0.4;
+    }
+    return out;
+  },
+  // air and a tone growing into the next moment
+  swell: (r) => {
+    const n = Math.round(1.8 * SAMPLE_RATE);
+    const src = biquad(noise(n, r), "low", 2500);
+    const out = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const t = i / n;
+      const s = i / SAMPLE_RATE;
+      out[i] = (src[i] * 0.5 + 0.3 * Math.sin(2 * Math.PI * note(57) * s) + 0.2 * Math.sin(2 * Math.PI * note(64) * s)) * t ** 2.4 * (1 - Math.max(0, t - 0.96) / 0.04);
+    }
+    return out;
+  },
+  // two friendly tones: a message, a done
+  notify: () => {
+    const n = Math.round(0.6 * SAMPLE_RATE);
+    const out = new Float32Array(n);
+    for (const [at, m] of [[0, 81], [0.11, 88]] as const) {
+      const i0 = Math.round(at * SAMPLE_RATE);
+      for (let i = 0; i0 + i < n; i++) {
+        const s = i / SAMPLE_RATE;
+        out[i0 + i] += (Math.sin(2 * Math.PI * note(m) * s) + 0.25 * Math.sin(4 * Math.PI * note(m) * s)) * Math.min(1, s / 0.003) * Math.exp(-s / 0.18) * 0.35;
+      }
+    }
+    return out;
+  },
+  // a camera shutter: two clicks and the curtain between
+  shutter: (r) => {
+    const n = Math.round(0.18 * SAMPLE_RATE);
+    const out = new Float32Array(n);
+    const nz = biquad(noise(n, r), "band", 2500, 0.8);
+    for (const at of [0, 0.07]) {
+      const i0 = Math.round(at * SAMPLE_RATE);
+      for (let i = 0; i0 + i < n && i < 0.05 * SAMPLE_RATE; i++) out[i0 + i] += nz[i0 + i] * Math.exp(-i / (0.008 * SAMPLE_RATE)) * 1.2;
+    }
+    return out;
+  },
 };
 
 /** `sig` played `rate` times as fast (higher and shorter above 1), linear interpolation. */

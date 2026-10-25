@@ -2,6 +2,7 @@
 the checks — in the engine when an app window is open, in Python when not."""
 
 import json
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -179,12 +180,22 @@ def format_issues(issues: list[dict[str, Any]], limit: int = 25) -> str:
     return "\n".join(lines)
 
 
+ENGINE_ONLY = (
+    "0. الفيديو بينبني بس بمحرك رفيق: كل شي بالمشهد عبر أدوات motion_. ممنوع تكتب كود (HTML، CSS، "
+    "JavaScript، three.js، SVG كصفحة، Python…) بالرد أو كملف — المستخدم ما بيشوف ولا بيشغّل كود هون، بس "
+    "المشهد. حتى الطلب الصعب بينعمل بالمحرك: قلب أو شكل 3D = طبقة scene3d فيها `extrude` (شكل جاهز "
+    "بـ `shape` أو مسار SVG) بمادة وإضاءة وكاميرا؛ أشكال 2D = طبقة shape؛ حركة = animate و keyframes. "
+    "إذا شي فعلاً مش موجود بالمحرك، اعمل أقرب شي فيه وقول للمستخدم شو الفرق بجملة. "
+    "وما تغيّر composition.fps إلا إذا المستخدم طلب رقم معيّن: 120 بيقطّع على أغلب الأجهزة.\n"
+)
+
 MOTION_SYSTEM_PROMPT = (
     "أنت مخرج ومصمم موشن قرافك محترف داخل تطبيق رفيق. بتبني فيديوهات (ريلز، إنترو، شرح، رسوم بيانية، "
     "عرض تطبيق، وتعديل فيديو المستخدم) بكتابة **مشهد** بصيغة RMS v1، والإنجن بيرسم كل فريم. المستوى المطلوب: "
     "متل شغل استوديو موشن محترف، مش شرائح نص.\n\n"
     "القواعد:\n"
-    "1. تحت بهالرسالة في دليلين: «إخراج الموشن» (كيف بيفكّر المصمم المحترف: البريف، اللقطات، الألوان، الخطوط، "
+    + ENGINE_ONLY
+    + "1. تحت بهالرسالة في دليلين: «إخراج الموشن» (كيف بيفكّر المصمم المحترف: البريف، اللقطات، الألوان، الخطوط، "
     "الحركة) و«مرجع الصيغة». اشتغل منهم مباشرة وما تقرأ ملفات بالبداية. "
     "schema.json بـ skill_read بس إذا احتجت تفصيل خاصية مش موجود.\n"
     "2. قبل أول تعديل اكتب البريف (الفكرة، الألوان بالـ hex، الخطوط، قائمة اللقطات بالتوقيت) — "
@@ -211,7 +222,8 @@ FREE_SYSTEM_PROMPT = (
     "كل فريم — 2D و 3D (طبقات scene3d). إنت صاحب القرار الإبداعي بالكامل: الفكرة، الألوان، الخطوط، اللقطات، "
     "الإيقاع، الكاميرا والـ 3D. ما في أسلوب مفروض عليك؛ اعمل الفيديو اللي بتشوفه أحسن شي لطلب المستخدم.\n\n"
     "اللي لازم:\n"
-    "1. تحت في «مرجع الصيغة» (الحقول والأدوات). schema.json بـ skill_read إذا احتجت تفصيل.\n"
+    + ENGINE_ONLY
+    + "1. تحت في «مرجع الصيغة» (الحقول والأدوات). schema.json بـ skill_read إذا احتجت تفصيل.\n"
     "2. بتعدّل المشهد بس بـ motion_patch_scene. كل patch نسخة وبترجع مع الفحص — صلّح الأخطاء.\n"
     "3. كل شي جوا وقت الفيديو: الطبقة بتخلص قبل composition.duration، ومفاتيحها وحركاتها بين start و end تبعها.\n"
     "4. الصوت (موسيقى، مؤثرات، تعليق صوتي) بس إذا المستخدم طلبه — غير هيك audio: [].\n"
@@ -219,6 +231,80 @@ FREE_SYSTEM_PROMPT = (
     "6. اكتب للمستخدم بالعربي شو عملت، بجمل قصيرة، بدون ما تلصق المشهد.\n"
     "7. التصدير من زر «تصدير»، أو motion_render إذا طلب صراحة."
 )
+
+
+# A reply that hands over code instead of building the scene: a fenced block, or a page.
+_CODE = re.compile(r"```|<!doctype|<html|<script|<style|<canvas|import \* as THREE|new THREE\.", re.IGNORECASE)
+
+ENGINE_ONLY_REDO = (
+    "(رسالة من رفيق) ردّك فيه كود، وبالموشن الكود ما بيوصل للمستخدم ولا بيشتغل — "
+    "الفيديو بس اللي بتبنيه بأدوات motion_. ابنِ نفس الطلب هلأ بالمحرك: motion_patch_scene "
+    "(طبقة scene3d للـ 3D: extrude بـ shape أو مسار SVG، مواد، إضاءة، كاميرا؛ وطبقات 2D للباقي)، "
+    "وبعدها اكتب للمستخدم بجملتين شو عملت، بلا كود."
+)
+
+
+def engine_only(text: str) -> str | None:
+    """A motion reply's check: code in it is sent back to be built with the engine."""
+    return ENGINE_ONLY_REDO if _CODE.search(text) else None
+
+
+class CodeFilter:
+    """Keeps code out of a motion chat as it streams: fenced blocks (and a page written
+    without a fence, to the end of that step) never reach the screen. `engine_only` then
+    sends that step back to be built with the engine."""
+
+    _OPEN = re.compile(r"<!doctype|<html|<script|<style|<canvas", re.IGNORECASE)
+
+    def __init__(self) -> None:
+        self._held = ""
+        self._fence = False
+        self._page = False
+
+    def feed(self, text: str) -> str:
+        if self._page:
+            return ""
+        data = self._held + text
+        self._held = ""
+        out: list[str] = []
+        while data:
+            if self._fence:
+                end = data.find("```")
+                if end < 0:
+                    # a closing fence may be split across deltas
+                    self._held = data[-2:] if data.endswith("`") else ""
+                    return "".join(out)
+                data = data[end + 3 :]
+                self._fence = False
+                continue
+            start = data.find("```")
+            page = self._OPEN.search(data)
+            if page and (start < 0 or page.start() < start):
+                out.append(data[: page.start()])
+                self._page = True
+                return "".join(out)
+            if start < 0:
+                # hold back a tail that could be the start of a fence or a tag
+                cut = len(data)
+                while cut > 0 and data[cut - 1] == "`" and len(data) - cut < 2:
+                    cut -= 1
+                tag = data.rfind("<")
+                if tag >= 0 and ">" not in data[tag:] and len(data) - tag < 10:
+                    cut = min(cut, tag)
+                out.append(data[:cut])
+                self._held = data[cut:]
+                return "".join(out)
+            out.append(data[:start])
+            data = data[start + 3 :]
+            self._fence = True
+        return "".join(out)
+
+    def end_step(self) -> str:
+        """A step finished: what was held back (if it turned out not to be code), and a
+        clean state for the next step."""
+        rest = "" if self._fence or self._page else self._held
+        self._held, self._fence, self._page = "", False, False
+        return rest
 
 
 def system_prompt(guided: bool) -> str:

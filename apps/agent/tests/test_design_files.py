@@ -1,5 +1,7 @@
 """A design keeps every document the model writes, each with a name the preview switches to."""
 
+from pathlib import Path
+
 import httpx
 import pytest
 from httpx import ASGITransport
@@ -177,3 +179,64 @@ async def test_a_document_saved_from_the_chat_is_not_listed_twice(client, tmp_pa
     assert (tmp_path / "متجر.html").is_file()  # the chat document was written to the folder
     documents = (await client.get(f"/designs/{design_id}/documents", headers=AUTH)).json()
     assert [d["source"] for d in documents] == ["chat"]
+
+
+def test_an_apps_screens_are_a_board_in_any_language():
+    from rafiq_agent.core.designs import is_board
+
+    assert is_board({"type": "board", "what": "x"})
+    assert is_board({"kind": "تطبيق موبايل"})
+    assert is_board({"kind": "Mobile app"})
+    assert is_board({"kind": "Мобильное приложение"})
+    assert is_board({"kind": "موقع", "layout": "شاشات تطبيق"})
+    assert not is_board({"kind": "موقع"})
+    assert not is_board(None)
+
+
+async def test_a_board_design_says_so_and_saves_its_board(client, tmp_path):
+    async with SessionLocal() as session:
+        model = LlmModel(name="T3", provider="custom", model_id="t", base_url="http://127.0.0.1:1")
+        session.add(model)
+        await session.flush()
+        chat = Chat(title="c", model_id=model.id, mode="design")
+        session.add(chat)
+        await session.flush()
+        design = Design(title="متجر القهوة", chat_id=chat.id, model_id=model.id, brief={"kind": "تطبيق موبايل"}, working_dir=str(tmp_path))
+        session.add(design)
+        await session.commit()
+        design_id = design.id
+
+    out = (await client.get(f"/designs/{design_id}", headers=AUTH)).json()
+    assert out["board"] is True
+    saved = await client.post(f"/designs/{design_id}/board", json={"html": "<!doctype html><p>board</p>"}, headers=AUTH)
+    assert saved.status_code == 200, saved.text
+    path = saved.json()["path"]
+    assert path.startswith(str(tmp_path)) and path.endswith("-board.html")
+    assert "board" in Path(path).read_text(encoding="utf-8")
+
+
+def test_a_board_reply_is_checked_before_it_is_kept():
+    from rafiq_agent.core.designs import (
+        BOARD_REDO_BRAND,
+        BOARD_REDO_NAMES,
+        BOARD_REDO_NONE,
+        board_reply_check,
+    )
+
+    screen = "<html><body><h1>Home</h1></body></html>"
+    brand = "```html\n<!-- file: brand -->\n<html>logo</html>\n```\n"
+    good = brand + f"```html\n<!-- file: home -->\n{screen}\n```"
+    assert board_reply_check(good, has_documents=False) is None
+    # nothing to draw yet: sent back
+    assert board_reply_check("هاي الخطة", has_documents=False) == BOARD_REDO_NONE
+    # once there's a board, talking it over is fine
+    assert board_reply_check("شو رأيك نغيّر اللون؟", has_documents=True) is None
+    assert board_reply_check(f"```html\n{screen}\n```", has_documents=True) == BOARD_REDO_NAMES
+    assert board_reply_check(f"```html home.html\n{screen}\n```", has_documents=False) == BOARD_REDO_BRAND
+    # a phone drawn by the model, or several screens in one document
+    framed = '```html\n<!-- file: home -->\n<div class="phone-frame"><span>9:41</span></div>\n```'
+    assert "home" in (board_reply_check(brand + framed, has_documents=False) or "")
+    many = "<section id=a></section><section id=b></section><section id=c></section><script>location.hash</script>"
+    assert "all" in (board_reply_check(brand + f"```html\n<!-- file: all -->\n{many}\n```", has_documents=False) or "")
+    # the identity sheet may show anything (a mock phone with the app icon, the status bar…)
+    assert board_reply_check("```html\n<!-- file: brand -->\n<div class='phone-frame'>9:41</div>\n```", has_documents=False) is None

@@ -16,7 +16,7 @@ QUESTIONS: list[dict[str, Any]] = [
         "id": "kind",
         "label": "شو بدك تصمّم؟",
         "kind": "choice",
-        "options": ["موقع", "تطبيق ويب", "لوحة تحكم", "تطبيق موبايل", "صفحة هبوط"],
+        "options": ["موقع", "تطبيق ويب", "لوحة تحكم", "صفحة هبوط"],
         "required": True,
     },
     {
@@ -44,7 +44,7 @@ QUESTIONS: list[dict[str, Any]] = [
         "id": "layout",
         "label": "شكل الصفحة؟",
         "kind": "choice",
-        "options": ["طويلة بقصة كاملة", "قصيرة ومركّزة", "شبكة بطاقات", "تحريرية بأعمدة", "شاشات تطبيق"],
+        "options": ["طويلة بقصة كاملة", "قصيرة ومركّزة", "شبكة بطاقات", "تحريرية بأعمدة"],
         "required": False,
     },
     {
@@ -108,6 +108,145 @@ DESIGN_SYSTEM_PROMPT = (
 )
 
 
+# A mobile app is designed as a board: every screen in a phone frame, side by side, with the
+# app's identity sheet first (the app draws the board — features/design/Board.tsx). It has
+# its own door and its own brief; websites keep theirs.
+BOARD_QUESTIONS: list[dict[str, Any]] = [
+    {
+        "id": "what",
+        "label": "شو بيعمل التطبيق؟ بجملة وحدة",
+        "kind": "text",
+        "placeholder": "مثلاً: تطبيق تطلب فيه قهوتك من أقرب فرع وتستلمها بدون انتظار",
+        "required": True,
+    },
+    {
+        "id": "who",
+        "label": "مين المستخدم؟",
+        "kind": "text",
+        "placeholder": "مثلاً: موظفين مستعجلين الصبح، أغلبهم على آيفون",
+        "required": True,
+    },
+    {
+        "id": "screens",
+        "label": "شو أهم الشاشات؟",
+        "kind": "text",
+        "placeholder": "مثلاً: الترحيب، الرئيسية، القائمة، السلة، تتبع الطلب، الحساب",
+        "required": False,
+    },
+    {
+        "id": "style",
+        "label": "الإحساس العام؟",
+        "kind": "choice",
+        "options": ["هادي ونظيف", "جريء وملوّن", "فخم وداكن", "مرح وودود"],
+        "required": False,
+    },
+    {
+        "id": "direction",
+        "label": "لغة الواجهة واتجاهها",
+        "kind": "choice",
+        "options": ["عربي RTL", "إنجليزي LTR", "الاثنين"],
+        "required": True,
+    },
+    {
+        "id": "references",
+        "label": "في تطبيقات شكلها بيعجبك؟",
+        "kind": "text",
+        "placeholder": "أسماء أو روابط — بتوصل الذوق أسرع من الوصف",
+        "required": False,
+    },
+]
+# Designs from before the board had its own door asked for it as a kind of design.
+BOARD_KIND = "تطبيق موبايل"
+BOARD_LAYOUT = "شاشات تطبيق"
+
+
+def is_board(brief: dict[str, Any] | None) -> bool:
+    """An app board: made from its own door (`type: board`), or — before that — asked for as
+    a mobile app, in whichever language the answers were saved in."""
+    if not brief:
+        return False
+    if brief.get("type") == "board":
+        return True
+    from rafiq_agent.i18n import _DICTS
+
+    def names(text: str) -> set[str]:
+        return {text, *(d.get(text, text) for d in _DICTS.values())}
+
+    return str(brief.get("kind") or "") in names(BOARD_KIND) or str(brief.get("layout") or "") in names(BOARD_LAYOUT)
+
+
+BOARD_NOTE = (
+    "هالتصميم **لوحة تطبيق موبايل**: رفيق بيعرض كل شاشة بإطار جوال على لوحة وحدة (متل Figma)، "
+    "وأول شي عليها هوية التطبيق. القواعد:\n"
+    "0. المستندات بتنكتب بالرد نفسه، كل واحد ببلوك ```html — رفيق بيحفظها وبيرسم اللوحة منها. ما عندك "
+    "أدوات ملفات هون، ورفيق بيفحص كل رد: رد بلا مستندات (قبل ما يكون في لوحة)، مستند بلا اسم، مستند فيه "
+    "إطار جوال أو شريط حالة أو كذا شاشة، أو أول رد بلا brand — بيرجعلك لتعيده.\n"
+    "1. كل شاشة مستند لحاله: بلوك ```html أول سطر فيه <!-- file: <id> --> — id إنجليزي قصير "
+    "(onboarding, home, search, product, cart, profile…) — و <title> فيه اسم الشاشة بلغة المنتج.\n"
+    "2. أول مستند اسمه brand: لوحة الهوية البصرية للتطبيق، مش شاشة. عرضها 1200px: الشعار (SVG إنت "
+    "بتصممه، مش نص)، أيقونة التطبيق، الألوان بأسمائها وقيمها، الخطوط بأحجامها، والمكونات الأساسية "
+    "(أزرار بحالاتها، حقل، بطاقة، شريط تنقل، شارة).\n"
+    "3. كل شاشة 390×844 بالظبط: html و body بدون هوامش، ارتفاع 100vh، والمحتوى بيعبّي الشاشة. لا ترسم "
+    "إطار الجوال ولا شريط الحالة ولا مؤشر الهوم — رفيق بيحطهم. خلّي أول 54px وآخر 34px بدون أزرار.\n"
+    "4. نفس الهوية بكل الشاشات: نفس بلوك :root ونفس الخطوط ونفس المكونات (انسخ نفس الـ CSS بكل "
+    "مستند)، وشريط التنقل نفسه بكل الشاشات اللي فيها شريط.\n"
+    "5. رتّب المستندات بترتيب رحلة المستخدم، من 5 لـ 8 شاشات، بمحتوى حقيقي (أسماء، أسعار، صور من "
+    "Unsplash بروابطها). زر بيودّي لشاشة تانية: href=\"<id>.html\" — رفيق بيوصل اللوحة لهالشاشة.\n"
+    "6. أول رد: brand وأهم 3 شاشات. بآخر الرد اكتب الشاشات الباقية بسطر، والمستخدم بيقول «كمّل». "
+    "بالتعديلات ارجع بس المستندات اللي تغيّرت."
+)
+
+
+# What a board reply is checked for (chat_service sends a refused reply back to be redone).
+_FRAME = re.compile(
+    r"dynamic[-_ ]?island|\bnotch\b|phone[-_]?frame|device[-_]?frame|iphone[-_]?frame|home[-_]?indicator|>\s*9:41\s*<",
+    re.IGNORECASE,
+)
+_SECTION = re.compile(r"<section\b", re.IGNORECASE)
+
+BOARD_REDO_NONE = (
+    "(رسالة من رفيق) ردّك ما فيه ولا مستند، فاللوحة فاضية والمستخدم ما بيشوف شي. اكتب هلأ مستند brand "
+    "وأهم الشاشات، كل واحد ببلوك ```html أول سطر فيه <!-- file: <id> -->."
+)
+BOARD_REDO_NAMES = (
+    "(رسالة من رفيق) في مستندات بردّك بلا اسم، فرفيق ما بيعرف أي شاشة هي. أعد الرد وخلّي أول سطر بكل "
+    "بلوك ```html: <!-- file: <id> --> (brand، home، menu…)."
+)
+BOARD_REDO_FRAME = (
+    "(رسالة من رفيق) المستند «{0}» فيه إطار جوال أو شريط حالة أو كذا شاشة. رفيق هو اللي بيرسم الإطار "
+    "وشريط الحالة واللوحة: كل مستند شاشة وحدة بمحتواها بس (390×844)، وكل شاشة بمستند لحاله. أعد "
+    "المستندات اللي فيها هالشي."
+)
+BOARD_REDO_BRAND = (
+    "(رسالة من رفيق) أول لوحة لازم تبلّش بمستند الهوية: <!-- file: brand --> (الشعار، الأيقونة، الألوان، "
+    "الخطوط، المكونات). أعد الرد ومعه brand."
+)
+
+
+def board_reply_check(text: str, has_documents: bool) -> str | None:
+    """A board chat's answer, checked before it's kept: what to tell the model if it has to
+    be redone, or None. The documents are what the board is drawn from, so the rules are
+    the ones that keep it drawable."""
+    blocks = _HTML_BLOCK.findall(text or "")
+    if not blocks:
+        # talking it over is fine once the board has screens; before that it's empty
+        return None if has_documents else BOARD_REDO_NONE
+    names: list[str] = []
+    for fence, body in blocks:
+        comment = _FILE_COMMENT.search(body)
+        name = clean_name(fence.split()[0]) if fence.strip() else clean_name(comment.group(1)) if comment else ""
+        if not name:
+            return BOARD_REDO_NAMES
+        names.append(name)
+        sheet = name.lower().startswith(("brand", "identity", "style", "design-system"))
+        many = len(_SECTION.findall(body)) >= 3 and "location.hash" in body
+        if not sheet and (_FRAME.search(body) or many):
+            return BOARD_REDO_FRAME.format(name)
+    if not has_documents and not any(n.lower().startswith(("brand", "identity")) for n in names):
+        return BOARD_REDO_BRAND
+    return None
+
+
 def design_guide_note() -> str:
     """What a design chat's model reads with every turn: how a studio composes a page
     (DESIGNER.md) and the impeccable process. No finished page rides along — a model shown
@@ -147,10 +286,10 @@ def skills_note(full: bool = False) -> str:
     )
 
 
-def localized_questions() -> list[dict[str, Any]]:
-    """QUESTIONS in the user's language (labels, placeholders, options)."""
+def localized_questions(board: bool = False) -> list[dict[str, Any]]:
+    """The questions (a site's, or an app board's) in the user's language."""
     out = []
-    for question in QUESTIONS:
+    for question in BOARD_QUESTIONS if board else QUESTIONS:
         q = dict(question)
         q["label"] = tr(q["label"])
         if q.get("placeholder"):
@@ -166,19 +305,23 @@ def brief_message(brief: dict[str, Any]) -> str:
 
     It's shown in the chat as the user's own message, so it's in the user's language."""
     lines = [tr("هاي معلومات المشروع من `impeccable init`:"), ""]
-    for question in QUESTIONS:
+    for question in BOARD_QUESTIONS if brief.get("type") == "board" else QUESTIONS:
         value = brief.get(question["id"])
         if isinstance(value, list):
             value = tr("، ").join(value)
         answer = str(value).strip() if value else tr("— (ما حددها المستخدم)")
         lines.append(f"- **{tr(question['label'])}** {answer}")
-    lines += [
-        "",
-        tr(
+    if is_board(brief):
+        start = tr(
+            "ابدأ: اكتبلي خطة التطبيق (الشاشات بترتيب رحلة المستخدم والهوية)، وبعدين اعطيني لوحة "
+            "الهوية وأهم الشاشات، كل شاشة بمستند لحاله."
+        )
+    else:
+        start = tr(
             "ابدأ: اكتبلي خطة الصفحة بروح الهوية اللي بنيتها (الأقسام والحركات المميزة)، وبعدين "
             "اعطيني أول نسخة من التصميم كمستند HTML كامل."
-        ),
-    ]
+        )
+    lines += ["", start]
     return "\n".join(lines)
 
 

@@ -7,7 +7,7 @@
 
 import { isGradient, paintColor, resolveColor } from "./brand";
 import { icon } from "./icons";
-import { arcPath, arrowPath, ellipsePath, heartPath, parsePath, polygonPath, rectPath, ringPath, starPath, toPath2D, trianglePath, trimLines, type Polyline } from "./paths";
+import { arcPath, arrowPath, ellipsePath, heartPath, outlinePath, parsePath, polygonPath, rectPath, ringPath, starPath, toPath2D, trianglePath, trimLines, type Polyline } from "./paths";
 import type { BrandKit, DrawItem, Frame, Gradient, Layer, Paint } from "./types";
 
 export type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -25,7 +25,25 @@ export interface Resources {
   three?: (layer: Layer, ctx: Ctx, box: { x: number; y: number; w: number; h: number }, localTime: number) => void;
 }
 
-const BLEND: Record<string, GlobalCompositeOperation> = { normal: "source-over", multiply: "multiply", screen: "screen", overlay: "overlay" };
+const BLEND: Record<string, GlobalCompositeOperation> = {
+  normal: "source-over",
+  multiply: "multiply",
+  screen: "screen",
+  overlay: "overlay",
+  add: "lighter",
+  darken: "darken",
+  lighten: "lighten",
+  "color-dodge": "color-dodge",
+  "color-burn": "color-burn",
+  "soft-light": "soft-light",
+  "hard-light": "hard-light",
+  difference: "difference",
+  exclusion: "exclusion",
+  hue: "hue",
+  saturation: "saturation",
+  color: "color",
+  luminosity: "luminosity",
+};
 
 function makeCanvas(w: number, h: number): OffscreenCanvas | HTMLCanvasElement {
   if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(Math.max(1, Math.ceil(w)), Math.max(1, Math.ceil(h)));
@@ -91,8 +109,12 @@ export function shapeLines(item: DrawItem, res: Pick<Resources, "kit" | "unit">)
       const u = res.unit;
       return parsePath(layer.path ?? "").map((pl) => ({ closed: pl.closed, points: pl.points.map(([px, py]) => [x + px * u, y + py * u]) }));
     }
-    default:
+    case "rect":
+    case undefined:
       return rectPath(x, y, w, h, radiusPx(res, layer, -1));
+    default:
+      // the rest of the outlines (diamond, bolt, cloud, gear…)
+      return outlinePath(layer.shape, x, y, w, h, layer.points) ?? rectPath(x, y, w, h, radiusPx(res, layer, -1));
   }
 }
 

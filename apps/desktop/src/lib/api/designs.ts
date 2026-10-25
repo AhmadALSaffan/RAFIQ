@@ -32,8 +32,9 @@ export async function deleteIdentity(id: string): Promise<void> {
   await request<void>(`/design-identities/${id}`, { method: "DELETE" });
 }
 
-export async function initQuestions(): Promise<InitQuestion[]> {
-  return request<InitQuestion[]>("/designs/questions");
+/** The brief's questions: a site's, or an app board's. */
+export async function initQuestions(board = false): Promise<InitQuestion[]> {
+  return request<InitQuestion[]>(`/designs/questions${board ? "?type=board" : ""}`);
 }
 
 export async function listDesigns(workspaceId?: string | null): Promise<DesignSummary[]> {
@@ -43,6 +44,11 @@ export async function listDesigns(workspaceId?: string | null): Promise<DesignSu
 
 export async function getDesign(id: string): Promise<Design> {
   return request<Design>(`/designs/${id}`);
+}
+
+/** The board as one HTML file, in the design's folder (or Documents/Rafiq/designs). */
+export async function saveDesignBoard(id: string, html: string): Promise<{ path: string }> {
+  return request<{ path: string }>(`/designs/${id}/board`, { method: "POST", body: JSON.stringify({ html }) });
 }
 
 export async function createDesign(

@@ -451,9 +451,14 @@ class ChatTurn:
             past = unsummarized(chat, chat.messages)
             # A design chat's documents travel once, as they are now, with the newest message.
             self.design_files: list[dict[str, Any]] = []
+            # an app board: its answers are checked, and it gets no file tools (core/designs.py)
+            self.design_board = False
             if chat.mode == "design":
                 row = (await session.execute(select(Design).where(Design.chat_id == chat.id))).scalar_one_or_none()
                 if row is not None:
+                    from rafiq_agent.core.designs import is_board
+
+                    self.design_board = is_board(row.brief)
                     self.design_files = [f for f in row.files or [] if f.get("html")] or (
                         [{"name": row.title, "html": row.preview_html}] if row.preview_html else []
                     )
@@ -600,6 +605,8 @@ class ChatTurn:
             system += f"\n\n{notes}"
         if getattr(self, "motion_mode", False):
             return await self._motion_tools(system)
+        if getattr(self, "design_board", False):
+            return await self._board_tools(system)
         if self.reply.economy:
             return ToolRegistry(), f"{system}\n\n{ECONOMY_NOTE}"
         if self.supports_tools is False or not self.reply.tools:
@@ -667,6 +674,23 @@ class ChatTurn:
             notes.append(MEMORY_NOTE)
         return registry, system + "".join(f"\n\n{n}" for n in notes)
 
+    async def _board_tools(self, system: str) -> tuple[ToolRegistry, str]:
+        """An app board is drawn from the documents in the answer, so its chat can read skills,
+        search the web and review its design — but not write files, run commands or reach
+        anything else: there's no way around the board."""
+        from rafiq_agent.tools.design import DesignReviewTool, DesignSlopCheckTool
+
+        groups = frozenset(self._groups() | {"skills"})
+        registry = await build_registry(None, self.settings, frozenset(self.native_tools), groups & {"skills", "web"})
+        registry.register(DesignReviewTool(self.chat_id))
+        registry.register(DesignSlopCheckTool(self.chat_id))
+        notes = []
+        if any(n.startswith("skill_") for n in registry.names()) and (skills := skills_note(True)):
+            notes.append(skills)
+        if "web_fetch" in registry.names() or "web_search" in registry.names():
+            notes.append(WEB_NOTE)
+        return registry, system + "".join(f"\n\n{n}" for n in notes)
+
     async def _motion_tools(self, system: str) -> tuple[ToolRegistry, str]:
         """A motion chat always gets its project's tools and the skill that explains them —
         without them the model can't touch the scene, whatever the chat's tool switches say."""
@@ -727,6 +751,7 @@ class ChatTurn:
             # workspace's brand kit (the same identity as its videos), if it has one.
             from sqlalchemy import select as _select
 
+            from rafiq_agent.core.designs import BOARD_NOTE, is_board
             from rafiq_agent.core.identity import identity_note
             from rafiq_agent.core.identity import normalize as normalize_identity
             from rafiq_agent.storage.models import Design
@@ -734,6 +759,9 @@ class ChatTurn:
             async with SessionLocal() as session:
                 row = (await session.execute(_select(Design).where(Design.chat_id == self.chat_id))).scalar_one_or_none()
                 built = row.identity if row else None
+            # an app's screens are designed as a board (every screen in a phone frame)
+            if row is not None and is_board(row.brief):
+                notes.append(BOARD_NOTE)
             if built:
                 notes.append(identity_note(normalize_identity(built)))
                 return "".join(f"\n\n{n}" for n in notes)
@@ -793,6 +821,37 @@ class ChatTurn:
         self._emit({"type": "studio_created", "item": {k: v for k, v in part.items() if k != "kind"}})
 
     async def _on_text_delta(self, text: str) -> None:
+        # A motion chat never shows code: the video is built with the engine (core/motion.py).
+        if (code := getattr(self, "code_filter", None)) is not None:
+            text = code.feed(text)
+            if not text:
+                return
+        self._show_text(text)
+
+    async def _on_turn_text(self, _text: str) -> None:
+        if (code := getattr(self, "code_filter", None)) is not None and (rest := code.end_step()):
+            self._show_text(rest)
+
+    def _board_check(self, text: str) -> str | None:
+        from rafiq_agent.core.designs import board_reply_check
+
+        return board_reply_check(text, bool(getattr(self, "design_files", [])))
+
+    async def _on_redo(self, _text: str) -> None:
+        """The step's answer was refused (core/loop.py `check_reply`): what it showed goes."""
+        shown = getattr(self, "step_shown", "")
+        self.step_shown = ""
+        if not shown or not self.parts or self.parts[-1]["kind"] != "text":
+            return
+        last = self.parts[-1]
+        if last["text"].endswith(shown):
+            last["text"] = last["text"][: len(last["text"]) - len(shown)]
+            if not last["text"]:
+                self.parts.pop()
+            self._emit({"type": "retract", "text": shown})
+
+    def _show_text(self, text: str) -> None:
+        self.step_shown = getattr(self, "step_shown", "") + text
         if self.parts and self.parts[-1]["kind"] == "text":
             self.parts[-1]["text"] += text
         else:
@@ -803,6 +862,7 @@ class ChatTurn:
         self._emit({"type": "reasoning", "text": text})
 
     async def _on_tool_call(self, call_id: str, name: str, _category: str, args: dict[str, Any]) -> None:
+        self.step_shown = ""
         if name in TASK_TOOLS:
             return  # shown as task cards instead of a raw tool step
         self.parts.append({"kind": "tool", "id": call_id, "tool": name, "args": args})
@@ -869,6 +929,10 @@ class ChatTurn:
         return "".join(p.get("text", "") for p in self.parts if p["kind"] == "text")
 
     async def _run(self, messages: list[dict[str, Any]], registry: ToolRegistry) -> None:
+        from rafiq_agent.core.motion import CodeFilter, engine_only
+
+        motion = getattr(self, "motion_mode", False)
+        self.code_filter = CodeFilter() if motion else None
         # Everything this turn spends is counted against the chat (see llm/usage.py).
         usage.scope("chat", self.chat_id, self.model_id, getattr(self, "workspace_id", None)).apply()
         spent = usage.collect()
@@ -882,10 +946,13 @@ class ChatTurn:
                     permit=self._permit,
                     on_text_delta=self._on_text_delta,
                     on_reasoning_delta=self._on_reasoning_delta,
+                    on_turn_text=self._on_turn_text,
                     on_tool_call=self._on_tool_call,
                     on_tool_result=self._on_tool_result,
+                    on_redo=self._on_redo,
                 ),
-                max_iterations=MOTION_TURN_ITERATIONS if getattr(self, "motion_mode", False) else MAX_TURN_ITERATIONS,
+                max_iterations=MOTION_TURN_ITERATIONS if motion else MAX_TURN_ITERATIONS,
+                check_reply=engine_only if motion else self._board_check if getattr(self, "design_board", False) else None,
             )
             if result.status == "cut":
                 self._emit(

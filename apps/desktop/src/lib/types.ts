@@ -1009,6 +1009,8 @@ export interface DesignSummary {
   working_dir: string | null;
   status: DesignStatus;
   has_preview: boolean;
+  /** An app board (listed apart from sites). */
+  board?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -1079,6 +1081,8 @@ export interface Design {
   status: DesignStatus;
   /** Its chat is replying right now (the model is working on it). */
   working?: boolean;
+  /** An app's screens, shown as a board of phone frames. */
+  board?: boolean;
   created_at: string;
   updated_at: string;
 }

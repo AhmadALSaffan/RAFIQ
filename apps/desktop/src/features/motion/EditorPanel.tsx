@@ -292,7 +292,10 @@ const PATTERN_LIST: { id: string; label: string }[] = [
   { id: "minimal", label: t("هادئ") },
   { id: "corporate", label: t("شركات") },
 ];
-const SFX_LIST = ["whoosh", "swoosh", "pop", "click", "tick", "ding", "riser", "impact", "typing"] as const;
+const SFX_LIST = [
+  "whoosh", "swoosh", "pop", "click", "tick", "ding", "riser", "impact", "typing",
+  "shimmer", "sparkle", "heartbeat", "glitch", "boom", "swell", "notify", "shutter",
+] as const;
 
 let previewCtx: AudioContext | null = null;
 async function playPreview(track: AudioTrack, seconds: number) {

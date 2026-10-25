@@ -18,6 +18,7 @@ import type { AssetLoader } from "../engine";
 import { allLayers } from "../engine";
 import { icon, loadIcons } from "../icons";
 import { outlineLines, type Contour, type Outline } from "../outline";
+import { outlinePath } from "../paths";
 import { canvasPaint, type Ctx } from "../render";
 import type { BrandKit, Layer, Light3, Material3, Material3Name, Object3, Scene, Scene3D, Vec3 } from "../types";
 import { expandScene3D } from "./recipes";
@@ -88,7 +89,7 @@ function makeMaterial(o: Object3, kit: BrandKit, fallback: Material3Name = "plas
       for (const key of ["metalness", "roughness", "transmission", "ior", "thickness", "clearcoat", "iridescence"] as const) {
         if (typeof spec[key] === "number") (p as Record<string, number>)[key] = spec[key]!;
       }
-      const physical = new THREE.MeshPhysicalMaterial({ color, ...p, flatShading: spec.flat ?? o.kind === "icosahedron" });
+      const physical = new THREE.MeshPhysicalMaterial({ color, ...p, flatShading: spec.flat ?? FACETED.has(o.kind) });
       if (spec.emissive) {
         physical.emissive = color3(kit, spec.emissive);
         physical.emissiveIntensity = spec.emissiveIntensity ?? 1;
@@ -136,6 +137,9 @@ function makeMaterial(o: Object3, kit: BrandKit, fallback: Material3Name = "plas
 
 // ── Geometry ────────────────────────────────────────────────────────────────────────────
 
+/** Solids drawn with flat faces (a gem, not a ball). */
+const FACETED = new Set(["icosahedron", "octahedron", "dodecahedron", "tetrahedron"]);
+
 function primitive(kind: string, o: Object3): THREE.BufferGeometry {
   const size = o.size ?? 1.4;
   const r = o.radius ?? size / 2;
@@ -168,6 +172,21 @@ function primitive(kind: string, o: Object3): THREE.BufferGeometry {
     case "icosahedron":
       g = new THREE.IcosahedronGeometry(r, 0);
       break;
+    case "octahedron":
+      g = new THREE.OctahedronGeometry(r, 0);
+      break;
+    case "dodecahedron":
+      g = new THREE.DodecahedronGeometry(r, 0);
+      break;
+    case "tetrahedron":
+      g = new THREE.TetrahedronGeometry(r, 0);
+      break;
+    case "lathe": {
+      // a profile [radius, y] turned round the y axis: a vase, a bottle, a cup, a lamp
+      const profile = o.profile?.length && o.profile.length >= 2 ? o.profile : [[0, -0.7], [0.45, -0.7], [0.55, -0.2], [0.3, 0.4], [0.35, 0.7]];
+      g = new THREE.LatheGeometry(profile.map(([pr, py]) => new THREE.Vector2(Math.max(0, pr) * size, py * size)), 96);
+      break;
+    }
     default: {
       const w = o.width ?? size;
       const h = o.height ?? size;
@@ -833,7 +852,21 @@ export function threePlayer(): ThreePlayer {
           const depth = o.depth ?? size * 0.25;
           const bevel = o.bevel ?? size * 0.03;
           const m = mat("chrome");
-          if (o.svg) {
+          if (o.outline) {
+            // a ready outline (heart, star, bolt…), in the box's proportions
+            const lines = outlinePath(o.outline, 0, 0, o.width ?? 1, o.height ?? 1, o.sides);
+            if (!lines) {
+              problems.push(`${o.id ?? "extrude"}: no outline ${o.outline}`);
+              break;
+            }
+            const shapes = lines.map((line) => new THREE.Shape(line.points.map(([px, py]) => new THREE.Vector2(px, -py))));
+            const g = track(extrude(shapes, depth / size, bevel / size));
+            fitFlat(g, size, false);
+            g.scale(1, 1, size);
+            const mesh = new THREE.Mesh(g, m);
+            mesh.castShadow = castsShadow(o);
+            node.obj.add(mesh);
+          } else if (o.svg) {
             try {
               const g = track(extrude(svgShapes(o.svg), depth, bevel));
               fitFlat(g, size, true);
@@ -1289,6 +1322,8 @@ export function threePlayer(): ThreePlayer {
         default: {
           const g = track(primitive(o.kind, o));
           const m = mat(o.kind === "plane" ? "matte" : "plastic");
+          // a lathe is open at the top: its inside shows
+          if (o.kind === "lathe") m.side = THREE.DoubleSide;
           const mesh = new THREE.Mesh(g, m);
           mesh.castShadow = castsShadow(o) && o.material !== "glow";
           mesh.receiveShadow = true;

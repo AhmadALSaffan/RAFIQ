@@ -33,7 +33,10 @@ const ANCHORS = [
   ["bottomStart", "bottom", "bottomEnd"],
 ] as const;
 const STYLES = ["display", "headline", "title", "body", "caption"] as const;
-const SHAPES = ["rect", "circle", "triangle", "polygon", "star", "line", "arrow", "ring", "arc", "heart", "path"] as const;
+const SHAPES = [
+  "rect", "circle", "triangle", "polygon", "star", "line", "arrow", "ring", "arc", "heart",
+  "diamond", "bolt", "drop", "plus", "moon", "cloud", "gear", "squircle", "burst", "blob", "bubble", "shield", "path",
+] as const;
 
 const inputStyle = { borderColor: "var(--color-border)", background: "var(--color-surface-2)", color: "var(--color-ink)" } as const;
 
@@ -351,9 +354,9 @@ export function Inspector({
       {layer.type === "shape" && (
         <Section title={t("الشكل")}>
           <Chips items={SHAPES} value={layer.shape ?? "rect"} onPick={(s) => set("shape", s, t("غيّرت شكل {id}", { id }))} />
-          {(layer.shape === "polygon" || layer.shape === "star") && (
-            <Field label={layer.shape === "star" ? t("عدد الرؤوس") : t("عدد الأضلاع")}>
-              <Slider value={layer.points ?? (layer.shape === "star" ? 5 : 6)} min={3} max={24} step={1} onCommit={(n) => set("points", n, t("غيّرت شكل {id}", { id }))} />
+          {(layer.shape === "polygon" || layer.shape === "star" || layer.shape === "gear" || layer.shape === "burst") && (
+            <Field label={layer.shape === "polygon" ? t("عدد الأضلاع") : t("عدد الرؤوس")}>
+              <Slider value={layer.points ?? ({ star: 5, gear: 10, burst: 16 } as Record<string, number>)[layer.shape] ?? 6} min={3} max={32} step={1} onCommit={(n) => set("points", n, t("غيّرت شكل {id}", { id }))} />
             </Field>
           )}
           {(layer.shape === "ring" || layer.shape === "arc") && (
@@ -513,7 +516,7 @@ export function Inspector({
           <Slider value={layer.opacity ?? 1} min={0} max={1} step={0.05} format={(v) => `${Math.round(v * 100)}%`} onCommit={(v) => set("opacity", v >= 1 ? undefined : v, t("غيّرت شفافية {id}", { id }))} />
         </Field>
         <Field label={t("الدمج")}>
-          <Chips items={["normal", "multiply", "screen", "overlay"] as const} value={layer.blend ?? "normal"} onPick={(b) => set("blend", b === "normal" ? undefined : b, t("غيّرت دمج {id}", { id }))} />
+          <Chips items={["normal", "multiply", "screen", "overlay", "add", "soft-light", "difference", "color"] as const} value={layer.blend ?? "normal"} onPick={(b) => set("blend", b === "normal" ? undefined : b, t("غيّرت دمج {id}", { id }))} />
         </Field>
         <Field label={t("الظل")}>
           <button type="button" onClick={() => set("shadow", shadow ? undefined : { color: "#000000", blur: 3, y: 0.8, opacity: 0.45 }, t("ظل {id}", { id }))} className="self-start rounded-lg border px-2 py-1 text-xs" style={inputStyle}>

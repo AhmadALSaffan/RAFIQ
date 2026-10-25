@@ -219,3 +219,23 @@ def test_a_registration_that_comes_back_with_a_secret_is_told_to_use_it():
         token_endpoint_auth_method="client_secret_basic",
     )
     assert mcp_oauth.usable_client(basic).token_endpoint_auth_method == "client_secret_basic"
+
+
+async def test_an_app_board_chat_cannot_write_files_or_run_commands(client, tmp_path):
+    """The board is drawn from the documents in the answer: nothing else is open to it."""
+    from rafiq_agent.core.chat_service import ChatTurn
+
+    turn = ChatTurn.__new__(ChatTurn)
+    turn.reply = ReplySettings()
+    turn.working_dir = str(tmp_path)
+    turn.supports_tools = True
+    turn.native_tools = ()
+    turn.settings = AppSettings()
+    turn.chat_id = "board-chat"
+    turn.design_mode = True
+    turn.design_board = True
+    registry, _ = await turn._tools("SYSTEM")
+    names = registry.names()
+    assert "design_review" in names
+    # reading skills, the web, reviewing the design — and nothing else
+    assert all(n.startswith(("skill_", "web_", "design_")) for n in names), names

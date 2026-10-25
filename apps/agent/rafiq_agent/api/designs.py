@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,7 @@ from rafiq_agent.core.chat_service import active_turn
 from rafiq_agent.core.designs import (
     brief_message,
     handoff_message,
+    is_board,
     localized_questions,
     merge_files,
     save_preview,
@@ -101,6 +102,8 @@ class DesignOut(BaseModel):
     status: str
     # Its chat is replying right now (the model is working on it).
     working: bool = False
+    # An app's screens, shown as a board of phone frames (core/designs.py `is_board`).
+    board: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -115,6 +118,8 @@ class DesignSummaryOut(BaseModel):
     working_dir: str | None = None
     status: str
     has_preview: bool = False
+    # an app board (its own list in the creative hub), not a site
+    board: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -325,6 +330,7 @@ def _out(design: Design) -> DesignOut:
     out = DesignOut.model_validate(design)
     out.kickoff = brief_message(design.brief or {})
     out.working = active_turn(design.chat_id) is not None
+    out.board = is_board(design.brief)
     # A design from before documents were named still has only its preview.
     if not out.files and design.preview_html:
         out.files = [DesignFileOut(name=design.title[:40], html=design.preview_html, path=design.saved_path)]
@@ -513,9 +519,10 @@ async def delete_identity(identity_id: str, session: AsyncSession = Depends(get_
 
 
 @router.get("/designs/questions")
-async def init_questions() -> list[dict[str, Any]]:
-    """`impeccable init` — the brief Rafiq collects before the design chat opens."""
-    return localized_questions()
+async def init_questions(type: str = "site") -> list[dict[str, Any]]:  # noqa: A002 - the query's name
+    """`impeccable init` — the brief Rafiq collects before the design chat opens: a site's,
+    or an app board's (`?type=board`)."""
+    return localized_questions(board=type == "board")
 
 
 @router.get("/designs", response_model=list[DesignSummaryOut])
@@ -534,7 +541,8 @@ async def list_designs(
             model_id=d.model_id,
             working_dir=d.working_dir,
             status=d.status,
-            has_preview=bool(d.preview_html),
+            has_preview=bool(d.preview_html) or bool(d.files),
+            board=is_board(d.brief),
             created_at=d.created_at,
             updated_at=d.updated_at,
         )
@@ -615,6 +623,35 @@ def _folder_documents(design: Design, taken: set[str]) -> list[DesignDocumentOut
             continue
         out.append(DesignDocumentOut(name=path.stem, source="folder", path=resolved, size=size))
     return out[:40]
+
+
+class BoardIn(BaseModel):
+    html: str = Field(min_length=1, max_length=40_000_000)
+
+
+class BoardOut(BaseModel):
+    path: str
+
+
+@router.post("/designs/{design_id}/board", response_model=BoardOut)
+async def save_board(design_id: str, body: BoardIn, session: AsyncSession = Depends(get_session)) -> BoardOut:
+    """The board as one HTML file (every screen in its frame, the identity first): in the
+    design's folder, or Documents/Rafiq/designs when it has none."""
+    design = await session.get(Design, design_id)
+    if not design:
+        raise HTTPException(status_code=404, detail="design not found")
+    slug = _BOARD_SLUG.sub("-", design.title.strip()).strip("-")[:60] or "design"
+    folder = Path(design.working_dir) if design.working_dir and Path(design.working_dir).is_dir() else workspace_root() / "designs" / slug
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / f"{slug}-board.html"
+        target.write_text(body.html, encoding="utf-8")
+    except OSError as exc:
+        raise HTTPException(status_code=400, detail=tr("ما قدرت أحفظ اللوحة: {0}", exc)) from exc
+    return BoardOut(path=str(target))
+
+
+_BOARD_SLUG = re.compile(r"[^\w؀-ۿ-]+", re.UNICODE)
 
 
 @router.get("/designs/{design_id}/documents", response_model=list[DesignDocumentOut])

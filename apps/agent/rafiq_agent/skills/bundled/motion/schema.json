@@ -464,7 +464,20 @@
             "normal",
             "multiply",
             "screen",
-            "overlay"
+            "overlay",
+            "add",
+            "darken",
+            "lighten",
+            "color-dodge",
+            "color-burn",
+            "soft-light",
+            "hard-light",
+            "difference",
+            "exclusion",
+            "hue",
+            "saturation",
+            "color",
+            "luminosity"
           ]
         },
         "shadow": {
@@ -598,8 +611,21 @@
             "arrow",
             "ring",
             "arc",
-            "heart"
-          ]
+            "heart",
+            "diamond",
+            "bolt",
+            "drop",
+            "plus",
+            "moon",
+            "cloud",
+            "gear",
+            "squircle",
+            "burst",
+            "blob",
+            "bubble",
+            "shield"
+          ],
+          "description": "2D outline. points = a star's points, a polygon's sides, a gear's teeth, a burst's rays, a blob's seed."
         },
         "fill": {
           "$ref": "#/$defs/paint"
@@ -928,7 +954,15 @@
             "swoosh",
             "tick",
             "ding",
-            "typing"
+            "typing",
+            "shimmer",
+            "sparkle",
+            "heartbeat",
+            "glitch",
+            "boom",
+            "swell",
+            "notify",
+            "shutter"
           ]
         },
         "asset": {
@@ -1015,6 +1049,23 @@
           "minimum": 0.25,
           "maximum": 4,
           "description": "sfx: length factor (2 = twice as long and lower)."
+        },
+        "style": {
+          "enum": [
+            "lofi",
+            "cinematic",
+            "epic",
+            "synthwave",
+            "house",
+            "trap",
+            "ambient",
+            "corporate",
+            "piano",
+            "arabic",
+            "playful",
+            "tension"
+          ],
+          "description": "compose: a ready band in `key` at the style's tempo (or `tempo`); `parts` play on top."
         }
       }
     },
@@ -1377,6 +1428,10 @@
             "plane",
             "ring",
             "icosahedron",
+            "octahedron",
+            "dodecahedron",
+            "tetrahedron",
+            "lathe",
             "text3d",
             "extrude",
             "model",
@@ -1600,7 +1655,10 @@
             "cone",
             "icosahedron",
             "torus",
-            "capsule"
+            "capsule",
+            "octahedron",
+            "dodecahedron",
+            "tetrahedron"
           ]
         },
         "layout": {
@@ -1748,6 +1806,49 @@
         "texture": {
           "$ref": "#/$defs/id",
           "description": "An image asset wrapped on the surface — a planet's equirectangular map on a sphere or globe, a band across a ring with width."
+        },
+        "outline": {
+          "enum": [
+            "heart",
+            "star",
+            "triangle",
+            "polygon",
+            "diamond",
+            "bolt",
+            "drop",
+            "plus",
+            "moon",
+            "cloud",
+            "gear",
+            "squircle",
+            "burst",
+            "blob",
+            "bubble",
+            "shield",
+            "arrow",
+            "circle"
+          ],
+          "description": "extrude: a ready outline (no svg needed) — heart, star, bolt, cloud, gear… width/height set its proportions."
+        },
+        "sides": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 64,
+          "description": "extrude outline: a star's points, a polygon's sides, a gear's teeth, a burst's rays."
+        },
+        "profile": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "description": "lathe: [radius, y] pairs from the bottom up, in sizes, turned round the y axis (a vase, a bottle, a cup)."
         }
       }
     },
@@ -2076,7 +2177,17 @@
             "brass",
             "organ",
             "choir",
-            "flute"
+            "flute",
+            "epiano",
+            "harp",
+            "kalimba",
+            "vibes",
+            "cello",
+            "oud",
+            "qanun",
+            "ney",
+            "supersaw",
+            "glass"
           ]
         },
         "drum": {
@@ -2094,7 +2205,14 @@
             "snap",
             "cowbell",
             "conga",
-            "perc"
+            "perc",
+            "doum",
+            "tek",
+            "riq",
+            "daf",
+            "tambourine",
+            "clave",
+            "woodblock"
           ]
         },
         "notes": {
@@ -2216,6 +2334,77 @@
           "minimum": -24,
           "maximum": 24,
           "description": "Drum: semitones."
+        },
+        "arp": {
+          "enum": [
+            "up",
+            "down",
+            "updown",
+            "random"
+          ],
+          "description": "Chords played as running notes, one every `rate` beats."
+        },
+        "rate": {
+          "type": "number",
+          "minimum": 0.0625,
+          "maximum": 4,
+          "description": "arp: beats between notes (0.25 = 16ths)."
+        },
+        "strum": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.2,
+          "description": "Seconds between a chord's notes, low to high."
+        },
+        "delay": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "An echo, bouncing left and right.",
+          "properties": {
+            "time": {
+              "type": "number",
+              "minimum": 0.0625,
+              "maximum": 4,
+              "description": "beats"
+            },
+            "feedback": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.9
+            },
+            "mix": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "drive": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Saturation: warm (0.2) to gritty (1)."
+        },
+        "sweep": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "from",
+            "to"
+          ],
+          "description": "The filter's cutoff gliding from `from` to `to` Hz over the part (a build-up, a reveal).",
+          "properties": {
+            "from": {
+              "type": "number",
+              "minimum": 40,
+              "maximum": 20000
+            },
+            "to": {
+              "type": "number",
+              "minimum": 40,
+              "maximum": 20000
+            }
+          }
         }
       }
     }

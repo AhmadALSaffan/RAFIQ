@@ -38,7 +38,9 @@ export function ExportPanel({
   onClose: () => void;
 }) {
   const comp = scene.composition;
-  const [settings, setSettings] = useState<ExportSettings>({ format: "mp4", size: "1080p", fps: comp.fps, codec: "h264", quality: "auto", encoder: "auto" });
+  // Past 60 a video plays smoothly only where the computer and the screen keep up (most
+  // screens are 60 Hz): a 120 fps scene exports at 60 unless 120 is picked here.
+  const [settings, setSettings] = useState<ExportSettings>({ format: "mp4", size: "1080p", fps: Math.min(comp.fps, 60), codec: "h264", quality: "auto", encoder: "auto" });
   const [caps, setCaps] = useState<Record<string, boolean> | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const jobs = useExports(projectId);
@@ -219,10 +221,20 @@ export function ExportPanel({
         )}
         {group(
           "fps",
-          [24, 25, 30, 50, 60, 120].map((n) => ({ id: n, label: String(n), off: !supported(settings.size, n === 24 || n === 25 ? 30 : n === 50 ? 60 : n) })),
+          [24, 25, 30, 50, 60, 120].map((n) => ({
+            id: n,
+            label: String(n),
+            off: !supported(settings.size, n === 24 || n === 25 ? 30 : n === 50 ? 60 : n),
+            hint: n > 60 ? t("بيقطّع على أغلب الأجهزة والشاشات (60Hz) — 60 أنسب") : undefined,
+          })),
           settings.fps ?? comp.fps,
           (fps) => setSettings({ ...settings, fps }),
           "fps",
+        )}
+        {(settings.fps ?? comp.fps) > 60 && (
+          <p className="-mt-1 text-[11px]" style={{ color: "var(--color-pending)" }}>
+            {t("فيديو 120 fps بيشتغل ناعم بس على جهاز قوي وشاشة 120Hz. على لابتوب عادي أو شاشة 60Hz بيبيّن كأنه بيقطّع — 60 أنسب للمشاركة.")}
+          </p>
         )}
         {group(
           t("الكوديك"),

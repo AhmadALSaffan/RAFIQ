@@ -6,6 +6,12 @@ a reset time from a limit error. So this keeps only what's actually seen:
   `x-codex-*-used-percent` family, or the usual `x-ratelimit-*` pairs);
 - Rafiq's own requests and tokens on the plan, by day;
 - when OpenAI last said the limit was reached.
+
+In practice the plan's responses carry no usage figures at all (checked against a live
+plan: no `x-codex-*-used-percent`, no `x-ratelimit-*`, nothing in the stream). So the
+percentage is usually an estimate: the tokens Rafiq spent in the last five hours (the
+plan's short window), against what it had spent in the five hours before the limit was
+last reached. It's labelled as an estimate wherever it's shown.
 Nothing here is a secret (no tokens): it sits in the data folder as plain JSON."""
 
 from __future__ import annotations
@@ -23,6 +29,9 @@ from rafiq_agent.config import DATA_DIR
 _FILE = "chatgpt-usage.json"
 _lock = threading.Lock()
 _DAYS_KEPT = 31
+_WINDOW = 5 * 3600  # the plan's short usage window
+_EVENTS_KEPT = 8 * 86400
+_SAMPLES_KEPT = 5
 
 
 def _path() -> Path:
@@ -99,7 +108,14 @@ def windows_from(headers: dict[str, str]) -> list[dict[str, Any]]:
 
 
 def _account(data: dict[str, Any], account_id: str) -> dict[str, Any]:
-    return data.setdefault(account_id, {"days": {}, "windows": [], "seen_at": None, "limit_at": None})
+    entry = data.setdefault(account_id, {"days": {}, "windows": [], "seen_at": None, "limit_at": None})
+    entry.setdefault("events", [])
+    entry.setdefault("capacity", [])
+    return entry
+
+
+def _in_window(entry: dict[str, Any], now: float) -> int:
+    return int(sum(n for at, n in entry.get("events") or [] if now - at < _WINDOW))
 
 
 def observe(account_id: str, headers: dict[str, str]) -> None:
@@ -125,22 +141,53 @@ def record(account_id: str, prompt_tokens: int, completion_tokens: int) -> None:
         today = entry["days"].setdefault(day, {"requests": 0, "tokens": 0})
         today["requests"] += 1
         today["tokens"] += int(prompt_tokens) + int(completion_tokens)
+        now = time.time()
+        entry["events"] = [e for e in entry["events"] if now - e[0] < _EVENTS_KEPT]
+        entry["events"].append([now, int(prompt_tokens) + int(completion_tokens)])
         for old in sorted(entry["days"])[:-_DAYS_KEPT]:
             entry["days"].pop(old, None)
         _save(data)
 
 
 def limit_hit(account_id: str) -> None:
+    """The plan said its limit is reached: what was spent in the window before it is one
+    more measure of how much the plan holds."""
     with _lock:
         data = _load()
-        _account(data, account_id)["limit_at"] = time.time()
+        entry = _account(data, account_id)
+        now = time.time()
+        spent = _in_window(entry, now)
+        # one sample per limit: retries straight after it would only repeat the same window
+        if spent > 0 and not (entry.get("limit_at") and now - entry["limit_at"] < _WINDOW and entry["capacity"]):
+            entry["capacity"] = (entry["capacity"] + [spent])[-_SAMPLES_KEPT:]
+        entry["limit_at"] = now
         _save(data)
+
+
+def _capacity(data: dict[str, Any], account_id: str) -> int | None:
+    """How many tokens the plan's window seems to hold: the largest window spent before a
+    limit (a limit can come early, from the weekly window, never late), this account's
+    own if it has any, else any account's; failing that, the whole day a limit came on
+    (from before windows were tracked) — rough, and replaced by the first real sample."""
+    own = (data.get(account_id) or {}).get("capacity") or []
+    if own:
+        return int(max(own))
+    every = [n for e in data.values() if isinstance(e, dict) for n in e.get("capacity") or []]
+    if every:
+        return int(max(every))
+    days = []
+    for e in data.values():
+        if isinstance(e, dict) and e.get("limit_at"):
+            day = datetime.fromtimestamp(e["limit_at"], UTC).strftime("%Y-%m-%d")
+            days.append((e.get("days") or {}).get(day, {}).get("tokens", 0))
+    return int(max(days)) if days and max(days) > 0 else None
 
 
 def summary(account_id: str) -> dict[str, Any]:
     """What the app shows: the reported percentage (or None), each window, Rafiq's own
     use today and over 7 days, and whether the limit was hit recently."""
-    entry = _load().get(account_id) or {"days": {}, "windows": [], "seen_at": None, "limit_at": None}
+    data = _load()
+    entry = data.get(account_id) or {"days": {}, "windows": [], "seen_at": None, "limit_at": None}
     now = time.time()
     windows = []
     for w in entry.get("windows") or []:
@@ -155,8 +202,25 @@ def summary(account_id: str) -> dict[str, Any]:
     # a limit error is "current" for a while; a later successful reply clears it
     last_ok = entry.get("ok_at") or 0
     limited = bool(limit_at and limit_at > last_ok and now - limit_at < 6 * 3600)
+    reported = max((w["used_percent"] for w in windows), default=None)
+    in_window = _in_window(entry, now)
+    capacity = _capacity(data, account_id)
+    estimated = reported is None and not limited and capacity is not None
+    if limited:
+        percent: float | None = 100.0
+    elif reported is not None:
+        percent = reported
+    elif capacity:
+        # never shown full while replies still go through
+        percent = round(min(99.0, 100 * in_window / capacity), 1)
+    else:
+        percent = None
     return {
-        "used_percent": max((w["used_percent"] for w in windows), default=None),
+        "used_percent": percent,
+        "estimated": estimated,
+        "window_tokens": in_window,
+        "window_hours": _WINDOW // 3600,
+        "capacity": capacity,
         "windows": windows,
         "limited": limited,
         "limit_at": limit_at,

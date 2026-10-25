@@ -147,6 +147,7 @@ export interface Material3 {
 
 export type Object3Kind =
   | "box" | "sphere" | "cylinder" | "cone" | "torus" | "torusKnot" | "capsule" | "plane" | "ring" | "icosahedron"
+  | "octahedron" | "dodecahedron" | "tetrahedron" | "lathe"
   | "text3d" | "extrude" | "model" | "image" | "particles" | "instances" | "tube" | "globe" | "ground" | "blob" | "group";
 
 export type ParticleShape =
@@ -187,6 +188,12 @@ export interface Object3 {
   // extrude
   svg?: string;
   icon?: string;
+  /** A ready outline to extrude: heart, star, bolt, cloud… (paths.ts `OUTLINES`). */
+  outline?: string;
+  /** The outline's points, sides, teeth or rays. */
+  sides?: number;
+  // lathe: [radius, y] pairs from the bottom up, in sizes
+  profile?: [number, number][];
   // model / image / particles from a picture
   asset?: string;
   animation?: string;
@@ -201,7 +208,7 @@ export interface Object3 {
   arms?: number;
   glow?: boolean;
   // instances
-  of?: "box" | "sphere" | "cylinder" | "cone" | "icosahedron" | "torus" | "capsule";
+  of?: "box" | "sphere" | "cylinder" | "cone" | "icosahedron" | "torus" | "capsule" | "octahedron" | "dodecahedron" | "tetrahedron";
   layout?: "grid" | "wall" | "ring" | "spiral" | "random" | "city" | "line" | "helix";
   rows?: number;
   cols?: number;
@@ -262,6 +269,10 @@ export interface Scene3D {
   post?: { bloom?: number; vignette?: number; grain?: number };
 }
 
+export type Blend =
+  | "normal" | "multiply" | "screen" | "overlay" | "add" | "darken" | "lighten" | "color-dodge" | "color-burn"
+  | "soft-light" | "hard-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity";
+
 export interface Layer {
   id: string;
   type: "text" | "shape" | "image" | "icon" | "video" | "lottie" | "chart" | "captions" | "group" | "scene3d";
@@ -272,7 +283,7 @@ export interface Layer {
   animate?: Animation[];
   keyframes?: Partial<Record<AnimProp, Key[]>>;
   opacity?: number;
-  blend?: "normal" | "multiply" | "screen" | "overlay";
+  blend?: Blend;
   shadow?: boolean | ShadowSpec;
   /** A coloured glow around the layer. */
   glow?: { color?: ColorRef; size?: number };
@@ -296,7 +307,9 @@ export interface Layer {
   background?: { color?: Paint; padding?: number; radius?: number };
   format?: { decimals?: number; group?: boolean };
   // shape
-  shape?: "rect" | "circle" | "line" | "path" | "star" | "triangle" | "polygon" | "arrow" | "ring" | "arc" | "heart";
+  shape?:
+    | "rect" | "circle" | "line" | "path" | "star" | "triangle" | "polygon" | "arrow" | "ring" | "arc" | "heart"
+    | "diamond" | "bolt" | "drop" | "plus" | "moon" | "cloud" | "gear" | "squircle" | "burst" | "blob" | "bubble" | "shield";
   fill?: Paint;
   stroke?: ColorRef;
   strokeWidth?: number;
@@ -374,6 +387,17 @@ export interface ScorePart {
   vibrato?: number;
   /** drums: semitones up or down */
   tune?: number;
+  /** chords played as running notes, every `rate` beats */
+  arp?: "up" | "down" | "updown" | "random";
+  rate?: number;
+  /** seconds between a chord's notes, low to high (a guitar's strum) */
+  strum?: number;
+  /** an echo every `time` beats */
+  delay?: { time?: number; feedback?: number; mix?: number };
+  /** 0..1 saturation, warm to gritty */
+  drive?: number;
+  /** the filter's cutoff gliding over the part, Hz */
+  sweep?: { from: number; to: number };
 }
 
 export interface AudioTrack {
@@ -381,6 +405,8 @@ export interface AudioTrack {
   source: "procedural" | "sfx" | "asset" | "tts" | "compose";
   /** compose: the score's parts (tempo from `tempo`, beats from the track's start) */
   parts?: ScorePart[];
+  /** compose: a ready band in `key` (styles.ts); `parts` play on top of it */
+  style?: string;
   /** compose: room size of the reverb, 0..1 */
   reverb?: number;
   /** compose: pads and chords duck under the kick (default on) */
@@ -393,7 +419,9 @@ export interface AudioTrack {
   pattern?: string;
   tempo?: number;
   key?: string;
-  kind?: "whoosh" | "pop" | "click" | "riser" | "impact" | "swoosh" | "tick" | "ding" | "typing";
+  kind?:
+    | "whoosh" | "pop" | "click" | "riser" | "impact" | "swoosh" | "tick" | "ding" | "typing"
+    | "shimmer" | "sparkle" | "heartbeat" | "glitch" | "boom" | "swell" | "notify" | "shutter";
   asset?: string;
   text?: string;
   voice?: string;

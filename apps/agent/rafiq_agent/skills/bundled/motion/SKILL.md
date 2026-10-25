@@ -50,7 +50,7 @@ out, draws every frame, checks it, and exports it. Full field list: `schema.json
 | type | needs | notes |
 |---|---|---|
 | `text` | `text`, `style` | Arabic shaping is automatic. `{count}` is replaced by the animated `count`. `background` makes a pill/box. |
-| `shape` | `shape`: rect, circle, line, path, star, triangle, polygon, arrow, ring, arc, heart | `fill` (colour or gradient), `stroke` + `strokeWidth`, `dash: [dash, gap]`; `radius` = index in the kit's radius scale (3 = pill); `points` = star points or polygon sides; `thickness` for ring/arc; `arc: {from, to}` degrees (0 = top, clockwise — a progress ring); `pointing` start/end for arrows; `path` is SVG data in grid units from the box's top-left |
+| `shape` | `shape`: rect, circle, line, path, star, triangle, polygon, arrow, ring, arc, heart, diamond, bolt, drop, plus, moon, cloud, gear, squircle, burst, blob, bubble (speech), shield | `fill` (colour or gradient), `stroke` + `strokeWidth`, `dash: [dash, gap]`; `radius` = index in the kit's radius scale (3 = pill); `points` = star points, polygon sides, gear teeth, burst rays or a blob's seed; `thickness` for ring/arc; `arc: {from, to}` degrees (0 = top, clockwise — a progress ring); `pointing` start/end for arrows; `path` is SVG data in grid units from the box's top-left |
 | `icon` | `icon` | `set:name`, 46k+ icons — find them with `motion_assets` action=icons (`queries`: several words at once). One colour, taking the layer's `color` (and `drawOn`): `tabler:` (outline), `ph:` (Phosphor — add `-bold`, `-fill`, `-duotone`, `-light`), `lucide:`, `mdi:`, `ri:` (`-line` / `-fill`), `iconoir:`, `heroicons:`, `si:` (brand marks). In their own colours (marked `(colour)` in search; no Lottie): `fluent-emoji-flat:` emoji, `logos:` brand logos, `circle-flags:<iso code>` flags. Mix sparingly: one outline set per video reads as one design. |
 | `image` | `asset` | `fit` cover/contain, `crop` {x,y,w,h} in 0..1, `filters` |
 | `video` | `asset` | `in`, `out`, `speed`, `crop`, `volume`, `filters` |
@@ -58,6 +58,10 @@ out, draws every frame, checks it, and exports it. Full field list: `schema.json
 | `captions` | `words` or `source` | word timing from `motion_transcribe`; `captionStyle` pop/highlight/karaoke; `maxWords` per card |
 | `group` | `children` | children are laid out inside the group's box and move with it |
 | `lottie` | `asset` | an imported Lottie file, played on the scene's clock |
+
+Any layer: `blend` — normal, multiply, screen, overlay, add (light adds up: glows, flares),
+darken, lighten, color-dodge, color-burn, soft-light, hard-light, difference, exclusion,
+hue, saturation, color, luminosity; `blur` (keyframe it for focus pulls).
 | `scene3d` | `scene3d` | a 3D scene (three.js) — recipes, objects, camera, lights; see «3D» below |
 
 ## 3. Layout — no pixels
@@ -163,18 +167,37 @@ out, draws every frame, checks it, and exports it. Full field list: `schema.json
     ] }
   ```
 
-  Instruments: `pad, strings, piano, keys, pluck, guitar, bell, marimba, bass, sub, 808,
-  lead, synth, arp, brass, organ, choir, flute` — shape any of them: `wave` (sine, saw,
+  **A ready band:** `"style"` — `lofi, cinematic, epic, synthwave, house, trap, ambient,
+  corporate, piano, arabic` (maqam Hijaz: oud, qanun, ney, darbuka), `playful, tension` —
+  writes chords, bass, drums and an arpeggio in the track's `key` (`Am`, `F#`, `Eb`…) at
+  the style's tempo (or `tempo`). Your `parts` play on top: a melody, a riser, a drop, an
+  extra drum. Start from a style, then make it this video's own.
+
+  ```jsonc
+  { "id": "score", "source": "compose", "style": "synthwave", "key": "Em", "gain": -16,
+    "parts": [ { "instrument": "lead", "notes": [{ "t": 8, "n": "B4", "d": 2 }, { "t": 10, "n": "G4", "d": 2 }], "loop": 16, "from": 8,
+                 "delay": { "time": 0.75, "feedback": 0.4, "mix": 0.35 } } ] }
+  ```
+
+  Instruments: `pad, strings, piano, keys, epiano, pluck, guitar, harp, bell, marimba,
+  kalimba, vibes, bass, sub, 808, lead, synth, supersaw, arp, brass, organ, choir, flute,
+  cello, glass, oud, qanun, ney` — shape any of them: `wave` (sine, saw,
   square, triangle, fm, noise, string, piano, organ), `attack, decay, sustain, release`,
   `cutoff, resonance, detune, vibrato, octave, reverb, gain, pan`. Drums: `kick, snare,
-  clap, hat, openhat, rim, tom, shaker, crash, ride, snap, cowbell, conga, perc` with `hits`
-  (beats) or `steps` (16ths, `x` hit, `X` accent, `.` rest), `tune`, `decay`. `loop`
-  repeats a part, `from`/`to` (beats) bring it in and out, `sidechain` (default on) ducks
-  the chords under the kick.
+  clap, hat, openhat, rim, tom, shaker, crash, ride, snap, cowbell, conga, perc, doum, tek
+  (darbuka), riq, daf, tambourine, clave, woodblock` with `hits` (beats) or `steps` (16ths,
+  `x` hit, `X` accent, `.` rest), `tune`, `decay`. `loop` repeats a part, `from`/`to`
+  (beats) bring it in and out, `sidechain` (default on) ducks the chords under the kick.
+  Per part: `arp` (up, down, updown, random — a chord as running notes every `rate`
+  beats), `strum` (seconds between a chord's notes), `delay` {time beats, feedback, mix}
+  (a bouncing echo), `drive` 0..1 (warmth to grit), `sweep` {from, to} Hz (the filter
+  opening over the part — a build-up).
 - Ready-made patterns too (`source: "procedural"`): `warm-lofi, upbeat, cinematic,
   minimal, corporate` (+ `tempo`, `key` like `Am`) — the same few beds for everyone; compose
   when the video deserves its own sound.
-- SFX kinds: `whoosh, pop, click, riser, impact, swoosh, tick, ding, typing` — each can be
+- SFX kinds: `whoosh, pop, click, riser, impact, swoosh, tick, ding, typing, shimmer
+  (something magic appears), sparkle, heartbeat, glitch, boom (a deep cinematic hit), swell
+  (grows into the next moment), notify, shutter` — each can be
   `tune`d (semitones) and stretched (`length`), and a composed part can be an effect too (a
   single `bell` hit, a `crash`, an `808` drop). Put one on an important entrance or a cut,
   not on everything.
@@ -217,9 +240,14 @@ inside the layer.
 
 **Objects** (`kind`): `box` (width/height/depth, radius = rounded corners), `sphere`,
 `cylinder`, `cone`, `torus`, `torusKnot`, `capsule`, `plane`, `ring` (thin circle),
-`icosahedron` · `text3d` (text, size, depth, bevel, font display|body|latin, split
-words|letters for staggered parts, fit) · `extrude` (svg path data, or a one-colour
-icon) · `model` (asset: an uploaded .glb; size, animation) · `image` (asset, height,
+`icosahedron`, `octahedron`, `dodecahedron`, `tetrahedron` (faceted gems) · `lathe`
+(`profile` [[radius, y]…] from the bottom up, turned round — a vase, a bottle, a cup) ·
+`text3d` (text, size, depth, bevel, font display|body|latin, split words|letters for
+staggered parts, fit) · `extrude` (`outline`: heart, star, polygon, triangle, diamond,
+bolt, drop, plus, moon, cloud, gear, squircle, burst, blob, bubble, shield, arrow, circle
+— with `sides` for points/teeth, `width`/`height` for proportions; or svg path data; or a
+one-colour icon) — a 3D heart is `{ "kind": "extrude", "outline": "heart", "material":
+"glass", "color": "#ff3b5c" }` · `model` (asset: an uploaded .glb; size, animation) · `image` (asset, height,
 cornerRadius) · `particles` (count, shape sphere|shell|disc|ring|cube|galaxy|grid|wave|
 helix|text|image, `to` another shape + `morph` keys 0→1, toText, colors, size, drift,
 glow) · `instances` (of box|sphere|…, layout grid|wall|ring|spiral|helix|random|city|line,

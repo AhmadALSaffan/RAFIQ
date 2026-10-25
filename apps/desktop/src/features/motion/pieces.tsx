@@ -74,6 +74,9 @@ export interface MotionTrack {
   wave?: number[];
 }
 
+/** The names column at the timeline's side. */
+const NAME_W = 168;
+
 type Drag = { clip: string; track: string; mode: "move" | "start" | "end"; x: number; start: number; end: number };
 
 export function Timeline({
@@ -87,6 +90,7 @@ export function Timeline({
   zoom,
   onZoom,
   onToggleHidden,
+  playing = false,
 }: {
   tracks: MotionTrack[];
   duration: number;
@@ -99,10 +103,25 @@ export function Timeline({
   zoom: number;
   onZoom: (pxPerSecond: number) => void;
   onToggleHidden?: (trackId: string) => void;
+  /** While it plays, the view follows the playhead. */
+  playing?: boolean;
 }) {
   const [drag, setDrag] = useState<Drag | null>(null);
   const area = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const width = Math.max(1, duration * zoom);
+
+  // Playing: the playhead stays in sight. Past 60% of the view the time slides under it
+  // (it stays put there); when it loops back to the start, the view goes back with it.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!playing || !el) return;
+    const x = time * zoom;
+    const view = el.clientWidth - NAME_W;
+    if (view <= 0) return;
+    if (x > el.scrollLeft + view * 0.6) el.scrollLeft = x - view * 0.6;
+    else if (x < el.scrollLeft) el.scrollLeft = Math.max(0, x - view * 0.1);
+  }, [playing, time, zoom]);
   const step = rulerStep(zoom);
   const ticks = useMemo(() => Array.from({ length: Math.floor(duration / step) + 1 }, (_, i) => i * step), [duration, step]);
   const picture = tracks.filter((tr) => tr.kind !== "audio");
@@ -138,7 +157,6 @@ export function Timeline({
     onSeek(Math.min(duration, Math.max(0, (clientX - box.left) / zoom)));
   }
 
-  const NAME_W = 168;
   const row = (track: MotionTrack) => {
     const audio = track.kind === "audio";
     const tint = audio ? AUDIO_CLIP : track.kind === "video" ? "var(--color-border)" : "var(--color-surface)";
@@ -258,6 +276,7 @@ export function Timeline({
 
       {/* One scroller for both axes: the ruler sticks to the top, the names to the side. */}
       <div
+        ref={scroller}
         className="relative min-h-0 flex-1 overflow-auto"
         dir="ltr"
         onWheel={(e) => {

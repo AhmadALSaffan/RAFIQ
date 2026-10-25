@@ -27,6 +27,13 @@ export function applyEvent(draft: Draft, ev: ChatStreamEvent): Draft {
       if (last?.kind === "text") return { ...draft, parts: [...parts.slice(0, -1), { ...last, text: last.text + ev.text }] };
       return { ...draft, parts: [...parts, { kind: "text", text: ev.text }] };
     }
+    case "retract": {
+      // an answer the chat sent back to be redone: its text comes off the screen
+      const last = parts[parts.length - 1];
+      if (last?.kind !== "text" || !last.text.endsWith(ev.text)) return draft;
+      const rest = last.text.slice(0, last.text.length - ev.text.length);
+      return { ...draft, parts: rest ? [...parts.slice(0, -1), { ...last, text: rest }] : parts.slice(0, -1) };
+    }
     case "tool_call":
       return { ...draft, parts: [...parts, { kind: "tool", id: ev.id, tool: ev.tool, args: ev.args }] };
     case "tool_result":

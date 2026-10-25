@@ -118,8 +118,8 @@ def validate(scene: Any) -> list[dict[str, str]]:
             errors.append({"path": where, "message": "a tts track needs text"})
         if track["source"] == "compose":
             parts = track.get("parts") or []
-            if not parts:
-                errors.append({"path": where, "message": "a compose track needs parts"})
+            if not parts and not track.get("style"):
+                errors.append({"path": where, "message": "a compose track needs a style or parts"})
             for pi, part in enumerate(parts):
                 if bool(part.get("instrument")) == bool(part.get("drum")):
                     errors.append({"path": f"{where}/parts/{pi}", "message": "a part is an instrument or a drum (one of the two)"})
@@ -158,8 +158,8 @@ def _scene3d_errors(spec: dict[str, Any], assets: dict[str, Any], where: str) ->
                 errors.append({"path": at, "message": f"a {kind} object needs 'asset'"})
             if kind == "text3d" and not str(obj.get("text") or "").strip():
                 errors.append({"path": at, "message": "a text3d object needs 'text'"})
-            if kind == "extrude" and not (obj.get("svg") or obj.get("icon")):
-                errors.append({"path": at, "message": "an extrude object needs 'svg' or 'icon'"})
+            if kind == "extrude" and not (obj.get("svg") or obj.get("icon") or obj.get("outline")):
+                errors.append({"path": at, "message": "an extrude object needs 'outline' (heart, star, bolt…), 'svg' or 'icon'"})
             if kind == "particles":
                 particles += int(obj.get("count") or 3000)
             walk(obj.get("children") or [], f"{at}/children")

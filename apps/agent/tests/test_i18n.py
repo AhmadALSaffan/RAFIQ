@@ -42,7 +42,9 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     "core/chat_service.py": {"transcript_of", "_transcript_lines", "_fold_into", "summarize", "_system_prompt"},
     # What a request carries is fitted to the model; its notes are written to the model.
     "core/context.py": "*",
-    "core/designs.py": {"QUESTIONS", "DESIGN_SYSTEM_PROMPT", "skills_note", "_SLUG_BAD", "OLD_VERSION", "CURRENT_MENTION", "current_documents", "without_html", "design_guide_note"},
+    # a file name keeps Arabic letters (the character range in the pattern)
+    "api/designs.py": {"_BOARD_SLUG"},
+    "core/designs.py": {"QUESTIONS", "DESIGN_SYSTEM_PROMPT", "skills_note", "_SLUG_BAD", "OLD_VERSION", "CURRENT_MENTION", "current_documents", "without_html", "design_guide_note", "BOARD_KIND", "BOARD_LAYOUT", "BOARD_NOTE", "BOARD_QUESTIONS", "BOARD_REDO_NONE", "BOARD_REDO_NAMES", "BOARD_REDO_FRAME", "BOARD_REDO_BRAND"},
     # the designer's review talks to the model (and matches Arabic placeholder text)
     "core/design_review.py": "*",
     "tools/design.py": {"DesignReviewTool", "DesignSlopCheckTool"},
@@ -76,7 +78,7 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     # Motion: the tools, their prompts and notes, and the structural check are read by the
     # model (the app shows the engine's own, translated checks). The rest are character
     # classes, and the word the local voice is tried with.
-    "core/motion.py": {"VISION_PROMPT", "describe_frames", "MOTION_SYSTEM_PROMPT", "FREE_SYSTEM_PROMPT", "kit_summary", "project_note", "skill_note"},
+    "core/motion.py": {"VISION_PROMPT", "describe_frames", "MOTION_SYSTEM_PROMPT", "FREE_SYSTEM_PROMPT", "ENGINE_ONLY", "ENGINE_ONLY_REDO", "kit_summary", "project_note", "skill_note"},
     "motion/brand.py": {"design_note"},
     "motion/lint.py": "*",
     "tools/motion.py": "*",
@@ -153,12 +155,13 @@ def _scan():
     # Module texts translated at the point of use.
     from rafiq_agent.auth.github_copilot import _ERRORS
     from rafiq_agent.auth.resolve import DISCONNECTED
-    from rafiq_agent.core.designs import QUESTIONS
+    from rafiq_agent.core.designs import BOARD_KIND, BOARD_LAYOUT, BOARD_QUESTIONS, QUESTIONS
     from rafiq_agent.core.prompts import DEFAULT_TITLE
     from rafiq_agent.integrations.providers import REGISTRY
 
-    dynamic = [DISCONNECTED, DEFAULT_TITLE, *_ERRORS.values()]
-    for q in QUESTIONS:
+    # (an older design's brief is still read as a board in any language)
+    dynamic = [DISCONNECTED, DEFAULT_TITLE, BOARD_KIND, BOARD_LAYOUT, *_ERRORS.values()]
+    for q in [*QUESTIONS, *BOARD_QUESTIONS]:
         dynamic += [q["label"], q.get("placeholder") or "", *q.get("options", [])]
     from rafiq_agent.core.identity import STYLES
 

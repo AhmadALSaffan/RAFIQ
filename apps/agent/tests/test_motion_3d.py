@@ -147,3 +147,28 @@ def test_a_composed_score_is_valid_and_its_mistakes_are_named():
     messages = [e["message"] for e in rms.validate(scene)]
     assert "an instrument part needs notes" in messages
     assert "a part is an instrument or a drum (one of the two)" in messages
+
+
+def test_the_new_shapes_sounds_and_styles_are_valid():
+    heart = {"id": "h", "type": "scene3d", "start": 0, "end": 6, "scene3d": {"objects": [
+        {"id": "heart", "kind": "extrude", "outline": "heart", "material": "glass", "color": "#ff3b5c"},
+        {"id": "gear", "kind": "extrude", "outline": "gear", "sides": 12},
+        {"id": "vase", "kind": "lathe", "profile": [[0, -0.6], [0.4, -0.6], [0.5, 0], [0.25, 0.6]]},
+        {"id": "gem", "kind": "dodecahedron"},
+    ]}}
+    badge = {"id": "b", "type": "shape", "shape": "burst", "points": 14, "blend": "add", "start": 0, "end": 4}
+    scene = _scene(heart, badge)
+    scene["audio"] = [
+        {"id": "band", "source": "compose", "style": "arabic", "key": "D"},
+        {"id": "lead", "source": "compose", "tempo": 100, "parts": [
+            {"instrument": "oud", "notes": [{"t": 0, "n": "Dm", "d": 2}], "arp": "updown", "rate": 0.25,
+             "strum": 0.03, "delay": {"time": 0.75, "feedback": 0.4, "mix": 0.3}, "drive": 0.3, "sweep": {"from": 300, "to": 5000}},
+            {"drum": "doum", "steps": "x.......x......."},
+        ]},
+        {"id": "magic", "source": "sfx", "kind": "shimmer", "at": 1},
+    ]
+    assert rms.validate(scene) == []
+    # an extrusion still needs something to extrude
+    scene["layers"][0]["scene3d"]["objects"].append({"id": "x", "kind": "extrude"})
+    assert any("needs 'outline'" in e["message"] for e in rms.validate(scene))
+

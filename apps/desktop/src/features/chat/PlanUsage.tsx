@@ -1,6 +1,7 @@
 /**
- * A ChatGPT plan's usage, as a small ring beside the model: the figure OpenAI reports in its
- * responses when it does, full and red when the limit was reached. A click opens what Rafiq
+ * A ChatGPT plan's usage, as a small ring beside the model: the figure OpenAI reports when it
+ * does — in practice it doesn't, so it's Rafiq's estimate from its own tokens in the plan's
+ * five-hour window (marked "~") — full and red when the limit was reached. A click opens what Rafiq
  * knows — the windows, its own requests and tokens, when the limit was hit — and the plan's
  * own usage page, the one place with the whole picture.
  */
@@ -84,10 +85,11 @@ export function PlanUsageRing({ accountId, refreshKey }: { accountId: string; re
 
   if (!usage) return null;
   const percent = usage.used_percent;
+  const figure = usage.limited ? "100%" : percent !== null ? `${usage.estimated ? "~" : ""}${Math.round(percent)}%` : null;
   const label = usage.limited
     ? t("وصلت لحد الاستخدام")
-    : percent !== null
-      ? t("استخدام خطة ChatGPT: {0}%", { 0: Math.round(percent) })
+    : figure !== null
+      ? t("استخدام خطة ChatGPT: {0}", { 0: figure }) + (usage.estimated ? ` (${t("تقدير")})` : "")
       : t("استخدام خطة ChatGPT");
 
   return (
@@ -101,7 +103,11 @@ export function PlanUsageRing({ accountId, refreshKey }: { accountId: string; re
         title={label}
       >
         <Ring value={percent} limited={usage.limited} />
-        {(percent !== null || usage.limited) && <span className="num">{usage.limited ? "100%" : `${Math.round(percent!)}%`}</span>}
+        {figure !== null ? (
+          <span className="num">{figure}</span>
+        ) : (
+          usage.window_tokens > 0 && <span className="num">{tokens(usage.window_tokens)}</span>
+        )}
       </button>
       {createPortal(
         <AnimatePresence>
@@ -139,13 +145,22 @@ export function PlanUsageRing({ accountId, refreshKey }: { accountId: string; re
                 <div className="mt-5 flex items-center gap-4">
                   <Ring value={percent} limited={usage.limited} size={72} />
                   <div>
-                    <p className="num text-[32px] font-extrabold leading-none">{usage.limited ? "100%" : percent !== null ? `${Math.round(percent)}%` : "—"}</p>
+                    <p className="num text-[32px] font-extrabold leading-none">{figure ?? "—"}</p>
                     <p className="mt-1 text-sm" style={{ color: usage.limited ? "var(--color-danger)" : "var(--color-ink-muted)" }}>
                       {usage.limited
                         ? t("وصلت لحد الاستخدام (لخطتك أو للحد اللي حاطّه لرفيق).")
-                        : percent !== null
-                          ? t("من الاستخدام المسموح، حسب آخر رد من OpenAI.")
-                          : t("OpenAI ما بعتت نسبة الاستخدام مع ردودها — النسبة الكاملة بصفحة الاستخدام.")}
+                        : usage.estimated && usage.capacity
+                          ? t("تقدير: {0} توكن بآخر {1} ساعات، من حوالي {2} عبّوا الخطة آخر مرة.", {
+                              0: tokens(usage.window_tokens),
+                              1: usage.window_hours,
+                              2: tokens(usage.capacity),
+                            })
+                          : percent !== null
+                            ? t("من الاستخدام المسموح، حسب آخر رد من OpenAI.")
+                            : t("{0} توكن بآخر {1} ساعات. OpenAI ما بتبعت النسبة، فرفيق بيقدّرها بعد أول مرة توصل فيها للحد.", {
+                                0: tokens(usage.window_tokens),
+                                1: usage.window_hours,
+                              })}
                     </p>
                   </div>
                 </div>

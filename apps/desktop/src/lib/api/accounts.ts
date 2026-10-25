@@ -13,8 +13,16 @@ export async function listAccounts(): Promise<AuthAccount[]> {
 
 /** What Rafiq knows about a ChatGPT plan's usage (llm/plan_usage.py on the agent). */
 export interface PlanUsage {
-  /** The highest window's figure OpenAI reported, or null when it reports none. */
+  /** The highest window's figure OpenAI reported; else Rafiq's estimate (`estimated`); 100
+   *  at the limit; null when there's nothing to go on yet. */
   used_percent: number | null;
+  /** The figure is Rafiq's estimate: tokens in the last window against what filled it last time. */
+  estimated: boolean;
+  /** Tokens Rafiq spent on the plan in the last `window_hours`. */
+  window_tokens: number;
+  window_hours: number;
+  /** About how many tokens the window holds, learned from the last limit; null until then. */
+  capacity: number | null;
   windows: { name: string; used_percent: number; window_minutes: number | null; resets_in_seconds: number | null }[];
   limited: boolean;
   /** Epoch seconds of the last limit error. */

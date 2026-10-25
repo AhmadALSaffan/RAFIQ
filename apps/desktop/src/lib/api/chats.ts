@@ -114,6 +114,7 @@ export type ChatStreamEvent =
   | { type: "start"; user_message: ChatMessage; title: string }
   | { type: "reasoning"; text: string }
   | { type: "delta"; text: string }
+  | { type: "retract"; text: string }
   | { type: "tool_call"; id: string; tool: string; args: Record<string, unknown> }
   | { type: "tool_result"; id: string; ok: boolean; output: string }
   | { type: "permission"; id: string; call: ToolCall }

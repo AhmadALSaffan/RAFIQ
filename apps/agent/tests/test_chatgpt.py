@@ -232,3 +232,28 @@ def test_plan_usage_keeps_only_what_it_sees(tmp_path, monkeypatch):
     assert plan_usage.summary("acc")["limited"] is True
     plan_usage.ok("acc")
     assert plan_usage.summary("acc")["limited"] is False
+
+
+def test_plan_usage_estimates_when_the_plan_reports_nothing(tmp_path, monkeypatch):
+    from rafiq_agent.llm import plan_usage
+
+    monkeypatch.setattr(plan_usage, "DATA_DIR", tmp_path)
+    clock = [1_000_000.0]
+    monkeypatch.setattr(plan_usage.time, "time", lambda: clock[0])
+    plan_usage.record("acc", 600, 200)
+    # no limit seen yet: nothing to measure against, but the window's tokens are known
+    s = plan_usage.summary("acc")
+    assert s["used_percent"] is None and s["window_tokens"] == 800 and s["estimated"] is False
+    plan_usage.record("acc", 150, 50)
+    plan_usage.limit_hit("acc")  # 1000 tokens filled the window
+    assert plan_usage.summary("acc")["used_percent"] == 100
+    plan_usage.limit_hit("acc")  # a retry right after: not a second sample
+    plan_usage.ok("acc")
+    clock[0] += 6 * 3600  # the window has rolled over
+    plan_usage.record("acc", 200, 50)
+    s = plan_usage.summary("acc")
+    assert s["estimated"] is True and s["capacity"] == 1000 and s["used_percent"] == 25
+    plan_usage.record("acc", 2000, 0)  # past the measure, but replies still come
+    assert plan_usage.summary("acc")["used_percent"] == 99
+    # another account on the same plan type borrows the measure until it has its own
+    assert plan_usage.summary("other")["capacity"] == 1000

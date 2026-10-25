@@ -69,6 +69,8 @@ export function DesignsPage() {
   // `?new=1` (from Ctrl+K) opens the new-design wizard; the flag then leaves the URL.
   const [params, setParams] = useSearchParams();
   const askedNew = params.get("new") === "1";
+  // App boards and sites are two lists with two briefs; `?type=board` is the boards'.
+  const boards = params.get("type") === "board";
   const [designs, setDesigns] = useState<DesignSummary[]>([]);
   const [previews, setPreviews] = useState<Record<string, string | null>>({});
   const [models, setModels] = useState<LlmModel[]>([]);
@@ -90,7 +92,7 @@ export function DesignsPage() {
   const loadDesigns = useCallback(async () => {
     setRefreshing(true);
     try {
-      const list = await listDesigns(workspaceId);
+      const list = (await listDesigns(workspaceId)).filter((d) => Boolean(d.board) === boards);
       setDesigns(list);
       setError(null);
       const withPreview = await Promise.all(
@@ -103,7 +105,7 @@ export function DesignsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [workspaceId]);
+  }, [workspaceId, boards]);
 
   const loadSkills = useCallback(() => {
     listSkills().then(setSkills).catch(() => setSkills([]));
@@ -119,7 +121,7 @@ export function DesignsPage() {
   const menu = useElementMenu();
 
   usePageMenu(() => [
-    { id: "new-design", label: t("تصميم جديد"), onSelect: () => setWizard(true), disabled: usable.length === 0 },
+    { id: "new-design", label: boards ? t("تطبيق جديد") : t("تصميم جديد"), onSelect: () => setWizard(true), disabled: usable.length === 0 },
     { id: "refresh", label: t("حدّث القائمة"), onSelect: () => void loadDesigns() },
   ]);
 
@@ -131,15 +133,19 @@ export function DesignsPage() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
       <PageHeader
-        title={t("التصاميم")}
+        title={boards ? t("تصميم تطبيقات") : t("التصاميم")}
         scene="designs"
-        description={t("صمّم الواجهة قبل ما تبرمجها: رفيق بيسألك أسئلة الـ brief، بيقرأ مهارات التصميم المدمجة، بيعطيك معاينة حيّة تناقشه فيها، ولما تجهز بتبعتها للجلسة اللي رح تبرمجها.")}
+        description={
+          boards
+            ? t("صمّم شاشات تطبيق موبايل على لوحة وحدة: الهوية أولاً، وبعدها كل شاشة بإطار جوال، بترتيب رحلة المستخدم.")
+            : t("صمّم الواجهة قبل ما تبرمجها: رفيق بيسألك أسئلة الـ brief، بيقرأ مهارات التصميم المدمجة، بيعطيك معاينة حيّة تناقشه فيها، ولما تجهز بتبعتها للجلسة اللي رح تبرمجها.")
+        }
         actions={
           <>
             <RefreshButton spinning={refreshing} onClick={() => void loadDesigns()} />
             <Button variant="accent" onClick={() => setWizard(true)} disabled={usable.length === 0}>
               <PlusIcon className="h-4 w-4" />
-              {t("تصميم جديد")}
+              {boards ? t("تطبيق جديد") : t("تصميم جديد")}
             </Button>
           </>
         }
@@ -167,9 +173,13 @@ export function DesignsPage() {
       ) : designs.length === 0 ? (
         <EmptyState
           scene="designs"
-          text={t("ما في تصاميم بعد. اضغط «تصميم جديد»، ابنِ هوية تطبيقك البصرية وجاوب على أسئلة عن المنتج — بعدها بتفتحلك جلسة تصميم فيها شات ومعاينة حيّة.")}
+          text={
+            boards
+              ? t("ما في تطبيقات بعد. اضغط «تطبيق جديد»، ابنِ الهوية وجاوب عن التطبيق — والشاشات بتطلع على لوحة وحدة، كل وحدة بإطار جوال.")
+              : t("ما في تصاميم بعد. اضغط «تصميم جديد»، ابنِ هوية تطبيقك البصرية وجاوب على أسئلة عن المنتج — بعدها بتفتحلك جلسة تصميم فيها شات ومعاينة حيّة.")
+          }
           action={
-            usable.length > 0 ? <Button onClick={() => setWizard(true)}>{t("تصميم جديد")}</Button> : undefined
+            usable.length > 0 ? <Button onClick={() => setWizard(true)}>{boards ? t("تطبيق جديد") : t("تصميم جديد")}</Button> : undefined
           }
         />
       ) : (
@@ -240,6 +250,7 @@ export function DesignsPage() {
       <AnimatePresence>
         {wizard && (
           <InitWizard
+            board={boards}
             models={usable}
             onClose={() => setWizard(false)}
             onDone={(id) => navigate(`/designs/${id}`)}
@@ -251,7 +262,7 @@ export function DesignsPage() {
 }
 
 /** `/impeccable init` — the brief, asked once, before the design chat opens. */
-function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: () => void; onDone: (id: string) => void }) {
+function InitWizard({ board, models, onClose, onDone }: { board: boolean; models: LlmModel[]; onClose: () => void; onDone: (id: string) => void }) {
   const [questions, setQuestions] = useState<InitQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const { current: workspace, currentId: workspaceId } = useWorkspaces();
@@ -266,8 +277,8 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
   const [identity, setIdentity] = useState<DesignIdentity | null>(null);
 
   useEffect(() => {
-    initQuestions().then(setQuestions).catch(() => setError(t("ما قدرت أجيب الأسئلة")));
-  }, []);
+    initQuestions(board).then(setQuestions).catch(() => setError(t("ما قدرت أجيب الأسئلة")));
+  }, [board]);
 
   // A model that searches the web itself doesn't get Rafiq's tool unless asked to.
   const ownsSearch = Boolean(models.find((m) => m.id === modelId)?.native_tools?.includes("web_search"));
@@ -290,7 +301,9 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
     setBusy(true);
     setError(null);
     try {
-      const design = await createDesign(modelId, answers, folder, undefined, webSearch, workspaceId, identity?.data ?? null);
+      // an app board says so in its brief: its own questions, its own list, the board view
+      const brief = board ? { ...answers, type: "board" } : answers;
+      const design = await createDesign(modelId, brief, folder, undefined, webSearch, workspaceId, identity?.data ?? null);
       onDone(design.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("ما قدرت أبدأ التصميم"));
@@ -322,7 +335,7 @@ function InitWizard({ models, onClose, onDone }: { models: LlmModel[]; onClose: 
               <span className="num text-xs" style={{ color: "var(--color-ink-muted)" }}>
                 {step === "identity" ? "1/2" : "2/2"}
               </span>
-              {step === "identity" ? t("الهوية البصرية") : t("جمع معلومات المشروع")}
+              {step === "identity" ? t("الهوية البصرية") : board ? t("عن التطبيق") : t("جمع معلومات المشروع")}
             </h2>
             <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-muted)" }}>
               {step === "identity"

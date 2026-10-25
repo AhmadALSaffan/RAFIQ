@@ -343,3 +343,195 @@ export function heartPath(x: number, y: number, w: number, h: number): Polyline[
   }
   return [{ points: pts, closed: true }];
 }
+
+// ── More outlines (one set for 2D shapes and 3D extrusions) ─────────────────────────────
+
+/** Points in a 0..1 box (y down) → the box. */
+function inBox(x: number, y: number, w: number, h: number, unit: Pt[]): Polyline[] {
+  return [{ points: unit.map(([u, v]) => [x + u * w, y + v * h] as Pt), closed: true }];
+}
+
+function circlePoints(cx: number, cy: number, r: number, from: number, to: number, steps = 24): Pt[] {
+  const out: Pt[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const a = ((from + ((to - from) * i) / steps) * Math.PI) / 180;
+    out.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+  }
+  return out;
+}
+
+/** A gem: four points. */
+function diamond(): Pt[] {
+  return [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5], [0.5, 0]];
+}
+
+/** A lightning bolt. */
+function bolt(): Pt[] {
+  return [[0.62, 0], [0.12, 0.58], [0.46, 0.58], [0.34, 1], [0.88, 0.38], [0.53, 0.38], [0.62, 0]];
+}
+
+/** A drop, point up. */
+function drop(): Pt[] {
+  const pts: Pt[] = [[0.5, 0]];
+  // the round belly: a circle from the right shoulder, under, to the left shoulder
+  pts.push(...circlePoints(0.5, 0.64, 0.36, -30, 210, 40));
+  pts.push([0.5, 0]);
+  return pts;
+}
+
+/** A plus / cross, arms `0.34` of the box thick. */
+function plus(): Pt[] {
+  const a = 0.33;
+  const b = 0.67;
+  return [[a, 0], [b, 0], [b, a], [1, a], [1, b], [b, b], [b, 1], [a, 1], [a, b], [0, b], [0, a], [a, a], [a, 0]];
+}
+
+/** A crescent moon opening to the right. */
+function moon(): Pt[] {
+  const outer = circlePoints(0.5, 0.5, 0.5, 60, 300, 48);
+  // the inner bite, back the other way
+  const inner = circlePoints(0.72, 0.42, 0.42, 248, 112, 40).filter(([u, v]) => (u - 0.5) ** 2 + (v - 0.5) ** 2 <= 0.25 + 1e-9);
+  return [...outer, ...inner, outer[0]];
+}
+
+/** A cloud: three puffs on a flat base. */
+function cloud(): Pt[] {
+  const pts: Pt[] = [[0.12, 0.92]];
+  pts.push(...circlePoints(0.22, 0.7, 0.2, 90, 270, 16));
+  pts.push(...circlePoints(0.45, 0.45, 0.3, 200, 320, 20));
+  pts.push(...circlePoints(0.75, 0.6, 0.22, 240, 450, 20));
+  pts.push([0.12, 0.92]);
+  return pts;
+}
+
+/** A gear with `teeth` teeth. */
+function gear(teeth: number): Pt[] {
+  const n = Math.max(4, Math.round(teeth));
+  const pts: Pt[] = [];
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI * 2;
+    const step = (Math.PI * 2) / n;
+    for (const [f, r] of [[0, 0.38], [0.18, 0.5], [0.5, 0.5], [0.68, 0.38]] as const) {
+      const a = a0 + f * step - Math.PI / 2;
+      pts.push([0.5 + r * Math.cos(a), 0.5 + r * Math.sin(a)]);
+    }
+  }
+  pts.push(pts[0]);
+  return pts;
+}
+
+/** A squircle: a square with soft, continuous corners. */
+function squircle(): Pt[] {
+  const pts: Pt[] = [];
+  for (let i = 0; i <= 96; i++) {
+    const a = (i / 96) * Math.PI * 2;
+    const c = Math.cos(a);
+    const sn = Math.sin(a);
+    pts.push([0.5 + 0.5 * Math.sign(c) * Math.abs(c) ** 0.5, 0.5 + 0.5 * Math.sign(sn) * Math.abs(sn) ** 0.5]);
+  }
+  return pts;
+}
+
+/** A starburst / badge with `rays` rays. */
+function burst(rays: number): Pt[] {
+  const n = Math.max(6, Math.round(rays)) * 2;
+  const pts: Pt[] = [];
+  for (let i = 0; i <= n; i++) {
+    const a = -Math.PI / 2 + (Math.PI * 2 * i) / n;
+    const r = i % 2 === 0 ? 0.5 : 0.41;
+    pts.push([0.5 + r * Math.cos(a), 0.5 + r * Math.sin(a)]);
+  }
+  return pts;
+}
+
+/** An organic blob, the same for the same `seed`. */
+function blob(seed: number): Pt[] {
+  const k = Math.max(1, Math.round(seed));
+  const pts: Pt[] = [];
+  for (let i = 0; i <= 72; i++) {
+    const a = (i / 72) * Math.PI * 2;
+    const r = 0.37 + 0.06 * Math.sin(3 * a + k) + 0.04 * Math.sin(5 * a + k * 1.7) + 0.03 * Math.cos(2 * a + k * 0.6);
+    pts.push([0.5 + r * Math.cos(a), 0.5 + r * Math.sin(a)]);
+  }
+  return pts;
+}
+
+/** A speech bubble with its tail at the bottom-start. */
+function bubble(): Pt[] {
+  const r = 0.16;
+  const top = 0;
+  const bottom = 0.78;
+  const pts: Pt[] = [];
+  pts.push(...circlePoints(r, top + r, r, 180, 270, 8));
+  pts.push(...circlePoints(1 - r, top + r, r, 270, 360, 8));
+  pts.push(...circlePoints(1 - r, bottom - r, r, 0, 90, 8));
+  pts.push([0.42, bottom], [0.2, 1], [0.26, bottom]);
+  pts.push(...circlePoints(r, bottom - r, r, 90, 180, 8));
+  pts.push(pts[0]);
+  return pts;
+}
+
+/** A shield. */
+function shield(): Pt[] {
+  const pts: Pt[] = [[0.5, 0], [1, 0.14], [1, 0.48]];
+  // down to the point in a soft curve each side
+  for (let i = 1; i <= 12; i++) {
+    const t = i / 12;
+    pts.push([1 - 0.5 * t * t, 0.48 + 0.52 * t]);
+  }
+  for (let i = 11; i >= 0; i--) {
+    const t = i / 12;
+    pts.push([0.5 * t * t, 0.48 + 0.52 * t]);
+  }
+  pts.push([0, 0.14], [0.5, 0]);
+  return pts;
+}
+
+/** Names `outlinePath` knows, beyond the ones with their own functions above. */
+export const OUTLINES = ["heart", "star", "triangle", "polygon", "diamond", "bolt", "drop", "plus", "moon", "cloud", "gear", "squircle", "burst", "blob", "bubble", "shield", "arrow", "circle"] as const;
+export type OutlineName = (typeof OUTLINES)[number];
+
+/** One named outline filling the box; `points` is a star's points, a polygon's sides, a
+ *  gear's teeth, a burst's rays, or a blob's seed. */
+export function outlinePath(name: string, x: number, y: number, w: number, h: number, points?: number): Polyline[] | null {
+  switch (name) {
+    case "heart":
+      return heartPath(x, y, w, h);
+    case "star":
+      return starPath(x, y, w, h, points ?? 5);
+    case "triangle":
+      return trianglePath(x, y, w, h);
+    case "polygon":
+      return polygonPath(x, y, w, h, points ?? 6);
+    case "circle":
+      return ellipsePath(x, y, w, h);
+    case "arrow":
+      return arrowPath(x, y, w, h, true);
+    case "diamond":
+      return inBox(x, y, w, h, diamond());
+    case "bolt":
+      return inBox(x, y, w, h, bolt());
+    case "drop":
+      return inBox(x, y, w, h, drop());
+    case "plus":
+      return inBox(x, y, w, h, plus());
+    case "moon":
+      return inBox(x, y, w, h, moon());
+    case "cloud":
+      return inBox(x, y, w, h, cloud());
+    case "gear":
+      return inBox(x, y, w, h, gear(points ?? 10));
+    case "squircle":
+      return inBox(x, y, w, h, squircle());
+    case "burst":
+      return inBox(x, y, w, h, burst(points ?? 16));
+    case "blob":
+      return inBox(x, y, w, h, blob(points ?? 1));
+    case "bubble":
+      return inBox(x, y, w, h, bubble());
+    case "shield":
+      return inBox(x, y, w, h, shield());
+    default:
+      return null;
+  }
+}

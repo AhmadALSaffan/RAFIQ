@@ -6,6 +6,7 @@
  * chords ducking under the kick when asked; the mixer then reads windows of it.
  */
 
+import { styleParts } from "./styles";
 import type { AudioTrack, ScoreNote, ScorePart } from "./types";
 
 const SR = 48000;
@@ -90,10 +91,23 @@ const PRESETS: Record<string, Voice> = {
   organ: { wave: "organ", attack: 0.01, decay: 0.1, sustain: 1, release: 0.1, cutoff: 6000, resonance: 0.7, detune: 2, vibrato: 0.03, reverb: 0.3, level: 0.2 },
   choir: { wave: "saw", formant: true, attack: 0.45, decay: 0.5, sustain: 0.9, release: 1, cutoff: 3500, resonance: 0.7, detune: 8, vibrato: 0.07, reverb: 0.6, level: 0.3 },
   flute: { wave: "sine", breath: 0.08, attack: 0.08, decay: 0.2, sustain: 0.9, release: 0.25, cutoff: 5000, resonance: 0.7, detune: 0, vibrato: 0.1, reverb: 0.4, level: 0.35 },
+  epiano: { wave: "fm", ratio: 1, index: 0.9, attack: 0.003, decay: 1.8, sustain: 0.2, release: 0.5, cutoff: 4500, resonance: 0.7, detune: 4, vibrato: 0, reverb: 0.35, level: 0.42 },
+  harp: { wave: "string", attack: 0.001, decay: 2.6, sustain: 0, release: 0.8, cutoff: 6500, resonance: 0.7, detune: 0, vibrato: 0, reverb: 0.45, level: 0.5 },
+  kalimba: { wave: "fm", ratio: 5.2, index: 0.9, attack: 0.001, decay: 0.7, sustain: 0, release: 0.3, cutoff: 8000, resonance: 0.7, detune: 0, vibrato: 0, reverb: 0.35, level: 0.45 },
+  vibes: { wave: "fm", ratio: 4, index: 0.5, attack: 0.002, decay: 2.4, sustain: 0, release: 1, cutoff: 8000, resonance: 0.7, detune: 0, vibrato: 0.03, reverb: 0.45, level: 0.36 },
+  cello: { wave: "saw", attack: 0.18, decay: 0.5, sustain: 0.85, release: 0.6, cutoff: 1300, resonance: 0.8, detune: 5, vibrato: 0.12, reverb: 0.45, level: 0.26 },
+  oud: { wave: "string", attack: 0.001, decay: 1.1, sustain: 0, release: 0.25, cutoff: 2400, resonance: 0.9, detune: 0, vibrato: 0, reverb: 0.3, level: 0.6 },
+  qanun: { wave: "string", attack: 0.001, decay: 1.6, sustain: 0, release: 0.4, cutoff: 7000, resonance: 0.7, detune: 0, vibrato: 0, reverb: 0.4, level: 0.5 },
+  ney: { wave: "sine", breath: 0.16, attack: 0.14, decay: 0.3, sustain: 0.9, release: 0.4, cutoff: 2800, resonance: 0.7, detune: 0, vibrato: 0.14, reverb: 0.5, level: 0.38 },
+  supersaw: { wave: "saw", attack: 0.02, decay: 0.4, sustain: 0.8, release: 0.5, cutoff: 3800, resonance: 0.9, detune: 24, vibrato: 0, reverb: 0.4, level: 0.18 },
+  glass: { wave: "fm", ratio: 2.01, index: 0.7, attack: 0.5, decay: 1.2, sustain: 0.7, release: 1.6, cutoff: 5000, resonance: 0.7, detune: 6, vibrato: 0, reverb: 0.6, level: 0.24 },
 };
 
 export const INSTRUMENTS = Object.keys(PRESETS);
-export const DRUMS = ["kick", "snare", "clap", "hat", "openhat", "rim", "tom", "shaker", "crash", "ride", "snap", "cowbell", "conga", "perc"] as const;
+export const DRUMS = [
+  "kick", "snare", "clap", "hat", "openhat", "rim", "tom", "shaker", "crash", "ride", "snap", "cowbell", "conga", "perc",
+  "doum", "tek", "riq", "daf", "tambourine", "clave", "woodblock",
+] as const;
 
 function lowpass(x: Float32Array, f0: number, q: number): void {
   const w = (2 * Math.PI * Math.min(f0, SR * 0.45)) / SR;
@@ -287,34 +301,44 @@ function renderDrum(kind: string, tune: number, decay: number, vel: number, r: (
     case "openhat":
     case "shaker":
     case "crash":
-    case "ride": {
-      const tau = { hat: 0.018, openhat: 0.16, shaker: 0.04, crash: 0.9, ride: 0.5 }[kind];
+    case "ride":
+    case "riq":
+    case "tambourine": {
+      const tau = { hat: 0.018, openhat: 0.16, shaker: 0.04, crash: 0.9, ride: 0.5, riq: 0.06, tambourine: 0.09 }[kind];
       out = noise(len(tau * 5));
-      highpass(out, (kind === "shaker" ? 5000 : 7500) * k);
+      highpass(out, (kind === "shaker" || kind === "riq" ? 5000 : kind === "tambourine" ? 6500 : 7500) * k);
       env(out, tau);
       for (let i = 0; i < out.length; i++) out[i] *= kind === "crash" ? 0.5 : 0.7;
       break;
     }
     case "rim":
     case "cowbell":
-    case "perc": {
-      const f = { rim: 1700, cowbell: 560, perc: 880 }[kind] * k;
-      out = new Float32Array(len(kind === "cowbell" ? 0.4 : 0.08));
+    case "perc":
+    case "tek":
+    case "clave":
+    case "woodblock": {
+      const f = { rim: 1700, cowbell: 560, perc: 880, tek: 2600, clave: 2500, woodblock: 1050 }[kind] * k;
+      const tau = { rim: 0.015, cowbell: 0.09, perc: 0.015, tek: 0.02, clave: 0.03, woodblock: 0.04 }[kind];
+      out = new Float32Array(len(kind === "cowbell" ? 0.4 : 0.12));
       for (let i = 0; i < out.length; i++) {
         const s = i / SR;
-        out[i] = (Math.sin(2 * Math.PI * f * s) + (kind === "cowbell" ? 0.6 * Math.sin(2 * Math.PI * f * 1.48 * s) : 0.3 * Math.sin(2 * Math.PI * f * 2.7 * s))) * Math.exp(-s / ((kind === "cowbell" ? 0.09 : 0.015) * decay)) * 0.6;
+        out[i] = (Math.sin(2 * Math.PI * f * s) + (kind === "cowbell" ? 0.6 * Math.sin(2 * Math.PI * f * 1.48 * s) : 0.3 * Math.sin(2 * Math.PI * f * 2.7 * s))) * Math.exp(-s / (tau * decay)) * 0.6;
+        // a darbuka's tek has the slap of the skin on top
+        if (kind === "tek") out[i] += (r() * 2 - 1) * 0.35 * Math.exp(-s / (0.008 * decay));
       }
       break;
     }
     default: {
-      // tom, conga: a pitched skin that falls a little
-      const base = (kind === "conga" ? 260 : 120) * k;
-      out = new Float32Array(len(0.4));
+      // tom, conga, doum (a darbuka's low stroke), daf (a frame drum): a pitched skin that falls a little
+      const base = ({ conga: 260, doum: 95, daf: 70 } as Record<string, number>)[kind] ?? 120;
+      const tau = ({ conga: 0.08, doum: 0.25, daf: 0.2 } as Record<string, number>)[kind] ?? 0.18;
+      out = new Float32Array(len(0.5));
       let ph = 0;
       for (let i = 0; i < out.length; i++) {
         const s = i / SR;
-        ph += (base * (1 + 0.5 * Math.exp(-s / 0.02))) / SR;
-        out[i] = Math.sin(2 * Math.PI * ph) * Math.exp(-s / ((kind === "conga" ? 0.08 : 0.18) * decay)) * 0.8;
+        ph += (base * k * (1 + 0.5 * Math.exp(-s / 0.02))) / SR;
+        out[i] = Math.sin(2 * Math.PI * ph) * Math.exp(-s / (tau * decay)) * 0.8;
+        if (kind === "daf") out[i] += (r() * 2 - 1) * 0.25 * Math.exp(-s / (0.03 * decay));
       }
     }
   }
@@ -384,9 +408,24 @@ export function partEvents(part: ScorePart, beats: number, swing = 0): Event[] {
   for (const h of part.hits ?? []) base.push({ beat: h, dur: 0.25, notes: [], vel: 0.85 });
   for (const n of part.notes ?? []) {
     const notes = (Array.isArray(n.n) ? n.n : [n.n]).flatMap((x) => parseNote(x, part.octave ?? 0));
-    if (notes.length || part.drum) base.push({ beat: n.t, dur: n.d ?? 1, notes, vel: n.v ?? 0.8 });
+    if (part.arp && notes.length > 1) base.push(...arpeggio(part, n.t, n.d ?? 1, notes, n.v ?? 0.8));
+    else if (notes.length || part.drum) base.push({ beat: n.t, dur: n.d ?? 1, notes, vel: n.v ?? 0.8 });
   }
   return repeat(base, part.loop, part, beats, swing);
+}
+
+/** A chord played one note at a time, every `rate` beats, for as long as the chord lasts. */
+function arpeggio(part: ScorePart, at: number, dur: number, chord: number[], vel: number): Event[] {
+  const up = [...chord].sort((a, b) => a - b);
+  const order = part.arp === "down" ? [...up].reverse() : part.arp === "updown" ? [...up, ...up.slice(1, -1).reverse()] : up;
+  const rate = Math.max(0.0625, part.rate ?? 0.25);
+  const out: Event[] = [];
+  for (let k = 0; k * rate < dur - 1e-6; k++) {
+    // "random" picks the same notes every time (a seeded walk), so a render never changes
+    const note = part.arp === "random" ? up[(k * 7 + Math.floor(at) * 3 + 1) % up.length] : order[k % order.length];
+    out.push({ beat: at + k * rate, dur: rate * 0.9, notes: [note], vel: vel * (k % order.length === 0 ? 1 : 0.85) });
+  }
+  return out;
 }
 
 function repeat(base: Event[], loop: number | undefined, part: ScorePart, beats: number, swing: number): Event[] {
@@ -406,6 +445,41 @@ function repeat(base: Event[], loop: number | undefined, part: ScorePart, beats:
   return out;
 }
 
+/** The cutoff at `t` (0..1) of a sweep, gliding evenly in pitch. */
+function sweepAt(sweep: { from: number; to: number }, t: number): number {
+  const k = Math.min(1, Math.max(0, t));
+  const a = Math.max(40, sweep.from);
+  const b = Math.max(40, sweep.to);
+  return a * (b / a) ** k;
+}
+
+/** Warmth to grit: a soft clip, its level kept. */
+function drive(x: [Float32Array, Float32Array], amount: number): void {
+  const g = 1 + Math.min(1, Math.max(0, amount)) * 8;
+  const norm = 1 / Math.tanh(g);
+  for (const ch of x) for (let i = 0; i < ch.length; i++) ch[i] = Math.tanh(ch[i] * g) * norm * 0.7 + ch[i] * 0.3;
+}
+
+/** An echo every `time` beats, each `feedback` quieter, mixed in at `mix`; the repeats
+ *  bounce left and right. */
+function echo(x: [Float32Array, Float32Array], d: { time?: number; feedback?: number; mix?: number }, beat: number): void {
+  const n = Math.max(1, Math.round((d.time ?? 0.75) * beat * SR));
+  const fb = Math.min(0.9, Math.max(0, d.feedback ?? 0.35));
+  const mix = Math.min(1, Math.max(0, d.mix ?? 0.3));
+  const [l, r] = x;
+  const wl = new Float32Array(l.length);
+  const wr = new Float32Array(r.length);
+  for (let i = n; i < l.length; i++) {
+    // ping-pong: each side hears the other's last echo
+    wl[i] = (r[i - n] + wr[i - n]) * fb;
+    wr[i] = (l[i - n] + wl[i - n]) * fb;
+  }
+  for (let i = 0; i < l.length; i++) {
+    l[i] += wl[i] * mix;
+    r[i] += wr[i] * mix;
+  }
+}
+
 const KICKS = (parts: ScorePart[], beats: number, swing: number) =>
   parts.filter((p) => p.drum === "kick" || p.instrument === "808").flatMap((p) => partEvents(p, beats, swing).map((e) => e.beat));
 
@@ -414,8 +488,11 @@ export class ScoreTrack {
   private beat: number;
   private seconds: number;
 
+  private style: ReturnType<typeof styleParts>;
+
   constructor(private track: AudioTrack, seconds: number) {
-    this.beat = 60 / Math.min(220, Math.max(40, track.tempo ?? 100));
+    this.style = track.style ? styleParts(track.style, track.key) : null;
+    this.beat = 60 / Math.min(220, Math.max(40, track.tempo ?? this.style?.tempo ?? 100));
     this.seconds = Math.max(0.5, seconds);
   }
 
@@ -425,8 +502,9 @@ export class ScoreTrack {
     const send: [Float32Array, Float32Array] = [new Float32Array(total), new Float32Array(total)];
     const drums: [Float32Array, Float32Array] = [new Float32Array(total), new Float32Array(total)];
     const beats = this.seconds / this.beat;
-    const swing = Math.min(0.5, Math.max(0, this.track.swing ?? 0));
-    const parts = this.track.parts ?? [];
+    const swing = Math.min(0.5, Math.max(0, this.track.swing ?? this.style?.swing ?? 0));
+    // a style's band first, then the model's own parts on top
+    const parts = [...(this.style?.parts ?? []), ...(this.track.parts ?? [])];
     parts.forEach((part, pi) => {
       const r = seeded(`score:${this.track.id}:${pi}`);
       const gain = 10 ** ((part.gain ?? 0) / 20);
@@ -449,30 +527,48 @@ export class ScoreTrack {
           }
         : null;
       const wet = part.reverb ?? voice?.reverb ?? (part.drum ? 0.12 : 0.3);
+      // a part with its own effects (echo, drive) is played on its own first
+      const fx = Boolean(part.delay || part.drive);
+      const own: [Float32Array, Float32Array] | null = fx ? [new Float32Array(total), new Float32Array(total)] : null;
+      const bus = own ?? (part.drum ? drums : dry);
+      const span = Math.max(1e-6, Math.min(beats, part.to ?? beats) - (part.from ?? 0));
       for (const e of partEvents(part, beats, swing)) {
         const at = Math.round(e.beat * this.beat * SR);
+        // a filter sweep: the cutoff glides from `from` to `to` Hz over the part
+        const v = voice && part.sweep ? { ...voice, cutoff: sweepAt(part.sweep, (e.beat - (part.from ?? 0)) / span) } : voice;
         const sigs = part.drum
           ? [renderDrum(part.drum, part.tune ?? 0, part.decay ?? 1, e.vel, r)]
-          : voice
-            ? e.notes.map((m) => renderVoice(voice, m, e.dur * this.beat, e.vel, r))
+          : v
+            ? e.notes.map((m) => renderVoice(v, m, e.dur * this.beat, e.vel, r))
             : [];
-        const bus = part.drum ? drums : dry;
-        for (const sig of sigs) {
-          for (let i = 0; i < sig.length && at + i < total; i++) {
-            const v = sig[i];
-            bus[0][at + i] += v * l;
-            bus[1][at + i] += v * rr;
-            if (wet > 0) {
-              send[0][at + i] += v * l * wet;
-              send[1][at + i] += v * rr * wet;
+        sigs.forEach((sig, si) => {
+          // strum: a chord's notes one after another, low to high
+          const start = at + (part.strum && sigs.length > 1 ? Math.round(si * part.strum * SR) : 0);
+          for (let i = 0; i < sig.length && start + i < total; i++) {
+            const x = sig[i];
+            bus[0][start + i] += x * l;
+            bus[1][start + i] += x * rr;
+            if (wet > 0 && !own) {
+              send[0][start + i] += x * l * wet;
+              send[1][start + i] += x * rr * wet;
             }
           }
-        }
+        });
+      }
+      if (own) {
+        if (part.drive) drive(own, part.drive);
+        if (part.delay) echo(own, part.delay, this.beat);
+        const to = part.drum ? drums : dry;
+        for (let ch = 0; ch < 2; ch++)
+          for (let i = 0; i < total; i++) {
+            to[ch][i] += own[ch][i];
+            if (wet > 0) send[ch][i] += own[ch][i] * wet;
+          }
       }
     });
-    const room = reverb(send, this.track.reverb ?? 0.6);
+    const room = reverb(send, this.track.reverb ?? this.style?.reverb ?? 0.6);
     // chords and pads make room for the kick
-    const kicks = this.track.sidechain === false ? [] : KICKS(parts, beats, swing);
+    const kicks = (this.track.sidechain ?? this.style?.sidechain) === false ? [] : KICKS(parts, beats, swing);
     const span = Math.round(0.28 * SR);
     const duck = new Float32Array(total).fill(1);
     for (const k of kicks) {

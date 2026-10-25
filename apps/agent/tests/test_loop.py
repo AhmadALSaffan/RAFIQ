@@ -224,3 +224,39 @@ async def test_the_provider_reports_a_reply_cut_by_the_output_limit(monkeypatch)
     llm = base.LlmProvider(provider="deepseek", model_id="deepseek-v4-flash", api_key="sk-test", base_url=None)
     events = [e async for e in llm.stream_chat([{"role": "user", "content": "x"}], [])]
     assert events[-1].tool_calls and events[-1].truncated
+
+
+async def test_a_refused_reply_is_sent_back_and_redone():
+    """A motion chat turns code back into scene edits: the reply with code is set aside,
+    the model is told why, and what it does next is the answer."""
+    from rafiq_agent.core.motion import ENGINE_ONLY_REDO, engine_only
+
+    tool = EchoTool()
+    llm = FakeLlm(
+        [
+            [StreamEvent(text_delta="هاد القلب:\n```html\n<canvas></canvas>\n```"), StreamEvent(finish_reason="stop")],
+            [StreamEvent(tool_calls=[ToolCallDelta(id="c1", name="echo", arguments_json="{}")], finish_reason="tool_calls")],
+            [StreamEvent(text_delta="بنيت القلب بالمحرك."), StreamEvent(finish_reason="stop")],
+        ]
+    )
+    result = await run_agent_loop(
+        llm, [{"role": "user", "content": "قلب 3D"}], registry_with(tool), LoopCallbacks(permit=Recorder([]).allow),
+        check_reply=engine_only,
+    )
+    assert result.status == "completed"
+    assert tool.calls == 1
+    assert result.text == "بنيت القلب بالمحرك."
+    assert llm.seen[1][-1] == {"role": "user", "content": ENGINE_ONLY_REDO}
+
+
+async def test_a_reply_refused_again_and_again_is_kept_in_the_end():
+    from rafiq_agent.core.loop import MAX_REDOS
+    from rafiq_agent.core.motion import engine_only
+
+    code = [StreamEvent(text_delta="```js\nnew THREE.Scene()\n```"), StreamEvent(finish_reason="stop")]
+    llm = FakeLlm([list(code) for _ in range(MAX_REDOS + 1)])
+    result = await run_agent_loop(
+        llm, [{"role": "user", "content": "hi"}], ToolRegistry(), LoopCallbacks(permit=Recorder([]).allow),
+        check_reply=engine_only,
+    )
+    assert result.status == "completed" and len(llm.seen) == MAX_REDOS + 1

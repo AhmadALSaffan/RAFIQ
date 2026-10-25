@@ -26,6 +26,8 @@ class LoopCallbacks:
     on_turn_text: Callable[[str], Awaitable[None]] = _noop
     on_tool_call: Callable[[str, str, str, dict[str, Any]], Awaitable[None]] = _noop
     on_tool_result: Callable[[str, str, bool, str], Awaitable[None]] = _noop
+    # A final answer `check_reply` refused: take its text back off the screen.
+    on_redo: Callable[[str], Awaitable[None]] = _noop
 
 
 NUDGE = "أكمل من وين وقفت، واكتب الرد كامل."
@@ -46,6 +48,8 @@ CUT_THINKING = (
 CUT_TEXT = "(رسالة من رفيق) انقطع ردّك لأنه طوّل. كمّل من الكلمة اللي وقفت عندها بالضبط، بدون ما تعيد شي."
 # How many times one turn is helped past the limit before it gives up and says so.
 MAX_CUTS = 3
+# How many times a reply the chat refuses (`check_reply`) is sent back to be redone.
+MAX_REDOS = 2
 
 
 async def _preview(tool: Any, args: dict[str, Any]) -> str | None:
@@ -74,14 +78,18 @@ async def run_agent_loop(
     registry: ToolRegistry,
     cb: LoopCallbacks,
     max_iterations: int = 25,
+    check_reply: Callable[[str], str | None] | None = None,
 ) -> LoopResult:
+    """`check_reply` sees each final answer (a step without tool calls); when it returns a
+    note, that answer is set aside and the model is sent the note to redo it (a motion chat
+    uses it to turn code back into scene edits)."""
     # A provider that runs tools of its own (Copilot's web_fetch) asks the same permission
     # gate Rafiq's tools go through, instead of deciding for itself.
     hook = getattr(llm, "set_permission_hook", None)
     if hook is not None:
         hook(cb.permit)
     try:
-        return await _run(llm, messages, registry, cb, max_iterations)
+        return await _run(llm, messages, registry, cb, max_iterations, check_reply)
     finally:
         # Stateful providers (Copilot keeps a live session across tool steps) release it
         # here, however the run ended — finished, failed, or cancelled.
@@ -96,11 +104,13 @@ async def _run(
     registry: ToolRegistry,
     cb: LoopCallbacks,
     max_iterations: int,
+    check_reply: Callable[[str], str | None] | None = None,
 ) -> LoopResult:
     all_text, all_reasoning = "", ""
     schemas = registry.schemas()
     nudged = False
     cuts = 0
+    redos = 0
     # Each request is fitted to the model's window (core/context.py). The user's newest
     # message is where this turn starts: before it is history, which may be left out.
     head = len(messages) - 1
@@ -152,6 +162,13 @@ async def _run(
             if not text.strip() and not all_text.strip() and not nudged and (_last_was_tool(messages) or reasoning.strip()):
                 nudged = True
                 messages.append({"role": "user", "content": NUDGE if _last_was_tool(messages) else NUDGE_THOUGHT})
+                continue
+            if check_reply is not None and text.strip() and redos < MAX_REDOS and (note := check_reply(text)):
+                redos += 1
+                all_text = all_text[: len(all_text) - len(text)]
+                await cb.on_redo(text)
+                messages.append({"role": "assistant", "content": text})
+                messages.append({"role": "user", "content": note})
                 continue
             if not all_text.strip():
                 return LoopResult("empty", all_text, all_reasoning)

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { INSTRUMENTS, ScoreTrack, parseNote, partEvents } from "./score";
+import { DRUMS, INSTRUMENTS, ScoreTrack, parseNote, partEvents } from "./score";
+import { STYLES, styleParts } from "./styles";
 import type { AudioTrack } from "./types";
 
 const rms = (x: Float32Array) => Math.sqrt(x.reduce((a, v) => a + v * v, 0) / x.length);
@@ -45,5 +46,40 @@ describe("composed scores", () => {
     expect(a[0].every((v) => Number.isFinite(v) && Math.abs(v) < 8)).toBe(true);
     const after = new ScoreTrack(track, 4).window(48000 * 10, 4800);
     expect(rms(after[0])).toBe(0);
+  }, 30_000);
+
+  it("plays a chord as an arpeggio, the same notes every time", () => {
+    const up = partEvents({ instrument: "arp", arp: "up", rate: 0.5, notes: [{ t: 0, n: "Am", d: 2 }] }, 4);
+    expect(up.map((e) => [e.beat, e.notes[0]])).toEqual([[0, 69], [0.5, 72], [1, 76], [1.5, 69]]);
+    const updown = partEvents({ instrument: "arp", arp: "updown", rate: 1, notes: [{ t: 0, n: "C/3", d: 4 }] }, 4);
+    expect(updown.map((e) => e.notes[0])).toEqual([48, 52, 55, 52]);
+    const a = partEvents({ instrument: "bell", arp: "random", notes: [{ t: 0, n: "Cmaj7", d: 2 }] }, 4);
+    const b = partEvents({ instrument: "bell", arp: "random", notes: [{ t: 0, n: "Cmaj7", d: 2 }] }, 4);
+    expect(a).toEqual(b);
+  });
+
+  it("writes every style in the key, and the new drums and effects render", () => {
+    for (const style of STYLES) {
+      const band = styleParts(style, "Em");
+      expect(band?.parts.length, style).toBeGreaterThan(1);
+    }
+    expect(styleParts("nope")).toBeNull();
+    // the key moves the chords: E minor's first chord is E G B
+    const lofi = styleParts("lofi", "Em")!;
+    const first = lofi.parts[0].notes![0].n as number[];
+    expect(first.slice(0, 3).map((m) => m % 12)).toEqual([4, 7, 11]);
+    const track: AudioTrack = {
+      id: "band",
+      source: "compose",
+      style: "arabic",
+      key: "D",
+      parts: [
+        ...DRUMS.map((drum, i) => ({ drum, hits: [i * 0.2] })),
+        { instrument: "lead", notes: [{ t: 0, n: "Dm", d: 2 }], strum: 0.04, drive: 0.6, delay: { time: 0.5, feedback: 0.5, mix: 0.4 }, sweep: { from: 300, to: 6000 } },
+      ],
+    };
+    const out = new ScoreTrack(track, 4).window(0, 48000 * 4);
+    expect(rms(out[0])).toBeGreaterThan(0.01);
+    expect(out[0].every((v) => Number.isFinite(v) && Math.abs(v) < 8)).toBe(true);
   }, 30_000);
 });

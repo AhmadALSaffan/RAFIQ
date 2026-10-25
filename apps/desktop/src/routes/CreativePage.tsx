@@ -13,7 +13,7 @@ import { useCurrentWorkspaceId } from "../lib/workspace";
 import { listContainer, listItem } from "../lib/motion";
 import { timeAgo } from "../lib/time";
 import { Block, BracketLabel } from "../components/brand";
-import { MovieIcon, NotebookIcon, PlusIcon, SparkIcon } from "../components/Icons";
+import { BoardIcon, MovieIcon, NotebookIcon, PlusIcon, SparkIcon } from "../components/Icons";
 import { SkeletonRows } from "../components/easy/skeleton";
 import { Illustration, type Scene as IllustrationScene } from "../components/Illustration";
 import { t } from "../i18n";
@@ -28,7 +28,7 @@ function noteDate(mtime: number): string {
 const KIND_ICON = { design: SparkIcon, motion: MovieIcon, note: NotebookIcon } as const;
 
 interface Choice {
-  id: "designs" | "motion" | "notes";
+  id: "designs" | "apps" | "motion" | "notes";
   title: string;
   text: string;
   Icon: typeof SparkIcon;
@@ -65,18 +65,32 @@ export function CreativePage() {
     return all.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 6);
   }, [designs, projects, notes]);
 
+  const sites = designs?.filter((d) => !d.board) ?? null;
+  const apps = designs?.filter((d) => d.board) ?? null;
   const choices: Choice[] = [
     {
       id: "designs",
       title: t("التصاميم"),
-      text: t("صمّم واجهة أو موقع أو صفحة هبوط، وشوفها قبل ما تبرمجها."),
+      text: t("صمّم موقع أو صفحة هبوط أو لوحة تحكم، وشوفها قبل ما تبرمجها."),
       Icon: SparkIcon,
       scene: "designs",
-      count: designs === null ? null : t("{0} تصميم", { 0: designs.length }),
+      count: sites === null ? null : t("{0} تصميم", { 0: sites.length }),
       open: "/designs",
       create: "/designs?new=1",
       openLabel: t("افتح التصاميم"),
       newLabel: t("تصميم جديد"),
+    },
+    {
+      id: "apps",
+      title: t("تصميم تطبيقات"),
+      text: t("شاشات تطبيق موبايل على لوحة وحدة: الهوية أولاً، وكل شاشة بإطار جوال."),
+      Icon: BoardIcon,
+      scene: "welcome",
+      count: apps === null ? null : t("{0} تطبيق", { 0: apps.length }),
+      open: "/designs?type=board",
+      create: "/designs?type=board&new=1",
+      openLabel: t("افتح التطبيقات"),
+      newLabel: t("تطبيق جديد"),
     },
     {
       id: "motion",
@@ -115,8 +129,8 @@ export function CreativePage() {
         </h1>
       </motion.div>
 
-      {/* The three choices, side by side: pick where to go. */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      {/* The choices, side by side: pick where to go. */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {choices.map((c) => (
           <motion.div
             key={c.id}
