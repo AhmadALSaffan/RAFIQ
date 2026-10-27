@@ -95,7 +95,7 @@ class DesignStartTool(Tool):
             design = await studio.new_design(session, model, brief, identity=identity, title=args.get("title"), workspace_id=self.workspace_id)
         from rafiq_agent.core.designs import brief_message
 
-        await studio.kick_off(design.chat_id, brief_message(brief), self.model_id)
+        await studio.kick_off(design.chat_id, brief_message(design.brief or brief), self.model_id)
         await self.on_created("design", design.id, design.chat_id, design.title)
         return ToolResult(
             ok=True,

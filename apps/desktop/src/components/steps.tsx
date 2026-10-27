@@ -9,7 +9,8 @@ import { Button, DrawnCheck } from "./ui";
 
 import { t } from "../i18n";
 import { Orb } from "./Orb";
-import { canAlwaysAllow, permissionLabelOf, type PermissionAnswer } from "../lib/permissions";
+import { canAlwaysAllow, needsHold, permissionLabelOf, type PermissionAnswer } from "../lib/permissions";
+import { HoldButton } from "./MotionKit";
 import { doing } from "../features/chat/WorkStatus";
 
 export function formatArgs(args: Record<string, unknown>): string {
@@ -106,28 +107,45 @@ type ToolState = "running" | "ok" | "fail" | "interrupted";
  * name, the full arguments a click away, and the output — pretty-printed when it's JSON —
  * sliding open when it lands. A step that never got an answer (the reply stopped) says
  * so. (The states follow 21st.dev's "MCP Tool" component, written for Rafiq.)
+ *
+ * While it runs it's only a pill with what it's doing; when it lands the pill opens into the
+ * card with its result. Once a later step starts (`settled`), a result that went fine folds
+ * back behind a toggle, so a long run doesn't bury the conversation in output — a failure
+ * stays open.
  */
 export function ToolCard({
   tool,
   args,
   result,
   interrupted = false,
+  settled = false,
 }: {
   tool: string;
   args?: Record<string, unknown>;
   result?: { ok: boolean; output: string };
   /** The reply ended without this call's result. */
   interrupted?: boolean;
+  /** A later step started, or the reply is done: an output that went fine folds away. */
+  settled?: boolean;
 }) {
   const state: ToolState = result ? (result.ok ? "ok" : "fail") : interrupted ? "interrupted" : "running";
   const [inputs, setInputs] = useState(false);
+  const [outOpen, setOutOpen] = useState(false);
   const hasArgs = Boolean(args && Object.keys(args).length);
   const out = result ? prettyOutput(result.output) : null;
+  const folds = Boolean(result?.ok && settled && out?.text.trim());
+  const showOut = Boolean(result && out && (!folds || outOpen));
+  const pill = state === "running";
   const color = state === "ok" ? "var(--color-success)" : state === "fail" ? "var(--color-danger)" : state === "interrupted" ? "var(--color-pending)" : "var(--color-ink-muted)";
 
   return (
-    <div className="overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)" }}>
-      <div className="flex items-start justify-between gap-2 px-4 py-2.5">
+    <motion.div
+      layout
+      transition={{ layout: { type: "spring", visualDuration: 0.4, bounce: 0.12 } }}
+      className={`overflow-hidden ${pill ? "w-fit max-w-full" : "w-full"}`}
+      style={{ background: "var(--color-surface)", borderRadius: pill ? 999 : 16 }}
+    >
+      <motion.div layout="position" className={`flex items-start justify-between gap-2 ${pill ? "px-3.5 py-1.5" : "px-4 py-2.5"}`}>
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="flex min-w-0 items-center gap-2 text-xs">
             <TerminalIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-ink-muted)" }} />
@@ -145,7 +163,7 @@ export function ToolCard({
               </motion.span>
             </AnimatePresence>
           </span>
-          {hasArgs && (
+          {hasArgs && !pill && (
             <span className="truncate ps-[22px] font-mono text-[11px]" style={{ color: "var(--color-ink-muted)" }} dir="ltr" title={argsSubtitle(args!)}>
               {argsSubtitle(args!)}
             </span>
@@ -167,18 +185,33 @@ export function ToolCard({
             {state === "running" ? t("عم ينفّذ") : state === "ok" ? t("تم") : state === "fail" ? t("ما نجح") : t("انقطع")}
           </motion.span>
         </AnimatePresence>
-      </div>
-      {hasArgs && (
+      </motion.div>
+      {(hasArgs || folds) && !pill && (
         <>
-          <button
-            type="button"
-            onClick={() => setInputs((v) => !v)}
-            aria-expanded={inputs}
-            className="w-full border-t px-4 py-1 text-start text-[11px] transition-colors hover:bg-[var(--color-surface-2)]"
-            style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
-          >
-            {t("المدخلات")} {inputs ? "▴" : "▾"}
-          </button>
+          <div className="flex border-t" style={{ borderColor: "var(--color-border)" }}>
+            {hasArgs && (
+              <button
+                type="button"
+                onClick={() => setInputs((v) => !v)}
+                aria-expanded={inputs}
+                className="flex-1 px-4 py-1 text-start text-[11px] transition-colors hover:bg-[var(--color-surface-2)]"
+                style={{ color: "var(--color-ink-muted)" }}
+              >
+                {t("المدخلات")} {inputs ? "▴" : "▾"}
+              </button>
+            )}
+            {folds && (
+              <button
+                type="button"
+                onClick={() => setOutOpen((v) => !v)}
+                aria-expanded={outOpen}
+                className={`px-4 py-1 text-[11px] transition-colors hover:bg-[var(--color-surface-2)] ${hasArgs ? "" : "flex-1 text-start"}`}
+                style={{ color: "var(--color-ink-muted)" }}
+              >
+                {t("النتيجة")} {outOpen ? "▴" : "▾"}
+              </button>
+            )}
+          </div>
           <AnimatePresence initial={false}>
             {inputs && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
@@ -189,12 +222,13 @@ export function ToolCard({
         </>
       )}
       <AnimatePresence initial={false}>
-        {result && out && (
+        {showOut && result && out && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0, transition: { duration: 0.22, ease: "easeIn" } }}
             transition={{ duration: 0.3, ease: easeOutExpo }}
-            className="border-t"
+            className="overflow-hidden border-t"
             style={{ borderColor: "var(--color-border)", background: "var(--color-surface-2)" }}
           >
             {out.json && (
@@ -206,7 +240,7 @@ export function ToolCard({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
@@ -254,6 +288,7 @@ export function PermissionCard({
 }) {
   const pending = resolution === "pending";
   const group = permissionLabelOf(call.tool);
+  const hold = needsHold(call.tool, call.args);
   return (
     <div
       className={`rounded-2xl border-2 px-4 py-4 transition-[border-color] duration-300 ${pending ? "pending-ring" : ""}`}
@@ -272,14 +307,25 @@ export function PermissionCard({
       {call.preview ? <PreviewPanel call={call} /> : <ArgsPanel call={call} />}
       <AnimatePresence mode="wait" initial={false}>
         {pending ? (
-          <motion.div key="actions" exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }} className="mt-3 flex gap-2">
-            <Button variant="accent" onClick={() => onResolve("approved")} className="px-3.5 py-1.5">
-              {t("سماح")}
-            </Button>
+          <motion.div key="actions" exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }} className="mt-3 flex flex-wrap items-center gap-2">
+            {hold ? (
+              // Can't be undone: allowing it takes a press-and-hold, so a stray click never does.
+              <HoldButton
+                onConfirm={() => onResolve("approved")}
+                style={{ background: "var(--color-danger)", color: "white" }}
+                fill="color-mix(in oklch, black 30%, transparent)"
+              >
+                {t("اضغط مطوّل للسماح")}
+              </HoldButton>
+            ) : (
+              <Button variant="accent" onClick={() => onResolve("approved")} className="px-3.5 py-1.5">
+                {t("سماح")}
+              </Button>
+            )}
             <Button variant="danger" onClick={() => onResolve("denied")} className="px-3.5 py-1.5">
               {t("رفض")}
             </Button>
-            {canAlwaysAllow(call.tool) && (
+            {canAlwaysAllow(call.tool) && !hold && (
               <Button
                 variant="ghost"
                 onClick={() => onResolve("always")}

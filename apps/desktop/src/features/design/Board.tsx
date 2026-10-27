@@ -6,14 +6,29 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { t } from "../../i18n";
+import { PickIcon } from "../../components/Icons";
 import { boardItems, framed, PHONE, screenFor, SHEET_WIDTH, STATUS_BAR_SVG, type BoardItem } from "./boardLayout";
+import { PickComposer, PickHint, usePicker } from "./PickComposer";
 
 const GAP = 72;
 const PAD = 96;
 
-export function Board({ title, files, dir, nonce }: { title: string; files: { name: string; html: string }[]; dir: "rtl" | "ltr"; nonce: number }) {
+export function Board({
+  title,
+  files,
+  dir,
+  nonce,
+  onAsk,
+}: {
+  title: string;
+  files: { name: string; html: string }[];
+  dir: "rtl" | "ltr";
+  nonce: number;
+  /** Send a request about a picked part to the design chat. */
+  onAsk?: (text: string) => void;
+}) {
   const items = useMemo(() => boardItems(files), [files]);
   const sheets = items.filter((i) => i.kind === "brand");
   const screens = items.filter((i) => i.kind === "screen");
@@ -25,6 +40,12 @@ export function Board({ title, files, dir, nonce }: { title: string; files: { na
   const [focus, setFocus] = useState<string | null>(null);
   const frames = useRef(new Map<string, HTMLIFrameElement>());
   const fitted = useRef(false);
+  // Picking parts of the screens to ask about (one request for all of them).
+  const picker = usePicker(
+    () => frames.current,
+    (id) => items.find((i) => i.id === id)?.label ?? id,
+  );
+  const pickingOn = picker.picking || picker.items.length > 0;
 
   const fit = useCallback(() => {
     const v = view.current;
@@ -75,6 +96,11 @@ export function Board({ title, files, dir, nonce }: { title: string; files: { na
       if (data.source === "rafiq-board" && data.type === "height" && data.h) {
         setHeights((all) => ({ ...all, [from]: Math.max(400, Math.min(6000, data.h!)) }));
       }
+      // a drag inside a screen where nothing scrolls moves the board
+      if (data.source === "rafiq-board" && data.type === "pan") {
+        const pan = data as { dx?: number; dy?: number };
+        setCam((c) => ({ ...c, x: c.x + (pan.dx ?? 0) * c.s, y: c.y + (pan.dy ?? 0) * c.s }));
+      }
       if (data.source === "rafiq-preview" && data.type === "missing" && data.page) {
         const target = screenFor(items, data.page);
         if (target) bringIntoView(target.id);
@@ -109,7 +135,7 @@ export function Board({ title, files, dir, nonce }: { title: string; files: { na
   }
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden">
+    <div className="relative h-full min-h-0 select-none overflow-hidden">
       <div
         ref={view}
         className="absolute inset-0"
@@ -158,6 +184,7 @@ export function Board({ title, files, dir, nonce }: { title: string; files: { na
                     srcDoc={framed(item.html)}
                     title={item.label}
                     sandbox="allow-scripts allow-forms"
+                    onLoad={(e) => picker.onFrameLoad(e.currentTarget, item.id)}
                     className="block rounded-[20px]"
                     style={{ width: SHEET_WIDTH, height: heights[item.id] ?? 900, border: 0, background: "white", pointerEvents: dragging ? "none" : undefined }}
                   />
@@ -175,6 +202,7 @@ export function Board({ title, files, dir, nonce }: { title: string; files: { na
                     srcDoc={framed(item.html)}
                     title={item.label}
                     sandbox="allow-scripts allow-forms"
+                    onLoad={(e) => picker.onFrameLoad(e.currentTarget, item.id)}
                     className="block"
                     style={{ width: PHONE.width, height: PHONE.height, border: 0, borderRadius: PHONE.screenRadius, background: "white", pointerEvents: dragging ? "none" : undefined }}
                   />
@@ -185,7 +213,36 @@ export function Board({ title, files, dir, nonce }: { title: string; files: { na
         </div>
       </div>
 
+      <AnimatePresence>
+        {picker.picking && !picker.items.length && (
+          <div key="hint" className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
+            <PickHint board />
+          </div>
+        )}
+        {picker.items.length > 0 && onAsk && (
+          <div key="composer" className="absolute inset-x-0 bottom-14 flex justify-center">
+            <PickComposer picker={picker} onSend={onAsk} />
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1 shadow-lg" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }} dir="ltr">
+        {onAsk && (
+          <>
+            <button
+              type="button"
+              onClick={() => (pickingOn ? picker.reset() : picker.start())}
+              aria-pressed={pickingOn}
+              title={t("حدد أجزاء من الشاشات واطلب تعديلها")}
+              className="flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
+              style={pickingOn ? { background: "var(--color-accent)", color: "var(--color-accent-ink)" } : { color: "var(--color-ink)" }}
+            >
+              <PickIcon className="h-3.5 w-3.5" />
+              {t("حدد وعدّل")}
+            </button>
+            <span className="mx-0.5 h-4 w-px" style={{ background: "var(--color-border)" }} />
+          </>
+        )}
         <ZoomButton label={t("صغّر")} onClick={() => view.current && zoomAt(0.8, view.current.clientWidth / 2, view.current.clientHeight / 2)}>
           −
         </ZoomButton>

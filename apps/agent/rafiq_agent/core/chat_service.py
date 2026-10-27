@@ -762,6 +762,15 @@ class ChatTurn:
             # an app's screens are designed as a board (every screen in a phone frame)
             if row is not None and is_board(row.brief):
                 notes.append(BOARD_NOTE)
+            # a site's composition, picked for it when it was made (core/art_direction.py)
+            from rafiq_agent.core.art_direction import DIRECTIONS, direction_note, variants_note
+
+            brief = row.brief if row is not None and isinstance(row.brief, dict) else {}
+            if brief.get("art") in DIRECTIONS:
+                notes.append(direction_note(brief["art"]))
+            # variants asked for and not chosen between yet (api/designs.py ask_variants)
+            if pending := [k for k in brief.get("variants") or [] if k in DIRECTIONS]:
+                notes.append(variants_note(pending))
             if built:
                 notes.append(identity_note(normalize_identity(built)))
                 return "".join(f"\n\n{n}" for n in notes)
@@ -915,6 +924,10 @@ class ChatTurn:
         total = spent.total()
         if not total:
             return
+        # How full the model's window is now: the last call read the whole conversation
+        # and added its answer — what the next message starts from.
+        last = spent.calls[-1] if spent.calls else None
+        window = getattr(self.llm, "context_window", None)
         self._emit(
             {
                 "type": "usage",
@@ -922,6 +935,8 @@ class ChatTurn:
                 "completion_tokens": total.completion_tokens,
                 "cached_tokens": total.cached_tokens,
                 "cost_usd": round(total.cost_usd, 6),
+                "context_tokens": (last.prompt_tokens + last.completion_tokens) if last else None,
+                "context_window": window if isinstance(window, int) else None,
             }
         )
 

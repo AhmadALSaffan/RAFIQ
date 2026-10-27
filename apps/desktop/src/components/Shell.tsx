@@ -450,7 +450,7 @@ export function Shell() {
             </div>
           </nav>
 
-          <main className={`relative min-w-0 flex-1 ${fullHeight ? "overflow-hidden" : "overflow-y-auto"}`}>
+          <main className={`relative min-w-0 flex-1 ${fullHeight ? "overflow-hidden" : "overflow-y-auto overflow-x-hidden overscroll-x-none"}`}>
             {/* The globe behind the pages (not behind the full-height workspaces, which cover it). */}
             {layout.globe && !fullHeight && (
               <div aria-hidden className="pointer-events-none fixed z-0" style={{ opacity: theme === "dark" ? 0.75 : 0.6, bottom: -globeSize * 0.28, insetInlineEnd: -globeSize * 0.22 }}>

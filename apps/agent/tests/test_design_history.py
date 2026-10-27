@@ -104,3 +104,51 @@ async def test_two_versions_compare_and_an_old_one_comes_back(client, design):
 async def test_unknown_versions_and_designs_are_404(client, design):
     assert (await client.get(f"/designs/{design['design']}/versions/nope.0", headers=AUTH)).status_code == 404
     assert (await client.get("/designs/nope/versions", headers=AUTH)).status_code == 404
+
+
+async def test_a_reply_is_undone_document_by_document(client, design):
+    versions = (await client.get(f"/designs/{design['design']}/versions", headers=AUTH)).json()
+    second = next(v["message_id"] for v in versions if v["document"] == "cart")
+    r = await client.post(f"/designs/{design['design']}/messages/{second}/undo", headers=AUTH)
+    assert r.status_code == 200
+    body = r.json()
+    # home goes back to its first version; the cart was new in that reply, so it stays
+    assert body["restored"] == ["home"] and body["skipped"] == ["cart"]
+    home = next(f for f in body["design"]["files"] if f["name"] == "home")
+    assert home["html"] == PAGE_V1
+    # a reply that wrote nothing can't be undone
+    first_user = "nope"
+    assert (await client.post(f"/designs/{design['design']}/messages/{first_user}/undo", headers=AUTH)).status_code == 404
+
+
+async def test_variants_are_asked_for_then_one_is_kept(client, design):
+    async with SessionLocal() as session:
+        row = await session.get(Design, design["design"])
+        row.brief = {"kind": "موقع", "art": "poster"}
+        await session.commit()
+    r = await client.post(f"/designs/{design['design']}/variants", headers=AUTH)
+    assert r.status_code == 200
+    variants = r.json()["design"]["variants"]
+    keys = [v["key"] for v in variants]
+    assert len(set(keys)) == 3 and "poster" not in keys
+    assert all(v["name"] in r.json()["message"] for v in variants)
+
+    # not written yet: nothing to choose
+    assert (await client.post(f"/designs/{design['design']}/variants/{keys[0]}/choose", headers=AUTH)).status_code == 404
+    async with SessionLocal() as session:
+        row = await session.get(Design, design["design"])
+        row.files = [*row.files, *({"name": v["document"], "html": f"<p>{v['key']}</p>"} for v in variants)]
+        await session.commit()
+    kept = (await client.post(f"/designs/{design['design']}/variants/{keys[1]}/choose", headers=AUTH)).json()
+    assert kept["variants"] == []
+    assert kept["brief"]["art"] == keys[1]
+    assert next(f for f in kept["files"] if f["name"] == "home")["html"] == f"<p>{keys[1]}</p>"
+
+
+async def test_apps_get_no_variants(client, design):
+    async with SessionLocal() as session:
+        row = await session.get(Design, design["design"])
+        row.brief = {"kind": "لوحة تحكم"}
+        await session.commit()
+    assert (await client.post(f"/designs/{design['design']}/variants", headers=AUTH)).status_code == 400
+

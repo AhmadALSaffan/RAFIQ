@@ -21,7 +21,9 @@ import { CommandMenu, FileMenu, IssueMenu, readTrigger, replaceTrigger, type Com
 import { EffortPicker, type Effort } from "../../components/EffortPicker";
 import { MicButton } from "./MicButton";
 import { launchOrb } from "../../components/Orb";
+import { rememberSendOrigin } from "./sendFlight";
 import { PlanUsageRing } from "./PlanUsage";
+import { ContextRing } from "./ContextRing";
 
 import { t } from "../../i18n";
 export function Composer({
@@ -46,6 +48,9 @@ export function Composer({
   onEffort,
   extraCommands,
   mode = "chat",
+  context,
+  onSummarize,
+  summarizing,
 }: {
   disabled: boolean;
   streaming: boolean;
@@ -74,6 +79,10 @@ export function Composer({
   /** How hard the model thinks: this chat's level, or the default for a new one. */
   effort?: Effort;
   onEffort?: (effort: Effort) => void;
+  /** How full the model's window is (known after a reply), and how to make room. */
+  context?: { used: number; window: number } | null;
+  onSummarize?: () => void;
+  summarizing?: boolean;
 }) {
   const reading = READING_WIDTHS[useLayout().reading];
   const [text, setText] = useState(() => takeChatMessage() ?? "");
@@ -149,8 +158,9 @@ export function Composer({
 
   function submit() {
     if (!canSend) return;
-    // The working orb rises out of the send button.
+    // The working orb rises out of the send button; the words fly up from the box.
     launchOrb(sendButton.current);
+    rememberSendOrigin(ref.current);
     // The isolate characters are a display concern — the model never sees them.
     onSend(stripBidi(text));
     setText("");
@@ -291,6 +301,7 @@ export function Composer({
               onEffort={onEffort}
             />
             {planAccount && <PlanUsageRing accountId={planAccount} refreshKey={streaming} />}
+            {context && <ContextRing used={context.used} window={context.window} onSummarize={onSummarize} busy={summarizing || streaming} />}
           </div>
           <AnimatePresence mode="wait" initial={false}>
             {streaming ? (

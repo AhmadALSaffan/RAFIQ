@@ -311,6 +311,10 @@ def brief_message(brief: dict[str, Any]) -> str:
             value = tr("، ").join(value)
         answer = str(value).strip() if value else tr("— (ما حددها المستخدم)")
         lines.append(f"- **{tr(question['label'])}** {answer}")
+    from rafiq_agent.core.art_direction import DIRECTIONS
+
+    if brief.get("art") in DIRECTIONS:
+        lines.append(f"- **{tr('الاتجاه الفني (اختاره رفيق ليختلف عن تصاميمك السابقة):')}** {tr(DIRECTIONS[brief['art']]['name'])}")
     if is_board(brief):
         start = tr(
             "ابدأ: اكتبلي خطة التطبيق (الشاشات بترتيب رحلة المستخدم والهوية)، وبعدين اعطيني لوحة "
@@ -321,6 +325,11 @@ def brief_message(brief: dict[str, Any]) -> str:
             "ابدأ: اكتبلي خطة الصفحة بروح الهوية اللي بنيتها (الأقسام والحركات المميزة)، وبعدين "
             "اعطيني أول نسخة من التصميم كمستند HTML كامل."
         )
+        if brief.get("art") in DIRECTIONS:
+            start = tr(
+                "ابدأ: اكتبلي خطة الصفحة بروح الهوية اللي بنيتها وعلى الاتجاه الفني (الهيرو، الأقسام والحركات "
+                "المميزة)، وبعدين اعطيني أول نسخة من التصميم كمستند HTML كامل."
+            )
     lines += ["", start]
     return "\n".join(lines)
 

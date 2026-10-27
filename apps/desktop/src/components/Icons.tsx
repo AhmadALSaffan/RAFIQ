@@ -21,6 +21,7 @@ import {
   IconIcons,
   IconAdjustmentsHorizontal,
   IconBolt,
+  IconClick,
   IconBell,
   IconArrowBackUp,
   IconLayoutKanban,
@@ -178,3 +179,4 @@ export const CubeIcon = make(IconCube);
 export const IconsIcon = make(IconIcons);
 export const AdjustIcon = make(IconAdjustmentsHorizontal);
 export const BoltIcon = make(IconBolt);
+export const PickIcon = make(IconClick);

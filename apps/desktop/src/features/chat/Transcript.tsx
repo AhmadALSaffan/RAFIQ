@@ -5,9 +5,10 @@
  */
 
 import { useNavigate } from "react-router-dom";
-import { memo, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import { StudioCard } from "./StudioCard";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, animate, motion } from "motion/react";
+import { forgetSendOrigin, sendOrigin } from "./sendFlight";
 import type { ChatMessage, ChatPart, LlmModel, TaskStatus, TurnUsage } from "../../lib/types";
 import { easeOutExpo, listContainer, listItem, snappy } from "../../lib/motion";
 import { clockTime, dayLabel, isNewDay } from "../../lib/time";
@@ -18,6 +19,7 @@ import { TokenText } from "../../components/TokenText";
 import { AttachmentGallery } from "../../components/Attachments";
 import { PermissionCard, ToolCard } from "../../components/steps";
 import { WorkStatus } from "./WorkStatus";
+import { CopyButton } from "../../components/MotionKit";
 import { CompressIcon, ForkIcon, ModelsIcon, TasksIcon } from "../../components/Icons";
 import { saveAsNote } from "../notes/saveAsNote";
 import { Button } from "../../components/ui";
@@ -103,6 +105,8 @@ export interface RowActions {
   fork: (message: ChatMessage) => void;
   savePrompt: (message: ChatMessage) => void;
   bookmark: (message: ChatMessage, bookmarked: boolean) => void;
+  /** What the host page puts under a reply (the design page: take it back, compare it). */
+  replyFooter: (message: ChatMessage) => React.ReactNode;
 }
 
 /** One message of a saved conversation, with the day marker above it and the summary
@@ -151,6 +155,7 @@ export const TranscriptRow = memo(function TranscriptRow({
           onBookmark={bookmarkable ? actions.bookmark : undefined}
         />
       </div>
+      {message.role === "assistant" && actions.replyFooter(message)}
       {summary && <SummaryDivider summary={summary} />}
     </div>
   );
@@ -196,11 +201,36 @@ export function MessageView({
 }) {
   const starred = Boolean(message.bookmarked_at);
   const menu = useElementMenu();
+  // Just sent: the words fly from the composer's box to where the bubble lands.
+  const bubble = useRef<HTMLDivElement>(null);
+  const [from] = useState(() => (message.role === "user" && message.id.startsWith("temp-") ? sendOrigin() : null));
+  useLayoutEffect(() => {
+    const el = bubble.current;
+    if (!from || !el) return;
+    forgetSendOrigin();
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Measured a frame later: the chat scrolls to the new message after it renders.
+    el.style.opacity = "0";
+    const frame = requestAnimationFrame(() => {
+      const to = el.getBoundingClientRect();
+      const rtl = document.documentElement.dir === "rtl";
+      el.style.opacity = "";
+      void animate(
+        el,
+        { x: [rtl ? from.left - to.left : from.right - to.right, 0], y: [from.top - to.top, 0], scale: [0.97, 1], opacity: [0.4, 1] },
+        { type: "spring", visualDuration: 0.5, bounce: 0.14, opacity: { duration: 0.2 } },
+      );
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      el.style.opacity = "";
+    };
+  }, [from]);
   if (message.role === "user") {
     return (
       // Sent: the bubble springs up out of the composer's corner (the end edge), sharpening as it lands.
       <motion.div
-        initial={{ opacity: 0, y: 18, scale: 0.9, filter: "blur(4px)" }}
+        initial={from ? false : { opacity: 0, y: 18, scale: 0.9, filter: "blur(4px)" }}
         animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
         transition={{ type: "spring", visualDuration: 0.38, bounce: 0.22, opacity: { duration: 0.18 }, filter: { duration: 0.24 } }}
         style={{ transformOrigin: document.documentElement.dir === "rtl" ? "0% 100%" : "100% 100%" }}
@@ -215,7 +245,7 @@ export function MessageView({
       >
         {message.attachments && message.attachments.length > 0 && <AttachmentGallery attachments={message.attachments} align="end" />}
         {message.content && (
-          <div className="whitespace-pre-wrap rounded-2xl px-4 py-3 text-[0.9375rem] leading-relaxed" style={{ background: "var(--color-surface)" }} dir="auto">
+          <div ref={bubble} className="whitespace-pre-wrap rounded-2xl px-4 py-3 text-[0.9375rem] leading-relaxed" style={{ background: "var(--color-surface)" }} dir="auto">
             <TokenText text={message.content} />
           </div>
         )}
@@ -311,12 +341,14 @@ export function AssistantBlock({
   bookmarked?: boolean;
   onBookmark?: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
   const menu = useElementMenu();
   // Reading a skill is housekeeping, not something the user asked for — keep it off screen,
   // and let the ordinary "thinking" state cover the wait.
   const visible = parts.filter((p) => !(p.kind === "tool" && (SILENT_TOOLS.has(p.tool) || (CARD_TOOLS.has(p.tool) && p.ok !== false))));
   const text = textOf(visible);
+  const items = groupTasks(visible);
+  // The newest step keeps its output open while the reply is live; the ones before it fold.
+  const lastTool = items.reduce((at, item, i) => (item.kind === "part" && item.part.kind === "tool" ? i : at), -1);
   const navigate = useNavigate();
   const openNote = (path: string) => navigate(`/notes?${new URLSearchParams({ path })}`);
 
@@ -355,7 +387,7 @@ export function AssistantBlock({
       </motion.div>
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         {reasoning && <ThoughtChain text={reasoning} live={live && !text} />}
-        {groupTasks(visible).map((item) => (
+        {items.map((item, index) => (
           <motion.div
             key={item.key}
             initial={live ? { opacity: 0, y: 3 } : false}
@@ -379,6 +411,7 @@ export function AssistantBlock({
                 args={item.part.args}
                 result={item.part.ok === undefined ? undefined : { ok: item.part.ok, output: item.part.output ?? "" }}
                 interrupted={!live && item.part.ok === undefined}
+                settled={!live || index < lastTool}
               />
             ) : item.part.kind === "permission" ? (
               <PermissionPart part={item.part} onResolve={onResolve} />
@@ -396,18 +429,13 @@ export function AssistantBlock({
             <StarButton on={bookmarked} onToggle={onBookmark} className={bookmarked ? "" : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100"} />
           )}
           {text && (
-          <button
-            onClick={() =>
-              navigator.clipboard.writeText(text).then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1400);
-              })
-            }
-            className="rounded-md px-2 py-1 text-xs opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] focus-visible:opacity-100 group-hover:opacity-100"
-            style={{ color: "var(--color-ink-muted)" }}
-          >
-            {copied ? t("انتسخ ✓") : t("نسخ الرد")}
-          </button>
+            <CopyButton
+              value={text}
+              label={t("نسخ الرد")}
+              copiedLabel={t("انتسخ")}
+              className="rounded-md px-2 py-1 text-xs opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] focus-visible:opacity-100 group-hover:opacity-100 has-[[role=status]]:opacity-100"
+              style={{ color: "var(--color-ink-muted)" }}
+            />
           )}
           {text && (
             <button

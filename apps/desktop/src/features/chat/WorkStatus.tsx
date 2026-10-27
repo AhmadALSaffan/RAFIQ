@@ -5,8 +5,11 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { ShimmerText, TextSwap } from "../../components/LiveText";
 import { WorkOrb } from "../../components/Orb";
+import { NumberFlow } from "../../components/MotionKit";
+import { BoltIcon, CheckCircleIcon, FileIcon, GlobeIcon, PencilIcon, ShieldIcon, TasksIcon, TerminalIcon, WandIcon } from "../../components/Icons";
 import { t } from "../../i18n";
 import { toolLabel } from "../../lib/tools";
 import type { ChatPart } from "../../lib/types";
@@ -92,12 +95,27 @@ export function doing(tool: string, args: Record<string, unknown>): string {
   }
 }
 
+type Phase = "read" | "write" | "run" | "web" | "design" | "issue" | "tool";
+
+/** What kind of work a tool is, for the icon beside the status. */
+export function phaseOf(tool: string): Phase {
+  if (/^(filesystem_(read|list)|excel_read|image_view|notes_list|note_read)$/.test(tool)) return "read";
+  if (/^(filesystem_(write|delete)|word_write|slides_write|excel_write|note_(create|edit))$/.test(tool)) return "write";
+  if (tool === "shell_run") return "run";
+  if (tool.startsWith("web_") || tool.startsWith("browser_")) return "web";
+  if (tool.startsWith("design_") || tool.startsWith("motion_")) return "design";
+  if (tool.startsWith("issue_") || tool.startsWith("schedule_") || tool === "wait_for_tasks") return "issue";
+  return "tool";
+}
+
+const PHASE_ICON = { read: FileIcon, write: PencilIcon, run: TerminalIcon, web: GlobeIcon, design: WandIcon, issue: TasksIcon, tool: BoltIcon };
+
 /** The line for the latest state of a reply in progress. */
-export function statusOf(parts: ChatPart[]): { kind: "tool" | "permission" | "writing" | "thinking"; text?: string } {
+export function statusOf(parts: ChatPart[]): { kind: "tool" | "permission" | "writing" | "thinking"; text?: string; phase?: Phase } {
   const pending = parts.find((p) => p.kind === "permission" && p.resolution === "pending");
   if (pending) return { kind: "permission", text: t("ناطر موافقتك…") };
   const running = [...parts].reverse().find((p) => p.kind === "tool" && p.ok === undefined);
-  if (running && running.kind === "tool") return { kind: "tool", text: doing(running.tool, running.args ?? {}) };
+  if (running && running.kind === "tool") return { kind: "tool", text: doing(running.tool, running.args ?? {}), phase: phaseOf(running.tool) };
   if (parts[parts.length - 1]?.kind === "text") return { kind: "writing", text: t("عم يكتب الرد…") };
   return { kind: "thinking" };
 }
@@ -117,6 +135,10 @@ export function WorkStatus({ parts }: { parts: ChatPart[] }) {
   const seconds = Math.max(0, Math.floor((now - started.current) / 1000));
   const status = statusOf(parts);
   const text = status.text ?? THINKING[Math.floor(seconds / 3) % THINKING.length];
+  const steps = parts.filter((p) => p.kind === "tool" && p.ok !== undefined).length;
+  // The icon follows the kind of work, so a glance says reading / writing / running.
+  const icon = status.kind === "permission" ? "permission" : status.phase ?? "orb";
+  const Icon = icon === "permission" ? ShieldIcon : icon === "orb" ? null : PHASE_ICON[icon];
   const elapsed = seconds < 60 ? t("{0} ث", { 0: seconds }) : t("{0} د {1} ث", { 0: Math.floor(seconds / 60), 1: seconds % 60 });
 
   return (
@@ -128,10 +150,30 @@ export function WorkStatus({ parts }: { parts: ChatPart[] }) {
       role="status"
       aria-live="polite"
     >
-      <WorkOrb size={16} />
+      <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span
+            key={icon}
+            className="flex"
+            initial={{ opacity: 0, scale: 0.4, rotate: -30 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            exit={{ opacity: 0, scale: 0.4, transition: { duration: 0.12 } }}
+            transition={{ type: "spring", visualDuration: 0.35, bounce: 0.35 }}
+            style={{ color: icon === "permission" ? "var(--color-pending)" : "var(--color-accent)" }}
+          >
+            {Icon ? <Icon className="h-4 w-4" /> : <WorkOrb size={16} />}
+          </motion.span>
+        </AnimatePresence>
+      </span>
       <TextSwap text={text} className="min-w-0">
         <ShimmerText>{text}</ShimmerText>
       </TextSwap>
+      {steps > 0 && (
+        <span className="flex shrink-0 items-center gap-0.5 text-xs opacity-70" title={t("{0} خطوة خلصت", { 0: steps })}>
+          <CheckCircleIcon className="h-3 w-3" />
+          <NumberFlow value={steps} />
+        </span>
+      )}
       <span className="num shrink-0 text-xs opacity-70" aria-hidden="true">
         {elapsed}
       </span>

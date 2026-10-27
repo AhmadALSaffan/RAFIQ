@@ -29,6 +29,12 @@ sequence you've used before (say, phone hero → marquee → statement → bento
 dark band → CTA card). Build the structure from *this* brief: the user's sections first,
 then what the product's story needs.
 
+**The art direction.** A new site usually comes with one (it arrives as «الاتجاه الفني»):
+Rafiq picked it for this project so it doesn't look like the user's last sites. It decides
+the hero, the page's structure and the signature moves; the identity still decides the
+colours, the fonts and the feel. Build on it from the first version, fit the user's sections
+into it, and use the menu below only for the details it leaves open.
+
 ## 2. Type and colour craft (inside the identity)
 
 - **Hierarchy comes from contrast in size and weight:** the hero headline 3–6× the body,

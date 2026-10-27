@@ -29,10 +29,22 @@ export interface ReleaseNews {
   points: () => string[];
 }
 
-// The 0.5.8 videos ride on the release itself (assets of v0.5.8), not on a video host.
+// Since 0.5.8 the videos ride on the release itself (its assets), not on a video host.
 const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/AhmadALSaffan/RAFIQ/releases/download/v${version}/whats-new-${lang}.mp4`;
 
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.10",
+    videos: { ar: RELEASE_VIDEO("0.5.10", "ar"), en: RELEASE_VIDEO("0.5.10", "en"), ru: RELEASE_VIDEO("0.5.10", "ru") },
+    title: () => t("تصميم أذكى، وحركة بتحكيلك شو عم يصير"),
+    points: () => [
+      t("كل تصميم بياخد اتجاه فني من 13، فالمواقع ما عادت تطلع متل بعض"),
+      t("3 نسخ بديلة لنفس الصفحة، وبتعتمد اللي بتعجبك"),
+      t("حدد كذا جزء بالتصميم، واكتب لكل واحد شو بدك يتغيّر"),
+      t("«رجّع» و«قبل وبعد» تحت كل رد بالتصميم، والصفحة بتنبني قدامك وهو عم يكتبها"),
+      t("الشات بيبيّن شو عم يعمل خطوة بخطوة، والأوامر الخطيرة بدها ضغطة مطوّلة"),
+    ],
+  },
   {
     version: "0.5.9",
     image: boardPicture,

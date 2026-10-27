@@ -121,7 +121,16 @@ export type ChatStreamEvent =
   | { type: "permission_resolved"; id: string; resolution: Resolution }
   | { type: "task_created"; task: { id: string; title: string; status: TaskStatus } }
   | { type: "studio_created"; item: { studio: "design" | "motion"; id: string; chat_id: string; title: string } }
-  | { type: "usage"; prompt_tokens: number; completion_tokens: number; cached_tokens: number; cost_usd: number }
+  | {
+      type: "usage";
+      prompt_tokens: number;
+      completion_tokens: number;
+      cached_tokens: number;
+      cost_usd: number;
+      /** How much of the model's window the conversation fills now, when the agent knows. */
+      context_tokens?: number | null;
+      context_window?: number | null;
+    }
   | { type: "done"; message: ChatMessage }
   | { type: "stopped" }
   | { type: "error"; message: string; kind?: string | null; provider?: string | null };

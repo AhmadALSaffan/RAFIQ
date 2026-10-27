@@ -124,3 +124,18 @@ export async function compareDesignVersions(id: string, a: string, b: string): P
 export async function restoreDesignVersion(id: string, versionId: string): Promise<Design> {
   return request<Design>(`/designs/${id}/versions/${encodeURIComponent(versionId)}/restore`, { method: "POST" });
 }
+
+/** Takes the design back to before one reply of its chat. */
+export async function undoDesignReply(id: string, messageId: string): Promise<{ design: Design; restored: string[]; skipped: string[] }> {
+  return request(`/designs/${id}/messages/${encodeURIComponent(messageId)}/undo`, { method: "POST" });
+}
+
+/** Asks for three variants of the page; the message is what goes to the chat. */
+export async function askDesignVariants(id: string): Promise<{ design: Design; message: string }> {
+  return request(`/designs/${id}/variants`, { method: "POST" });
+}
+
+/** Keeps one variant: it becomes the page, and its direction the design's. */
+export async function chooseDesignVariant(id: string, key: string): Promise<Design> {
+  return request<Design>(`/designs/${id}/variants/${encodeURIComponent(key)}/choose`, { method: "POST" });
+}

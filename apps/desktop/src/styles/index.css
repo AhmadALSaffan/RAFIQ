@@ -95,6 +95,14 @@ body,
   height: 100%;
 }
 
+/* The app scrolls inside its panes, never as a document: a two-finger pan on a touchpad
+   would otherwise slide the whole window sideways (or bounce it) and show the dark behind. */
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-ink);

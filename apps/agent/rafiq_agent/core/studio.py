@@ -7,8 +7,10 @@ on the server — it keeps going with no page open, and the page joins it when o
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from rafiq_agent.core import art_direction
 from rafiq_agent.core import identity as identity_core
 from rafiq_agent.core.workspace import session_dir
 from rafiq_agent.i18n import tr
@@ -31,6 +33,11 @@ async def new_design(
 ) -> Design:
     """A design and its chat, committed. `working_dir` is already checked by the caller."""
     title = (title or str(brief.get("what") or "").strip() or tr("تصميم جديد"))[:80]
+    if art_direction.wants_direction(brief) and brief.get("art") not in art_direction.DIRECTIONS:
+        # a composition of its own, not one the user's recent sites got
+        recent_briefs = (await session.execute(select(Design.brief).order_by(Design.created_at.desc()).limit(8))).scalars().all()
+        recent = [str(b.get("art")) for b in recent_briefs if isinstance(b, dict) and b.get("art")]
+        brief = {**brief, "art": art_direction.pick(brief, recent)}
     # The design chat gets the same folder, so the model can read the project it designs for.
     chat = Chat(
         title=tr("تصميم: {0}", title),

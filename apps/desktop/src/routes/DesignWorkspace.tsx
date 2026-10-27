@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "../components/arc/tabs/tabs";
 import { Breadcrumb } from "../components/easy/breadcrumb";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
   addSkill,
+  askDesignVariants,
+  chooseDesignVariant,
   deleteSkill,
+  getDesignVersion,
+  listDesignVersions,
+  restoreDesignVersion,
+  undoDesignReply,
   getDesign,
   handoffDesign,
   listChats,
@@ -18,11 +24,14 @@ import {
   saveDesignBoard,
   setDesignFolder,
 } from "../lib/api";
-import type { AgentSkill, ChatSummary, Design, DesignDocument, LlmModel } from "../lib/types";
+import type { AgentSkill, ChatMessage, ChatSummary, Design, DesignDocument, LlmModel } from "../lib/types";
 import { easeOutExpo, snappy } from "../lib/motion";
 import { queueChatMessage } from "../lib/handoff";
 import { fieldDir } from "../lib/bidi";
 import { guarded } from "../features/design/preview";
+import { PickComposer, PickHint, usePicker } from "../features/design/PickComposer";
+import { BeforeAfter, DesignReplyActions, VariantsView } from "../features/design/CompareViews";
+import { previousOf } from "../features/design/HistoryPane";
 import { HistoryPane } from "../features/design/HistoryPane";
 import { Board } from "../features/design/Board";
 import { boardHtml, boardItems } from "../features/design/boardLayout";
@@ -37,7 +46,9 @@ import { Button, DrawnCheck } from "../components/ui";
 import { Resizer } from "../components/Resizer";
 import { usePageMenu } from "../components/ContextMenu";
 import { ChatPage } from "../features/chat";
-import { AlertIcon, ArrowDownIcon, ChatIcon, FileIcon, FolderIcon, PlusIcon, RefreshIcon, ShieldIcon, TasksIcon, TrashIcon, XIcon, PencilIcon } from "../components/Icons";
+import { AlertIcon, ArrowDownIcon, ChatIcon, FileIcon, FolderIcon, LayersIcon, PickIcon, PlusIcon, RefreshIcon, ShieldIcon, TasksIcon, TrashIcon, UndoIcon, XIcon, PencilIcon } from "../components/Icons";
+import { BuildProgress } from "../features/design/BuildProgress";
+import { buildOutline, type BuildOutline } from "../features/design/buildOutline";
 import { SLOP_REQUEST } from "../components/ComposerMenus";
 
 import { t } from "../i18n";
@@ -77,6 +88,29 @@ export function DesignWorkspace() {
   const [picked, setPicked] = useState<string | null>(null);
   // Folder files are read when they're first opened, then kept.
   const [folderHtml, setFolderHtml] = useState<Record<string, string>>({});
+  // A reply's before and after, open over the preview: which reply, which of its documents,
+  // and the two versions' HTML (null while loading; `before` null when the reply made it).
+  const [compare, setCompare] = useState<{ message: string; documents: string[]; current: string; before: string | null; after: string | null } | null>(null);
+  // The variants, side by side, while there are some to choose between (closable).
+  const [variantsHidden, setVariantsHidden] = useState(false);
+  const [asking, setAsking] = useState(false);
+  // What the reply being written has built so far — the preview shows it assembling.
+  const [outline, setOutline] = useState<BuildOutline | null>(null);
+  const onDraftText = useCallback((text: string | null) => {
+    const next = text ? buildOutline(text) : null;
+    setOutline((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+  }, []);
+  // Going back to before a reply: the preview winds back while the old version loads.
+  const [rewinding, setRewinding] = useState(false);
+  const rewind = async <T,>(run: () => Promise<T>): Promise<T> => {
+    setRewinding(true);
+    const started = Date.now();
+    try {
+      return await run();
+    } finally {
+      setTimeout(() => setRewinding(false), Math.max(0, 650 - (Date.now() - started)));
+    }
+  };
 
   const refresh = useCallback(async () => {
     try {
@@ -102,7 +136,9 @@ export function DesignWorkspace() {
   }, [design?.board]);
 
   // The newest document of the conversation is the default — the one the model just wrote.
-  const newest = [...documents].reverse().find((d) => d.source === "chat") ?? documents[documents.length - 1] ?? null;
+  // (Variants are side documents: the page stays the default while they're compared and after.)
+  const pages = documents.filter((d) => !/^variant-/i.test(d.name));
+  const newest = [...pages].reverse().find((d) => d.source === "chat") ?? pages[pages.length - 1] ?? documents[documents.length - 1] ?? null;
   const active = documents.find((d) => documentKey(d) === picked) ?? newest;
   const activeHtml = active
     ? active.source === "folder"
@@ -149,6 +185,73 @@ export function DesignWorkspace() {
       alive = false;
     };
   }, [active, folderHtml, id]);
+
+  /** Open a reply's before and after for one of the documents it wrote. */
+  async function openCompare(messageId: string, document?: string) {
+    try {
+      const versions = await listDesignVersions(id);
+      const mine = versions.filter((v) => v.message_id === messageId);
+      if (!mine.length) return notify({ type: "info", title: t("هالرد ما غيّر شي بالتصميم.") });
+      const version = mine.find((v) => v.document === document) ?? mine.find((v) => v.document === active?.name) ?? mine[0];
+      const docs = mine.map((v) => v.document);
+      setTab("preview");
+      setCompare({ message: messageId, documents: docs, current: version.document, before: null, after: null });
+      const previous = previousOf(versions, version.id);
+      const [after, before] = await Promise.all([getDesignVersion(id, version.id), previous ? getDesignVersion(id, previous) : Promise.resolve(null)]);
+      setCompare({ message: messageId, documents: docs, current: version.document, after: after.html, before: before ? before.html : null });
+    } catch (e) {
+      notify({ type: "error", title: t("ما قدرت أفتح المقارنة"), description: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  /** Take the design back to before a reply; the toast can bring it back again. */
+  async function undoReply(messageId: string): Promise<void> {
+    try {
+      const result = await rewind(() => undoDesignReply(id, messageId));
+      setDesign(result.design);
+      setPicked(null);
+      if (!result.restored.length) {
+        notify({ type: "info", title: t("هالرد عمل مستندات جديدة بس — ما في شي يرجع لقبله.") });
+        return;
+      }
+      notify({
+        type: "success",
+        duration: 8000,
+        title: t("رجع التصميم لقبل هالرد"),
+        description: result.skipped.length ? t("ضل متل ما هو: {0} (انعمل بهالرد)", { 0: result.skipped.join(t("، ")) }) : undefined,
+        action: {
+          label: t("رجّعه"),
+          onClick: () =>
+            void rewind(async () => {
+              const versions = await listDesignVersions(id);
+              let next: Design | null = null;
+              for (const v of versions.filter((x) => x.message_id === messageId && result.restored.includes(x.document))) {
+                next = await restoreDesignVersion(id, v.id);
+              }
+              if (next) setDesign(next);
+            }),
+        },
+      });
+    } catch (e) {
+      notify({ type: "error", title: t("ما قدرت أرجّع"), description: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  async function askVariants() {
+    setAsking(true);
+    try {
+      const { design: next, message } = await askDesignVariants(id);
+      setDesign(next);
+      setVariantsHidden(false);
+      setCompare(null);
+      setTab("preview");
+      setSendRequest({ id: Date.now(), text: message });
+    } catch (e) {
+      notify({ type: "error", title: t("ما قدرت أطلب النسخ"), description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setAsking(false);
+    }
+  }
 
   function flash(text: string) {
     setNote(text);
@@ -260,6 +363,18 @@ export function DesignWorkspace() {
           onChange={async (path) => setDesign(await setDesignFolder(design.id, path))}
         />
 
+        {design.can_vary && !design.board && (
+          <Button
+            variant="ghost"
+            onClick={() => (design.variants?.length ? (setCompare(null), setTab("preview"), setVariantsHidden((h) => !h)) : void askVariants())}
+            disabled={asking || (!design.preview_html && !design.variants?.length)}
+            title={t("3 نسخ من الصفحة، كل وحدة باتجاه فني مختلف، وبتختار وحدة")}
+          >
+            <LayersIcon className="h-4 w-4" />
+            {design.variants?.length ? (variantsHidden ? t("اعرض النسخ البديلة") : t("خبّي النسخ البديلة")) : asking ? t("عم يحضّر…") : t("3 نسخ بديلة")}
+          </Button>
+        )}
+
         <Button
           variant="ghost"
           onClick={() => setSendRequest({ id: Date.now(), text: SLOP_REQUEST })}
@@ -301,12 +416,18 @@ export function DesignWorkspace() {
             autoSend={design.kickoff}
             sendRequest={sendRequest}
             onReplyDone={refresh}
+            onDraftText={onDraftText}
             mode="design"
             onHostCommand={(id) => {
               if (id !== "design:build") return false;
               setHandoffOpen(true);
               return true;
             }}
+            replyFooter={(m: ChatMessage) =>
+              /```html/i.test(m.content) && !m.id.startsWith("temp") ? (
+                <DesignReplyActions onUndo={() => undoReply(m.id)} onCompare={() => void openCompare(m.id)} />
+              ) : null
+            }
           />
         </div>
         <Resizer
@@ -318,8 +439,41 @@ export function DesignWorkspace() {
           label={t("عرض الشات")}
         />
 
-        <div className="m-2 ms-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)" }}>
-          {tab === "preview" && (
+        <div className="relative m-2 ms-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl" style={{ background: "var(--color-surface)" }}>
+          <AnimatePresence>
+            {tab === "preview" && outline && <BuildProgress key="build" outline={outline} floating={Boolean(activeHtml || boardFiles.length || design.variants?.length)} />}
+            {rewinding && <Rewinding key="rewind" />}
+          </AnimatePresence>
+          {tab === "preview" && compare && (
+            <BeforeAfter
+              documents={compare.documents}
+              current={compare.current}
+              onDocument={(name) => void openCompare(compare.message, name)}
+              before={compare.before}
+              after={compare.after}
+              onClose={() => setCompare(null)}
+            />
+          )}
+          {tab === "preview" && !compare && !!design.variants?.length && !variantsHidden && (
+            <VariantsView
+              variants={design.variants}
+              files={design.files ?? []}
+              working={Boolean(design.working)}
+              onClose={() => setVariantsHidden(true)}
+              onChoose={async (key) => {
+                try {
+                  const next = await chooseDesignVariant(design.id, key);
+                  setDesign(next);
+                  setPicked(null);
+                  flash(t("اعتمدت «{0}» — صارت هي الصفحة", { 0: design.variants?.find((v) => v.key === key)?.name ?? key }));
+                } catch (e) {
+                  notify({ type: "error", title: t("ما قدرت أعتمدها"), description: e instanceof Error ? e.message : String(e) });
+                  throw e;
+                }
+              }}
+            />
+          )}
+          {tab === "preview" && !compare && (!design.variants?.length || variantsHidden) && (
             <PreviewPane
               design={design}
               boardFiles={boardFiles}
@@ -335,6 +489,7 @@ export function DesignWorkspace() {
                 void refresh();
               }}
               onCopied={() => flash(t("انتسخ كود الواجهة"))}
+              onAsk={(text) => setSendRequest({ id: Date.now(), text })}
             />
           )}
           {tab === "history" && (
@@ -375,6 +530,32 @@ export function DesignWorkspace() {
   );
 }
 
+/** Over the preview while it goes back to an earlier version: an arrow winding backwards. */
+function Rewinding() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.3 } }}
+      className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-3"
+      style={{ background: "color-mix(in oklch, var(--color-surface) 70%, transparent)", backdropFilter: "blur(6px) saturate(0.6)" }}
+      role="status"
+    >
+      <motion.span
+        className="flex h-12 w-12 items-center justify-center rounded-full"
+        style={{ background: "var(--color-surface)", color: "var(--color-accent)", boxShadow: "0 8px 24px -8px rgb(0 0 0 / 0.25)" }}
+        animate={{ rotate: -360 }}
+        transition={{ duration: 0.9, ease: [0.65, 0, 0.35, 1], repeat: Infinity }}
+      >
+        <UndoIcon className="h-6 w-6" />
+      </motion.span>
+      <span className="text-xs font-medium" style={{ color: "var(--color-ink)" }}>
+        {t("عم يرجّع للنسخة القديمة…")}
+      </span>
+    </motion.div>
+  );
+}
+
 function Empty({ text }: { text: string }) {
   return (
     <p className="px-6 py-16 text-center text-xs" style={{ color: "var(--color-ink-muted)" }}>
@@ -401,6 +582,7 @@ function PreviewPane({
   onDevice,
   onRefresh,
   onCopied,
+  onAsk,
 }: {
   design: Design;
   boardFiles: { name: string; html: string }[];
@@ -413,6 +595,7 @@ function PreviewPane({
   onDevice: (id: (typeof DEVICES)[number]["id"]) => void;
   onRefresh: () => void;
   onCopied: () => void;
+  onAsk: (text: string) => void;
 }) {
   const savedPath = active?.path ?? null;
   const [nonce, setNonce] = useState(0);
@@ -435,6 +618,25 @@ function PreviewPane({
   }
   const [missing, setMissing] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
+  // The frame springs between device widths, so the page is seen reflowing — measured in
+  // pixels, since "100%" and "390px" can't be tweened.
+  const stage = useRef<HTMLDivElement>(null);
+  const [room, setRoom] = useState(0);
+  useLayoutEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const fit = () => setRoom(el.clientWidth - 32);
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [onBoard]);
+  // Picking parts of the page to ask about (the board has its own).
+  const picker = usePicker(
+    () => new Map(frameRef.current ? [["page", frameRef.current]] : []),
+    () => active?.name ?? design.title,
+  );
+  const pickingOn = picker.picking || picker.items.length > 0;
 
   // What the preview runtime (PREVIEW_RUNTIME) asks of us: open a web link, or say a page
   // the design links to doesn't exist in it.
@@ -507,13 +709,12 @@ function PreviewPane({
               <button
                 key={d.id}
                 onClick={() => onDevice(d.id)}
-                className="rounded-full px-2.5 py-1 text-xs transition-colors"
-                style={{
-                  background: device === d.id ? "var(--color-surface)" : "transparent",
-                  color: device === d.id ? "var(--color-ink)" : "var(--color-ink-muted)",
-                }}
+                aria-pressed={device === d.id}
+                className="relative rounded-full px-2.5 py-1 text-xs transition-colors"
+                style={{ color: device === d.id ? "var(--color-ink)" : "var(--color-ink-muted)" }}
               >
-                {d.label}
+                {device === d.id && <motion.span layoutId="design-device" className="absolute inset-0 rounded-full" style={{ background: "var(--color-surface)" }} transition={snappy} />}
+                <span className="relative">{d.label}</span>
               </button>
             ))}
           </div>
@@ -539,6 +740,16 @@ function PreviewPane({
               <FolderIcon className="h-3 w-3" />
               {t("انحفظ بـ")} {folderName(savedPath)}
             </span>
+          )}
+          {!onBoard && (
+            <IconButton
+              label={t("حدد أجزاء من التصميم واطلب تعديلها")}
+              disabled={!html}
+              active={pickingOn}
+              onClick={() => (pickingOn ? picker.reset() : picker.start())}
+            >
+              <PickIcon className="h-3.5 w-3.5" />
+            </IconButton>
           )}
           <IconButton
             label={t("حدّث المعاينة")}
@@ -569,14 +780,29 @@ function PreviewPane({
 
       {onBoard ? (
         <div className="min-h-0 flex-1">
-          <Board title={design.title} files={boardFiles} dir={briefDir(design.brief)} nonce={nonce} />
+          <Board title={design.title} files={boardFiles} dir={briefDir(design.brief)} nonce={nonce} onAsk={onAsk} />
         </div>
       ) : (
-      <div className="min-h-0 flex-1 overflow-auto p-4" style={{ background: "var(--color-surface-2)" }}>
+      <div ref={stage} className="relative min-h-0 flex-1 overflow-auto p-4" style={{ background: "var(--color-surface-2)" }}>
+        <AnimatePresence>
+          {picker.picking && !picker.items.length && (
+            <div key="hint" className="pointer-events-none absolute inset-x-0 top-6 z-10 flex justify-center">
+              <PickHint />
+            </div>
+          )}
+          {picker.items.length > 0 && (
+            <div key="composer" className="absolute inset-x-0 bottom-6 z-10 flex justify-center">
+              <PickComposer picker={picker} onSend={onAsk} />
+            </div>
+          )}
+        </AnimatePresence>
         {html ? (
-          <div
+          <motion.div
             className="mx-auto h-full overflow-hidden rounded-xl"
-            style={{ width: width ? `${width}px` : "100%", maxWidth: "100%", background: "white" }}
+            initial={false}
+            animate={room ? { width: width ? Math.min(width, room) : room } : undefined}
+            transition={{ type: "spring", visualDuration: 0.5, bounce: 0.1 }}
+            style={{ width: room ? undefined : "100%", maxWidth: "100%", background: "white" }}
           >
             <iframe
               ref={frameRef}
@@ -584,10 +810,11 @@ function PreviewPane({
               srcDoc={guarded(html)}
               title={t("معاينة التصميم")}
               sandbox="allow-scripts allow-forms"
+              onLoad={(e) => picker.onFrameLoad(e.currentTarget, "page")}
               className="h-full w-full"
               style={{ border: 0 }}
             />
-          </div>
+          </motion.div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <Wireframe size={120} className="mb-2 opacity-60" />
@@ -608,11 +835,13 @@ function IconButton({
   onClick,
   children,
   disabled = false,
+  active = false,
 }: {
   label: string;
   onClick: () => void;
   children: React.ReactNode;
   disabled?: boolean;
+  active?: boolean;
 }) {
   return (
     <motion.button
@@ -620,9 +849,10 @@ function IconButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
+      aria-pressed={active || undefined}
       title={label}
       className="rounded-full p-1.5 transition-colors hover:bg-[var(--color-surface)] disabled:opacity-40"
-      style={{ color: "var(--color-ink-muted)" }}
+      style={active ? { background: "var(--color-accent)", color: "var(--color-accent-ink)" } : { color: "var(--color-ink-muted)" }}
     >
       {children}
     </motion.button>

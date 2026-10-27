@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
+import { snappy } from "../../lib/motion";
 import { connectIntegration, pollDeviceSignIn, startDeviceSignIn } from "../../lib/api";
 import type { DeviceSignIn, IntegrationAccount, IntegrationProvider } from "../../lib/types";
 import { Button, ErrorText, Field } from "../../components/ui";
@@ -64,10 +65,11 @@ export function ConnectForm({
                 role="tab"
                 aria-selected={mode === m}
                 onClick={() => setMode(m)}
-                className="rounded-full px-3 py-1 transition-colors"
-                style={{ background: mode === m ? "var(--color-surface)" : "transparent", color: mode === m ? "var(--color-ink)" : "var(--color-ink-muted)" }}
+                className="relative rounded-full px-3 py-1 transition-colors"
+                style={{ color: mode === m ? "var(--color-ink)" : "var(--color-ink-muted)" }}
               >
-                {m === "key" ? t("بمفتاح") : t("بكود تسجيل دخول")}
+                {mode === m && <motion.span layoutId="connect-mode" className="absolute inset-0 rounded-full" style={{ background: "var(--color-surface)" }} transition={snappy} />}
+                <span className="relative">{m === "key" ? t("بمفتاح") : t("بكود تسجيل دخول")}</span>
               </button>
             ))}
           </div>

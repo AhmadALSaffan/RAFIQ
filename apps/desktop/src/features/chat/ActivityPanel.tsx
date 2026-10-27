@@ -14,8 +14,9 @@ import { revealPath } from "../../lib/folders";
 import { easeOutExpo } from "../../lib/motion";
 import type { ChatPart } from "../../lib/types";
 import { Markdown } from "../../components/Markdown";
-import { AlertIcon, CopyIcon, FileIcon, FolderIcon, RefreshIcon, SpinnerIcon, TerminalIcon, XIcon } from "../../components/Icons";
+import { AlertIcon, FileIcon, FolderIcon, RefreshIcon, SpinnerIcon, TerminalIcon, XIcon } from "../../components/Icons";
 import { DrawnCheck } from "../../components/ui";
+import { CopyButton } from "../../components/MotionKit";
 
 export type ActivityState = "running" | "ok" | "fail";
 export interface FileActivity {
@@ -206,9 +207,7 @@ function PreviewView({ dir, path, version, running }: { dir: string; path: strin
         <button type="button" onClick={() => setReload((n) => n + 1)} aria-label={t("حدّث")} title={t("حدّث")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
           <RefreshIcon className="h-3.5 w-3.5" />
         </button>
-        <button type="button" onClick={() => void navigator.clipboard.writeText(full)} aria-label={t("انسخ المسار")} title={t("انسخ المسار")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
-          <CopyIcon className="h-3.5 w-3.5" />
-        </button>
+        <CopyButton value={full} title={t("انسخ المسار")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }} />
         <button type="button" onClick={() => void revealPath(full)} aria-label={t("افتح مكانه")} title={t("افتح مكانه")} className="rounded-full p-1.5 hover:bg-[var(--color-surface-2)]" style={{ color: "var(--color-ink-muted)" }}>
           <FolderIcon className="h-3.5 w-3.5" />
         </button>

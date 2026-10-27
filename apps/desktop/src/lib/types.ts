@@ -1034,6 +1034,13 @@ export interface DesignDocument {
 }
 
 /** One version of one design document — which reply wrote it, and how much it changed. */
+/** One of the variants of a page, on an art direction of its own. */
+export interface DesignVariant {
+  key: string;
+  name: string;
+  document: string;
+}
+
 export interface DesignVersion {
   id: string;
   document: string;
@@ -1083,6 +1090,10 @@ export interface Design {
   working?: boolean;
   /** An app's screens, shown as a board of phone frames. */
   board?: boolean;
+  /** Variants asked for and not chosen between yet, each a document of its own. */
+  variants?: DesignVariant[];
+  /** Whether the design can ask for variants (a site, not an app or a dashboard). */
+  can_vary?: boolean;
   created_at: string;
   updated_at: string;
 }

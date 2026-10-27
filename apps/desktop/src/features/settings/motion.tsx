@@ -9,6 +9,8 @@
 
 import { Progress as ArcProgress } from "../../components/arc/progress/progress";
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
+import { snappy } from "../../lib/motion";
 import { ffmpegStatus, getMotionKit, installFfmpeg, installLocalModel, listModels, localModels, listWorkspaces, motionKitTemplates, motionMediaKeys, removeFfmpeg, removeLocalModel, saveMotionKit, saveMotionMediaKey, type FfmpegStatus, type LocalPack, type LocalPackName, quietly } from "../../lib/api";
 import type { AppSettings, LlmModel, Workspace } from "../../lib/types";
 import type { BrandKit, Scene } from "../motion/engine/types";
@@ -281,10 +283,11 @@ function BrandKitEditor() {
                   role="radio"
                   aria-checked={active}
                   onClick={() => setKit({ ...kit, motion: { ...kit.motion, ...p.motion } })}
-                  className="flex-1 rounded-full px-3 py-1.5 text-xs"
-                  style={{ background: active ? "var(--color-inverse)" : undefined, color: active ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
+                  className="relative flex-1 rounded-full px-3 py-1.5 text-xs"
+                  style={{ color: active ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
                 >
-                  {p.label}
+                  {active && <motion.span layoutId="motion-personality" className="absolute inset-0 rounded-full" style={{ background: "var(--color-inverse)" }} transition={snappy} />}
+                  <span className="relative">{p.label}</span>
                 </button>
               );
             })}
@@ -428,10 +431,11 @@ function VoiceAndMedia({ settings, persist, models, localVoice }: { settings: Ap
                 disabled={unavailable}
                 title={unavailable ? t("نزّل الصوت المحلي أول") : undefined}
                 onClick={() => persist({ ...settings, tts_provider: option.id })}
-                className="flex-1 rounded-full px-3 py-1.5 text-xs disabled:opacity-40"
-                style={{ background: active ? "var(--color-inverse)" : undefined, color: active ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
+                className="relative flex-1 rounded-full px-3 py-1.5 text-xs disabled:opacity-40"
+                style={{ color: active ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
               >
-                {option.label}
+                {active && <motion.span layoutId="tts-provider" className="absolute inset-0 rounded-full" style={{ background: "var(--color-inverse)" }} transition={snappy} />}
+                <span className="relative">{option.label}</span>
               </button>
             );
           })}

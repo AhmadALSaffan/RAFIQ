@@ -31,29 +31,37 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 ---
 
-## What's new · v0.5.9
+## What's new · v0.5.10
 
 <!-- Every release: replace docs/whats-new/latest.webp with the release's picture (the same
      one the app's What's new dialog shows) and update the version, points and link below. -->
 
 <div align="center">
 
-<a href="https://github.com/AhmadALSaffan/RAFIQ/releases/download/v0.5.9/app-board-ar.mp4"><img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.9: design your app on one board"></a>
+<a href="https://github.com/AhmadALSaffan/RAFIQ/releases/download/v0.5.10/whats-new-en.mp4"><img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.10: every site gets its own character"></a>
 
-<sub>The picture opens a 24-second video of the board (in Arabic).</sub>
+<sub>The picture opens a one-minute video of everything in this release (also in <a href="https://github.com/AhmadALSaffan/RAFIQ/releases/download/v0.5.10/whats-new-ar.mp4">Arabic</a> and <a href="https://github.com/AhmadALSaffan/RAFIQ/releases/download/v0.5.10/whats-new-ru.mp4">Russian</a>).</sub>
 
 </div>
 
-**App design, on one board.** A new door in the creative hub: describe your app and its
-screens come back on one board — the identity sheet first (logo, colours, type,
-components), then every screen in a phone frame, in the order of the user's journey. A
-button that leads to another screen takes the board there, and the whole board exports as
-one HTML file that opens in any browser.
-- **New shapes in motion:** twelve more in 2D, and 3D hearts, stars, bolts, gems and vases.
-- **Music in ready styles:** twelve of them, with Arabic instruments (oud, qanun, ney, darbuka).
-- **Eight new sound effects.**
+**Smarter design, and motion that shows what's going on.** Every new design gets one of
+13 art directions (a run of posters, a living bento, a split screen, a manifesto in
+words…), so sites stop looking alike. Ask for three variants of a page, each in a
+different direction, and keep the one you like.
+- **Pick parts and say what to change:** click several parts of a design or of an app's
+  screens; each gets a number and its own note, and they all go in one message.
+- **Undo and before/after under every design reply:** take the design back to before a
+  reply, or drag a handle across the old and new versions.
+- **The page builds while it's written:** the preview shows each section as it arrives.
+- **The chat shows what it's doing:** an icon for the kind of work, a step counter, tool
+  cards that open when done and fold away later, and a ring for how full the context is.
+- **Risky commands take a long press:** deleting, force-pushing or wiping needs a
+  press-and-hold, so a stray click allows nothing.
+- **And more:** the sent message flies into the chat, the preview stretches between
+  device sizes, a Windows notification when a reply finishes while you're elsewhere, and
+  dragging on the phone board scrolls instead of selecting text.
 
-Full notes: [v0.5.9](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.9) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
+Full notes: [v0.5.10](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.10) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
 
 ---
 
@@ -247,7 +255,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.9_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.10_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)

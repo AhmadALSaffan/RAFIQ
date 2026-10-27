@@ -6,6 +6,7 @@ import type { HTMLMotionProps, MotionProps, TargetAndTransition, Transition } fr
 import { CircleCheck, CircleX, Info, TriangleAlert, X } from "../lib/icons";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./toast-stack.module.css";
+import { CountdownRing } from "../../MotionKit";
 import { t } from "../../../i18n";
 
 export type ToastType = "success" | "info" | "warning" | "error" | "loading";
@@ -383,7 +384,13 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, sto
             <button type="button" className={styles.action} onClick={runAction}>{toast.action.label}</button>
           </motion.div> : null}
         </AnimatePresence>
-        <button ref={closeRef} type="button" className={styles.close} aria-label={t("سكّر الإشعار")} onClick={() => store.dismiss(id)}>
+        <button ref={closeRef} type="button" className={styles.close} style={{ position: "relative" }} aria-label={t("سكّر الإشعار")} onClick={() => store.dismiss(id)}>
+          {/* Rafiq: a toast with an action (an undo) shows how long it'll wait, and pauses with it. */}
+          {toast.action && Number.isFinite(toast.duration) && !reduce && (
+            <span aria-hidden="true" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+              <CountdownRing key={toast.version} seconds={toast.duration / 1000} paused={paused || !isPresent} size={26} />
+            </span>
+          )}
           <X width={16} height={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
       </motion.div>

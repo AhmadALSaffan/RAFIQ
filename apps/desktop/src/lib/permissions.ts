@@ -75,3 +75,17 @@ export function canAlwaysAllow(tool: string): boolean {
 }
 
 export type PermissionAnswer = "approved" | "denied" | "always";
+
+/** Tools whose effect can't be taken back from inside Rafiq: deleting, killing a process,
+ *  pushing to git, posting to a team channel. */
+const IRREVERSIBLE = new Set(["filesystem_delete", "process_kill", "task_publish", "notify_post", "schedule_delete"]);
+/** Commands that delete, overwrite history or wipe a disk. */
+const DESTRUCTIVE_COMMAND =
+  /(^|[\s;&|(])(rm|rmdir|del|erase|rd|mkfs|shred|Remove-Item|Clear-Content|Clear-RecycleBin|Format-Volume|diskpart)(\.exe)?(?=$|[\s;&|)])|git\s+(push\s.*(--force\b|\s-f\b)|reset\s+--hard|clean\s+-\w*f|branch\s+-D)|\bformat\s+[a-z]:|\bdrop\s+(table|database)\b/i;
+
+/** Whether approving this call should take a press-and-hold instead of a click — so a
+ *  stray click can't allow something that can't be undone. */
+export function needsHold(tool: string, args: Record<string, unknown>): boolean {
+  if (IRREVERSIBLE.has(tool)) return true;
+  return tool === "shell_run" && typeof args.command === "string" && DESTRUCTIVE_COMMAND.test(args.command);
+}

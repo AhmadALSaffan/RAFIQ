@@ -52,6 +52,7 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     "tools/studio.py": "*",  # tool descriptions and the brief options, for the model
     # style labels are translated where they're served; the note is for the model
     "core/identity.py": {"STYLES", "identity_note"},
+    "core/art_direction.py": {"DIRECTIONS", "_LAYOUTS", "_SITE_KINDS", "direction_note", "variants_note"},
     "llm/copilot.py": {"_text_of", "split_messages", "stream_chat", "aclose"},
     "integrations/tools.py": {"description", "parameters", "ACCOUNT_PROP", "DRAFT_PROPS"},
     # Provider specs are translated where they're served; Trello's list-name patterns match Arabic.
@@ -166,6 +167,9 @@ def _scan():
     from rafiq_agent.core.identity import STYLES
 
     dynamic += [s["label"] for s in STYLES.values()]
+    from rafiq_agent.core.art_direction import DIRECTIONS
+
+    dynamic += [d["name"] for d in DIRECTIONS.values()]
     for cls in REGISTRY.values():
         dynamic += [cls.spec.blurb, cls.spec.scopes, *(f.label for f in cls.spec.fields), *(f.help for f in cls.spec.fields)]
     for text in dynamic:

@@ -10,6 +10,7 @@
  */
 
 import { notify } from "../../lib/toast";
+import { announceDone } from "../../lib/background";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -31,7 +32,8 @@ import { useWorkspaces } from "../../lib/workspace";
 import { SparkIcon } from "../../components/Icons";
 import { DropZone, useUploads } from "../../components/Attachments";
 import { FolderChip } from "../../components/FolderPicker";
-import { AlertIcon, ArchiveIcon, ArrowDownIcon, ChatIcon, CompressIcon, TerminalIcon } from "../../components/Icons";
+import { AlertIcon, ArchiveIcon, ArrowDownIcon, ChatIcon, CompressIcon, FileIcon, TerminalIcon } from "../../components/Icons";
+import { Bump, NumberFlow } from "../../components/MotionKit";
 import { TokenText } from "../../components/TokenText";
 import { Composer } from "./Composer";
 import { ActivityPanel, collectActivity, type ActivityTab } from "./ActivityPanel";
@@ -53,6 +55,8 @@ export function ChatPage({
   sendRequest,
   mode = "chat",
   onHostCommand,
+  replyFooter,
+  onDraftText,
 }: {
   chatId?: string;
   embedded?: boolean;
@@ -65,6 +69,11 @@ export function ChatPage({
   mode?: ChatMode;
   /** The host page runs its own commands (export, preview, hand off); true = handled. */
   onHostCommand?: (id: string) => boolean;
+  /** What goes under a saved reply, if anything (the design page's undo and compare). */
+  replyFooter?: (message: ChatMessage) => React.ReactNode;
+  /** The text of the reply being written, as it streams (null when none is) — the design page
+   *  shows the page assembling from it. */
+  onDraftText?: (text: string | null) => void;
 } = {}) {
   const params = useParams<{ id: string }>();
   const routeId = chatId ?? params.id;
@@ -156,10 +165,28 @@ export function ChatPage({
     if ((newFile || newCommand) && !panelClosedByUser.current) {
       setPanelTab(newFile ? "files" : "commands");
       setPanelOpen(true);
+    } else if (newFile) {
+      // The panel stays closed as the user left it: the file's name slides into its button instead.
+      setLanded(activity.files[0]?.path.split("/").pop() ?? null);
     }
     seenActivity.current = { ...seen, files: activity.files.length, commands: activity.commands.length };
   }, [activity, streaming, routeId]);
   const hasActivity = activity.files.length + activity.commands.length > 0;
+  const [landed, setLanded] = useState<string | null>(null);
+  const draftText = draft ? textOf(draft.parts) : null;
+  const onDraftTextRef = useRef(onDraftText);
+  onDraftTextRef.current = onDraftText;
+  useEffect(() => onDraftTextRef.current?.(draftText), [draftText]);
+  // How full the model's window is, per chat — known once a reply in this session reports it.
+  const [contextFill, setContextFill] = useState<Record<string, { used: number; window: number }>>({});
+  // A sent message's row, by the id it was saved under (see `follow`).
+  const rowKeys = useRef(new Map<string, string>());
+  const rtl = document.documentElement.dir === "rtl";
+  useEffect(() => {
+    if (!landed) return;
+    const id = window.setTimeout(() => setLanded(null), 2200);
+    return () => window.clearTimeout(id);
+  }, [landed]);
 
   useEffect(() => {
     listIntegrations()
@@ -500,7 +527,11 @@ export function ChatPage({
       await run((event) => {
         if (controller.signal.aborted) return;
         if (event.type === "start") {
-          if (tempId) setMessages((prev) => prev.map((m) => (m.id === tempId ? event.user_message : m)));
+          if (tempId) {
+            // The saved message keeps the row it was sent in, so it doesn't land twice.
+            rowKeys.current.set(event.user_message.id, tempId);
+            setMessages((prev) => prev.map((m) => (m.id === tempId ? event.user_message : m)));
+          }
           setChats((prev) => {
             const existing = prev.find((c) => c.id === chatId);
             const updated = {
@@ -517,6 +548,8 @@ export function ChatPage({
           setMessages((prev) => [...prev.filter((m) => m.id !== event.message.id), event.message]);
           setDraft(null);
           onReplyDone?.();
+          // Away from the window while it worked: a Windows notification and a taskbar flash.
+          void announceDone(mode === "design" ? t("التصميم جاهز") : t("رفيق خلّص الرد"), event.message.content);
         } else if (event.type === "stopped") {
           finished = true;
           setDraft(null);
@@ -524,6 +557,10 @@ export function ChatPage({
           setError(event.message);
           showGuide({ kind: event.kind, provider: event.provider });
         } else {
+          if (event.type === "usage" && event.context_tokens && event.context_window) {
+            const fill = { used: event.context_tokens, window: event.context_window };
+            setContextFill((all) => ({ ...all, [chatId]: fill }));
+          }
           partial = applyEvent(partial, event);
           setDraft(partial);
         }
@@ -785,9 +822,9 @@ export function ChatPage({
   }
 
   // The rows get one unchanging set of actions that always calls the latest handlers.
-  const handlers = useRef({ editMessage, forkFrom, bookmark, navigate });
+  const handlers = useRef({ editMessage, forkFrom, bookmark, navigate, replyFooter });
   useLayoutEffect(() => {
-    handlers.current = { editMessage, forkFrom, bookmark, navigate };
+    handlers.current = { editMessage, forkFrom, bookmark, navigate, replyFooter };
   });
   const rowActions = useMemo<RowActions>(
     () => ({
@@ -796,6 +833,7 @@ export function ChatPage({
       fork: (m) => void handlers.current.forkFrom(m),
       savePrompt: (m) => setSavingPrompt(m.content),
       bookmark: (m, on) => void handlers.current.bookmark(m, on),
+      replyFooter: (m) => handlers.current.replyFooter?.(m) ?? null,
     }),
     [],
   );
@@ -927,6 +965,23 @@ export function ChatPage({
               <TokenText text={current?.title ?? t("محادثة جديدة")} />
             </motion.h2>
           </AnimatePresence>
+          <AnimatePresence>
+            {landed && (
+              <motion.span
+                key={landed}
+                initial={{ opacity: 0, x: rtl ? 14 : -14, scale: 0.9 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: rtl ? -18 : 18, scale: 0.5, transition: { duration: 0.28, ease: "easeIn" } }}
+                transition={{ type: "spring", visualDuration: 0.35, bounce: 0.2 }}
+                className="flex max-w-40 shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px]"
+                style={{ background: "var(--color-surface)", color: "var(--color-ink)" }}
+                aria-hidden
+              >
+                <FileIcon className="h-3 w-3 shrink-0" style={{ color: "var(--color-accent)" }} />
+                <span className="truncate" dir="ltr">{landed}</span>
+              </motion.span>
+            )}
+          </AnimatePresence>
           {hasActivity && (
             <button
               type="button"
@@ -941,7 +996,9 @@ export function ChatPage({
             >
               <TerminalIcon className="h-4 w-4" />
               {t("شغله")}
-              <span className="num">{activity.files.length + activity.commands.length}</span>
+              <Bump value={activity.files.length + activity.commands.length}>
+                <NumberFlow value={activity.files.length + activity.commands.length} />
+              </Bump>
             </button>
           )}
           <BookmarksMenu messages={messages} onJump={jumpToMessage} onRemove={(m) => void bookmark(m, false)} />
@@ -986,7 +1043,7 @@ export function ChatPage({
                   const i = start + offset;
                   return (
                     <TranscriptRow
-                      key={m.id}
+                      key={rowKeys.current.get(m.id) ?? m.id}
                       message={m}
                       model={models.find((x) => x.id === m.model_id)}
                       newDay={startsNewDay(messages[i - 1], m)}
@@ -1137,6 +1194,9 @@ export function ChatPage({
           mode={mode}
           onIssueMentioned={setLastIssue}
           prefill={prefill}
+          context={routeId ? contextFill[routeId] : null}
+          onSummarize={routeId && messages.length > 2 ? () => void summarizeNow() : undefined}
+          summarizing={summarizing}
           effort={routeId ? (current?.settings?.reasoning_effort ?? null) : newEffort}
           onEffort={(effort) => {
             if (routeId) void saveSettings({ ...(current?.settings ?? DEFAULT_REPLY_SETTINGS), reasoning_effort: effort });

@@ -43,10 +43,79 @@ export function screenFor(items: BoardItem[], page: string): BoardItem | null {
   return items.find((i) => i.id.toLowerCase() === name) ?? null;
 }
 
+/**
+ * A screen on the board behaves like a phone under a finger: dragging with the mouse scrolls
+ * whatever is under it (with a little momentum) instead of selecting text, and where nothing
+ * can scroll that way the drag moves the board itself (`pan`). Text can't be selected
+ * except in fields; a click that ended a drag doesn't press anything.
+ */
+const TOUCH_RUNTIME = `(function () {
+  var style = document.createElement("style");
+  style.textContent = "html{-webkit-user-select:none;user-select:none}input,textarea,select,[contenteditable],[contenteditable] *{-webkit-user-select:text;user-select:text}img,a{-webkit-user-drag:none}";
+  (document.head || document.documentElement).appendChild(style);
+  var root = document.documentElement;
+  var drag = null, moved = false, glide = 0;
+  // whether a box really moves that way (body's overflow often belongs to the viewport)
+  var moves = function (el, axis) {
+    var key = axis === "y" ? "scrollTop" : "scrollLeft", before = el[key];
+    el[key] = before + 1;
+    if (el[key] === before) el[key] = before - 1;
+    var ok = el[key] !== before;
+    el[key] = before;
+    return ok;
+  };
+  var scroller = function (el, axis) {
+    for (; el && el !== root && el !== document.body; el = el.parentElement) {
+      if (el.nodeType !== 1) continue;
+      var s = getComputedStyle(el), o = axis === "y" ? s.overflowY : s.overflowX;
+      if (/(auto|scroll)/.test(o) && moves(el, axis)) return el;
+    }
+    var doc = document.scrollingElement || root;
+    if (moves(doc, axis)) return doc;
+    return document.body && moves(document.body, axis) ? document.body : null;
+  };
+  var by = function (box, axis, d) { if (axis === "y") box.scrollTop -= d; else box.scrollLeft -= d; };
+  addEventListener("pointerdown", function (e) {
+    glide++;
+    moved = false;
+    if (e.pointerType !== "mouse" || e.button !== 0 || root.hasAttribute("data-rafiq-picking")) return;
+    if (e.target.closest && e.target.closest("input, textarea, select, [contenteditable]")) return;
+    drag = { x: e.clientX, y: e.clientY, t: e.timeStamp, v: 0, el: e.target, axis: null, box: null, id: e.pointerId };
+  });
+  addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.axis) {
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+      drag.axis = Math.abs(dy) >= Math.abs(dx) ? "y" : "x";
+      drag.box = scroller(drag.el, drag.axis);
+      moved = true;
+      try { root.setPointerCapture(drag.id); } catch (_) {}
+    }
+    var d = drag.axis === "y" ? dy : dx;
+    drag.v = d / Math.max(1, e.timeStamp - drag.t);
+    drag.x = e.clientX; drag.y = e.clientY; drag.t = e.timeStamp;
+    if (drag.box) by(drag.box, drag.axis, d);
+    else parent.postMessage({ source: "rafiq-board", type: "pan", dx: dx, dy: dy }, "*");
+  });
+  var end = function () {
+    if (drag && drag.box && Math.abs(drag.v) > 0.2) {
+      var box = drag.box, axis = drag.axis, v = drag.v * 16, mine = ++glide;
+      (function step() { v *= 0.94; if (mine !== glide || Math.abs(v) < 0.5) return; by(box, axis, v); requestAnimationFrame(step); })();
+    }
+    drag = null;
+  };
+  addEventListener("pointerup", end);
+  addEventListener("pointercancel", end);
+  addEventListener("click", function (e) { if (moved) { moved = false; e.preventDefault(); e.stopPropagation(); } }, true);
+  addEventListener("dragstart", function (e) { e.preventDefault(); });
+})();`;
+
 /** A document as the board shows it: the preview runtime (links stay inside the design),
- *  plus its height, so an identity sheet is drawn whole. */
+ *  the touch runtime, plus its height, so an identity sheet is drawn whole. */
 export function framed(html: string): string {
   return `${guarded(html)}
+<script>${TOUCH_RUNTIME}</script>
 <script>(function () {
   var send = function () { parent.postMessage({ source: "rafiq-board", type: "height", h: document.documentElement.scrollHeight }, "*"); };
   addEventListener("load", function () { send(); setTimeout(send, 400); setTimeout(send, 1500); });
@@ -80,7 +149,7 @@ export function boardHtml(title: string, items: BoardItem[], dir: "rtl" | "ltr",
 <style>
   :root { --bg: #ececec; --dot: #c9c9c9; --ink: #161616; --muted: #6b6b6b; --card: #fff; }
   @media (prefers-color-scheme: dark) { :root { --bg: #151515; --dot: #2c2c2c; --ink: #f2f2f2; --muted: #9a9a9a; --card: #1f1f1f; } }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
   #view { position: fixed; inset: 0; cursor: grab; background-image: radial-gradient(var(--dot) 1px, transparent 1px); background-size: 24px 24px; }
   #view.drag { cursor: grabbing; }
   #view.drag iframe { pointer-events: none; }
@@ -127,6 +196,7 @@ export function boardHtml(title: string, items: BoardItem[], dir: "rtl" | "ltr",
     if (d.source === "rafiq-board" && d.type === "height") {
       document.querySelectorAll(".sheet iframe").forEach(function (f) { if (f.contentWindow === e.source) f.style.height = Math.max(400, Math.min(6000, d.h)) + "px"; });
     }
+    if (d.source === "rafiq-board" && d.type === "pan") { x += d.dx * s; y += d.dy * s; apply(); }
     if (d.source === "rafiq-preview" && d.type === "missing" && d.page) {
       var id = String(d.page).split("#").pop().split("/").pop().replace(/\\.html?$/i, "");
       var target = document.getElementById("b-" + id);

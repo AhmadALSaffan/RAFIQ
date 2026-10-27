@@ -10,8 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
+from rafiq_agent.core import art_direction, font_catalog, identity_refs, studio
 from rafiq_agent.core import designs as design_core
-from rafiq_agent.core import font_catalog, identity_refs, studio
 from rafiq_agent.core import identity as identity_core
 from rafiq_agent.core.chat_service import active_turn
 from rafiq_agent.core.designs import (
@@ -104,6 +104,10 @@ class DesignOut(BaseModel):
     working: bool = False
     # An app's screens, shown as a board of phone frames (core/designs.py `is_board`).
     board: bool = False
+    # The variants the user asked for and hasn't chosen between yet: {key, name, document}.
+    variants: list[dict[str, str]] = []
+    # Whether the design can ask for variants (a site, not an app or a dashboard).
+    can_vary: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -331,6 +335,12 @@ def _out(design: Design) -> DesignOut:
     out.kickoff = brief_message(design.brief or {})
     out.working = active_turn(design.chat_id) is not None
     out.board = is_board(design.brief)
+    out.can_vary = art_direction.wants_direction(design.brief)
+    out.variants = [
+        {"key": k, "name": tr(art_direction.DIRECTIONS[k]["name"]), "document": art_direction.VARIANT_PREFIX + k}
+        for k in (design.brief or {}).get("variants") or []
+        if k in art_direction.DIRECTIONS
+    ]
     # A design from before documents were named still has only its preview.
     if not out.files and design.preview_html:
         out.files = [DesignFileOut(name=design.title[:40], html=design.preview_html, path=design.saved_path)]
@@ -771,16 +781,103 @@ async def restore_version(design_id: str, version_id: str, session: AsyncSession
     saved file). The history keeps everything — restoring is a step forward, not a delete."""
     design, found = await _design_and_versions(session, design_id)
     version = _version(found, version_id)
-    files = merge_files(design.files, [{"name": version["document"], "html": version["html"]}])
-    path = save_preview(design.working_dir, version["document"], version["html"])
+    _set_document(design, version["document"], version["html"])
+    design.updated_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(design)
+    return _out(design)
+
+
+def _set_document(design: Design, name: str, html: str) -> None:
+    """Makes `html` the current version of document `name` (and the preview, and its file)."""
+    files = merge_files(design.files, [{"name": name, "html": html}])
+    path = save_preview(design.working_dir, name, html)
     for item in files:
-        if item["name"] == version["document"] and path:
+        if item["name"] == name and path:
             item["path"] = path
     design.files = files
-    design.preview_html = version["html"]
+    design.preview_html = html
     if path:
         design.saved_path = path
-    design.updated_at = datetime.now(UTC)
+
+
+class UndoOut(BaseModel):
+    design: DesignOut
+    # The documents brought back to how they were, and the ones that reply made new.
+    restored: list[str]
+    skipped: list[str]
+
+
+@router.post("/designs/{design_id}/messages/{message_id}/undo", response_model=UndoOut)
+async def undo_reply(design_id: str, message_id: str, session: AsyncSession = Depends(get_session)) -> UndoOut:
+    """Takes the design back to before one reply: every document that reply wrote returns to
+    its version from before it. A document the reply created has nothing to return to and is
+    left as it is. Like restoring, it's a step forward — the history keeps everything."""
+    design, found = await _design_and_versions(session, design_id)
+    touched = [v for v in found if v["message_id"] == message_id]
+    if not touched:
+        raise HTTPException(status_code=404, detail=tr("هالرد ما غيّر شي بالتصميم."))
+    restored: list[str] = []
+    skipped: list[str] = []
+    for version in touched:
+        before = [v for v in found[: found.index(version)] if v["document"] == version["document"]]
+        if before:
+            _set_document(design, version["document"], before[-1]["html"])
+            restored.append(version["document"])
+        else:
+            skipped.append(version["document"])
+    if restored:
+        design.updated_at = _now()
+        await session.commit()
+        await session.refresh(design)
+    return UndoOut(design=_out(design), restored=restored, skipped=skipped)
+
+
+class VariantsOut(BaseModel):
+    # What the app sends to the design chat on the user's behalf.
+    message: str
+    design: DesignOut
+
+
+@router.post("/designs/{design_id}/variants", response_model=VariantsOut)
+async def ask_variants(design_id: str, session: AsyncSession = Depends(get_session)) -> VariantsOut:
+    """Three directions for variants of the page, none of them the design's own. The model
+    reads them with its next turn (chat_service) and writes one document for each."""
+    design = await session.get(Design, design_id)
+    if not design:
+        raise HTTPException(status_code=404, detail="design not found")
+    brief = dict(design.brief or {})
+    if not art_direction.wants_direction(brief):
+        raise HTTPException(status_code=400, detail=tr("النسخ البديلة للمواقع وصفحات الهبوط بس."))
+    rows = (await session.execute(select(Design.brief).order_by(Design.created_at.desc()).limit(8))).scalars().all()
+    recent = [str(b.get("art")) for b in rows if isinstance(b, dict) and b.get("art")]
+    keys = art_direction.pick_variants(brief, recent)
+    design.brief = {**brief, "variants": keys}
+    await session.commit()
+    await session.refresh(design)
+    names = tr("، ").join(f"«{tr(art_direction.DIRECTIONS[k]['name'])}»" for k in keys)
+    message = tr("اعملّي 3 نسخ بديلة من الصفحة، كل وحدة باتجاه فني: {0}. نفس الهوية والمحتوى، بس تكوين مختلف — بدي أختار وحدة.", names)
+    return VariantsOut(message=message, design=_out(design))
+
+
+@router.post("/designs/{design_id}/variants/{key}/choose", response_model=DesignOut)
+async def choose_variant(design_id: str, key: str, session: AsyncSession = Depends(get_session)) -> DesignOut:
+    """The variant the user kept becomes the design's page, and its direction the design's."""
+    design = await session.get(Design, design_id)
+    if not design:
+        raise HTTPException(status_code=404, detail="design not found")
+    name = art_direction.VARIANT_PREFIX + key
+    chosen = next((f for f in design.files or [] if f.get("name") == name), None)
+    if key not in art_direction.DIRECTIONS or chosen is None:
+        raise HTTPException(status_code=404, detail=tr("ما لقيت هالنسخة — استنى النموذج يخلّصها."))
+    main = next(
+        (f["name"] for f in design.files or [] if not str(f.get("name", "")).startswith(art_direction.VARIANT_PREFIX)),
+        design.title[:40],
+    )
+    _set_document(design, main, chosen["html"])
+    brief = {k: v for k, v in (design.brief or {}).items() if k != "variants"}
+    design.brief = {**brief, "art": key}
+    design.updated_at = _now()
     await session.commit()
     await session.refresh(design)
     return _out(design)
