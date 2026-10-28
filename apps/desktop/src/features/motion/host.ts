@@ -1,19 +1,24 @@
 /**
- * The engine's end of the agent channel. While the app is open, a model working on a motion
- * project can have frames measured, checked, drawn, analysed and exported here — the same
- * engine the preview uses, so what the model is told is what the user sees. The engine
- * itself loads on the first request, so the app starts as fast as before.
+ * The engine's end of the agent channel. While a motion project is open, a model working on
+ * it can have frames measured, checked, drawn, analysed and exported here — the same
+ * engine the preview uses, so what the model is told is what the user sees. The channel is
+ * open only while a motion project is open (the engine is the heaviest thing in the app);
+ * with none open, the agent falls back to its structural checks and tells the model so.
  */
 
 import { useEffect } from "react";
 import { listenToEngineRequests, replyToEngine, type EngineRequest } from "../../lib/api";
 
+let loaded: Promise<typeof import("./hostHandlers")> | null = null;
+
 async function handle(request: EngineRequest): Promise<unknown> {
-  const mod = await import("./hostHandlers");
+  loaded ??= import("./hostHandlers");
+  const mod = await loaded;
   return mod.handle(request);
 }
 
-/** Keeps the channel open for as long as the app runs, reconnecting after a drop. */
+/** Keeps the channel open while the page that calls it is open, reconnecting after a drop;
+ *  closing the page lets the engine go. */
 export function useMotionEngineHost(): void {
   useEffect(() => {
     const controller = new AbortController();
@@ -42,6 +47,7 @@ export function useMotionEngineHost(): void {
     return () => {
       stopped = true;
       controller.abort();
+      if (loaded) void loaded.then((mod) => mod.closeEngine());
     };
   }, []);
 }

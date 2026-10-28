@@ -40,7 +40,7 @@ def connected() -> bool:
 async def call(kind: str, payload: dict[str, Any], timeout: float = 30.0) -> Any:
     """Runs `kind` in the engine and returns its result."""
     if not _hosts:
-        raise EngineUnavailable("no app window is connected to draw")
+        raise EngineUnavailable("the motion engine runs only while the project is open in the app — ask the user to open it")
     request_id = uuid.uuid4().hex[:12]
     future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
     _pending[request_id] = future

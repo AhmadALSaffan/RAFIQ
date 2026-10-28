@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { motion } from "motion/react";
+import { motion, PresenceContext } from "motion/react";
 import { t } from "../i18n";
 
 /** Rafiq at work: a small glowing orb in the accent (styles in index.css, `.orb`). */
@@ -99,17 +99,22 @@ export function WorkOrb({ size = 16 }: { size?: number }) {
       </span>
       {flight?.to &&
         createPortal(
-          <motion.span
-            className="pointer-events-none fixed left-0 top-0 z-[100]"
-            style={{ width: big, height: big, marginLeft: -big / 2, marginTop: -big / 2 }}
-            initial={{ x: flight.path[0].x, y: flight.path[0].y, scale: 0.4, opacity: 0 }}
-            animate={{ x: flight.path.map((p) => p.x), y: flight.path.map((p) => p.y), scale: flight.scale, opacity: flight.opacity }}
-            transition={{ duration: 0.85, ease: "linear" }}
-            onAnimationComplete={() => setFlight(null)}
-            aria-hidden
-          >
-            <Orb size={big} />
-          </motion.span>,
+          // Out of any AnimatePresence around the orb (the status icon's): one with
+          // initial={false} lands it at once, never fires the completion, and leaves it
+          // hanging over the reply.
+          <PresenceContext.Provider value={null}>
+            <motion.span
+              className="pointer-events-none fixed left-0 top-0 z-[100]"
+              style={{ width: big, height: big, marginLeft: -big / 2, marginTop: -big / 2 }}
+              initial={{ x: flight.path[0].x, y: flight.path[0].y, scale: 0.4, opacity: 0 }}
+              animate={{ x: flight.path.map((p) => p.x), y: flight.path.map((p) => p.y), scale: flight.scale, opacity: flight.opacity }}
+              transition={{ duration: 0.85, ease: "linear" }}
+              onAnimationComplete={() => setFlight(null)}
+              aria-hidden
+            >
+              <Orb size={big} />
+            </motion.span>
+          </PresenceContext.Provider>,
           document.body,
         )}
     </>

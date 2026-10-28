@@ -563,30 +563,62 @@ export interface ThreePlayer {
   dispose(): void;
 }
 
+/**
+ * One WebGL context for every player in the app: the motion page's cards, the chat's reel
+ * cards, the workspace and the engine the model checks its work with. A context each meant a
+ * full set of shaders, lighting maps and shadow buffers per card, which on a laptop's shared
+ * graphics memory is the computer's own RAM (and the browser drops the oldest past 16).
+ * Every draw sets its size and exposure, renders and copies the picture out at once, so
+ * sharing changes nothing in what's drawn. Released when the last player is disposed.
+ */
+const shared: {
+  renderer: THREE.WebGLRenderer | null;
+  failed: boolean;
+  users: number;
+  envs: Map<string, THREE.Texture>;
+} = { renderer: null, failed: false, users: 0, envs: new Map() };
+
+function sharedRenderer(): THREE.WebGLRenderer | null {
+  if (shared.renderer || shared.failed) return shared.renderer;
+  try {
+    const canvas = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(16, 16) : document.createElement("canvas");
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas as unknown as HTMLCanvasElement, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(1);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.setClearColor(0x000000, 0);
+    shared.renderer = renderer;
+  } catch {
+    shared.failed = true;
+  }
+  return shared.renderer;
+}
+
+function releaseShared(): void {
+  shared.users = Math.max(0, shared.users - 1);
+  if (shared.users > 0) return;
+  for (const t of shared.envs.values()) t.dispose();
+  shared.envs.clear();
+  shared.renderer?.dispose();
+  shared.renderer = null;
+}
+
 export function threePlayer(): ThreePlayer {
-  let renderer: THREE.WebGLRenderer | null = null;
-  let failed = false;
+  let joined = false;
   let kit: BrandKit;
   const built = new Map<string, Built>();
-  const envs = new Map<string, THREE.Texture>();
+  const envs = shared.envs;
   const gltfs = new Map<string, { scene: THREE.Object3D; animations: THREE.AnimationClip[] }>();
   const pictures = new Map<string, HTMLCanvasElement>();
   let grainTile: HTMLCanvasElement | null = null;
 
   function gl(): THREE.WebGLRenderer | null {
-    if (renderer || failed) return renderer;
-    try {
-      const canvas = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(16, 16) : document.createElement("canvas");
-      renderer = new THREE.WebGLRenderer({ canvas: canvas as unknown as HTMLCanvasElement, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
-      renderer.setPixelRatio(1);
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFShadowMap;
-      renderer.setClearColor(0x000000, 0);
-    } catch {
-      failed = true;
-      renderer = null;
+    const renderer = sharedRenderer();
+    if (renderer && !joined) {
+      joined = true;
+      shared.users += 1;
     }
     return renderer;
   }
@@ -1536,10 +1568,10 @@ export function threePlayer(): ThreePlayer {
     dispose() {
       for (const b of built.values()) b.dispose();
       built.clear();
-      for (const t of envs.values()) t.dispose();
-      envs.clear();
-      renderer?.dispose();
-      renderer = null;
+      if (joined) {
+        joined = false;
+        releaseShared();
+      }
     },
   };
 }

@@ -24,6 +24,7 @@ const THINKING = [
 ];
 
 const shortPath = (value: unknown) => (typeof value === "string" ? value.replace(/\\/g, "/").split("/").pop() || value : "");
+const firstLine = (value: unknown) => (typeof value === "string" ? value.trim().split("\n")[0] : "");
 const shortCommand = (value: unknown) => (typeof value === "string" ? (value.length > 48 ? `${value.slice(0, 48)}…` : value) : "");
 
 /** What a running tool is doing, in a few words. */
@@ -33,6 +34,8 @@ export function doing(tool: string, args: Record<string, unknown>): string {
       return t("عم يقرأ {0}…", { 0: shortPath(args.path) });
     case "filesystem_write":
       return t("عم يكتب {0}…", { 0: shortPath(args.path) });
+    case "filesystem_edit":
+      return t("عم يعدّل {0}…", { 0: shortPath(args.path) });
     case "word_write":
       return t("عم يكتب مستند Word: {0}…", { 0: shortPath(args.path) });
     case "slides_write":
@@ -56,7 +59,7 @@ export function doing(tool: string, args: Record<string, unknown>): string {
     case "filesystem_delete":
       return t("عم يحذف {0}…", { 0: shortPath(args.path) });
     case "shell_run":
-      return t("عم يشغّل: {0}", { 0: shortCommand(args.command) });
+      return t("عم يشغّل: {0}", { 0: shortCommand(args.command ?? firstLine(args.script)) });
     case "web_search":
       return t("عم يدوّر على الإنترنت…");
     case "web_fetch":
@@ -100,7 +103,7 @@ type Phase = "read" | "write" | "run" | "web" | "design" | "issue" | "tool";
 /** What kind of work a tool is, for the icon beside the status. */
 export function phaseOf(tool: string): Phase {
   if (/^(filesystem_(read|list)|excel_read|image_view|notes_list|note_read)$/.test(tool)) return "read";
-  if (/^(filesystem_(write|delete)|word_write|slides_write|excel_write|note_(create|edit))$/.test(tool)) return "write";
+  if (/^(filesystem_(write|edit|delete)|word_write|slides_write|excel_write|note_(create|edit))$/.test(tool)) return "write";
   if (tool === "shell_run") return "run";
   if (tool.startsWith("web_") || tool.startsWith("browser_")) return "web";
   if (tool.startsWith("design_") || tool.startsWith("motion_")) return "design";

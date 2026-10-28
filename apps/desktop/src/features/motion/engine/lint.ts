@@ -9,6 +9,7 @@ import { contrastRatio, hexToRgb, paintColor, relLuminance } from "./brand";
 import { isAllowedEase } from "./easing";
 import type { MotionEngine } from "./engine";
 import { allLayers } from "./engine";
+import { breather } from "./breathe";
 import { icon } from "./icons";
 import { makeCanvas, renderBelow, type Ctx } from "./render";
 import { BASE, valueAt } from "./tracks";
@@ -247,7 +248,9 @@ export async function lintScene(engine: MotionEngine, options: LintOptions = {})
   for (const id of engine.missingAssets) once(`asset-${id}`, () => issue("M003", null, t("الأصل {a} مش موجود", { a: id })));
   for (const f of engine.missingFonts) once(`font-${f}`, () => issue("M008", null, t("الخط {f} ما تحمّل", { f })));
 
+  const breathe = breather();
   for (const time of sampleTimes(scene)) {
+    await breathe();
     const frame = engine.frame(time);
     const items = flat(frame.items);
     const texts: { item: DrawItem; box: Box }[] = [];
@@ -323,6 +326,7 @@ export async function lintScene(engine: MotionEngine, options: LintOptions = {})
   // M011: a property that jumps between two frames, inside the layer's life
   const step = 1 / comp.fps;
   for (const layer of allLayers(scene.layers)) {
+    await breathe();
     const tracks = p.tracks.get(layer.id);
     if (!tracks || !tracks.segments.size) continue;
     // a transition panel crosses the whole frame in half a second on purpose

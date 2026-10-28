@@ -3,6 +3,7 @@ const LABELS: Record<string, string> = {
   filesystem_list: t("عرض محتويات مجلد"),
   filesystem_read: t("قراءة ملف"),
   filesystem_write: t("كتابة ملف"),
+  filesystem_edit: t("تعديل ملف"),
   filesystem_delete: t("حذف ملف"),
   word_write: t("كتابة مستند Word"),
   slides_write: t("عرض PowerPoint"),

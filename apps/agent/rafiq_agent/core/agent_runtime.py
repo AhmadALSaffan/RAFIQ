@@ -30,6 +30,7 @@ from rafiq_agent.storage.models import LlmModel, SettingsRow, Task, TaskEvent
 from rafiq_agent.tools.base import ToolRegistry
 from rafiq_agent.tools.filesystem import (
     FilesystemDeleteTool,
+    FilesystemEditTool,
     FilesystemListTool,
     FilesystemReadTool,
     FilesystemWriteTool,
@@ -47,6 +48,7 @@ log = logging.getLogger(__name__)
 
 PERMISSION_KEY_BY_TOOL = {
     "filesystem_write": "filesystem_write",
+    "filesystem_edit": "filesystem_write",
     "filesystem_delete": "filesystem_write",
     "word_write": "filesystem_write",
     "slides_write": "filesystem_write",
@@ -152,6 +154,7 @@ async def build_registry(
             FilesystemListTool(working_dir),
             FilesystemReadTool(working_dir),
             FilesystemWriteTool(working_dir),
+            FilesystemEditTool(working_dir),
             FilesystemDeleteTool(working_dir),
             ShellRunTool(working_dir),
             ProcessListTool(),
@@ -234,7 +237,11 @@ async def allow_always(tool_name: str, permissions: dict[str, str] | None = None
 def working_dir_system_note(working_dir: Path) -> str:
     return (
         f"مجلد العمل: {working_dir}\n"
-        "كل مسارات أدوات الملفات نسبية لهالمجلد، وأوامر الـ shell بتنفّذ جوّاه، وما فيك تطلع برّاه."
+        "كل مسارات أدوات الملفات نسبية لهالمجلد، وأوامر الـ shell بتنفّذ جوّاه، وما فيك تطلع برّاه.\n"
+        "لتغيّر جزء من ملف موجود استخدم filesystem_edit (النص القديم بالحرف والنص الجديد)، "
+        "مش filesystem_write للملف كله ولا سكربت. وأي كود (بايثون، Node، regex، نص عربي) ابعته "
+        "لـ shell_run كـ script مع language، مش جوّا سطر أوامر: الـ cmd بيخرّب علامات التنصيص والـ ^ "
+        "والحروف العربية. واطبع بس اللي بتحتاجه (طول، عدد، كم سطر)، مش ملفات كاملة."
     )
 
 

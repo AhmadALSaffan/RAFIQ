@@ -1,5 +1,5 @@
 """Motion projects: changing a scene (always a version), the brand kit it's drawn with, and
-the checks — in the engine when an app window is open, in Python when not."""
+the checks — in the engine when the project is open in the app, in Python when not."""
 
 import json
 import re
@@ -103,7 +103,7 @@ async def restore(session: AsyncSession, project: MotionProject, number: int) ->
 
 
 async def check(scene: dict[str, Any], kit: dict[str, Any], target: str = "mp4", full: bool = True) -> dict[str, Any]:
-    """Every issue in the scene. With an app window open the engine checks the pixels too
+    """Every issue in the scene. With the project open in the app the engine checks the pixels too
     (contrast, overflow, safe area, overlap, jumps); otherwise only the structural rules run
     and the result says so."""
     issues = lint.structural(scene, kit, target)
@@ -127,7 +127,8 @@ async def inspect(scene: dict[str, Any], kit: dict[str, Any], times: list[float]
         except (bridge.EngineUnavailable, bridge.EngineError):
             pass
     return (
-        "(the app window isn't open, so frames can't be measured — this is the structure only)\n"
+        "(the project isn't open in the app, so frames can't be measured — this is the structure only; "
+        "ask the user to open it in Motion to measure them)\n"
         + rms.summarize(scene)
     )
 

@@ -12,10 +12,11 @@ import { getDesign, getMotionProject } from "../../lib/api";
 import type { Design } from "../../lib/types";
 import type { MotionProject } from "../../lib/api/motion";
 import { snappy } from "../../lib/motion";
-import { ScenePlayer } from "../motion/ScenePlayer";
 import { MovieIcon, WandIcon } from "../../components/Icons";
 import { ShimmerText } from "../../components/LiveText";
 import { t } from "../../i18n";
+import { useInView } from "../../lib/inView";
+import { ReelFace } from "../motion/ReelFace";
 
 export type StudioRef = { studio: "design" | "motion"; id: string; chat_id: string; title: string };
 
@@ -54,26 +55,34 @@ function useLive(ref: StudioRef): Live {
 }
 
 function DesignThumb({ html }: { html: string | null }) {
-  if (!html) return <div className="shimmer absolute inset-0" />;
+  const box = useRef<HTMLSpanElement>(null);
+  // The page runs (its scripts, its animations) only while the card is on screen.
+  const seen = useInView(box);
   return (
-    <iframe
-      srcDoc={html}
-      title={t("معاينة")}
-      tabIndex={-1}
-      sandbox="allow-scripts"
-      className="pointer-events-none absolute start-0 top-0"
-      style={{ width: "1280px", height: "800px", transform: "scale(0.2)", transformOrigin: "top right", border: 0, background: "white" }}
-    />
+    <span ref={box} className="absolute inset-0">
+      {!html ? (
+        <div className="shimmer absolute inset-0" />
+      ) : (
+        seen && (
+        <iframe
+          srcDoc={html}
+          title={t("معاينة")}
+          tabIndex={-1}
+          sandbox="allow-scripts"
+          className="pointer-events-none absolute start-0 top-0"
+          style={{ width: "1280px", height: "800px", transform: "scale(0.2)", transformOrigin: "top right", border: 0, background: "white" }}
+        />
+        )
+      )}
+    </span>
   );
 }
 
-function MotionThumb({ project, playing }: { project: MotionProject | null; playing: boolean }) {
-  const [time, setTime] = useState(0);
-  useEffect(() => {
-    if (project) setTime(project.scene.composition.duration / 3);
-  }, [project]);
+/** The reel's still (the engine runs only inside an open project). */
+function MotionThumb({ id, project }: { id: string; project: MotionProject | null }) {
   if (!project || project.version <= 1) return <div className="shimmer absolute inset-0" />;
-  return <ScenePlayer scene={project.scene} kit={project.kit} time={time} playing={playing} loop maxSide={240} onTime={setTime} className="absolute inset-1.5" />;
+  const comp = project.scene.composition;
+  return <ReelFace id={id} width={comp.width} height={comp.height} duration={comp.duration} className="p-1.5" />;
 }
 
 export function StudioCard({ item, fresh }: { item: StudioRef; fresh: boolean }) {
@@ -94,7 +103,6 @@ export function StudioCard({ item, fresh }: { item: StudioRef; fresh: boolean })
       });
     }
   }, [live.working, live.gone, live.title, item.studio, item.id, navigate]);
-  const [hover, setHover] = useState(false);
   const design = item.studio === "design";
   const status = live.gone
     ? t("انحذف")
@@ -115,8 +123,6 @@ export function StudioCard({ item, fresh }: { item: StudioRef; fresh: boolean })
       type="button"
       onClick={live.gone ? undefined : () => navigate(design ? `/designs/${item.id}` : `/motion/${item.id}`)}
       disabled={live.gone}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       initial={fresh ? { scale: 0.95, opacity: 0 } : false}
       animate={{ scale: 1, opacity: live.gone ? 0.55 : 1 }}
       whileHover={live.gone ? undefined : { y: -2 }}
@@ -130,7 +136,7 @@ export function StudioCard({ item, fresh }: { item: StudioRef; fresh: boolean })
         style={{ width: design ? 256 : 112, height: design ? 160 : 160, background: "var(--color-surface-2)" }}
         aria-hidden
       >
-        {design ? <DesignThumb html={live.html} /> : <MotionThumb project={live.project} playing={hover} />}
+        {design ? <DesignThumb html={live.html} /> : <MotionThumb id={item.id} project={live.project} />}
       </span>
       <span className="flex min-w-0 flex-1 flex-col justify-between py-1.5 pe-2">
         <span className="min-w-0">

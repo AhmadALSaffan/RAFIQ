@@ -172,6 +172,90 @@ class FilesystemWriteTool(Tool):
             return ToolResult(ok=False, output=str(e))
 
 
+class FilesystemEditTool(Tool):
+    """A change to part of a file: the exact text to replace and what replaces it. Rewriting
+    a whole page to change one line costs the full file in output on every edit, and a
+    one-liner script through the shell breaks on quotes and Arabic; this does neither."""
+
+    name = "filesystem_edit"
+    category = "write"
+    description = (
+        "Change part of a text file, relative to the task's working directory: replace "
+        "`old_text` (copied exactly from the file, including spaces and line breaks, and "
+        "unique in it unless `replace_all`) with `new_text`. Use it for any change to an "
+        "existing file instead of rewriting the whole file with filesystem_write or "
+        "editing it with a script. Several changes to one file: one call each."
+    )
+    parameters = {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string"},
+            "old_text": {"type": "string", "description": "Exact text to replace"},
+            "new_text": {"type": "string", "description": "Its replacement ('' deletes it)"},
+            "replace_all": {"type": "boolean", "description": "Replace every occurrence (default false)"},
+        },
+        "required": ["path", "old_text", "new_text"],
+    }
+
+    def __init__(self, working_dir: Path) -> None:
+        self.working_dir = working_dir
+
+    def _apply(self, args: dict[str, Any]) -> tuple[Path, str, str, int]:
+        """(file, old content, new content, places changed), or ValueError with what the model should fix."""
+        target = _resolve(self.working_dir, str(args.get("path", "")))
+        if not target.is_file():
+            raise ValueError(f"file not found: {args.get('path')} — create it with filesystem_write")
+        try:
+            # As it is on disk: Windows line ends stay Windows line ends.
+            with target.open(encoding="utf-8", newline="") as f:
+                old = f.read()
+        except UnicodeDecodeError:
+            raise ValueError(f"{target.name} isn't UTF-8 text") from None
+        find, replace = str(args.get("old_text", "")), str(args.get("new_text", ""))
+        if not find:
+            raise ValueError("old_text is empty — copy the exact text to replace from the file")
+        count = old.count(find)
+        if count == 0 and "\r\n" in old and "\r\n" not in find:
+            # The model reads lines without their carriage returns; the file has them.
+            find, replace = find.replace("\n", "\r\n"), replace.replace("\n", "\r\n")
+            count = old.count(find)
+        if count == 0:
+            raise ValueError(
+                "old_text isn't in the file. Read the part you want to change again "
+                "(filesystem_read) and copy it exactly, spaces and line breaks included."
+            )
+        if count > 1 and not args.get("replace_all"):
+            raise ValueError(
+                f"old_text appears {count} times. Include more of the text around it so it's "
+                "unique, or pass replace_all to change every one."
+            )
+        return target, old, old.replace(find, replace), count
+
+    async def preview(self, args: dict[str, Any]) -> str | None:
+        import difflib
+
+        try:
+            target, old, new, _ = self._apply(args)
+        except (PathEscapeError, ValueError):
+            return None
+        label = args.get("path", target.name)
+        diff = difflib.unified_diff(
+            old.splitlines(keepends=True), new.splitlines(keepends=True), fromfile=f"a/{label}", tofile=f"b/{label}", n=2
+        )
+        text = "".join(diff) or "(no changes)"
+        if len(text) > PREVIEW_CHARS:
+            text = text[:PREVIEW_CHARS] + "\n… (truncated)"
+        return text
+
+    async def run(self, args: dict[str, Any]) -> ToolResult:
+        try:
+            target, _, new, changed = self._apply(args)
+        except (PathEscapeError, ValueError) as e:
+            return ToolResult(ok=False, output=str(e))
+        target.write_text(new, encoding="utf-8", newline="")
+        return ToolResult(ok=True, output=f"edited {target.name} ({changed} change{'s' if changed != 1 else ''}, {len(new)} characters now)")
+
+
 class FilesystemDeleteTool(Tool):
     name = "filesystem_delete"
     category = "write"

@@ -3,7 +3,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from rafiq_agent.core.context import fit, reply_room
+from rafiq_agent.core.context import STEP_BUDGET, compact_steps, fit, message_tokens, reply_room
 from rafiq_agent.llm.base import LlmProvider
 from rafiq_agent.tools.base import ToolRegistry
 
@@ -116,6 +116,8 @@ async def _run(
     head = len(messages) - 1
     window = getattr(llm, "context_window", None)
     budget = window - reply_room(window, getattr(llm, "max_tokens", None)) if isinstance(window, int) else None
+    # What this run has added since its older steps were last compacted.
+    settled = sum(message_tokens(m) for m in messages[head:])
 
     for _ in range(max_iterations):
         text, reasoning = "", ""
@@ -223,6 +225,10 @@ async def _run(
 
         if images:
             await _show_images(llm, messages, images)
+
+        if sum(message_tokens(m) for m in messages[head:]) - settled > STEP_BUDGET:
+            compact_steps(messages, head)
+            settled = sum(message_tokens(m) for m in messages[head:])
 
     return LoopResult("max_iterations", all_text, all_reasoning)
 

@@ -1,5 +1,5 @@
 import { ForcedUpdate } from "./features/updates/ForcedUpdate";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Toasts } from "./lib/toast";
 import { Route, Routes } from "react-router-dom";
 import { Shell } from "./components/Shell";
@@ -12,13 +12,6 @@ import { ChatPage } from "./features/chat";
 import { ModelsPage } from "./routes/ModelsPage";
 import { IntegrationsPage } from "./routes/IntegrationsPage";
 import { WorkPage } from "./features/work";
-import NotesPage from "./features/notes/NotesPage";
-import LiteNote from "./features/notes/LiteNote";
-import { DesignsPage } from "./routes/DesignsPage";
-import { DesignWorkspace } from "./routes/DesignWorkspace";
-import { MotionPage } from "./routes/MotionPage";
-import { CreativePage } from "./routes/CreativePage";
-import { MotionWorkspace } from "./routes/MotionWorkspace";
 import { TasksPage } from "./features/tasks/TasksPage";
 import { TaskDetailPage } from "./features/tasks/TaskDetailPage";
 import { SettingsPage } from "./routes/SettingsPage";
@@ -28,6 +21,21 @@ import { NotFoundPage } from "./routes/NotFoundPage";
 import { FeedbackPage } from "./routes/FeedbackPage";
 import { QuickAsk } from "./routes/QuickAsk";
 import { HomePage } from "./routes/HomePage";
+import { EngineLoading } from "./features/motion/EngineLoading";
+
+// The studios and the notes editor load when they're first opened, not at startup: the motion
+// engine (three.js, audio, video export), the design workspace and CodeMirror would otherwise
+// sit in memory for someone who never goes there.
+const NotesPage = lazy(() => import("./features/notes/NotesPage"));
+const LiteNote = lazy(() => import("./features/notes/LiteNote"));
+const DesignsPage = lazy(() => import("./routes/DesignsPage").then((m) => ({ default: m.DesignsPage })));
+const DesignWorkspace = lazy(() => import("./routes/DesignWorkspace").then((m) => ({ default: m.DesignWorkspace })));
+const MotionPage = lazy(() => import("./routes/MotionPage").then((m) => ({ default: m.MotionPage })));
+const CreativePage = lazy(() => import("./routes/CreativePage").then((m) => ({ default: m.CreativePage })));
+const MotionWorkspace = lazy(() => import("./routes/MotionWorkspace").then((m) => ({ default: m.MotionWorkspace })));
+
+/** A page that loads on demand: nothing in its place for the moment it takes (or `wait`). */
+const later = (page: ReactNode, wait: ReactNode = null) => <Suspense fallback={wait}>{page}</Suspense>;
 
 // The design-system sheet only exists in dev builds.
 const DesignSystemPage = import.meta.env.DEV ? lazy(() => import("./routes/DesignSystemPage").then((m) => ({ default: m.DesignSystemPage }))) : null;
@@ -42,7 +50,7 @@ export function App() {
           {/* The quick-ask window (global shortcut): no sidebar, just the box. */}
           <Route path="/quick" element={<QuickAsk />} />
           {/* Rafiq Lite: one Markdown file in a window of its own (opened from Windows). */}
-          <Route path="/lite" element={<LiteNote />} />
+          <Route path="/lite" element={later(<LiteNote />)} />
           <Route element={<Shell />}>
             <Route index element={<HomePage />} />
             {/* One optional-param route so /chat → /chat/:id never remounts the page mid-stream. */}
@@ -51,12 +59,12 @@ export function App() {
             <Route path="/tasks/:id" element={<TaskDetailPage />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/work" element={<WorkPage />} />
-            <Route path="/create" element={<CreativePage />} />
-            <Route path="/notes" element={<NotesPage />} />
-            <Route path="/designs" element={<DesignsPage />} />
-            <Route path="/designs/:id" element={<DesignWorkspace />} />
-            <Route path="/motion" element={<MotionPage />} />
-            <Route path="/motion/:id" element={<MotionWorkspace />} />
+            <Route path="/create" element={later(<CreativePage />)} />
+            <Route path="/notes" element={later(<NotesPage />)} />
+            <Route path="/designs" element={later(<DesignsPage />)} />
+            <Route path="/designs/:id" element={later(<DesignWorkspace />)} />
+            <Route path="/motion" element={later(<MotionPage />)} />
+            <Route path="/motion/:id" element={later(<MotionWorkspace />, <EngineLoading full />)} />
             <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/about" element={<AboutPage />} />

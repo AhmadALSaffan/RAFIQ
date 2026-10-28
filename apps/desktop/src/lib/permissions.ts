@@ -30,6 +30,7 @@ export const MODE_LABEL: Record<PermissionMode, string> = {
 
 const BY_TOOL: Record<string, PermissionKey> = {
   filesystem_write: "filesystem_write",
+  filesystem_edit: "filesystem_write",
   filesystem_delete: "filesystem_write",
   shell_run: "shell",
   process_kill: "process",
@@ -83,9 +84,15 @@ const IRREVERSIBLE = new Set(["filesystem_delete", "process_kill", "task_publish
 const DESTRUCTIVE_COMMAND =
   /(^|[\s;&|(])(rm|rmdir|del|erase|rd|mkfs|shred|Remove-Item|Clear-Content|Clear-RecycleBin|Format-Volume|diskpart)(\.exe)?(?=$|[\s;&|)])|git\s+(push\s.*(--force\b|\s-f\b)|reset\s+--hard|clean\s+-\w*f|branch\s+-D)|\bformat\s+[a-z]:|\bdrop\s+(table|database)\b/i;
 
+/** The same, from inside a Python or Node script. */
+const DESTRUCTIVE_SCRIPT = /\b(shutil\.rmtree|os\.(remove|unlink|rmdir|removedirs)|send2trash|fs\.(rm|rmSync|rmdir|rmdirSync|unlink|unlinkSync))\b|\.(unlink|unlinkSync|rmdir|rmdirSync|rmSync)\(/;
+
 /** Whether approving this call should take a press-and-hold instead of a click — so a
  *  stray click can't allow something that can't be undone. */
 export function needsHold(tool: string, args: Record<string, unknown>): boolean {
   if (IRREVERSIBLE.has(tool)) return true;
-  return tool === "shell_run" && typeof args.command === "string" && DESTRUCTIVE_COMMAND.test(args.command);
+  if (tool !== "shell_run") return false;
+  if (typeof args.command === "string" && DESTRUCTIVE_COMMAND.test(args.command)) return true;
+  // A script run from a file can delete as much as a command can.
+  return typeof args.script === "string" && (DESTRUCTIVE_COMMAND.test(args.script) || DESTRUCTIVE_SCRIPT.test(args.script));
 }

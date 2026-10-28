@@ -11,6 +11,9 @@
 import { t, type Locale } from "../i18n";
 import chatgptPicture from "../assets/whats-new/0.5.6.webp";
 import boardPicture from "../assets/whats-new/0.5.9.webp";
+import speedAr from "../assets/whats-new/0.5.11-ar.webp";
+import speedEn from "../assets/whats-new/0.5.11-en.webp";
+import speedRu from "../assets/whats-new/0.5.11-ru.webp";
 
 // The version whose dialog the user closed. (A new key: the first builds marked a version
 // seen as soon as it opened, shown or not.)
@@ -25,6 +28,9 @@ export interface ReleaseNews {
   videos?: Partial<Record<Locale, string>>;
   /** A picture instead of a video (shipped with the app, so it shows offline too). */
   image?: string;
+  /** The picture in each language, when its words are written on it (falls back to the
+   *  Arabic one, then `image`). */
+  images?: Partial<Record<Locale, string>>;
   title: () => string;
   points: () => string[];
 }
@@ -33,6 +39,18 @@ export interface ReleaseNews {
 const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/AhmadALSaffan/RAFIQ/releases/download/v${version}/whats-new-${lang}.mp4`;
 
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.11",
+    images: { ar: speedAr, en: speedEn, ru: speedRu },
+    title: () => t("رفيق صار أخف على جهازك وأسرع بالشغل"),
+    points: () => [
+      t("الموشن والتصميم والملاحظات ما بيتحمّلوا إلا لما تفتحهم، ومحرّك الموشن بيشتغل بس جوّا المشروع"),
+      t("الموشن ما عاد يعلّق وهو عم يشتغل، وكل معاينات الـ 3D على سياق رسوم واحد"),
+      t("التنقل بين الصفحات أسرع: الكرة الأرضية بتنبني مرة وحدة وبترسم بنص الشغل"),
+      t("المهام أسرع وأوفر: أداة بتعدّل جزء من الملف، وسكربتات بتشتغل صح مع العربي"),
+      t("الكرة المضيئة ما عادت تعلق فوق الرد"),
+    ],
+  },
   {
     version: "0.5.10",
     videos: { ar: RELEASE_VIDEO("0.5.10", "ar"), en: RELEASE_VIDEO("0.5.10", "en"), ru: RELEASE_VIDEO("0.5.10", "ru") },
@@ -100,6 +118,11 @@ export const NEWS: ReleaseNews[] = [
 
 export function newsFor(version: string): ReleaseNews | undefined {
   return NEWS.find((n) => n.version === version);
+}
+
+/** The release's picture in this language, if it has one. */
+export function imageFor(news: ReleaseNews, lang: Locale): string | undefined {
+  return news.images?.[lang] ?? news.images?.ar ?? news.image;
 }
 
 export function videoUrl(news: ReleaseNews, lang: Locale): string {

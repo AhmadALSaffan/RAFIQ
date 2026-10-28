@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NEWS, shouldShow, videoUrl, youtubeId } from "./whatsNew";
+import { imageFor, NEWS, shouldShow, videoUrl, youtubeId } from "./whatsNew";
 
 const listed = NEWS[0].version;
 
@@ -27,5 +27,14 @@ describe("what's new", () => {
     const news = { version: "9.9.9", title: () => "", points: () => [], videos: { ar: "ar.mp4", en: "en.mp4" } };
     expect(videoUrl(news, "en")).toBe("en.mp4");
     expect(videoUrl(news, "ru")).toBe("ar.mp4");
+  });
+
+  it("shows the picture in the app's language, then the Arabic one, then the shared one", () => {
+    const base = { version: "9.9.9", title: () => "", points: () => [] };
+    const news = { ...base, images: { ar: "ar.webp", en: "en.webp" } };
+    expect(imageFor(news, "en")).toBe("en.webp");
+    expect(imageFor(news, "ru")).toBe("ar.webp");
+    expect(imageFor({ ...base, image: "one.webp" }, "ru")).toBe("one.webp");
+    expect(imageFor(base, "ar")).toBeUndefined();
   });
 });

@@ -22,7 +22,6 @@ import {
 } from "./Icons";
 import { CommandPalette, usePaletteShortcut } from "./CommandPalette";
 import { useTheme } from "../lib/theme";
-import { useMotionEngineHost } from "../features/motion/host";
 import { getSettings, listChats, listDesigns, listMotionProjects, listTasks, quietly } from "../lib/api";
 import { closeTab, neighbourAfterClose, openTab, pruneTabs, tabFor, useTabs, type AppTab } from "../lib/tabs";
 import { notify, syncBackground } from "../lib/background";
@@ -194,8 +193,6 @@ export function Shell() {
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
   }, []);
-  // The motion engine answers the agent from here, whichever page is open.
-  useMotionEngineHost();
   const location = useLocation();
   const navigate = useNavigate();
   const { running, queued, approvals, toasts, dismiss } = useTaskWatcher(location.pathname, navigate);
@@ -451,10 +448,15 @@ export function Shell() {
           </nav>
 
           <main className={`relative min-w-0 flex-1 ${fullHeight ? "overflow-hidden" : "overflow-y-auto overflow-x-hidden overscroll-x-none"}`}>
-            {/* The globe behind the pages (not behind the full-height workspaces, which cover it). */}
-            {layout.globe && !fullHeight && (
-              <div aria-hidden className="pointer-events-none fixed z-0" style={{ opacity: theme === "dark" ? 0.75 : 0.6, bottom: -globeSize * 0.28, insetInlineEnd: -globeSize * 0.22 }}>
-                <GlobeBackdrop dark={theme === "dark"} size={globeSize} />
+            {/* The globe behind the pages. The full-height workspaces cover it: there it's hidden
+                and stops drawing, but stays built for the next page. */}
+            {layout.globe && (
+              <div
+                aria-hidden
+                className="pointer-events-none fixed z-0"
+                style={{ opacity: theme === "dark" ? 0.75 : 0.6, bottom: -globeSize * 0.28, insetInlineEnd: -globeSize * 0.22, visibility: fullHeight ? "hidden" : undefined }}
+              >
+                <GlobeBackdrop dark={theme === "dark"} size={globeSize} paused={fullHeight} />
               </div>
             )}
             <motion.div

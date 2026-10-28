@@ -3,12 +3,12 @@
  * the release's video on top, its main points under it. The About page opens it again.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { IconCircleCheckFilled, IconExternalLink, IconSparkles, IconX } from "@tabler/icons-react";
 import { getSettings, listModels } from "../../lib/api";
-import { markSeen, newsFor, OPEN_EVENT, readSeen, releaseUrl, shouldShow, videoUrl, youtubeId, type ReleaseNews } from "../../lib/whatsNew";
+import { imageFor, markSeen, newsFor, OPEN_EVENT, readSeen, releaseUrl, shouldShow, videoUrl, youtubeId, type ReleaseNews } from "../../lib/whatsNew";
 import { openExternal } from "../../lib/links";
 import { easeOutExpo } from "../../lib/motion";
 import { Button } from "../../components/ui";
@@ -90,8 +90,8 @@ export function WhatsNew() {
               <IconX size={16} />
             </button>
 
-            {news.image ? (
-              <img src={news.image} alt="" className="aspect-video w-full shrink-0 object-cover" draggable={false} />
+            {imageFor(news, locale()) ? (
+              <img src={imageFor(news, locale())} alt="" className="aspect-video w-full shrink-0 object-cover" draggable={false} />
             ) : (
               <Video news={news} />
             )}
@@ -138,6 +138,18 @@ export function WhatsNew() {
 /** The release's video; while it loads, a quiet placeholder; offline or missing, nothing. */
 function Video({ news }: { news: ReleaseNews }) {
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+  const player = useRef<HTMLVideoElement>(null);
+  // A closed dialog lets its video go: an element taken off the page keeps its decoder
+  // (a few hundred MB of a laptop's shared graphics memory) until it's collected.
+  useEffect(() => {
+    const video = player.current;
+    return () => {
+      if (!video) return;
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, []);
   const url = videoUrl(news, locale());
   const youtube = youtubeId(url);
   if (state === "failed") return null;
@@ -155,13 +167,14 @@ function Video({ news }: { news: ReleaseNews }) {
         />
       ) : (
         <video
+          ref={player}
           src={url}
           autoPlay
           muted
           loop
           playsInline
           controls
-          preload="auto"
+          preload="metadata"
           onCanPlay={() => setState("ready")}
           onError={() => setState("failed")}
           className="h-full w-full object-cover transition-opacity duration-300"

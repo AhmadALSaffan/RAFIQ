@@ -19,6 +19,9 @@ import { FullPreview } from "../features/motion/FullPreview";
 import { LintBadge, LintPanel, Timeline, formatTime, type LintIssue, type MotionClip } from "../features/motion/pieces";
 import { safeZones, type Issue } from "../features/motion/engine/lint";
 import type { MotionEngine } from "../features/motion/engine/engine";
+import { useMotionEngineHost } from "../features/motion/host";
+import { EngineLoading } from "../features/motion/EngineLoading";
+import { posterFrom, posterVersion, savePoster } from "../features/motion/posters";
 import { applyOps, clipPatch, duplicateLayerOps, findLayer, removeLayerOps, reviewTimes, setField, tracksFromScene, type Op } from "../features/motion/sceneEdit";
 import type { Scene } from "../features/motion/engine/types";
 
@@ -68,6 +71,12 @@ export function MotionWorkspace() {
   const [request, setRequest] = useState<{ id: number; text: string } | null>(null);
   const [moving, setMoving] = useState<{ id: string; x0: number; y0: number; dx: number; dy: number } | null>(null);
   const player = useRef<ScenePlayerHandle>(null);
+  // The engine runs while this project is open, and only then: it answers the model
+  // from here, and closing the project lets it go (see features/motion/host.ts).
+  useMotionEngineHost();
+  const [engineUp, setEngineUp] = useState(false);
+  const current = useRef<MotionProject | null>(null);
+  current.current = project;
   const pending = useRef(0);
   const dragTimer = useRef<number | null>(null);
 
@@ -129,6 +138,16 @@ export function MotionWorkspace() {
   // Checks run in the engine after every change (debounced through the player's reload).
   const lintToken = useRef(0);
   const onEngineReady = useCallback(async (engine: MotionEngine) => {
+    setEngineUp(true);
+    // A still of this version for the cards outside the project, which don't run the engine.
+    const shown = current.current;
+    if (shown && posterVersion(shown.id) !== shown.version) {
+      const at = engine.scene.composition.duration / 3;
+      void (async () => {
+        if (engine.hasVideo()) await engine.prepareFrame(at);
+        savePoster(shown.id, shown.version, await posterFrom(await engine.png(at, 480)));
+      })().catch(() => undefined);
+    }
     const token = ++lintToken.current;
     setLinting(true);
     try {
@@ -376,6 +395,7 @@ export function MotionWorkspace() {
             <>
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="relative min-h-0 flex-1 p-3" style={{ background: "var(--color-surface-2)" }}>
+                  {!engineUp && <EngineLoading />}
                   <ScenePlayer
                     ref={player}
                     scene={scene}
@@ -386,7 +406,10 @@ export function MotionWorkspace() {
                     onTime={setTime}
                     onEnded={() => setPlaying(false)}
                     onReady={(engine) => void onEngineReady(engine)}
-                    onError={(m) => setSaveError(m)}
+                    onError={(m) => {
+                      setEngineUp(true);
+                      setSaveError(m);
+                    }}
                     className="h-full w-full"
                     onCanvasClick={(x, y) => {
                       const frame = player.current?.engine()?.frame(time);

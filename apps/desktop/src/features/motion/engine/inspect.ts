@@ -7,6 +7,7 @@
 
 import { contrastRatio, hexToRgb, paintColor, relLuminance } from "./brand";
 import type { MotionEngine } from "./engine";
+import { breather } from "./breathe";
 import { lintScene, safeZones, type Issue } from "./lint";
 import { makeCanvas, renderBelow, type Ctx } from "./render";
 import type { Box, DrawItem } from "./types";
@@ -40,7 +41,9 @@ export async function inspectFrames(engine: MotionEngine, times: number[], known
   const ctx = canvas.getContext("2d", { willReadFrequently: true }) as Ctx;
   const zones = safeZones(engine.scene);
   const blocks: string[] = [];
+  const breathe = breather();
   for (const time of times) {
+    await breathe();
     const t = Math.max(0, Math.min(comp.duration - 1e-3, time));
     const frame = engine.frame(t);
     const lines = [`t=${t.toFixed(2)}s · ${comp.width}×${comp.height} · safe area: ${comp.safeArea ?? "none"}`];

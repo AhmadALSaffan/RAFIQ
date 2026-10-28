@@ -8,18 +8,22 @@
  */
 
 import { Progress as ArcProgress } from "../../components/arc/progress/progress";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { snappy } from "../../lib/motion";
 import { ffmpegStatus, getMotionKit, installFfmpeg, installLocalModel, listModels, localModels, listWorkspaces, motionKitTemplates, motionMediaKeys, removeFfmpeg, removeLocalModel, saveMotionKit, saveMotionMediaKey, type FfmpegStatus, type LocalPack, type LocalPackName, quietly } from "../../lib/api";
 import type { AppSettings, LlmModel, Workspace } from "../../lib/types";
 import type { BrandKit, Scene } from "../motion/engine/types";
 import { contrastRatio, hexToRgb, relLuminance } from "../motion/engine/brand";
-import { ScenePlayer } from "../motion/ScenePlayer";
 import { Button } from "../../components/ui";
 import { Card, Hint, Section, SelectRow } from "./controls";
 import { t } from "../../i18n";
 import { roving } from "../../lib/keyboard";
+import { EngineLoading } from "../motion/EngineLoading";
+import { PlayIcon } from "../../components/Icons";
+
+// The motion engine loads with the preview, not with Settings.
+const ScenePlayer = lazy(() => import("../motion/ScenePlayer").then((m) => ({ default: m.ScenePlayer })));
 
 type Persist = (next: AppSettings) => void;
 
@@ -105,6 +109,8 @@ function BrandKitEditor() {
   const [error, setError] = useState<string | null>(null);
   const [time, setTime] = useState(1.5);
   const [playing, setPlaying] = useState(false);
+  // The engine starts only when asked to: Settings opens without it.
+  const [preview, setPreview] = useState(false);
   const scene = useMemo(previewScene, []);
 
   useEffect(() => {
@@ -193,11 +199,24 @@ function BrandKitEditor() {
             onMouseEnter={() => setPlaying(true)}
             onMouseLeave={() => setPlaying(false)}
           >
-            <ScenePlayer scene={scene} kit={kit} time={time} playing={playing} loop maxSide={640} onTime={setTime} className="h-full w-full" />
+            {preview ? (
+              <Suspense fallback={<EngineLoading />}>
+                <ScenePlayer scene={scene} kit={kit} time={time} playing={playing} loop maxSide={640} onTime={setTime} className="h-full w-full" />
+              </Suspense>
+            ) : (
+              <div className="absolute inset-0 grid place-items-center">
+                <Button variant="ghost" onClick={() => setPreview(true)}>
+                  <PlayIcon className="h-4 w-4" />
+                  {t("اعرض المعاينة")}
+                </Button>
+              </div>
+            )}
           </div>
-          <p className="mt-1.5 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
-            {t("مرّر الماوس فوق المعاينة لتشوف الحركة.")}
-          </p>
+          {preview && (
+            <p className="mt-1.5 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+              {t("مرّر الماوس فوق المعاينة لتشوف الحركة.")}
+            </p>
+          )}
 
           <p className="mb-1.5 mt-4 text-sm font-medium">{t("ابدأ من قالب")}</p>
           <div className="flex flex-wrap gap-1.5">

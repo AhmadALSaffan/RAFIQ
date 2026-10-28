@@ -91,7 +91,7 @@ class MotionPatchSceneTool(_ProjectTool):
         result = await service.check(scene, kit)
         if self.on_change:
             await self.on_change(version.number)
-        engine = "" if result["engine"] else " (structural checks only — the app window isn't open)"
+        engine = "" if result["engine"] else " (structural checks only — the project isn't open in the app)"
         fitted = (
             "\nkept inside the video (nothing may sit past a layer's end or the video's duration):\n- " + "\n- ".join(moved[:12])
             if moved
@@ -166,7 +166,7 @@ class MotionReviewTool(_ProjectTool):
         try:
             report = await service.review(scene, kit)
         except (bridge.EngineUnavailable, bridge.EngineError) as exc:
-            return ToolResult(ok=False, output=f"can't measure the shots now ({exc}) — the app window has to be open")
+            return ToolResult(ok=False, output=f"can't measure the shots now ({exc})")
         guide = f"\n\n{service.review_guide()}" if self.guided else ""
         return ToolResult(ok=True, output=_clip(f"{report}{guide}"))
 

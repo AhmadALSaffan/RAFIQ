@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   createMotionProject,
   deleteMotionProject,
-  getMotionProject,
   listModels,
   listMotionProjects,
   type MotionProject,
@@ -21,52 +20,11 @@ import { useElementMenu, usePageMenu } from "../components/ContextMenu";
 import { PageHeader, RefreshButton } from "../components/Page";
 import { BracketLabel } from "../components/brand";
 import { useWorkspaces } from "../lib/workspace";
-import { ScenePlayer } from "../features/motion/ScenePlayer";
+import { ReelFace } from "../features/motion/ReelFace";
 import { formatTime } from "../features/motion/pieces";
 
 import { t } from "../i18n";
 import { ConfirmMorph } from "../components/arc/confirm-morph/confirm-morph";
-
-/** A live thumbnail: the scene itself, still at a third of the way in, playing on hover. */
-function Thumb({ id }: { id: string }) {
-  const [project, setProject] = useState<MotionProject | null>(null);
-  const [hover, setHover] = useState(false);
-  const [time, setTime] = useState(0);
-  useEffect(() => {
-    let alive = true;
-    getMotionProject(id)
-      .then((p) => {
-        if (!alive) return;
-        setProject(p);
-        setTime(p.scene.composition.duration / 3);
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [id]);
-  return (
-    <div
-      className="relative h-48 overflow-hidden rounded-xl"
-      style={{ background: "var(--color-surface-2)" }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
-      {project && (
-        <ScenePlayer
-          scene={project.scene}
-          kit={project.kit}
-          time={time}
-          playing={hover}
-          loop
-          maxSide={320}
-          onTime={setTime}
-          className="absolute inset-2"
-        />
-      )}
-    </div>
-  );
-}
 
 const ASPECTS: { id: NewMotionProject["aspect"]; label: string }[] = [
   { id: "9:16", label: t("ريل 9:16") },
@@ -323,7 +281,9 @@ export function MotionPage() {
                   { id: "delete", label: t("احذف المشروع"), onSelect: () => void remove(p.id), danger: true },
                 ])}
               >
-                <Thumb id={p.id} />
+                <div className="relative h-48 overflow-hidden rounded-xl" style={{ background: "var(--color-surface-2)" }}>
+                  <ReelFace id={p.id} width={p.width} height={p.height} duration={p.duration} />
+                </div>
                 <div className="flex items-start justify-between gap-2 px-1">
                   <div className="min-w-0">
                     <p className="truncate text-[15px] font-bold" style={{ fontFamily: "var(--font-display)" }} dir="auto">

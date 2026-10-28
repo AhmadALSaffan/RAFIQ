@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge, type BadgeTone } from "../components/arc/badge/badge";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -21,6 +21,7 @@ import { useWorkspaces } from "../lib/workspace";
 import { Wireframe } from "../components/brand";
 
 import { t } from "../i18n";
+import { useInView } from "../lib/inView";
 import { ConfirmMorph } from "../components/arc/confirm-morph/confirm-morph";
 /** Cheap live thumbnail: the real document, scaled down and inert. */
 function Thumb({ html }: { html: string | null }) {
@@ -35,19 +36,29 @@ function Thumb({ html }: { html: string | null }) {
       </div>
     );
   }
+  return <LiveThumb html={html} />;
+}
+
+/** The page runs (its scripts, its animations) only while its card is on screen. */
+function LiveThumb({ html }: { html: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const seen = useInView(box);
   return (
     <div
+      ref={box}
       className="relative h-44 overflow-hidden rounded-xl border"
       style={{ background: "white", borderColor: "var(--color-border)" }}
     >
-      <iframe
-        srcDoc={html}
-        title={t("معاينة")}
-        tabIndex={-1}
-        sandbox="allow-scripts"
-        className="pointer-events-none absolute start-0 top-0 origin-top-right"
-        style={{ width: "1200px", height: "900px", transform: "scale(0.34)", transformOrigin: "top right", border: 0 }}
-      />
+      {seen && (
+        <iframe
+          srcDoc={html}
+          title={t("معاينة")}
+          tabIndex={-1}
+          sandbox="allow-scripts"
+          className="pointer-events-none absolute start-0 top-0 origin-top-right"
+          style={{ width: "1200px", height: "900px", transform: "scale(0.34)", transformOrigin: "top right", border: 0 }}
+        />
+      )}
     </div>
   );
 }

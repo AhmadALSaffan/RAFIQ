@@ -36,7 +36,7 @@ export interface Activity {
 }
 export type ActivityTab = "files" | "commands";
 
-const WRITES = new Set(["filesystem_write", "word_write", "slides_write", "excel_write"]);
+const WRITES = new Set(["filesystem_write", "filesystem_edit", "word_write", "slides_write", "excel_write"]);
 const RUNS = new Set(["shell_run"]);
 
 const stateOf = (ok: boolean | undefined): ActivityState => (ok === undefined ? "running" : ok ? "ok" : "fail");
@@ -51,8 +51,10 @@ export function collectActivity(parts: ChatPart[]): Activity {
       const path = part.args.path.replace(/\\/g, "/").replace(/^\.\//, "");
       files.delete(path); // a rewrite moves it back to the top
       files.set(path, { id: part.id, path, state: stateOf(part.ok) });
-    } else if (RUNS.has(part.tool) && typeof part.args?.command === "string") {
-      commands.push({ id: part.id, command: part.args.command, state: stateOf(part.ok), output: part.output ?? "" });
+    } else if (RUNS.has(part.tool) && (typeof part.args?.command === "string" || typeof part.args?.script === "string")) {
+      // A script shows as itself: what ran is the whole file.
+      const command = typeof part.args.command === "string" ? part.args.command : String(part.args.script);
+      commands.push({ id: part.id, command, state: stateOf(part.ok), output: part.output ?? "" });
     }
   }
   return { files: [...files.values()].reverse(), commands };

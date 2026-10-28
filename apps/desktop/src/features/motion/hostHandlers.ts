@@ -10,12 +10,50 @@ import { formatReview, reviewScene } from "./engine/review";
 import { analyzeVideo, blobToDataUrl, VideoClip } from "./engine/video";
 import type { Asset, BrandKit, Scene } from "./engine/types";
 import { assetLoader, runExport } from "./exports";
+import { breather } from "./engine/breathe";
+
+// One engine kept between the model's requests. A model working on a reel checks it again
+// after every edit; a new engine each time decoded every picture, reopened every video and
+// built the 3D (lighting, shadows, shaders) from nothing — on a laptop, seconds of a frozen
+// app per check. `update` keeps whatever the edit didn't touch. Let go after a minute idle.
+const IDLE_MS = 60_000;
+let kept: MotionEngine | null = null;
+let idle = 0;
 
 async function engineFor(scene: Scene, kit: BrandKit): Promise<MotionEngine> {
+  window.clearTimeout(idle);
+  if (kept) {
+    try {
+      await kept.update(scene, kit);
+      return kept;
+    } catch {
+      kept.dispose();
+      kept = null;
+    }
+  }
   const engine = new MotionEngine(scene, kit, await assetLoader());
   await engine.ready();
+  kept = engine;
   return engine;
 }
+
+function release(): void {
+  window.clearTimeout(idle);
+  idle = window.setTimeout(() => {
+    kept?.dispose();
+    kept = null;
+  }, IDLE_MS);
+}
+
+/** The project closed: let the engine go now, not a minute later. */
+export function closeEngine(): void {
+  window.clearTimeout(idle);
+  kept?.dispose();
+  kept = null;
+}
+
+// One request at a time: they share the engine.
+let queue: Promise<unknown> = Promise.resolve();
 
 /** Every check, the audio ones too when the scene has sound. */
 export async function fullLint(engine: MotionEngine, target: "mp4" | "lottie" = "mp4"): Promise<Issue[]> {
@@ -34,7 +72,13 @@ export async function fullLint(engine: MotionEngine, target: "mp4" | "lottie" = 
   return issues;
 }
 
-export async function handle(request: EngineRequest): Promise<unknown> {
+export function handle(request: EngineRequest): Promise<unknown> {
+  const run = queue.then(() => work(request));
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+async function work(request: EngineRequest): Promise<unknown> {
   const p = request.payload;
   switch (request.kind) {
     case "lint": {
@@ -42,7 +86,7 @@ export async function handle(request: EngineRequest): Promise<unknown> {
       try {
         return { issues: await fullLint(engine, (p.target as "mp4" | "lottie") ?? "mp4") };
       } finally {
-        engine.dispose();
+        release();
       }
     }
     case "inspect": {
@@ -50,7 +94,7 @@ export async function handle(request: EngineRequest): Promise<unknown> {
       try {
         return { report: await inspectFrames(engine, (p.times as number[]) ?? [0]) };
       } finally {
-        engine.dispose();
+        release();
       }
     }
     case "review": {
@@ -58,20 +102,22 @@ export async function handle(request: EngineRequest): Promise<unknown> {
       try {
         return { report: formatReview(reviewScene(engine)) };
       } finally {
-        engine.dispose();
+        release();
       }
     }
     case "frames": {
       const engine = await engineFor(p.scene as Scene, p.kit as BrandKit);
       try {
         const images: string[] = [];
+        const breathe = breather();
         for (const t of (p.times as number[]) ?? [0]) {
+          await breathe();
           if (engine.hasVideo()) await engine.prepareFrame(t);
           images.push(await blobToDataUrl(await engine.png(t, Number(p.maxSide) || 960)));
         }
         return { images };
       } finally {
-        engine.dispose();
+        release();
       }
     }
     case "export": {

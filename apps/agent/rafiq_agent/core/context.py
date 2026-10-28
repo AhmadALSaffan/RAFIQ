@@ -206,3 +206,44 @@ def fit(
         out[i]["content"] = clipped
         used -= size - message_tokens(out[i])
     return out
+
+
+# How much one run may grow before its older steps are compacted (see `compact_steps`).
+STEP_BUDGET = 24_000
+# The newest steps stay whole: they're what the model is working from right now.
+KEEP_STEPS = 2
+# A tool argument longer than this (a whole file written) is replaced by a note once acted on.
+LONG_ARGUMENT = 1_500
+SENT_NOTE = "(… {0} حرف انبعتوا بخطوة سابقة — ما بينعادوا هون)"
+
+
+def compact_steps(messages: list[dict[str, Any]], start: int, keep: int = KEEP_STEPS) -> None:
+    """Shrinks the steps of a run the model has moved past, in place. Every request carries
+    the whole run so far, so a run that reads and writes pages re-sends every page on every
+    later step, even with a million-token window where `fit` never has to trim. The results
+    and the files written in older steps keep their head and tail; the newest `keep` steps
+    stay whole. Done in one go when the run has grown (not on every step), so the request
+    keeps the same beginning from one step to the next and a provider's prompt cache holds."""
+    import json
+
+    steps = [i for i in range(start, len(messages)) if messages[i].get("role") == "assistant" and messages[i].get("tool_calls")]
+    if len(steps) <= keep:
+        return
+    until = steps[-keep]
+    for m in messages[start:until]:
+        content = m.get("content")
+        if m.get("role") == "tool" and isinstance(content, str):
+            m["content"] = squeeze(content)
+        for call in m.get("tool_calls") or []:
+            fn = call.get("function") or {}
+            raw = fn.get("arguments")
+            if not isinstance(raw, str) or len(raw) <= LONG_ARGUMENT:
+                continue
+            try:
+                args = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(args, dict):
+                continue
+            short = {k: SENT_NOTE.format(len(v)) if isinstance(v, str) and len(v) > LONG_ARGUMENT else v for k, v in args.items()}
+            fn["arguments"] = json.dumps(short, ensure_ascii=False)
