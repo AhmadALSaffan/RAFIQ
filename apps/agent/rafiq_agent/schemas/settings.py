@@ -105,6 +105,9 @@ class AppSettings(BaseModel):
     # The shortcut also picks up the text selected in the program in front (copied and the
     # clipboard put back), so the box opens on it with translate, fix, summarise and so on.
     quick_ask_selection: bool = True
+    # Another shortcut takes a picture of the screen under the mouse, lets the user drag out
+    # the part they mean, and opens the quick box with it attached. None switches it off.
+    screen_ask_shortcut: str | None = "Ctrl+Alt+S"
     # The user's own actions for that text, next to the built-in ones.
     quick_actions: list[QuickAction] = Field(default_factory=list, max_length=20)
     # The brand kit for motion and design work outside any workspace (motion/brand.py).
@@ -116,6 +119,14 @@ class AppSettings(BaseModel):
     # Voice-overs: which provider speaks (keys stay in the keychain) and with which voice.
     tts_provider: str = "none"  # none | openai | azure | elevenlabs | local
     tts_voice: str | None = None
+    # Reading chat replies out loud: "system" = Windows' own voices, in the app itself (free,
+    # nothing leaves the machine); the others are the voice-over providers above.
+    speak_provider: Literal["system", "openai", "elevenlabs", "azure", "local"] = "system"
+    speak_voice: str | None = None
+    # Search inside the user's files by what they say (core/file_index.py): an index kept on
+    # this machine only. Empty folders = Documents, Desktop and Downloads.
+    file_search_enabled: bool = True
+    file_search_dirs: list[str] = Field(default_factory=list, max_length=30)
     # Where the notes are kept (core/notes.py). None = Documents/Rafiq/notes.
     notes_dir: str | None = None
     # Notes pinned to the top of the list, by their path in the notes folder.

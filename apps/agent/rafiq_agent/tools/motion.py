@@ -276,7 +276,7 @@ class MotionAnalyzeVideoTool(_ProjectTool):
 
 
 def motion_tools(project_id: str, on_change: Any = None, chat_model: str | None = None, *, guided: bool = True) -> list[Tool]:
-    from rafiq_agent.tools.motion_media import media_tools
+    from rafiq_agent.tools.motion_media import MotionReferenceTool, media_tools
 
     return [
         MotionGetSceneTool(project_id),
@@ -285,6 +285,7 @@ def motion_tools(project_id: str, on_change: Any = None, chat_model: str | None 
         MotionInspectTool(project_id),
         MotionReviewTool(project_id, guided),
         MotionRenderFramesTool(project_id, chat_model),
+        MotionReferenceTool(project_id, chat_model),
         MotionRenderTool(project_id),
         MotionAnalyzeVideoTool(project_id),
         *media_tools(project_id, on_change),

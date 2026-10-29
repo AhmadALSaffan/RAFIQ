@@ -14,12 +14,15 @@ export const QUICK_ASK_SHORTCUTS = ["Ctrl+Shift+Space", "Ctrl+Alt+Space", "Ctrl+
 /** How many actions of their own a user can keep (the agent holds the same limit). */
 export const MAX_QUICK_ACTIONS = 20;
 
-/** Registers `shortcut` (null = none). Resolves to a reason the user can act on, or null. */
-export async function syncQuickAsk(shortcut: string | null, selection = true): Promise<string | null> {
+/** The default for "ask about my screen". */
+export const SCREEN_ASK_SHORTCUT = "Ctrl+Alt+S";
+
+/** Registers `shortcut` and `screen` (null = none). Resolves to a reason the user can act on, or null. */
+export async function syncQuickAsk(shortcut: string | null, selection = true, screen: string | null = null): Promise<string | null> {
   const core = await import("@tauri-apps/api/core");
   if (!core.isTauri()) return null;
   try {
-    await core.invoke("set_quick_ask_shortcut", { shortcut, selection });
+    await core.invoke("set_quick_ask_shortcut", { shortcut, selection, screen });
     return null;
   } catch (e) {
     const detail = String(e);
@@ -82,4 +85,23 @@ export function draftAction(label: string, prompt: string, taken: QuickAction[],
   if (clash) return t("في أمر بنفس الاسم.");
   if (!id && taken.length >= MAX_QUICK_ACTIONS) return t("وصلت لحد {0} أوامر.", { 0: String(MAX_QUICK_ACTIONS) });
   return { id: id ?? `a${Date.now().toString(36)}`, label: name, prompt: body };
+}
+
+/** A part of the screen picture, in the picture's on-screen pixels. */
+export type Area = { x: number; y: number; width: number; height: number };
+
+/** The box between where the drag started and where the pointer is, whichever way it went. */
+export function pickedArea(from: { x: number; y: number }, to: { x: number; y: number }): Area {
+  return { x: Math.min(from.x, to.x), y: Math.min(from.y, to.y), width: Math.abs(to.x - from.x), height: Math.abs(to.y - from.y) };
+}
+
+/** One press on a picture of the screen. The prompts talk to the model, so English; the
+ * reply follows the user's language. */
+export function imageActions(): QuickAction[] {
+  return [
+    { id: "explain", label: t("اشرحلي شو هاد"), prompt: "Explain what this part of my screen shows, briefly and plainly. Answer in Arabic unless the screen is clearly for someone working in another language." },
+    { id: "problem", label: t("شو الغلط هون؟"), prompt: "This is part of my screen. Find the error or problem it shows, say what causes it and how to fix it, step by step." },
+    { id: "text", label: t("طلّع النص"), prompt: "Copy out all the text in this picture exactly as written, keeping its lines and order. Reply with the text only." },
+    { id: "translate-image", label: t("ترجم اللي فيه"), prompt: "Translate the text in this picture. If it is in Arabic, translate it into English; otherwise into Arabic. Reply with the translation only." },
+  ];
 }

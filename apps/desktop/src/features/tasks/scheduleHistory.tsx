@@ -147,9 +147,9 @@ export function ScheduleHistory({ scheduleId }: { scheduleId: string }) {
                     <span style={{ color: "var(--color-ink-muted)" }}>
                       {dayLabel(run.started_at)} {clockTime(run.started_at)}
                     </span>
-                    {run.trigger === "manual" && (
+                    {run.trigger !== "schedule" && (
                       <span className="rounded px-1.5 py-px text-[10px]" style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}>
-                        {t("يدوي")}
+                        {run.trigger === "manual" ? t("يدوي") : run.trigger === "folder" ? t("ملف جديد") : run.trigger === "clipboard" ? t("نص منسوخ") : t("برنامج انفتح")}
                       </span>
                     )}
                     {duration && (

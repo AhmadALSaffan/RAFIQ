@@ -19,6 +19,8 @@ from rafiq_agent.api.deps import require_token
 from rafiq_agent.core import schedules as schedule_runs
 from rafiq_agent.core.schedules import next_run, parse_time, start_now
 from rafiq_agent.core.tasks_service import TaskCreateError, resolve_working_dir
+from rafiq_agent.core.triggers import CLIP_FILTERS, EVENT_KINDS
+from rafiq_agent.core.triggers import forget as forget_trigger
 from rafiq_agent.i18n import tr
 from rafiq_agent.mcp_bridge import MANAGER, load_secrets, save_secrets, secret_name, secure_args
 from rafiq_agent.schemas.automation import (
@@ -265,6 +267,18 @@ async def delete_template(template_id: str, session: AsyncSession = Depends(get_
 async def _checked_schedule(body: ScheduleIn, session: AsyncSession) -> None:
     if not await session.get(LlmModel, body.model_id):
         raise HTTPException(status_code=400, detail=tr("النموذج غير موجود."))
+    if body.kind == "folder":
+        if not body.watch or not Path(body.watch).expanduser().is_dir():
+            raise HTTPException(status_code=400, detail=tr("اختار مجلد موجود لتراقبه."))
+        return
+    if body.kind == "app":
+        if not (body.watch or "").strip():
+            raise HTTPException(status_code=400, detail=tr("اكتب اسم البرنامج (مثلاً excel)."))
+        return
+    if body.kind == "clipboard":
+        if (body.watch_filter or "any") not in CLIP_FILTERS:
+            raise HTTPException(status_code=400, detail=tr("نوع النص المنسوخ غير معروف."))
+        return
     if body.kind == "interval" and not body.every_minutes:
         raise HTTPException(status_code=400, detail=tr("حدد كل كم دقيقة (5 على الأقل)."))
     if body.kind != "interval" and parse_time(body.at_time) is None:
@@ -280,7 +294,14 @@ def _apply(schedule: Schedule, body: ScheduleIn) -> None:
     schedule.every_minutes = body.every_minutes if body.kind == "interval" else None
     schedule.at_time = body.at_time if body.kind != "interval" else None
     schedule.weekdays = sorted({d for d in body.weekdays or [] if 0 <= d <= 6}) if body.kind == "weekly" else None
-    schedule.next_run_at = next_run(schedule, datetime.now(UTC)) if body.enabled else None
+    event = body.kind in EVENT_KINDS
+    schedule.watch = (str(Path(body.watch).expanduser()) if body.kind == "folder" else (body.watch or "").strip()) if body.kind != "clipboard" and event else None
+    schedule.watch_filter = ((body.watch_filter or "").strip() or None) if event else None
+    if body.kind == "clipboard":
+        schedule.watch_filter = schedule.watch_filter or "any"
+    schedule.next_run_at = next_run(schedule, datetime.now(UTC)) if body.enabled and not event else None
+    if schedule.id:
+        forget_trigger(schedule.id)
 
 
 async def _schedule_out(session: AsyncSession, schedule: Schedule) -> ScheduleOut:

@@ -32,7 +32,7 @@ import { useWorkspaces } from "../../lib/workspace";
 import { SparkIcon } from "../../components/Icons";
 import { DropZone, useUploads } from "../../components/Attachments";
 import { FolderChip } from "../../components/FolderPicker";
-import { AlertIcon, ArchiveIcon, ArrowDownIcon, ChatIcon, CompressIcon, FileIcon, TerminalIcon } from "../../components/Icons";
+import { AlertIcon, ArchiveIcon, ArrowDownIcon, ChatIcon, CompressIcon, FileIcon, MaximizeIcon, TerminalIcon, XIcon } from "../../components/Icons";
 import { Bump, NumberFlow } from "../../components/MotionKit";
 import { TokenText } from "../../components/TokenText";
 import { Composer } from "./Composer";
@@ -41,12 +41,14 @@ import { AssistantBlock, startsNewDay, TranscriptRow, Welcome, type RowActions }
 import { earlierStart, firstStart, NEAR_TOP, startIncluding } from "./transcriptWindow";
 import { applyEvent, textOf, type Draft } from "./draft";
 import { DEFAULT_REPLY_SETTINGS, MODEL_KEY, rememberEffort, savedEffort, savedModel } from "./constants";
+import { SplitMenu, useSplit } from "./split";
 
 import { t } from "../../i18n";
 import { showGuide } from "../../lib/guides";
 import { permissionLabelOf, type PermissionAnswer } from "../../lib/permissions";
 import { Skeleton } from "../../components/easy/skeleton";
 import { FoldThoughts } from "../../components/agent/ThoughtChain";
+import { VoiceConversation } from "./VoiceConversation";
 export function ChatPage({
   chatId,
   embedded = false,
@@ -57,6 +59,7 @@ export function ChatPage({
   onHostCommand,
   replyFooter,
   onDraftText,
+  pane,
 }: {
   chatId?: string;
   embedded?: boolean;
@@ -74,6 +77,9 @@ export function ChatPage({
   /** The text of the reply being written, as it streams (null when none is) — the design page
    *  shows the page assembling from it. */
   onDraftText?: (text: string | null) => void;
+  /** A chat open beside the main one (split.tsx): its own small header, and a new chat
+   *  reports its id to the page instead of taking over the address. */
+  pane?: { onClose: () => void; onCreated: (id: string) => void };
 } = {}) {
   const params = useParams<{ id: string }>();
   const routeId = chatId ?? params.id;
@@ -115,6 +121,12 @@ export function ChatPage({
   // The reasoning level a chat that doesn't exist yet will start with.
   const [newEffort, setNewEffort] = useState(savedEffort);
   const [summarizing, setSummarizing] = useState(false);
+  const [voice, setVoice] = useState(false);
+  // The newest reply, for the voice conversation to read once it has finished.
+  const lastReply = useMemo(() => {
+    const last = [...messages].reverse().find((m) => m.role === "assistant");
+    return last ? { id: last.id, text: last.content } : null;
+  }, [messages]);
   const [loadingChats, setLoadingChats] = useState(true);
   const [atBottom, setAtBottom] = useState(true);
 
@@ -133,6 +145,7 @@ export function ChatPage({
   const uploads = useUploads();
 
   const layout = useLayout();
+  const split = useSplit(routeId, !embedded);
   const reading = READING_WIDTHS[layout.reading];
   const usable = models.filter((m) => m.verify_ok !== false);
   const current = chats.find((c) => c.id === routeId);
@@ -479,7 +492,8 @@ export function ChatPage({
         skipLoadRef.current = chat.id;
         setChats((prev) => [chat, ...prev]);
         setNewChatFolder(null);
-        navigate(`/chat/${chat.id}`, { replace: true });
+        if (pane) pane.onCreated(chat.id);
+        else navigate(`/chat/${chat.id}`, { replace: true });
       } catch (err) {
         setError(err instanceof Error ? err.message : t("ما قدرت أبدأ محادثة"));
         return;
@@ -782,6 +796,7 @@ export function ChatPage({
 
   async function removeChat(id: string) {
     setChats((prev) => prev.filter((c) => c.id !== id));
+    split.forget(id);
     if (id === routeId) navigate("/chat", { replace: true });
     await deleteChat(id);
   }
@@ -892,7 +907,7 @@ export function ChatPage({
   return (
     // In a design or motion session the model's thinking stays folded until asked for.
     <FoldThoughts.Provider value={mode === "design" || mode === "motion"}>
-    <div className="flex h-full">
+    <div className={`flex h-full ${split.panes.length ? "overflow-x-auto" : ""}`}>
       {!embedded && !layout.listHidden && (
         <>
           <ChatList {...listProps} className="hidden lg:flex" width={layout.list} />
@@ -940,7 +955,36 @@ export function ChatPage({
         )}
       </AnimatePresence>
 
-      <DropZone onFiles={uploads.add} className="flex min-w-0 flex-1 flex-col">
+      <DropZone onFiles={uploads.add} className={`flex flex-1 flex-col ${split.panes.length || pane ? "min-w-[300px]" : "min-w-0"}`}>
+        {pane && (
+          <header className="flex items-center gap-1 border-b px-3 py-1.5" style={{ borderColor: "var(--color-border)" }}>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold" dir="auto">
+              <TokenText text={current?.title ?? t("محادثة جديدة")} />
+            </span>
+            {routeId && (
+              <button
+                type="button"
+                onClick={() => navigate(`/chat/${routeId}`)}
+                className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[var(--color-surface-2)]"
+                style={{ color: "var(--color-ink-muted)" }}
+                aria-label={t("خليها المحادثة الأساسية")}
+                title={t("خليها المحادثة الأساسية")}
+              >
+                <MaximizeIcon className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={pane.onClose}
+              className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[var(--color-surface-2)]"
+              style={{ color: "var(--color-ink-muted)" }}
+              aria-label={t("سكّر هالمحادثة من الشاشة")}
+              title={t("سكّر هالمحادثة من الشاشة")}
+            >
+              <XIcon className="h-3.5 w-3.5" />
+            </button>
+          </header>
+        )}
         {!embedded && (
         <header className="flex items-center justify-between gap-3 px-6 pb-1 pt-3">
           <button
@@ -1003,6 +1047,7 @@ export function ChatPage({
           )}
           <BookmarksMenu messages={messages} onJump={jumpToMessage} onRemove={(m) => void bookmark(m, false)} />
           <FolderChip value={folder} onChange={changeFolder} />
+          <SplitMenu chats={chats} openIds={[routeId, ...split.panes.map((p) => p.id)]} full={split.full} onOpen={split.open} />
         </header>
         )}
 
@@ -1172,7 +1217,19 @@ export function ChatPage({
         </AnimatePresence>
 
 
+        <AnimatePresence>
+          {voice && (
+            <VoiceConversation
+              streaming={streaming}
+              lastReply={lastReply}
+              onSend={(text) => send(text, [])}
+              onClose={() => setVoice(false)}
+            />
+          )}
+        </AnimatePresence>
         <Composer
+          voice={voice}
+          onVoice={() => setVoice((on) => !on)}
           disabled={usable.length === 0}
           streaming={streaming}
           uploads={uploads}
@@ -1213,6 +1270,24 @@ export function ChatPage({
           }
         />
       </DropZone>
+
+      {/* The chats open beside this one, each a whole chat of its own. */}
+      <AnimatePresence initial={false}>
+        {!embedded &&
+          split.panes.map((p) => (
+            <motion.div
+              key={p.slot}
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 24, transition: { duration: 0.16 } }}
+              transition={{ duration: 0.3, ease: easeOutExpo }}
+              className="flex min-w-[300px] flex-1 border-s"
+              style={{ borderColor: "var(--color-border)" }}
+            >
+              <ChatPage chatId={p.id ?? undefined} embedded pane={{ onClose: () => split.close(p.slot), onCreated: (id) => split.created(p.slot, id) }} />
+            </motion.div>
+          ))}
+      </AnimatePresence>
 
       {!embedded && panelOpen && (
         <>

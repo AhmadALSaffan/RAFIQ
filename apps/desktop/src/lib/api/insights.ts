@@ -74,3 +74,20 @@ export async function transcribe(audio: Blob): Promise<string> {
   if (!res.ok) throw new Error(errorText(data.detail) ?? `HTTP ${res.status}`);
   return (data.text ?? "") as string;
 }
+
+/** A reply read out loud by the provider chosen in Settings (not Windows' own voices,
+ * which the app plays itself). */
+export async function speakText(text: string, signal?: AbortSignal, fallback = false): Promise<Blob> {
+  const { baseUrl, token } = await getApiConfig();
+  const res = await fetch(`${baseUrl}/speak`, {
+    method: "POST",
+    signal,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "Accept-Language": locale() },
+    body: JSON.stringify({ text, fallback }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(errorText(data.detail) ?? `HTTP ${res.status}`);
+  }
+  return res.blob();
+}

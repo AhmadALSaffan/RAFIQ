@@ -30,7 +30,7 @@ const CITIES: [number, number][] = [
 const PAGE_HOLD_MS = 700;
 
 export function GlobeBackdrop({ dark, size = 720, paused = false }: { dark: boolean; size?: number; paused?: boolean }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
+  const box = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const stopped = useRef(paused);
   const holdUntil = useRef(0);
@@ -46,8 +46,14 @@ export function GlobeBackdrop({ dark, size = 720, paused = false }: { dark: bool
   }, [location.pathname]);
 
   useEffect(() => {
-    const el = canvas.current;
-    if (!el) return;
+    const host = box.current;
+    if (!host) return;
+    // A new canvas for every build (a theme or size change): the last one's WebGL context is
+    // let go when it's taken down, and a lost context can't draw again.
+    const el = document.createElement("canvas");
+    el.className = "pointer-events-none select-none";
+    el.style.cssText = `width:${size}px;height:${size}px;contain:strict;display:block`;
+    host.appendChild(el);
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // Drawn at one pixel per CSS pixel even on a scaled screen: every pixel runs the whole
     // shader, so 1.5× would cost 2.25× the graphics work for a backdrop that looks the same.
@@ -133,8 +139,9 @@ export function GlobeBackdrop({ dark, size = 720, paused = false }: { dark: bool
       globe?.destroy();
       // Its graphics memory goes now, not whenever the canvas happens to be collected.
       gl?.getExtension("WEBGL_lose_context")?.loseContext();
+      el.remove();
     };
   }, [dark, size]);
 
-  return <canvas ref={canvas} aria-hidden className="pointer-events-none select-none" style={{ width: size, height: size, contain: "strict" }} />;
+  return <div ref={box} aria-hidden style={{ width: size, height: size }} />;
 }

@@ -6,6 +6,7 @@ use std::sync::Mutex;
 
 mod file_icon;
 mod job;
+mod screen;
 mod selection;
 mod update;
 
@@ -24,6 +25,10 @@ static RUN_IN_BACKGROUND: AtomicBool = AtomicBool::new(true);
 /// setting, again from the page), and keeps it here until the box asks for it.
 static QUICK_SELECTION: AtomicBool = AtomicBool::new(true);
 static SELECTED: Mutex<Option<String>> = Mutex::new(None);
+
+/// "Ask about my screen": the picture taken when its shortcut was pressed, as a data URL,
+/// until the box asks for it.
+static SHOT: Mutex<Option<String>> = Mutex::new(None);
 
 #[derive(Clone, Serialize)]
 struct ApiConfig {
@@ -96,6 +101,36 @@ fn on_quick_shortcut(app: &AppHandle) {
         let _ = app.run_on_main_thread(move || {
             show_quick(&handle);
             let _ = handle.emit_to(QUICK, "rafiq://quick-opened", ());
+        });
+    });
+}
+
+/// The screen shortcut: a picture of the screen under the mouse first (before any Rafiq
+/// window covers it), then the box spread over that same screen showing the picture, so
+/// the user drags out the part to ask about. The page shrinks the box back afterwards.
+fn on_screen_shortcut(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(QUICK) {
+        let _ = window.hide();
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        // A moment for the box to get off the screen if it was up.
+        std::thread::sleep(std::time::Duration::from_millis(120));
+        let Some(shot) = screen::capture() else {
+            log::error!("screen capture failed");
+            return;
+        };
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        *SHOT.lock().unwrap() = Some(format!("data:image/png;base64,{}", STANDARD.encode(&shot.png)));
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            show_quick(&handle);
+            if let Some(window) = handle.get_webview_window(QUICK) {
+                let _ = window.set_position(tauri::PhysicalPosition::new(shot.x, shot.y));
+                let _ = window.set_size(tauri::PhysicalSize::new(shot.width, shot.height));
+                let _ = window.set_focus();
+            }
+            let _ = handle.emit_to(QUICK, "rafiq://quick-snip", ());
         });
     });
 }
@@ -249,20 +284,57 @@ fn quit_app(app: AppHandle) {
 /// before is released first, so changing it never leaves the old one behind. The error is
 /// the reason in words — most often another program holding the same keys.
 #[tauri::command]
-fn set_quick_ask_shortcut(app: AppHandle, shortcut: Option<String>, selection: Option<bool>) -> Result<(), String> {
+fn set_quick_ask_shortcut(
+    app: AppHandle,
+    shortcut: Option<String>,
+    selection: Option<bool>,
+    screen: Option<String>,
+) -> Result<(), String> {
     QUICK_SELECTION.store(selection.unwrap_or(true), Ordering::Relaxed);
     let shortcuts = app.global_shortcut();
     shortcuts.unregister_all().map_err(|e| e.to_string())?;
-    let Some(keys) = shortcut.filter(|k| !k.trim().is_empty()) else {
-        return Ok(());
-    };
-    shortcuts
-        .on_shortcut(keys.as_str(), |app, _shortcut, event| {
+    let mut failed = Vec::new();
+    if let Some(keys) = shortcut.filter(|k| !k.trim().is_empty()) {
+        let done = shortcuts.on_shortcut(keys.as_str(), |app, _shortcut, event| {
             if event.state() == ShortcutState::Pressed {
                 on_quick_shortcut(app);
             }
-        })
-        .map_err(|e| e.to_string())
+        });
+        if let Err(e) = done {
+            failed.push(format!("{keys}: {e}"));
+        }
+    }
+    if let Some(keys) = screen.filter(|k| !k.trim().is_empty()) {
+        let done = shortcuts.on_shortcut(keys.as_str(), |app, _shortcut, event| {
+            if event.state() == ShortcutState::Pressed {
+                on_screen_shortcut(app);
+            }
+        });
+        if let Err(e) = done {
+            failed.push(format!("{keys}: {e}"));
+        }
+    }
+    if failed.is_empty() {
+        Ok(())
+    } else {
+        Err(failed.join("; "))
+    }
+}
+
+/// The screen picture taken by the screen shortcut, handed over once.
+#[tauri::command]
+fn take_screen_shot() -> Option<String> {
+    SHOT.lock().unwrap().take()
+}
+
+/// The box back to its own size in the middle of the screen, after picking a part.
+#[tauri::command]
+fn restore_quick_ask(app: AppHandle) {
+    if let Some(window) = app.get_webview_window(QUICK) {
+        let _ = window.set_size(tauri::LogicalSize::new(640.0, 440.0));
+        let _ = window.center();
+        let _ = window.set_focus();
+    }
 }
 
 /// The text that was selected when the box last opened, handed over once.
@@ -535,6 +607,8 @@ pub fn run() {
             set_quick_ask_shortcut,
             hide_quick_ask,
             take_quick_selection,
+            take_screen_shot,
+            restore_quick_ask,
             open_in_main,
             installer_language,
             take_launch_file,

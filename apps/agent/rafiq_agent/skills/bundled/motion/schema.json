@@ -1411,7 +1411,7 @@
         "kind"
       ],
       "additionalProperties": false,
-      "description": "One thing in a 3D scene. World units: the camera sits about 7 away; a title is about 1 tall.",
+      "description": "One thing in a 3D scene. World units: the camera sits about 7 away; a title is about 1 tall. Ready-made things (tree, rock, mountain, cloud, building, city, house, streetLamp, car, person, road, water, fence, bench…) stand on their base at `position`.",
       "properties": {
         "id": {
           "$ref": "#/$defs/id"
@@ -1442,7 +1442,25 @@
             "globe",
             "ground",
             "blob",
-            "group"
+            "group",
+            "rock",
+            "dome",
+            "prism",
+            "mountain",
+            "tree",
+            "bush",
+            "flower",
+            "cloud",
+            "building",
+            "city",
+            "house",
+            "streetLamp",
+            "car",
+            "person",
+            "road",
+            "water",
+            "fence",
+            "bench"
           ]
         },
         "name": {
@@ -1849,6 +1867,143 @@
             "maxItems": 2
           },
           "description": "lathe: [radius, y] pairs from the bottom up, in sizes, turned round the y axis (a vase, a bottle, a cup)."
+        },
+        "variant": {
+          "type": "string",
+          "maxLength": 24,
+          "description": "Which kind of a ready-made thing: tree round|pine|palm|autumn · building and city tower|glass|classic|setback|spire|residential · mountain bare (no snow)."
+        },
+        "floors": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "description": "A building's (or a windowed box's) floors; default from the height."
+        },
+        "windows": {
+          "description": "Lit windows on a box's sides, a building or a city. false: none.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "glass": {
+                  "$ref": "#/$defs/color"
+                },
+                "light": {
+                  "$ref": "#/$defs/color"
+                },
+                "lit": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "How many are lit (0.35 day, 0.5–0.7 a night city)."
+                },
+                "glow": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 5
+                },
+                "style": {
+                  "enum": [
+                    "grid",
+                    "bands",
+                    "fins",
+                    "curtain",
+                    "diagrid"
+                  ],
+                  "description": "grid = windows in a wall · bands = glass every floor · fins = vertical fins · curtain = a glass wall · diagrid = steel diagonals over glass."
+                },
+                "cols": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 60
+                }
+              }
+            }
+          ]
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "Another arrangement of the same thing (another skyline, another tree)."
+        },
+        "roads": {
+          "type": "boolean",
+          "description": "A city's streets (default true)."
+        },
+        "trees": {
+          "description": "Trees along a city's streets: true, or one every N lots.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          ]
+        },
+        "form": {
+          "enum": [
+            "box",
+            "slab",
+            "round",
+            "tapered",
+            "twisted",
+            "stepped",
+            "triangle",
+            "lshape"
+          ],
+          "description": "A building's shape: slab = thin, tapered narrows going up, stepped = setbacks."
+        },
+        "top": {
+          "enum": [
+            "flat",
+            "spire",
+            "pyramid",
+            "gable",
+            "dome",
+            "crown",
+            "helipad",
+            "antenna"
+          ],
+          "description": "A building's top; crown = a band of light (its colour from windows.light)."
+        },
+        "podium": {
+          "description": "A wider base under a tower: true (3 floors) or its floors.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          ]
+        },
+        "taper": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.85,
+          "description": "How much a tapered tower narrows by its top."
+        },
+        "twist": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360,
+          "description": "A twisted tower's turn, bottom to top, in degrees."
+        },
+        "radiusTop": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 200,
+          "description": "A cylinder's or cone's top radius (a frustum)."
         }
       }
     },

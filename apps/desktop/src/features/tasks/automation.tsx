@@ -7,13 +7,14 @@ import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { deleteSchedule, deleteTemplate, exportTemplates, importTemplates, listSchedules, listTemplates, runScheduleNow, saveSchedule, saveTemplate, templateCatalog } from "../../lib/api";
 import { saveTextFile } from "../../components/ChatCommands";
-import type { CatalogTemplate, LlmModel, Schedule, ScheduleInput, ScheduleKind, TaskTemplate } from "../../lib/types";
+import type { CatalogTemplate, ClipFilter, EventKind, LlmModel, Schedule, ScheduleInput, ScheduleKind, TaskTemplate } from "../../lib/types";
 import { listContainer, listItem, snappy } from "../../lib/motion";
 import { bigClock, upcomingLabel } from "../../lib/time";
 import { fieldDir } from "../../lib/bidi";
 import { Button, EmptyState, ErrorText, Field, Reveal } from "../../components/ui";
 import { FolderPicker } from "../../components/FolderPicker";
-import { ClockIcon, DownloadIcon, GlobeIcon, PlusIcon, SpinnerIcon, TasksIcon, TrashIcon } from "../../components/Icons";
+import { pickFolder } from "../../lib/folders";
+import { BoltIcon, ClockIcon, DownloadIcon, GlobeIcon, PlusIcon, SpinnerIcon, TasksIcon, TrashIcon } from "../../components/Icons";
 import { Switch } from "../settings/controls";
 import { RecentRuns, ScheduleHistory } from "./scheduleHistory";
 import { variablesOf } from "../../lib/variables";
@@ -52,7 +53,41 @@ function weekdayNames(): string[] {
   return Array.from({ length: 7 }, (_, i) => format.format(new Date(monday.getTime() + i * 86_400_000)));
 }
 
-export function describeSchedule(s: Pick<Schedule, "kind" | "every_minutes" | "at_time" | "weekdays">): string {
+export const EVENT_KINDS: EventKind[] = ["folder", "clipboard", "app"];
+
+export function isEvent(kind: ScheduleKind): kind is EventKind {
+  return (EVENT_KINDS as string[]).includes(kind);
+}
+
+function clipFilterLabel(filter: string | null | undefined): string {
+  return filter === "latin" ? t("نص إنجليزي أو لاتيني") : filter === "arabic" ? t("نص عربي") : filter === "link" ? t("رابط") : t("أي نص");
+}
+
+/** Ready-made triggers: one press fills the form. */
+function eventExamples(): { label: string; patch: Partial<ScheduleInput> }[] {
+  return [
+    {
+      label: t("رتّب التنزيلات"),
+      patch: { kind: "folder", watch: "~/Downloads", watch_filter: "", title: t("رتّب التنزيلات"), prompt: t("انقل كل ملف جديد للمجلد المناسب جوّا التنزيلات حسب نوعه (صور، مستندات، برامج، مضغوط…). ما تحذف شي.") },
+    },
+    {
+      label: t("ترجم اللي بنسخه"),
+      patch: { kind: "clipboard", watch_filter: "latin", title: t("ترجمة المنسوخ"), prompt: t("ترجم النص المنسوخ للعربي بشكل طبيعي. اكتب الترجمة بس، وبتطلعلي بالإشعار.") },
+    },
+    {
+      label: t("ذكّرني لما أفتح Excel"),
+      patch: { kind: "app", watch: "excel", title: t("تذكير Excel"), prompt: t("اكتبلي تذكير قصير إنه لازم أخلّص التقرير الأسبوعي.") },
+    },
+  ];
+}
+
+export function describeSchedule(s: Pick<Schedule, "kind" | "every_minutes" | "at_time" | "weekdays" | "watch" | "watch_filter">): string {
+  if (s.kind === "folder") {
+    const folder = (s.watch ?? "").split(/[\\/]/).filter(Boolean).pop() ?? "";
+    return s.watch_filter ? t("لما يجي {0} لـ {1}", { 0: s.watch_filter, 1: folder }) : t("لما يجي ملف جديد لـ {0}", { 0: folder });
+  }
+  if (s.kind === "clipboard") return t("لما تنسخ {0}", { 0: clipFilterLabel(s.watch_filter) });
+  if (s.kind === "app") return t("لما ينفتح {0}", { 0: s.watch ?? "" });
   if (s.kind === "interval") {
     const minutes = s.every_minutes ?? 60;
     return minutes % 60 === 0 ? t("كل {0} ساعة", { 0: minutes / 60 }) : t("كل {0} دقيقة", { 0: minutes });
@@ -128,7 +163,78 @@ function ScheduleForm({
             </button>
           ))}
         </div>
-        {draft.kind === "interval" ? (
+        <span className="mt-1 text-sm" style={{ color: "var(--color-ink-muted)" }}>
+          {t("أو لما يصير شي:")}
+        </span>
+        <div className="flex gap-1 rounded-full p-1" style={{ background: "var(--color-surface-2)" }}>
+          {EVENT_KINDS.map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => set({ kind, watch_filter: kind === "clipboard" ? (draft.watch_filter && draft.kind === "clipboard" ? draft.watch_filter : "any") : draft.kind === kind ? draft.watch_filter : "" })}
+              className="relative flex-1 rounded-full px-3 py-1.5 text-xs"
+              style={{ color: draft.kind === kind ? "var(--color-on-inverse)" : "var(--color-ink-muted)" }}
+            >
+              {draft.kind === kind && <motion.span layoutId="schedule-kind" className="absolute inset-0 rounded-full" style={{ background: "var(--color-inverse)" }} transition={snappy} />}
+              <span className="relative">{kind === "folder" ? t("يجي ملف لمجلد") : kind === "clipboard" ? t("تنسخ نص") : t("ينفتح برنامج")}</span>
+            </button>
+          ))}
+        </div>
+        {!initial.id && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              {t("أمثلة:")}
+            </span>
+            {eventExamples().map((ex) => (
+              <button
+                key={ex.label}
+                type="button"
+                onClick={() => set(ex.patch)}
+                className="rounded-full border px-2.5 py-1 text-xs transition-colors hover:bg-[var(--color-surface-2)]"
+                style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
+              >
+                {ex.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {draft.kind === "folder" ? (
+          <div className="flex flex-col gap-2">
+            <Field label={t("المجلد اللي براقبه")}>
+              <div className="flex gap-2">
+                <input value={draft.watch ?? ""} onChange={(e) => set({ watch: e.target.value })} className="input flex-1" dir="ltr" placeholder={"C:\\Users\\…\\Downloads"} />
+                <Button variant="ghost" onClick={() => void pickFolder(draft.watch || undefined).then((picked) => picked && set({ watch: picked }))}>
+                  {t("اختار…")}
+                </Button>
+              </div>
+            </Field>
+            <Field label={t("أنواع الملفات (اختياري)")}>
+              <input value={draft.watch_filter ?? ""} onChange={(e) => set({ watch_filter: e.target.value })} className="input" dir="ltr" placeholder={t("كل الملفات — أو مثلاً *.pdf, *.jpg")} />
+            </Field>
+            <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              {t("بس الملفات الجديدة اللي بتنزل بعد ما تحفظ؛ الموجودة ما بتنلمس. رفيق بيستنى الملف يخلص تنزيل.")}
+            </p>
+          </div>
+        ) : draft.kind === "clipboard" ? (
+          <div className="flex flex-col gap-2">
+            <Field label={t("أي نص؟")}>
+              <select value={draft.watch_filter || "any"} onChange={(e) => set({ watch_filter: e.target.value as ClipFilter })} className="input">
+                {(["any", "latin", "arabic", "link"] as ClipFilter[]).map((f) => (
+                  <option key={f} value={f}>
+                    {clipFilterLabel(f)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>
+              {t("كل نسخة بتبدأ مهمة وبتصرف توكنز — اختار نوع النص بدقة. رفيق بيستنى شوي بين مهمة ومهمة، وما بيبدأ أكتر من 30 بالساعة.")}
+            </p>
+          </div>
+        ) : draft.kind === "app" ? (
+          <Field label={t("اسم البرنامج")}>
+            <input value={draft.watch ?? ""} onChange={(e) => set({ watch: e.target.value })} className="input" dir="ltr" placeholder="excel, chrome, code" />
+          </Field>
+        ) : draft.kind === "interval" ? (
           <label className="flex items-center gap-2 text-sm">
             {t("كل")}
             <input type="number" min={5} value={draft.every_minutes ?? 60} onChange={(e) => set({ every_minutes: Number(e.target.value) })} className="input w-24" dir="ltr" />
@@ -180,7 +286,7 @@ function ScheduleForm({
 
       <ErrorText message={error} />
       <div className="flex gap-2">
-        <Button onClick={save} disabled={saving || !draft.prompt.trim() || !draft.model_id}>
+        <Button onClick={save} disabled={saving || !draft.prompt.trim() || !draft.model_id || ((draft.kind === "folder" || draft.kind === "app") && !draft.watch?.trim())}>
           {saving ? t("عم يحفظ…") : t("احفظ الجدولة")}
         </Button>
         <Button variant="ghost" onClick={onCancel}>
@@ -263,16 +369,22 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
               >
                 <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-4">
-                  <span className="num w-[5.5rem] shrink-0 text-[30px] font-bold leading-none" title={schedule.next_run_at ? upcomingLabel(schedule.next_run_at) : undefined}>
-                    {schedule.enabled && schedule.next_run_at ? bigClock(schedule.next_run_at) : "--:--"}
-                  </span>
+                  {isEvent(schedule.kind) ? (
+                    <span className="flex w-[5.5rem] shrink-0 items-center justify-center" style={{ color: schedule.enabled ? "var(--color-accent)" : "var(--color-ink-muted)" }}>
+                      <BoltIcon className="h-7 w-7" />
+                    </span>
+                  ) : (
+                    <span className="num w-[5.5rem] shrink-0 text-[30px] font-bold leading-none" title={schedule.next_run_at ? upcomingLabel(schedule.next_run_at) : undefined}>
+                      {schedule.enabled && schedule.next_run_at ? bigClock(schedule.next_run_at) : "--:--"}
+                    </span>
+                  )}
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium" dir="auto">
                     {schedule.title}
                   </p>
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
                     <span className="flex items-center gap-1">
-                      <ClockIcon className="h-3 w-3" />
+                      {isEvent(schedule.kind) ? <BoltIcon className="h-3 w-3" /> : <ClockIcon className="h-3 w-3" />}
                       {describeSchedule(schedule)}
                     </span>
                     {schedule.enabled && schedule.next_run_at && (

@@ -174,7 +174,11 @@ class Schedule(Base):
     prompt: Mapped[str] = mapped_column(Text)
     model_id: Mapped[str] = mapped_column(String)
     working_dir: Mapped[str | None] = mapped_column(String, nullable=True)
-    kind: Mapped[str] = mapped_column(String, default="daily")  # "interval" | "daily" | "weekly"
+    # "interval" | "daily" | "weekly", or an event (core/triggers.py): "folder" | "clipboard" | "app"
+    kind: Mapped[str] = mapped_column(String, default="daily")
+    # Events: the folder or the program watched, and what counts ("*.pdf", "latin", …).
+    watch: Mapped[str | None] = mapped_column(String, nullable=True)
+    watch_filter: Mapped[str | None] = mapped_column(String, nullable=True)
     every_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     at_time: Mapped[str | None] = mapped_column(String, nullable=True)  # "HH:MM", local time
     weekdays: Mapped[list | None] = mapped_column(JSON, nullable=True)  # 0 = Monday
@@ -195,7 +199,8 @@ class ScheduleRun(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
     schedule_id: Mapped[str] = mapped_column(String, index=True)
     task_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    trigger: Mapped[str] = mapped_column(String, default="schedule")  # "schedule" | "manual"
+    # "schedule" | "manual", or the event that started it: "folder" | "clipboard" | "app"
+    trigger: Mapped[str] = mapped_column(String, default="schedule")
     # Why no task was started, when none was.
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

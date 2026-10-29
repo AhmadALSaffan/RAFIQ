@@ -67,7 +67,7 @@ class TemplateOut(TemplateIn):
     model_config = {"from_attributes": True}
 
 
-ScheduleKind = Literal["interval", "daily", "weekly"]
+ScheduleKind = Literal["interval", "daily", "weekly", "folder", "clipboard", "app"]
 
 
 class ScheduleIn(BaseModel):
@@ -79,6 +79,10 @@ class ScheduleIn(BaseModel):
     every_minutes: int | None = Field(default=None, ge=5, le=60 * 24 * 7)
     at_time: str | None = None
     weekdays: list[int] | None = None
+    # Events: the folder or program watched, and what counts — file patterns ("*.pdf"),
+    # or for copied text "any" | "latin" | "arabic" | "link".
+    watch: str | None = Field(default=None, max_length=1000)
+    watch_filter: str | None = Field(default=None, max_length=200)
     enabled: bool = True
 
 
@@ -99,7 +103,7 @@ class ScheduleRunOut(BaseModel):
     """One run of a schedule and how it went."""
 
     id: str
-    trigger: Literal["schedule", "manual"] = "schedule"
+    trigger: Literal["schedule", "manual", "folder", "clipboard", "app"] = "schedule"
     started_at: datetime
     task_id: str | None = None
     # The task's status, "not_started" when it couldn't be created, "deleted" when the

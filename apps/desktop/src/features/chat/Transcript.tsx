@@ -7,6 +7,7 @@
 import { useNavigate } from "react-router-dom";
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { StudioCard } from "./StudioCard";
+import { SpeakButton } from "./SpeakButton";
 import { AnimatePresence, animate, motion } from "motion/react";
 import { forgetSendOrigin, sendOrigin } from "./sendFlight";
 import type { ChatMessage, ChatPart, LlmModel, TaskStatus, TurnUsage } from "../../lib/types";
@@ -437,6 +438,7 @@ export function AssistantBlock({
               style={{ color: "var(--color-ink-muted)" }}
             />
           )}
+          {text && <SpeakButton text={text} className="opacity-0 focus-visible:opacity-100 group-hover:opacity-100" />}
           {text && (
             <button
               onClick={() => void saveAsNote(text, openNote)}

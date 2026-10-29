@@ -14,6 +14,9 @@ import boardPicture from "../assets/whats-new/0.5.9.webp";
 import speedAr from "../assets/whats-new/0.5.11-ar.webp";
 import speedEn from "../assets/whats-new/0.5.11-en.webp";
 import speedRu from "../assets/whats-new/0.5.11-ru.webp";
+import screenAr from "../assets/whats-new/0.5.12-ar.webp";
+import screenEn from "../assets/whats-new/0.5.12-en.webp";
+import screenRu from "../assets/whats-new/0.5.12-ru.webp";
 
 // The version whose dialog the user closed. (A new key: the first builds marked a version
 // seen as soon as it opened, shown or not.)
@@ -39,6 +42,18 @@ export interface ReleaseNews {
 const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/AhmadALSaffan/RAFIQ/releases/download/v${version}/whats-new-${lang}.mp4`;
 
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.12",
+    images: { ar: screenAr, en: screenEn, ru: screenRu },
+    title: () => t("رفيق صار يشوف شاشتك، ويحكي معك"),
+    points: () => [
+      t("اسأل عن شاشتك: Ctrl+Alt+S، حدّد الجزء، واسأل عنه أو ترجمه أو طلّع نصه"),
+      t("محادثة صوتية: احكي، رفيق بيرد بصوت وبيرجع يسمعك، وزر «اسمع» تحت كل رد"),
+      t("مهام بتشتغل لحالها لما ينزل ملف على مجلد، أو تنسخ نص، أو ينفتح برنامج"),
+      t("لاقي ملفاتك من محتواها: «وين فاتورة شهر 3؟»، والفهرس على جهازك بس"),
+      t("لحد 4 محادثات جنب بعض، و3D أغنى بالموشن مع أشياء جاهزة ونسخ أماكن حقيقية"),
+    ],
+  },
   {
     version: "0.5.11",
     images: { ar: speedAr, en: speedEn, ru: speedRu },

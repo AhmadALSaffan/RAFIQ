@@ -31,33 +31,38 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 ---
 
-## What's new · v0.5.11
+## What's new · v0.5.12
 
 <!-- Every release: replace docs/whats-new/latest.webp with the release's picture (the same
      one the app's What's new dialog shows) and update the version, points and link below. -->
 
 <div align="center">
 
-<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.11: lighter on your computer, quicker at work">
+<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.12: sees your screen and talks with you">
 
 </div>
 
-**Lighter on your computer, quicker at work.** A release about performance, aimed at
-laptops with built-in graphics: Rafiq now runs only what you have open, and moving
-between pages no longer waits on the backdrop.
-- **Only what you open runs:** Motion, design and notes load when you open them, and the
-  motion engine starts inside an open motion project and stops when you leave it. The
-  code loaded at startup went from 2.8 MB to 1.3 MB.
-- **Quicker between pages:** the globe is built once instead of on every page, draws with
-  half the graphics work, lets a new page draw first, and stands still where there's no
-  graphics card.
-- **Motion doesn't freeze:** the engine gives the window room while it checks a reel, and
-  every 3D preview shares one graphics context.
-- **Quicker, cheaper tasks:** a tool that edits part of a file instead of rewriting it,
-  scripts that handle Arabic text right, and long tasks that keep their context small.
-- **Fixed:** the glowing orb could stay stuck above a reply.
+**Rafiq sees your screen and talks with you.** Six new things:
+- **Ask about your screen:** a shortcut (Ctrl+Alt+S by default) captures the screen under
+  the mouse; drag out the part you mean and the quick ask box opens with it, ready to
+  explain it, find the error, copy out its text or translate it.
+- **Voice conversation:** the headphones button next to the mic — talk, Rafiq answers out
+  loud and listens again, no typing. Every reply also has a "Listen" button. Windows'
+  own voices are free and stay on your computer; Arabic falls back to the local voice or
+  an OpenAI voice when Windows has none.
+- **Tasks that start themselves:** besides times, a schedule can now start when a new file
+  lands in a folder, when you copy text (any, English, Arabic or a link), or when a
+  program opens. The result shows in the notification.
+- **Find your files by what's in them:** "where's the March invoice?" — Rafiq keeps an
+  index of Documents, Desktop and Downloads (or the folders you choose) on your computer
+  only, and finds files by their contents in Arabic and English.
+- **Up to 4 chats side by side** on the chat page.
+- **Richer 3D in Motion:** ready-made trees, rocks, mountains, buildings, cities, cars,
+  people and water that reflects, rounded shapes by default, and copying a real place
+  from a photo the model looks up.
+- **Fixed:** switching the theme could leave the globe blank until a restart.
 
-Full notes: [v0.5.11](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.11) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
+Full notes: [v0.5.12](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.12) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
 
 ---
 
@@ -251,7 +256,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.11_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.12_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)

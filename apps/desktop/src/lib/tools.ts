@@ -11,6 +11,7 @@ const LABELS: Record<string, string> = {
   excel_write: t("كتابة جدول Excel"),
   image_view: t("النظر بصورة"),
   notes_list: t("البحث بملاحظاتك"),
+  find_files: t("البحث بملفاتك"),
   note_read: t("قراءة ملاحظة"),
   note_create: t("كتابة ملاحظة جديدة"),
   note_edit: t("تعديل ملاحظة"),

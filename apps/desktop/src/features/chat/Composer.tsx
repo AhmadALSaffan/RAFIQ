@@ -16,7 +16,7 @@ import { READING_WIDTHS, useLayout } from "../../lib/layout";
 import { BrandMark } from "../../components/BrandMark";
 import { TokenText } from "../../components/TokenText";
 import { UploadChips, useUploads } from "../../components/Attachments";
-import { ChevronDownIcon, ModelsIcon, PaperclipIcon, StopIcon } from "../../components/Icons";
+import { ChevronDownIcon, HeadphonesIcon, ModelsIcon, PaperclipIcon, StopIcon } from "../../components/Icons";
 import { CommandMenu, FileMenu, IssueMenu, readTrigger, replaceTrigger, type CommandDef, type ChatMode } from "../../components/ComposerMenus";
 import { EffortPicker, type Effort } from "../../components/EffortPicker";
 import { MicButton } from "./MicButton";
@@ -51,6 +51,8 @@ export function Composer({
   context,
   onSummarize,
   summarizing,
+  voice,
+  onVoice,
 }: {
   disabled: boolean;
   streaming: boolean;
@@ -83,6 +85,9 @@ export function Composer({
   context?: { used: number; window: number } | null;
   onSummarize?: () => void;
   summarizing?: boolean;
+  /** The voice conversation is on; the button turns it on and off. */
+  voice?: boolean;
+  onVoice?: () => void;
 }) {
   const reading = READING_WIDTHS[useLayout().reading];
   const [text, setText] = useState(() => takeChatMessage() ?? "");
@@ -290,6 +295,21 @@ export function Composer({
               disabled={disabled}
               onText={(spoken) => setText((prev) => (prev ? `${prev.replace(/\s*$/, "")} ${spoken}` : spoken))}
             />
+            {onVoice && (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9 }}
+                onClick={onVoice}
+                disabled={disabled}
+                aria-pressed={voice}
+                aria-label={voice ? t("خلّص المحادثة الصوتية") : t("محادثة صوتية")}
+                title={voice ? t("خلّص المحادثة الصوتية") : t("محادثة صوتية: احكي، ورفيق بيرد بصوت")}
+                className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-40"
+                style={{ color: voice ? "var(--color-accent)" : "var(--color-ink-muted)", background: voice ? "var(--color-surface-2)" : undefined }}
+              >
+                <HeadphonesIcon className="h-4 w-4" />
+              </motion.button>
+            )}
             <ModelMenu
               models={models}
               value={modelId}

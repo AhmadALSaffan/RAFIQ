@@ -22,10 +22,10 @@ import {
 } from "./Icons";
 import { CommandPalette, usePaletteShortcut } from "./CommandPalette";
 import { useTheme } from "../lib/theme";
-import { getSettings, listChats, listDesigns, listMotionProjects, listTasks, quietly } from "../lib/api";
+import { getSettings, getTask, listChats, listDesigns, listMotionProjects, listTasks, quietly } from "../lib/api";
 import { closeTab, neighbourAfterClose, openTab, pruneTabs, tabFor, useTabs, type AppTab } from "../lib/tabs";
 import { notify, syncBackground } from "../lib/background";
-import { syncQuickAsk } from "../lib/quickAsk";
+import { SCREEN_ASK_SHORTCUT, syncQuickAsk } from "../lib/quickAsk";
 import type { TaskSummary } from "../lib/types";
 import { easeOutExpo, snappy } from "../lib/motion";
 import { ToastStack, type Toast } from "./Toasts";
@@ -124,7 +124,9 @@ function useTaskWatcher(currentPath: string, navigate: (to: string) => void) {
         const old = before.get(task.id);
         if (task.needs_approval && !old?.needs_approval) void notify(t("رفيق بدّه إذنك"), task.title);
         if (old && old.status !== task.status && (task.status === "completed" || task.status === "failed")) {
-          void notify(task.status === "completed" ? t("خلصت مهمة") : t("مهمة ما نجحت"), task.title);
+          // A trigger's result is the point (a translation, a reminder): it goes in the notification.
+          if (task.status === "completed" && task.origin?.trigger) void notifyResult(task);
+          else void notify(task.status === "completed" ? t("خلصت مهمة") : t("مهمة ما نجحت"), task.title);
         }
       }
 
@@ -183,6 +185,14 @@ function useTaskWatcher(currentPath: string, navigate: (to: string) => void) {
   };
 }
 
+/** A finished trigger task's last words, as a Windows notification. */
+async function notifyResult(task: TaskSummary) {
+  const detail = await getTask(task.id).catch(() => undefined);
+  const last = [...(detail?.events ?? [])].reverse().find((e) => e.type === "message");
+  const text = last && last.type === "message" ? last.text.replace(/[*_`#>]/g, "").trim() : "";
+  await notify(task.title, text ? (text.length > 240 ? `${text.slice(0, 239)}…` : text) : t("خلصت مهمة"));
+}
+
 export function Shell() {
   const { theme, toggle } = useTheme();
   const layout = useLayout();
@@ -204,7 +214,7 @@ export function Shell() {
     getSettings()
       .then((s) => {
         void syncBackground(s.run_in_background ?? true);
-        void syncQuickAsk(s.quick_ask_shortcut ?? null, s.quick_ask_selection ?? true);
+        void syncQuickAsk(s.quick_ask_shortcut ?? null, s.quick_ask_selection ?? true, s.screen_ask_shortcut === undefined ? SCREEN_ASK_SHORTCUT : s.screen_ask_shortcut);
       })
       .catch(() => undefined);
   }, []);

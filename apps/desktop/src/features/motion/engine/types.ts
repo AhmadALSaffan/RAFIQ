@@ -148,7 +148,28 @@ export interface Material3 {
 export type Object3Kind =
   | "box" | "sphere" | "cylinder" | "cone" | "torus" | "torusKnot" | "capsule" | "plane" | "ring" | "icosahedron"
   | "octahedron" | "dodecahedron" | "tetrahedron" | "lathe"
-  | "text3d" | "extrude" | "model" | "image" | "particles" | "instances" | "tube" | "globe" | "ground" | "blob" | "group";
+  // shapes with soft or natural form: a low-poly stone, half a ball, an n-sided prism (a roof), a peak
+  | "rock" | "dome" | "prism" | "mountain"
+  | "text3d" | "extrude" | "model" | "image" | "particles" | "instances" | "tube" | "globe" | "ground" | "blob" | "group"
+  // ready-made things (three/props.ts): each becomes a group of the pieces above
+  | "tree" | "bush" | "flower" | "cloud" | "building" | "city" | "house" | "streetLamp" | "car" | "person" | "road" | "water" | "fence" | "bench";
+
+/** Lit windows on a box's sides (a building's façade), drawn as a texture: floors × columns. */
+export interface Windows3 {
+  /** The glass (default a dark blue-grey). */
+  glass?: ColorRef;
+  /** What a lit window glows (default warm white). */
+  light?: ColorRef;
+  /** How many windows are lit, 0–1 (default 0.35; a night city 0.5–0.7). */
+  lit?: number;
+  /** How bright the lit ones glow (default 1). */
+  glow?: number;
+  /** The façade: separate windows, glass bands floor by floor, vertical fins, a whole glass
+   *  curtain wall, or a diagonal grid of steel over glass. */
+  style?: "grid" | "bands" | "fins" | "curtain" | "diagrid";
+  /** Columns on the widest side (default: from the width). */
+  cols?: number;
+}
 
 export type ParticleShape =
   | "sphere" | "shell" | "disc" | "ring" | "cube" | "galaxy" | "grid" | "wave" | "random" | "helix" | "text" | "image" | "point";
@@ -225,6 +246,32 @@ export interface Object3 {
   speed?: number;
   // ground
   reflect?: number;
+  // ready-made things and their shapes
+  /** Which kind: tree round|pine|palm|autumn · building tower|glass|classic|setback|spire|residential. */
+  variant?: string;
+  /** A building's or a windowed box's floors (default: from the height). */
+  floors?: number;
+  /** Windows on a box's sides, or on a building or a city (false: none). */
+  windows?: boolean | Windows3;
+  /** A different arrangement of the same thing (another skyline, another tree). */
+  seed?: number;
+  /** A building's shape: box · slab (thin) · round · tapered (narrows going up) · twisted · stepped
+   *  (setbacks) · triangle · lshape. */
+  form?: "box" | "slab" | "round" | "tapered" | "twisted" | "stepped" | "triangle" | "lshape";
+  /** A building's top: flat · spire · pyramid · gable · dome · crown (a band of light) · helipad · antenna. */
+  top?: "flat" | "spire" | "pyramid" | "gable" | "dome" | "crown" | "helipad" | "antenna";
+  /** A wider base under a tower: true (3 floors) or its floors. */
+  podium?: boolean | number;
+  /** How much a tapered tower narrows by its top, 0–0.85 (default 0.35). */
+  taper?: number;
+  /** A twisted tower's turn from bottom to top, in degrees (default 90). */
+  twist?: number;
+  /** A cylinder's or a cone's top radius (a frustum); with `sides` for a square or a triangle. */
+  radiusTop?: number;
+  /** A city's streets (default true). */
+  roads?: boolean;
+  /** Trees along a city's streets: true, or one every N lots. */
+  trees?: boolean | number;
   children?: Object3[];
   animate?: Anim3[];
   keyframes?: Record<string, Key3[]>;

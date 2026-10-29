@@ -343,6 +343,136 @@ class MotionFetchImageTool(_MediaTool):
         return ToolResult(ok=True, output=f"v{number}: asset «{key}»{size_note}. Use it as an image layer, or as a 3D texture: \"texture\": \"{key}\".")
 
 
+COMMONS_API = "https://commons.wikimedia.org/w/api.php"
+# Wikimedia asks every client to say who it is
+COMMONS_AGENT = "Rafiq/1.0 (https://github.com/AhmadALSaffan/RAFIQ; motion reference photos)"
+REFERENCE_SIDE = 1024
+COPY_METHOD = (
+    "Copy it as a 3D scene, piece by piece — don't invent a different place:\n"
+    "1. Name what you see, left → right and front → back: every tower (its place across the picture "
+    "as x from -1 to 1, its height against the tallest, how wide, its form box|slab|round|tapered|"
+    "twisted|stepped|triangle|lshape, its top flat|spire|pyramid|dome|crown|helipad|antenna, its façade "
+    "grid|bands|fins|curtain|diagrid, its colour or glass tint, a podium), then water, roads, trees, "
+    "hills, the sky.\n"
+    "2. Build each one as its own `building` (or tree, water, mountain…) with those fields — never a "
+    "`city` to copy a real place, and never two towers alike unless they are alike in the picture.\n"
+    "3. Match the camera to the photo: its height (street level, a rooftop, the air), its distance and "
+    "lens (far skylines: fov 25–35), where the horizon sits; the background gradient and light from its "
+    "sky and time of day.\n"
+    "4. motion_render_frames, compare with the photo, fix the biggest difference, again."
+)
+
+
+class MotionReferenceTool(Tool):
+    """A real photo to copy from, looked at, not added: the model sees it and rebuilds it."""
+
+    name = "motion_reference"
+    category = "read"
+    description = (
+        "Find real photos of a place or a thing (Wikimedia Commons; or the link to an image) and look at "
+        "them — to copy a real skyline, a landmark, a street, a building or an object in 3D exactly as "
+        "it is. The photos come back to you to see; they aren't added to the video (use "
+        "motion_fetch_image for that). Search in English with the place's name: «Dubai Marina skyline», "
+        "«Manhattan skyline from Brooklyn», «Riyadh Kingdom Centre»."
+    )
+    parameters = {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "what to find, in English (the place's name + skyline / street / building)"},
+            "url": {"type": "string", "description": "or the link to one image to look at"},
+            "count": {"type": "integer", "minimum": 1, "maximum": 3, "description": "how many photos to see (default 2)"},
+            "skip": {"type": "integer", "minimum": 0, "description": "skip this many results (to see others)"},
+        },
+    }
+
+    def __init__(self, project_id: str, chat_model: str | None = None) -> None:
+        self.project_id = project_id
+        self.chat_model = chat_model
+
+    async def _search(self, http: Any, query: str, want: int, skip: int) -> list[dict[str, Any]]:
+        resp = await http.get(COMMONS_API, params={
+            "action": "query", "format": "json", "generator": "search", "gsrnamespace": "6",
+            "gsrsearch": f"{query} filetype:bitmap", "gsrlimit": str(min(20, want + skip + 6)),
+            "prop": "imageinfo", "iiprop": "url|size|mime|extmetadata", "iiurlwidth": str(REFERENCE_SIDE),
+        })
+        resp.raise_for_status()
+        pages = sorted((resp.json().get("query") or {}).get("pages", {}).values(), key=lambda p: p.get("index", 0))
+        found = []
+        for page in pages:
+            info = (page.get("imageinfo") or [{}])[0]
+            if info.get("mime") not in ("image/jpeg", "image/png", "image/webp") or (info.get("width") or 0) < 800:
+                continue
+            meta = info.get("extmetadata") or {}
+            found.append({
+                "title": str(page.get("title", "")).removeprefix("File:"),
+                "thumb": info.get("thumburl") or info.get("url"),
+                "page": info.get("descriptionurl"),
+                "credit": _meta_text(meta, "Artist") or "unknown",
+                "license": _meta_text(meta, "LicenseShortName") or "see the page",
+            })
+        return found[skip: skip + want]
+
+    async def run(self, args: dict[str, Any]) -> ToolResult:
+        import base64
+        import io
+
+        import httpx
+        from PIL import Image
+
+        from rafiq_agent.llm.discovery import supports_vision
+        from rafiq_agent.tools.web import _public_only
+
+        query = str(args.get("query") or "").strip()
+        url = str(args.get("url") or "").strip()
+        if not query and not url:
+            return ToolResult(ok=False, output="give a query (the place's name in English) or a url")
+        want = max(1, min(3, int(args.get("count") or 2)))
+        try:
+            async with httpx.AsyncClient(timeout=40, follow_redirects=True, headers={"User-Agent": COMMONS_AGENT}) as http:
+                if url:
+                    if why := await _public_only(url):
+                        return ToolResult(ok=False, output=why)
+                    items = [{"title": url.rsplit("/", 1)[-1][:80], "thumb": url, "page": url, "credit": "", "license": ""}]
+                else:
+                    items = await self._search(http, query, want, max(0, int(args.get("skip") or 0)))
+                if not items:
+                    return ToolResult(ok=False, output="no photos found — try other words (the place's English name, + skyline, + aerial)")
+                images: list[str] = []
+                lines: list[str] = []
+                for item in items:
+                    resp = await http.get(item["thumb"])
+                    if resp.status_code >= 400 or len(resp.content) > MAX_IMAGE:
+                        continue
+                    try:
+                        with Image.open(io.BytesIO(resp.content)) as img:
+                            img = img.convert("RGB")
+                            img.thumbnail((REFERENCE_SIDE, REFERENCE_SIDE))
+                            out = io.BytesIO()
+                            img.save(out, "JPEG", quality=82)
+                            size = img.size
+                    except Exception:  # noqa: BLE001 - not a picture after all: skip it
+                        continue
+                    images.append("data:image/jpeg;base64," + base64.b64encode(out.getvalue()).decode())
+                    credit = f" — {item['credit']}, {item['license']}" if item["credit"] else ""
+                    lines.append(f"{len(images)}. {item['title']} ({size[0]}×{size[1]}){credit} {item['page']}")
+        except httpx.HTTPError as exc:
+            return ToolResult(ok=False, output=f"couldn't reach the photos: {exc}")
+        if not images:
+            return ToolResult(ok=False, output="the photos wouldn't open — try another query or skip")
+        listing = "\n".join(lines)
+        if supports_vision(self.chat_model or "") is False:
+            return ToolResult(ok=True, output=f"{listing}\n\n(this model can't see pictures: build from what you know of the place)\n\n{COPY_METHOD}")
+        return ToolResult(ok=True, output=f"{listing}\n\n{COPY_METHOD}", images=images)
+
+
+def _meta_text(meta: dict[str, Any], key: str) -> str:
+    """A Commons metadata field (often HTML) as short plain text."""
+    import re
+
+    html = str((meta.get(key) or {}).get("value") or "")
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", html)).strip()[:80]
+
+
 def media_tools(project_id: str, on_change: Any = None) -> list[Tool]:
     return [
         MotionTtsTool(project_id, on_change),

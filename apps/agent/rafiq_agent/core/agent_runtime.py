@@ -179,6 +179,11 @@ async def build_registry(
         from rafiq_agent.tools.notes import note_tools
 
         tools += note_tools(notes_root(settings.notes_dir))
+        # Finding the user's own files by what's inside them (core/file_index.py).
+        if settings.file_search_enabled:
+            from rafiq_agent.tools.file_search import FindFilesTool
+
+            tools.append(FindFilesTool())
     if "web" in groups and (search := search_tool(settings)):
         tools.append(search)
     for tool in tools:

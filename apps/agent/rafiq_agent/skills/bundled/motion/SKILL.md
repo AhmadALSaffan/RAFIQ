@@ -238,8 +238,27 @@ Moods: `night, studio, sunset, dawn, city`. Or skip the recipe and build `object
 title is about 1 tall; rotations in degrees. Times (`at`, key `t`) are scene seconds,
 inside the layer.
 
-**Objects** (`kind`): `box` (width/height/depth, radius = rounded corners), `sphere`,
-`cylinder`, `cone`, `torus`, `torusKnot`, `capsule`, `plane`, `ring` (thin circle),
+**Ready-made things** (they stand on their base at `position`; size with `height`):
+`tree` (variant round|pine|palm|autumn), `bush`, `flower`, `rock` (radius, noise),
+`mountain` (snowy; variant bare), `cloud`, `building` (form box|slab|round|tapered|twisted|
+stepped|triangle|lshape, top flat|spire|pyramid|gable|dome|crown|helipad|antenna, podium,
+windows.style grid|bands|fins|curtain|diagrid — each tower its own), `water` (mirrors what's
+above; `reflect` on any box too), `city` (a whole downtown: rows,
+cols ≤ 16, height = the tallest, colors = façades, windows {lit, glow, light}, trees,
+roads — its buildings are its parts, so `rise` with a `stagger` raises it tower by
+tower; for an invented city only), `house`, `streetLamp`, `car`, `person`, `road`, `fence`,
+`bench`. **A real place** (a named skyline, a landmark, «towers like in the real world»):
+`motion_reference` shows you real photos of it — copy what you see tower by tower, matching
+the camera (GUIDE-3D.md, «Copy a real place from a photo»). Use them
+instead of stacking boxes; anything else is a `group` of the shapes below — a modeller's
+3–12 pieces (GUIDE-3D.md, «Build anything», has how to build tables, lamps, rockets,
+robots, characters… and the lighting and camera rules: `skill_read` it for any 3D scene
+beyond a recipe).
+
+**Objects** (`kind`): `box` (width/height/depth; corners softly rounded by default, `radius`
+for more, `radius: 0` sharp; `windows` for a façade), `sphere`, `dome` (half sphere),
+`cylinder`, `cone`, `torus`, `torusKnot`, `capsule`, `plane`, `ring` (thin circle), `prism`
+(along x, edge up: a roof; `sides`), `rock`, `mountain`,
 `icosahedron`, `octahedron`, `dodecahedron`, `tetrahedron` (faceted gems) · `lathe`
 (`profile` [[radius, y]…] from the bottom up, turned round — a vase, a bottle, a cup) ·
 `text3d` (text, size, depth, bevel, font display|body|latin, split words|letters for

@@ -184,8 +184,9 @@ def format_issues(issues: list[dict[str, Any]], limit: int = 25) -> str:
 ENGINE_ONLY = (
     "0. الفيديو بينبني بس بمحرك رفيق: كل شي بالمشهد عبر أدوات motion_. ممنوع تكتب كود (HTML، CSS، "
     "JavaScript، three.js، SVG كصفحة، Python…) بالرد أو كملف — المستخدم ما بيشوف ولا بيشغّل كود هون، بس "
-    "المشهد. حتى الطلب الصعب بينعمل بالمحرك: قلب أو شكل 3D = طبقة scene3d فيها `extrude` (شكل جاهز "
-    "بـ `shape` أو مسار SVG) بمادة وإضاءة وكاميرا؛ أشكال 2D = طبقة shape؛ حركة = animate و keyframes. "
+    "المشهد. حتى الطلب الصعب بينعمل بالمحرك: أي شي 3D = طبقة scene3d — أشياء جاهزة (tree، rock، mountain، "
+    "building، city، house، car، person…) أو group من قطع (box، cylinder، lathe، extrude…) متل ما بيبني "
+    "المصمّم، بمادة وإضاءة وكاميرا (GUIDE-3D.md)؛ أشكال 2D = طبقة shape؛ حركة = animate و keyframes. "
     "إذا شي فعلاً مش موجود بالمحرك، اعمل أقرب شي فيه وقول للمستخدم شو الفرق بجملة. "
     "وما تغيّر composition.fps إلا إذا المستخدم طلب رقم معيّن: 120 بيقطّع على أغلب الأجهزة.\n"
 )
@@ -240,7 +241,7 @@ _CODE = re.compile(r"```|<!doctype|<html|<script|<style|<canvas|import \* as THR
 ENGINE_ONLY_REDO = (
     "(رسالة من رفيق) ردّك فيه كود، وبالموشن الكود ما بيوصل للمستخدم ولا بيشتغل — "
     "الفيديو بس اللي بتبنيه بأدوات motion_. ابنِ نفس الطلب هلأ بالمحرك: motion_patch_scene "
-    "(طبقة scene3d للـ 3D: extrude بـ shape أو مسار SVG، مواد، إضاءة، كاميرا؛ وطبقات 2D للباقي)، "
+    "(طبقة scene3d للـ 3D: أشياء جاهزة أو group من قطع، مواد، إضاءة، كاميرا؛ وطبقات 2D للباقي)، "
     "وبعدها اكتب للمستخدم بجملتين شو عملت، بلا كود."
 )
 

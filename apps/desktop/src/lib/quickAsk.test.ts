@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_QUICK_ACTIONS, actionMessage, builtinActions, draftAction, questionAbout } from "./quickAsk";
+import { MAX_QUICK_ACTIONS, actionMessage, builtinActions, draftAction, imageActions, pickedArea, questionAbout } from "./quickAsk";
 import type { QuickAction } from "./types";
 
 describe("quick actions", () => {
@@ -31,5 +31,20 @@ describe("quick actions", () => {
     const full = Array.from({ length: MAX_QUICK_ACTIONS }, (_, i) => ({ id: `a${i}`, label: `n${i}`, prompt: "p" }));
     expect(typeof draftAction("جديد", "p", full)).toBe("string");
     expect(typeof draftAction("n0", "changed", full, "a0")).toBe("object");
+  });
+});
+
+describe("picking part of the screen", () => {
+  it("makes the same box whichever way the drag went", () => {
+    const a = pickedArea({ x: 10, y: 20 }, { x: 110, y: 70 });
+    expect(a).toEqual({ x: 10, y: 20, width: 100, height: 50 });
+    expect(pickedArea({ x: 110, y: 70 }, { x: 10, y: 20 })).toEqual(a);
+  });
+
+  it("offers one-press actions for a picture, each with its own prompt", () => {
+    const actions = imageActions();
+    expect(actions.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(actions.map((a) => a.id)).size).toBe(actions.length);
+    expect(actions.every((a) => a.prompt.length > 20)).toBe(true);
   });
 });

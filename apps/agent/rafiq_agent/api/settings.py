@@ -1,9 +1,11 @@
+import asyncio
 import contextlib
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
+from rafiq_agent.core import file_index
 from rafiq_agent.core.manager import manager
 from rafiq_agent.llm import usage
 from rafiq_agent.llm.resilience import set_concurrency
@@ -35,6 +37,7 @@ async def update_settings(body: AppSettings, session: AsyncSession = Depends(get
     body.brand_kit = (row.value or {}).get("brand_kit") if row else None
     # Pins likewise change through /notes/pin only.
     body.notes_pinned = list((row.value or {}).get("notes_pinned") or []) if row else []
+    before = AppSettings.model_validate(row.value) if row else AppSettings()
     if row:
         row.value = body.model_dump()
     else:
@@ -44,7 +47,30 @@ async def update_settings(body: AppSettings, session: AsyncSession = Depends(get
     set_concurrency(body.provider_concurrency)
     usage.set_budgets(body.daily_budget_usd, body.monthly_budget_usd)
     manager.reschedule()  # a higher parallel limit lets waiting tasks start right away
+    if (before.file_search_enabled, before.file_search_dirs) != (body.file_search_enabled, body.file_search_dirs):
+        file_index.rescan_soon()
     return body
+
+
+@router.get("/file-search")
+async def file_search_status() -> dict:
+    """How far the index of the user's files has got, and which folders it covers."""
+    from rafiq_agent.core.agent_runtime import load_settings
+
+    settings = await load_settings()
+    return {**file_index.status(), "folders": file_index.folders(settings.file_search_dirs)}
+
+
+@router.post("/file-search/rescan", status_code=202)
+async def file_search_rescan() -> dict:
+    file_index.rescan_soon()
+    return {"ok": True}
+
+
+@router.delete("/file-search", status_code=204)
+async def file_search_clear() -> None:
+    """Empties the index (it fills in again on the next look while search stays on)."""
+    await asyncio.to_thread(file_index.clear)
 
 
 @router.get("/web-search", response_model=WebSearchKeys)

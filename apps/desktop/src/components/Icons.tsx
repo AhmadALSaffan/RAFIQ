@@ -24,6 +24,7 @@ import {
   IconClick,
   IconBell,
   IconArrowBackUp,
+  IconLayoutColumns,
   IconLayoutKanban,
   IconGitPullRequest,
   IconKey,
@@ -60,6 +61,7 @@ import {
   IconPlayerPlay,
   IconPlayerPause,
   IconVolume,
+  IconHeadphones,
   IconLayersSubtract,
   IconPhoto,
   IconPaperclip,
@@ -141,6 +143,7 @@ export const GitIcon = make(IconGitBranch);
 export const BellIcon = make(IconBell);
 export const UndoIcon = make(IconArrowBackUp);
 export const BoardIcon = make(IconLayoutKanban);
+export const SplitIcon = make(IconLayoutColumns);
 export const PullRequestIcon = make(IconGitPullRequest);
 export const KeyIcon = make(IconKey);
 export const SubtaskIcon = make(IconSubtask);
@@ -152,6 +155,7 @@ export const MovieIcon = make(IconMovie);
 export const PlayIcon = make(IconPlayerPlay);
 export const PauseIcon = make(IconPlayerPause);
 export const VolumeIcon = make(IconVolume);
+export const HeadphonesIcon = make(IconHeadphones);
 export const LayersIcon = make(IconLayersSubtract);
 export const PhotoIcon = make(IconPhoto);
 export const WalletIcon = make(IconWallet);

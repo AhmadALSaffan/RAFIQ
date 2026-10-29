@@ -32,9 +32,11 @@ from rafiq_agent.api.workspaces import router as workspaces_router
 from rafiq_agent.config import AUTH_TOKEN, CORS_ORIGINS, DATA_DIR
 from rafiq_agent.core.agent_runtime import load_settings, parallel_limit, run_task
 from rafiq_agent.core.chat_service import stop_all_turns
+from rafiq_agent.core.file_index import run_forever as run_file_index
 from rafiq_agent.core.issue_watch import run_forever as watch_issues
 from rafiq_agent.core.manager import manager
 from rafiq_agent.core.schedules import run_forever as run_schedules
+from rafiq_agent.core.triggers import run_forever as run_triggers
 from rafiq_agent.i18n import reset_request_locale, set_request_locale
 from rafiq_agent.llm import usage
 from rafiq_agent.llm.resilience import set_concurrency
@@ -76,6 +78,8 @@ async def lifespan(app: FastAPI):
     await manager.recover()
     manager.start(run_task, limit=parallel_limit)
     schedules = asyncio.create_task(run_schedules())
+    triggers = asyncio.create_task(run_triggers())
+    file_index = asyncio.create_task(run_file_index())
     # Mentions, reviews and new assignments on the connected trackers (core/issue_watch.py).
     watcher = asyncio.create_task(watch_issues())
     # Model prices: the last fetched table at once, a fresh one (once a day) in the background.
@@ -97,6 +101,8 @@ async def lifespan(app: FastAPI):
     yield
     remove_discovery()
     schedules.cancel()
+    triggers.cancel()
+    file_index.cancel()
     watcher.cancel()
     prices.cancel()
     sign_ins.cancel()

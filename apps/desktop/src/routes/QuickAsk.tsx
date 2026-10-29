@@ -13,9 +13,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { createChat, getSettings, listModels, sendChatMessage, stopChat } from "../lib/api";
+import { attachmentUrl, createChat, getSettings, listModels, sendChatMessage, stopChat, uploadAttachment } from "../lib/api";
 import type { LlmModel, QuickAction } from "../lib/types";
-import { actionMessage, builtinActions, questionAbout } from "../lib/quickAsk";
+import { actionMessage, builtinActions, imageActions, questionAbout } from "../lib/quickAsk";
+import { ScreenPicker } from "./ScreenPicker";
 import { applyEvent, textOf, type Draft } from "../features/chat/draft";
 import { MODEL_KEY, savedModel } from "../features/chat/constants";
 import { Markdown } from "../components/Markdown";
@@ -37,7 +38,24 @@ async function tauri() {
 /** Put the box away. In the browser build there's no window to hide; nothing happens. */
 async function hide() {
   const invoke = await tauri();
-  if (invoke) await invoke("hide_quick_ask");
+  if (invoke) {
+    await invoke("restore_quick_ask");
+    await invoke("hide_quick_ask");
+  }
+}
+
+/** Dev builds in a browser: «?snip=demo» stands in for a picture of the screen. */
+function demoScreen(): string {
+  const c = document.createElement("canvas");
+  c.width = 1600;
+  c.height = 900;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#1e2430";
+  g.fillRect(0, 0, 1600, 900);
+  g.fillStyle = "#e8eaf0";
+  g.font = "48px sans-serif";
+  g.fillText("TypeError: Cannot read properties of undefined", 120, 420);
+  return c.toDataURL("image/png");
 }
 
 export function QuickAsk() {
@@ -51,13 +69,17 @@ export function QuickAsk() {
   const [streaming, setStreaming] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selection, setSelection] = useState<string | null>(null);
+  // "Ask about my screen": the picture being cut, then the part attached to the question.
+  const [shot, setShot] = useState<string | null>(null);
+  const [image, setImage] = useState<{ id: string; url: string } | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const streamingRef = useRef(false);
   const [mine, setMine] = useState<QuickAction[]>([]);
   const box = useRef<HTMLTextAreaElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
   const usable = useMemo(() => models.filter((m) => m.verify_ok !== false), [models]);
-  const actions = useMemo(() => [...builtinActions(), ...mine], [mine]);
+  const actions = useMemo(() => (image ? imageActions() : [...builtinActions(), ...mine]), [image, mine]);
 
   useEffect(() => {
     listModels()
@@ -75,12 +97,13 @@ export function QuickAsk() {
     setTurns([]);
     setText("");
     setSelection(null);
+    setImage(null);
     box.current?.focus();
   }, []);
 
   // Every time the box comes back it's ready to type into; clicking away hides it when
   // there's nothing on it yet (a reply stays until the user decides it's done).
-  const idle = turns.length === 0 && !streaming;
+  const idle = turns.length === 0 && !streaming && !shot && !image;
   const idleRef = useRef(idle);
   idleRef.current = idle;
 
@@ -119,6 +142,32 @@ export function QuickAsk() {
     })();
     return () => off?.();
   }, []);
+  // The screen shortcut: the native side took the picture and spread the box over that
+  // screen; the picker takes it from here.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    const take = async () => {
+      const invoke = await tauri();
+      const url = invoke ? await invoke<string | null>("take_screen_shot").catch(() => null) : demoScreen();
+      if (!url || streamingRef.current) return;
+      setChatId(null);
+      setTurns([]);
+      setText("");
+      setSelection(null);
+      setImage(null);
+      setImageError(null);
+      setShot(url);
+    };
+    if (import.meta.env.DEV && new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("snip")) void take();
+    void (async () => {
+      const { isTauri } = await import("@tauri-apps/api/core");
+      if (!isTauri()) return;
+      const { listen } = await import("@tauri-apps/api/event");
+      off = await listen("rafiq://quick-snip", () => void take());
+    })();
+    return () => off?.();
+  }, []);
+
   useEffect(() => {
     let off: (() => void) | undefined;
     void (async () => {
@@ -153,7 +202,7 @@ export function QuickAsk() {
   // Esc puts the box away wherever the keyboard is inside it, not only in the text box.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !e.defaultPrevented) {
         e.preventDefault();
         void hide();
       }
@@ -170,8 +219,27 @@ export function QuickAsk() {
     void send(question, about ? questionAbout(question, about) : question);
   }
 
+  /** The part of the screen the user picked: the box shrinks back and carries it. */
+  async function picked(png: Blob) {
+    setShot(null);
+    const invoke = await tauri();
+    if (invoke) await invoke("restore_quick_ask");
+    box.current?.focus();
+    try {
+      const file = new File([png], `screen-${Date.now()}.png`, { type: "image/png" });
+      const uploaded = await uploadAttachment(file);
+      setImage({ id: uploaded.id, url: await attachmentUrl(uploaded.id) });
+    } catch (e) {
+      setImageError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   /** An action on the selected text, or on what's typed when nothing was selected. */
   function act(action: QuickAction) {
+    if (image) {
+      void send(action.label, action.prompt);
+      return;
+    }
     const target = selection ?? text.trim();
     if (!target) return;
     void send(action.label, actionMessage(action.prompt, target));
@@ -191,7 +259,9 @@ export function QuickAsk() {
         id = (await createChat(modelId, null, workspaceId)).id;
         setChatId(id);
       }
-      await sendChatMessage(id, message, modelId, [], (ev) => {
+      // The picture goes with the first question only; later ones are in the same chat.
+      const attached = image && turns.length === 0 ? [image.id] : [];
+      await sendChatMessage(id, message, modelId, attached, (ev) => {
         if (ev.type === "error") update((turn) => ({ ...turn, error: ev.message }));
         else update((turn) => ({ ...turn, answer: applyEvent(turn.answer, ev) }));
       });
@@ -241,6 +311,16 @@ export function QuickAsk() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden rounded-2xl border" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+      {shot && (
+        <ScreenPicker
+          src={shot}
+          onPick={(png) => void picked(png)}
+          onCancel={() => {
+            setShot(null);
+            void hide();
+          }}
+        />
+      )}
       {/* The window has no frame: this strip is what the user drags it by. */}
       <header data-tauri-drag-region className="flex shrink-0 items-center gap-2 px-4 pb-1 pt-3 select-none">
         <Logo className="pointer-events-none h-5 w-5" />
@@ -297,7 +377,35 @@ export function QuickAsk() {
             </p>
           </div>
         )}
-        {turns.length === 0 && !selection && usable.length > 0 && (
+        {(image || imageError) && (
+          <div className="mb-1 mt-1 flex items-start gap-3 rounded-xl border px-3 py-2" style={{ borderColor: "var(--color-border)", background: "var(--color-bg)" }}>
+            {image && (
+              <img
+                src={image.url}
+                alt={t("الجزء اللي حددته من الشاشة")}
+                className="max-h-28 max-w-[60%] rounded-md border object-contain"
+                style={{ borderColor: "var(--color-border)" }}
+              />
+            )}
+            <p className="min-w-0 flex-1 text-[11px] font-medium" style={imageError ? { color: "var(--color-danger)" } : muted} role={imageError ? "alert" : undefined}>
+              {imageError ?? t("صورة من شاشتك: اسأل عنها أو اختار أمر")}
+            </p>
+            <button
+              onClick={() => {
+                setImage(null);
+                setImageError(null);
+                box.current?.focus();
+              }}
+              disabled={streaming}
+              aria-label={t("شيل الصورة")}
+              className="rounded p-0.5 transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-40"
+              style={muted}
+            >
+              <XIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+        {turns.length === 0 && !selection && !image && usable.length > 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-2 pb-4 text-center">
             <p className="text-sm" style={{ color: "var(--color-ink)" }}>
               {t("اسأل، وخلّي شغلك مفتوح.")}
@@ -350,7 +458,7 @@ export function QuickAsk() {
       </div>
 
       {/* One press on the selected text — or on what's typed, when nothing was selected. */}
-      {(selection || (turns.length === 0 && text.trim())) && !streaming && modelId && (
+      {((image && turns.length === 0) || selection || (turns.length === 0 && text.trim())) && !streaming && modelId && (
         <div className="mx-2 mb-1.5 flex shrink-0 flex-wrap gap-1.5 px-1" role="group" aria-label={t("أوامر سريعة")}>
           {actions.map((action) => (
             <button
@@ -364,6 +472,7 @@ export function QuickAsk() {
               {action.label}
             </button>
           ))}
+          {!image && (
           <button
             onClick={() => void openSettings()}
             className="rounded-full border border-dashed px-2.5 py-1 text-[11px] transition-colors hover:bg-[var(--color-surface-2)]"
@@ -371,6 +480,7 @@ export function QuickAsk() {
           >
             {t("+ أمر خاص فيك")}
           </button>
+          )}
         </div>
       )}
 
@@ -409,7 +519,7 @@ export function QuickAsk() {
               ask();
             }
           }}
-          placeholder={turns.length ? t("كمّل السؤال…") : selection ? t("اسأل عن النص المحدد…") : t("اسأل رفيق أي شي…")}
+          placeholder={turns.length ? t("كمّل السؤال…") : image ? t("اسأل عن الصورة…") : selection ? t("اسأل عن النص المحدد…") : t("اسأل رفيق أي شي…")}
           aria-label={t("اسأل رفيق أي شي…")}
           disabled={!modelId}
           className="max-h-32 w-full resize-none bg-transparent px-1 text-[0.9375rem] outline-none"

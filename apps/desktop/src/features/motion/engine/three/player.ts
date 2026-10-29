@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -20,7 +21,8 @@ import { icon, loadIcons } from "../icons";
 import { outlineLines, type Contour, type Outline } from "../outline";
 import { outlinePath } from "../paths";
 import { canvasPaint, type Ctx } from "../render";
-import type { BrandKit, Layer, Light3, Material3, Material3Name, Object3, Scene, Scene3D, Vec3 } from "../types";
+import type { BrandKit, Layer, Light3, Material3, Material3Name, Object3, Scene, Scene3D, Vec3, Windows3 } from "../types";
+import { expandProps } from "./props";
 import { expandScene3D } from "./recipes";
 import { cameraState, ease3, hashString, latLon, noise3, objectState, partState, seeded, type State3 } from "./timeline";
 
@@ -135,10 +137,170 @@ function makeMaterial(o: Object3, kit: BrandKit, fallback: Material3Name = "plas
   return m;
 }
 
+// ── Façades ─────────────────────────────────────────────────────────────────────────────
+
+/** Windows in a façade tile: TILE × TILE of them. */
+const TILE = 16;
+
+type FacadeStyle = NonNullable<Windows3["style"]>;
+
+/** One tile of windows, as a colour map (walls white so the material's colour shows, glass
+ *  darker, lit panes bright) and a glow map (only the lit panes). Wraps both ways.
+ *  grid: separate windows in a wall · bands: a glass band every floor · fins: glass behind
+ *  close vertical fins · curtain: a whole glass wall, faint mullions · diagrid: glass under a
+ *  diagonal steel lattice. */
+function drawWindowTiles(style: FacadeStyle, glass: THREE.Color, light: THREE.Color, lit: number, seed: number): { map: THREE.Texture; glow: THREE.Texture } {
+  const cw = 8;
+  const ch = 12;
+  const width = TILE * cw;
+  const height = TILE * ch;
+  const map = document.createElement("canvas");
+  const glow = document.createElement("canvas");
+  map.width = glow.width = width;
+  map.height = glow.height = height;
+  const a = map.getContext("2d")!;
+  const b = glow.getContext("2d")!;
+  const rnd = seeded(seed ^ 0x5f3759df);
+  const css = (c: THREE.Color, k = 1) => `rgb(${Math.round(Math.min(1, c.r * k) * 255)},${Math.round(Math.min(1, c.g * k) * 255)},${Math.round(Math.min(1, c.b * k) * 255)})`;
+  // the canvas is in sRGB: the colours (linear in three.js) go back to sRGB to draw
+  const srgb = (c: THREE.Color) => c.clone().convertLinearToSRGB();
+  const glassC = srgb(glass);
+  const lightC = srgb(light);
+  // a glazed wall is mostly the material's own colour (a light grey here lets it and the
+  // reflections show), its framing a little lighter
+  const glazed = style === "curtain" || style === "diagrid";
+  a.fillStyle = glazed ? "rgb(178,178,178)" : style === "fins" ? css(glassC) : "#ffffff";
+  a.fillRect(0, 0, width, height);
+  b.fillStyle = "#000000";
+  b.fillRect(0, 0, width, height);
+  const pane = (x: number, y: number, pw: number, ph: number, on: boolean, shade: number, dark: string) => {
+    a.fillStyle = on ? css(lightC, 0.95 * shade) : dark;
+    a.fillRect(x, y, pw, ph);
+    if (on) {
+      b.fillStyle = css(lightC, shade);
+      b.fillRect(x, y, pw, ph);
+    }
+  };
+  for (let row = 0; row < TILE; row++) {
+    const y = row * ch;
+    // offices light up in stretches along a floor, not pane by pane
+    let run = 0;
+    let runOn = false;
+    if (style === "bands") {
+      a.fillStyle = css(glassC);
+      a.fillRect(0, y + 2, width, ch - 3);
+    }
+    for (let col = 0; col < TILE; col++) {
+      const x = col * cw;
+      const shade = 0.8 + rnd() * 0.4;
+      if (run-- <= 0) {
+        run = 2 + Math.floor(rnd() * 6);
+        runOn = rnd() < lit;
+      }
+      // flats light window by window; offices (glass) by the stretch, a few panes dark in it
+      const on = style === "grid" ? rnd() < lit : runOn && rnd() < 0.85;
+      switch (style) {
+        case "bands":
+          a.fillStyle = "rgba(255,255,255,0.35)";
+          a.fillRect(x, y + 2, 1, ch - 3);
+          if (on) pane(x + 1, y + 2, cw - 1, ch - 3, true, shade, "");
+          break;
+        case "fins":
+          if (on) pane(x + 2, y + 1, cw - 2, ch - 1, true, shade, "");
+          a.fillStyle = "rgba(255,255,255,0.9)";
+          a.fillRect(x, y, 2, ch);
+          break;
+        case "curtain":
+        case "diagrid":
+          a.fillStyle = `rgba(${Math.round(150 + shade * 40)},${Math.round(150 + shade * 40)},${Math.round(150 + shade * 40)},0.35)`;
+          a.fillRect(x + 1, y + 1, cw - 1, ch - 1);
+          if (on) pane(x + 1, y + 1, cw - 1, ch - 1, true, shade, "");
+          a.fillStyle = "rgba(255,255,255,0.28)";
+          a.fillRect(x, y, cw, 1);
+          a.fillRect(x, y, 1, ch);
+          break;
+        default:
+          pane(x + 2, y + 2, cw - 4, ch - 4, on, shade, css(glassC, shade));
+      }
+    }
+    if (style === "fins") {
+      a.fillStyle = "rgba(255,255,255,0.7)";
+      a.fillRect(0, y, width, 1);
+    }
+  }
+  if (style === "diagrid") {
+    // steel diagonals every four windows, both ways, meeting at the tile's edges so it wraps
+    a.strokeStyle = "rgba(255,255,255,0.85)";
+    a.lineWidth = 2;
+    const step = cw * 4;
+    const rise = ch * 4;
+    a.beginPath();
+    for (let k = -TILE; k <= TILE * 2; k += 4) {
+      a.moveTo(k * cw, 0);
+      a.lineTo(k * cw + (height / rise) * step, height);
+      a.moveTo(k * cw, 0);
+      a.lineTo(k * cw - (height / rise) * step, height);
+    }
+    a.stroke();
+  }
+  const tex = (canvas: HTMLCanvasElement) => {
+    const t = new THREE.CanvasTexture(canvas);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 8;
+    return t;
+  };
+  return { map: tex(map), glow: tex(glow) };
+}
+
 // ── Geometry ────────────────────────────────────────────────────────────────────────────
 
 /** Solids drawn with flat faces (a gem, not a ball). */
-const FACETED = new Set(["icosahedron", "octahedron", "dodecahedron", "tetrahedron"]);
+const FACETED = new Set(["icosahedron", "octahedron", "dodecahedron", "tetrahedron", "rock", "mountain", "prism"]);
+
+/** The colour a shape gets when the scene names none (a stone is grey, not the brand's colour). */
+const NATURAL_COLOR: Record<string, string> = { rock: "#8d9096", mountain: "#ffffff" };
+
+/** A ball-ish or cone-ish mesh, its points pushed in and out by noise: a stone, a peak. */
+function roughen(base: THREE.BufferGeometry, amount: number, seed: number, keep: (v: THREE.Vector3) => boolean): THREE.BufferGeometry {
+  base.deleteAttribute("uv");
+  base.deleteAttribute("normal");
+  const g = mergeVertices(base);
+  base.dispose();
+  const pos = g.getAttribute("position") as THREE.BufferAttribute;
+  const v = new THREE.Vector3();
+  const off = (seed % 1000) * 0.37;
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    if (keep(v)) continue;
+    const n = noise3(v.x * 1.7 + off, v.y * 1.7, v.z * 1.7 - off) * 0.75 + noise3(v.x * 4 - off, v.y * 4, v.z * 4) * 0.25;
+    const k = 1 + amount * n;
+    pos.setXYZ(i, v.x * k, v.y * (1 + amount * 0.4 * n), v.z * k);
+  }
+  const flat = g.toNonIndexed();
+  g.dispose();
+  flat.computeVertexNormals();
+  return flat;
+}
+
+/** Colours down a mountain: forest, then bare rock, then snow (unless `variant: "bare"`). */
+function mountainColors(g: THREE.BufferGeometry, height: number, snow: boolean, seed: number): void {
+  const pos = g.getAttribute("position") as THREE.BufferAttribute;
+  const colors = new Float32Array(pos.count * 3);
+  const forest = new THREE.Color("#55703f");
+  const stone = new THREE.Color("#7f7b75");
+  const white = new THREE.Color("#f3f5f8");
+  const c = new THREE.Color();
+  for (let i = 0; i < pos.count; i += 3) {
+    // one colour per face, from its middle height, so the facets read
+    const y = (pos.getY(i) + pos.getY(i + 1) + pos.getY(i + 2)) / 3 / height + noise3(pos.getX(i) * 2, seed % 97, pos.getZ(i) * 2) * 0.08;
+    if (snow && y > 0.68) c.copy(white);
+    else if (y > 0.38) c.copy(stone).lerp(forest, Math.max(0, 0.5 - y) * 2);
+    else c.copy(forest).multiplyScalar(0.85 + y * 0.4);
+    for (let k = 0; k < 3; k++) colors.set([c.r, c.g, c.b], (i + k) * 3);
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+}
 
 function primitive(kind: string, o: Object3): THREE.BufferGeometry {
   const size = o.size ?? 1.4;
@@ -149,10 +311,11 @@ function primitive(kind: string, o: Object3): THREE.BufferGeometry {
       g = new THREE.SphereGeometry(r, 64, 32);
       break;
     case "cylinder":
-      g = new THREE.CylinderGeometry(r, r, o.height ?? size, 64);
+      // `radiusTop` narrows it (a frustum); `sides` 3 or 4 makes a triangular or square one
+      g = new THREE.CylinderGeometry(o.radiusTop ?? r, r, o.height ?? size, Math.max(3, o.sides ?? 64));
       break;
     case "cone":
-      g = new THREE.ConeGeometry(r, o.height ?? size, 64);
+      g = new THREE.ConeGeometry(r, o.height ?? size, Math.max(3, o.sides ?? 64));
       break;
     case "torus":
       g = new THREE.TorusGeometry(o.radius ?? size * 0.6, o.thickness ?? size * 0.22, 48, 128);
@@ -181,6 +344,33 @@ function primitive(kind: string, o: Object3): THREE.BufferGeometry {
     case "tetrahedron":
       g = new THREE.TetrahedronGeometry(r, 0);
       break;
+    case "rock": {
+      // a low-poly stone: a coarse ball, roughened, a little flatter than tall
+      const seed = hashString(o.id ?? "rock") + (o.seed ?? 0) * 7919;
+      g = roughen(new THREE.IcosahedronGeometry(r, 1), o.noise ?? 0.35, seed, () => false);
+      g.scale(1, (o.height ?? r * 1.5) / (r * 2), 1);
+      break;
+    }
+    case "mountain": {
+      const height = o.height ?? size * 1.4;
+      const seed = hashString(o.id ?? "mountain") + (o.seed ?? 0) * 7919;
+      const cone = new THREE.ConeGeometry(r * 1.6, height, 11, 7);
+      cone.translate(0, height / 2, 0);
+      // the peak and the foot stay put, the slopes go rough
+      g = roughen(cone, o.noise ?? 0.28, seed, (v) => v.y > height * 0.97 || v.y < 0.001);
+      mountainColors(g, height, o.variant !== "bare", seed);
+      break;
+    }
+    case "dome":
+      g = new THREE.SphereGeometry(r, 64, 24, 0, Math.PI * 2, 0, Math.PI / 2);
+      break;
+    case "prism": {
+      // lies along x, one edge up: a roof as it is; `sides` 6 makes a hexagonal bar
+      g = new THREE.CylinderGeometry(r, r, o.width ?? size, Math.max(3, o.sides ?? 3), 1);
+      g.rotateZ(Math.PI / 2);
+      g.rotateX(-Math.PI / 2);
+      break;
+    }
     case "lathe": {
       // a profile [radius, y] turned round the y axis: a vase, a bottle, a cup, a lamp
       const profile = o.profile?.length && o.profile.length >= 2 ? o.profile : [[0, -0.7], [0.45, -0.7], [0.55, -0.2], [0.3, 0.4], [0.35, 0.7]];
@@ -191,7 +381,9 @@ function primitive(kind: string, o: Object3): THREE.BufferGeometry {
       const w = o.width ?? size;
       const h = o.height ?? size;
       const d = o.depth ?? size;
-      g = o.radius && o.radius > 0 ? new RoundedBoxGeometry(w, h, d, 4, Math.min(o.radius, Math.min(w, h, d) / 2)) : new THREE.BoxGeometry(w, h, d);
+      // edges a touch rounded unless `radius: 0`: a razor-sharp box reads as a placeholder
+      const round = o.radius ?? Math.min(w, h, d) * 0.04;
+      g = round > 0 ? new RoundedBoxGeometry(w, h, d, 3, Math.min(round, Math.min(w, h, d) / 2)) : new THREE.BoxGeometry(w, h, d);
     }
   }
   if (o.pivot === "bottom") {
@@ -667,8 +859,10 @@ export function threePlayer(): ThreePlayer {
   }
 
   async function buildLayer(layer: Layer, sceneDoc: Scene, loader: AssetLoader | undefined, problems: string[]): Promise<Built> {
-    const spec = expandScene3D(layer.scene3d, layer.start, layer.end);
-    const seed = spec.seed ?? hashString(layer.id);
+    const expanded = expandScene3D(layer.scene3d, layer.start, layer.end);
+    const seed = expanded.seed ?? hashString(layer.id);
+    // trees, buildings, a city…: groups of plain pieces from here on
+    const spec = { ...expanded, objects: expandProps(expanded.objects ?? [], seed) };
     const scene = new THREE.Scene();
     const geometries: THREE.BufferGeometry[] = [];
     const materials: THREE.Material[] = [];
@@ -677,6 +871,20 @@ export function threePlayer(): ThreePlayer {
       if (x instanceof THREE.BufferGeometry) geometries.push(x);
       else materials.push(x);
       return x;
+    };
+    // window tiles for façades, one per look, shared by every building (each side shows its
+    // own stretch of it through the texture's repeat and offset)
+    const tileCache = new Map<string, { map: THREE.Texture; glow: THREE.Texture }>();
+    // things that own GPU memory of their own (a mirror's picture), let go with the layer
+    const cleanups: (() => void)[] = [];
+    const windowTiles = (win: Windows3) => {
+      const lit = Math.max(0, Math.min(1, win.lit ?? 0.35));
+      const key = `${win.style ?? "grid"}|${win.glass ?? ""}|${win.light ?? ""}|${Math.round(lit * 20)}`;
+      const hit = tileCache.get(key);
+      if (hit) return hit;
+      const made = drawWindowTiles(win.style ?? "grid", color3(kit, win.glass ?? "#3b4a5c"), color3(kit, win.light ?? "#ffd9a0"), lit, seed);
+      tileCache.set(key, made);
+      return made;
     };
     const assetId = (key: string | undefined) => (key ? sceneDoc.assets?.[key]?.src.replace("asset://", "") ?? null : null);
 
@@ -1353,12 +1561,76 @@ export function threePlayer(): ThreePlayer {
         }
         default: {
           const g = track(primitive(o.kind, o));
-          const m = mat(o.kind === "plane" ? "matte" : "plastic");
-          // a lathe is open at the top: its inside shows
-          if (o.kind === "lathe") m.side = THREE.DoubleSide;
-          const mesh = new THREE.Mesh(g, m);
+          const plain = NATURAL_COLOR[o.kind] && !o.color && !(typeof o.material === "object" && o.material.color);
+          const own = plain ? { ...o, color: NATURAL_COLOR[o.kind] } : o;
+          const fallback: Material3Name = o.kind === "plane" || o.kind === "rock" || o.kind === "mountain" ? "matte" : "plastic";
+          const make = () => {
+            const made = track(makeMaterial(own, kit, fallback, tex));
+            node.materials.push(made);
+            return made;
+          };
+          const m = make();
+          // a lathe is open at the top, a dome at the bottom: their inside shows
+          if (o.kind === "lathe" || o.kind === "dome") m.side = THREE.DoubleSide;
+          if (g.getAttribute("color") && m instanceof THREE.MeshStandardMaterial) m.vertexColors = true;
+          let faces: THREE.Material | THREE.Material[] = m;
+          if ((o.kind === "box" || o.kind === "cylinder") && o.windows) {
+            // a façade: windows on the sides (each side its own count), a plain roof
+            const win: Windows3 = typeof o.windows === "object" ? o.windows : {};
+            const unit = o.size ?? 1.4;
+            const w = o.width ?? unit;
+            const h = o.height ?? unit;
+            const d = o.depth ?? unit;
+            const rows = Math.max(1, Math.round(o.floors ?? h / 0.24));
+            const colsW = Math.max(1, Math.round(win.cols ?? w / 0.17));
+            const colsD = Math.max(1, Math.round((colsW * d) / w));
+            const tiles = windowTiles(win);
+            const side = (cols: number) => {
+              const sm = make() as THREE.MeshStandardMaterial;
+              const at = new THREE.Vector2(Math.floor(rnd() * TILE) / TILE, Math.floor(rnd() * TILE) / TILE);
+              const place = (t: THREE.Texture) => {
+                const c = t.clone();
+                c.repeat.set(cols / TILE, rows / TILE);
+                c.offset.copy(at);
+                textures.push(c);
+                return c;
+              };
+              sm.map = place(tiles.map);
+              if ("emissiveMap" in sm) {
+                sm.emissiveMap = place(tiles.glow);
+                sm.emissive = new THREE.Color("#ffffff");
+                sm.emissiveIntensity = win.glow ?? 1;
+              }
+              sm.needsUpdate = true;
+              return sm;
+            };
+            if (o.kind === "cylinder") {
+              // one wall all the way round: its windows from the girth
+              const n = Math.max(3, o.sides ?? 64);
+              const r = o.radius ?? unit / 2;
+              const girth = n * 2 * r * Math.sin(Math.PI / n);
+              faces = [side(Math.max(3, Math.round(win.cols ? (win.cols * girth) / (2 * r) : girth / 0.17))), m, m];
+            } else {
+              const x = side(colsD);
+              const z = side(colsW);
+              faces = [x, x, m, m, z, z];
+            }
+          }
+          const mesh = new THREE.Mesh(g, faces);
           mesh.castShadow = castsShadow(o) && o.material !== "glow";
           mesh.receiveShadow = true;
+          if (o.kind === "box" && o.reflect && o.reflect > 0) {
+            // still water, a wet street, a polished floor: a true mirror on the top face, tinted
+            // by the surface's own colour (`reflect` 1 = a clear mirror)
+            const unit = o.size ?? 1.4;
+            const height = o.height ?? unit;
+            const mirrorTint = color3(kit, o.color ?? "#2a6f9e").lerp(new THREE.Color(0.5, 0.5, 0.5), Math.min(1, o.reflect));
+            const mirror = new Reflector(track(new THREE.PlaneGeometry(o.width ?? unit, o.depth ?? unit)), { clipBias: 0.003, textureWidth: 1024, textureHeight: 1024, color: mirrorTint });
+            mirror.rotation.x = -Math.PI / 2;
+            mirror.position.y = (o.pivot === "bottom" ? height : height / 2) + 0.001;
+            node.obj.add(mirror);
+            cleanups.push(() => mirror.dispose());
+          }
           node.obj.add(mesh);
         }
       }
@@ -1389,6 +1661,11 @@ export function threePlayer(): ThreePlayer {
         for (const g of geometries) g.dispose();
         for (const m of materials) m.dispose();
         for (const t of textures) t.dispose();
+        for (const t of tileCache.values()) {
+          t.map.dispose();
+          t.glow.dispose();
+        }
+        for (const clean of cleanups) clean();
       },
     };
   }

@@ -10,7 +10,8 @@ import tempfile
 from pathlib import Path
 
 import litellm
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -86,3 +87,45 @@ async def transcribe(
         with contextlib.suppress(OSError):
             path.unlink()
     return Transcript(text=text)
+
+
+class SpeakIn(BaseModel):
+    text: str = Field(min_length=1, max_length=6000)
+    # Windows has no voice for the reply's language: use whichever other voice there is.
+    fallback: bool = False
+
+
+async def _fallback_provider(session: AsyncSession, voice_over: str) -> str | None:
+    """A voice to use when Windows has none for the language: the local voice (Arabic, on
+    this machine), then an OpenAI model's voice, then the one chosen for voice-overs."""
+    from rafiq_agent.motion import local_models
+
+    if local_models.voice_ready():
+        return "local"
+    if await session.scalar(select(LlmModel.id).where(LlmModel.provider == "openai").limit(1)):
+        return "openai"
+    return voice_over if voice_over not in ("none", "", None) else None
+
+
+@router.post("/speak")
+async def speak(body: SpeakIn, session: AsyncSession = Depends(get_session)) -> Response:
+    """A chat reply read out loud by the provider chosen in Settings → Voice. Windows' own
+    voices ("system") are played by the app itself and never come here."""
+    from rafiq_agent.motion import media
+
+    settings = await load_settings()
+    provider, voice = settings.speak_provider, settings.speak_voice
+    if provider == "system":
+        if not body.fallback:
+            raise HTTPException(status_code=400, detail=tr("القراءة بصوت ويندوز بتصير بالتطبيق نفسه."))
+        provider, voice = await _fallback_provider(session, settings.tts_provider), None
+        if provider is None:
+            raise HTTPException(
+                status_code=400,
+                detail=tr("ما في صوت عربي على ويندوز. نزّل واحد من إعدادات ويندوز ← الوقت واللغة ← الكلام، أو نزّل الصوت المحلي من إعدادات الفيديو."),
+            )
+    try:
+        data, mime = await media.speak(session, body.text, provider, voice)
+    except media.MediaError as exc:
+        raise HTTPException(status_code=502, detail=tr("ما قدرت أقرأ الرد: {0}", str(exc))) from exc
+    return Response(content=data, media_type=mime, headers={"Cache-Control": "no-store"})

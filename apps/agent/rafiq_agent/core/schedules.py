@@ -97,6 +97,8 @@ async def tick(now: datetime | None = None) -> list[str]:
     async with SessionLocal() as session:
         rows = (await session.execute(select(Schedule).where(Schedule.enabled.is_(True)))).scalars().all()
         for schedule in rows:
+            if schedule.kind in ("folder", "clipboard", "app"):
+                continue  # started by what happens (core/triggers.py), not by the clock
             due = utc(schedule.next_run_at)
             if due is None:
                 schedule.next_run_at = next_run(schedule, now)

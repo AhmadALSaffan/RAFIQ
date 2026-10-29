@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { MAX_QUICK_ACTIONS, QUICK_ASK_SHORTCUTS, draftAction, syncQuickAsk } from "../../lib/quickAsk";
+import { MAX_QUICK_ACTIONS, QUICK_ASK_SHORTCUTS, SCREEN_ASK_SHORTCUT, draftAction, syncQuickAsk } from "../../lib/quickAsk";
 import { motion } from "motion/react";
 import { getWebSearchKeys, listModels, saveWebSearchKey } from "../../lib/api";
 import { autostartEnabled, setAutostart, syncBackground } from "../../lib/background";
@@ -191,15 +191,21 @@ export function BackgroundSettings({ settings, persist }: { settings: AppSetting
   const quick = settings.quick_ask_shortcut ?? null;
 
   const selection = settings.quick_ask_selection ?? true;
+  const screen = settings.screen_ask_shortcut === undefined ? SCREEN_ASK_SHORTCUT : settings.screen_ask_shortcut;
 
   async function setQuick(shortcut: string | null) {
     persist({ ...settings, quick_ask_shortcut: shortcut });
-    setQuickError(await syncQuickAsk(shortcut, selection));
+    setQuickError(await syncQuickAsk(shortcut, selection, screen));
   }
 
   async function setSelection(on: boolean) {
     persist({ ...settings, quick_ask_selection: on });
-    setQuickError(await syncQuickAsk(quick, on));
+    setQuickError(await syncQuickAsk(quick, on, screen));
+  }
+
+  async function setScreen(shortcut: string | null) {
+    persist({ ...settings, screen_ask_shortcut: shortcut });
+    setQuickError(await syncQuickAsk(quick, selection, shortcut));
   }
 
   useEffect(() => {
@@ -259,6 +265,26 @@ export function BackgroundSettings({ settings, persist }: { settings: AppSetting
         />
       )}
       {quick !== null && <QuickActionsEditor settings={settings} persist={persist} />}
+      <ToggleRow
+        label={t("اسأل عن شاشتك")}
+        hint={t("اختصار بيصوّر الشاشة اللي عليها الماوس: بتحدد الجزء اللي بدك ياه، وبيفتح السؤال السريع والصورة معه. بدها نموذج بيشوف الصور.")}
+        checked={screen !== null}
+        onChange={(on) => void setScreen(on ? SCREEN_ASK_SHORTCUT : null)}
+      />
+      {screen !== null && (
+        <div className="px-1 py-2">
+          <ShortcutRecorder
+            label={t("اختصار الشاشة")}
+            description={t("اضغط عليه وسجّل أي اختصار فيه Ctrl أو Alt.")}
+            platform="other"
+            requireModifier
+            value={toRecorder(screen)}
+            resetValue={toRecorder(SCREEN_ASK_SHORTCUT)}
+            bindings={[{ shortcut: "mod+k", label: t("بحث رفيق") }]}
+            onValueChange={(v) => void setScreen(v ? toTauri(v) : null)}
+          />
+        </div>
+      )}
     </Section>
   );
 }

@@ -138,7 +138,8 @@ export interface TaskSummary {
   model_id: string;
   working_dir: string | null;
   attachments: Attachment[] | null;
-  origin: { chat_id?: string } | null;
+  /** Who started it: a chat, a schedule, or a trigger (then `trigger` names the event). */
+  origin: { chat_id?: string; schedule_id?: string; trigger?: string } | null;
   mode?: TaskMode;
   /** The plan the model wrote (plan mode), as approved. */
   plan?: string | null;
@@ -630,6 +631,8 @@ export interface AppSettings {
   quick_ask_shortcut: string | null;
   /** The shortcut also brings the text selected in the program in front. */
   quick_ask_selection: boolean;
+  /** The global shortcut for "ask about my screen" ("Ctrl+Alt+S"); null = off. */
+  screen_ask_shortcut?: string | null;
   /** The user's own actions in the quick box, next to the built-in ones. */
   quick_actions: QuickAction[];
   /** The app's brand kit — read only here; it's saved through /motion/kit, which checks it. */
@@ -639,6 +642,13 @@ export interface AppSettings {
   /** Who reads the voice-overs in motion projects. */
   tts_provider: "none" | "openai" | "elevenlabs" | "azure" | "local";
   tts_voice: string | null;
+  /** Who reads chat replies out loud: Windows' own voices ("system") or a provider. */
+  speak_provider?: "system" | "openai" | "elevenlabs" | "azure" | "local";
+  speak_voice?: string | null;
+  /** Rafiq keeps an index of what's inside the user's files, for search by what they say. */
+  file_search_enabled?: boolean;
+  /** The folders it covers; empty = Documents, Desktop and Downloads. */
+  file_search_dirs?: string[];
   /** Where the notes are kept; null = Documents/Rafiq/notes. */
   notes_dir?: string | null;
   notes_pinned?: string[];
@@ -837,7 +847,11 @@ export interface TaskTemplate {
   created_at: string;
 }
 
-export type ScheduleKind = "interval" | "daily" | "weekly";
+export type ScheduleKind = "interval" | "daily" | "weekly" | EventKind;
+/** Triggers: a new file in a folder, copied text, a program opening. */
+export type EventKind = "folder" | "clipboard" | "app";
+/** Which copied text starts a clipboard trigger. */
+export type ClipFilter = "any" | "latin" | "arabic" | "link";
 
 export interface ScheduleInput {
   title: string;
@@ -849,6 +863,10 @@ export interface ScheduleInput {
   at_time: string | null;
   /** 0 = Monday … 6 = Sunday */
   weekdays: number[] | null;
+  /** Triggers: the folder or program watched. */
+  watch?: string | null;
+  /** Triggers: file patterns ("*.pdf, *.jpg"), or which copied text (ClipFilter). */
+  watch_filter?: string | null;
   enabled: boolean;
 }
 
@@ -868,7 +886,7 @@ export type ScheduleRunStatus = TaskStatus | "not_started" | "deleted";
 /** One run of a schedule and how it went. */
 export interface ScheduleRun {
   id: string;
-  trigger: "schedule" | "manual";
+  trigger: "schedule" | "manual" | EventKind;
   started_at: string;
   task_id: string | null;
   status: ScheduleRunStatus;
