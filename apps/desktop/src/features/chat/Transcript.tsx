@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { StudioCard } from "./StudioCard";
 import { SpeakButton } from "./SpeakButton";
+import { CouncilRecord } from "./CouncilRecord";
 import { AnimatePresence, animate, motion } from "motion/react";
 import { forgetSendOrigin, sendOrigin } from "./sendFlight";
 import type { ChatMessage, ChatPart, LlmModel, TaskStatus, TurnUsage } from "../../lib/types";
@@ -418,6 +419,8 @@ export function AssistantBlock({
               <PermissionPart part={item.part} onResolve={onResolve} />
             ) : item.part.kind === "studio" ? (
               <StudioCard item={item.part} fresh={live} />
+            ) : item.part.kind === "council" ? (
+              <CouncilRecord seats={item.part.seats} />
             ) : null}
           </motion.div>
         ))}
@@ -470,7 +473,7 @@ function groupTasks(parts: ChatPart[]): Item[] {
       else items.push({ kind: "tasks", key: `tasks-${part.task_id}`, tasks: [part] });
       return;
     }
-    const key = part.kind === "text" ? `text-${i}` : `${part.kind}-${part.id}`;
+    const key = part.kind === "text" || part.kind === "council" ? `${part.kind}-${i}` : `${part.kind}-${part.id}`;
     items.push({ kind: "part", key, part, last: i === parts.length - 1 });
   });
   return items;

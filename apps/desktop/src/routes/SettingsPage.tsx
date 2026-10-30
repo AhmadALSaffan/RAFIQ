@@ -12,6 +12,7 @@ import { ToggleRow } from "../features/settings/controls";
 import { BackgroundSettings, TasksSettings, WebSettings } from "../features/settings/sections";
 import { VoiceSettings } from "../features/settings/voice";
 import { FileSearchSettings } from "../features/settings/fileSearch";
+import { AmbientSettings } from "../features/settings/ambient";
 import { McpSettings } from "../features/settings/mcp";
 import { MemorySettings } from "../features/settings/memory";
 import { UsageSettings } from "../features/settings/usage";
@@ -517,6 +518,7 @@ export function SettingsPage() {
                   <BackgroundSettings settings={settings} persist={persist} />
                   <VoiceSettings settings={settings} persist={persist} />
                   <FileSearchSettings settings={settings} persist={persist} />
+                  <AmbientSettings settings={settings} persist={persist} />
                 </>
               )}
               {tab === "accounts" && <ConnectedAccountsSection />}

@@ -185,7 +185,7 @@ export async function stopChat(chatId: string): Promise<boolean> {
   return out.stopped;
 }
 
-async function readEvents(res: Response, onEvent: (event: ChatStreamEvent) => void): Promise<void> {
+export async function readEvents<T = ChatStreamEvent>(res: Response, onEvent: (event: T) => void): Promise<void> {
   if (!res.ok || !res.body) {
     const detail = await res.json().catch(() => null);
     throw new Error(errorText(detail?.detail) ?? `${res.status} ${res.statusText}`);
@@ -207,7 +207,7 @@ async function readEvents(res: Response, onEvent: (event: ChatStreamEvent) => vo
         .filter((line) => line.startsWith("data:"))
         .map((line) => line.slice(5).trimStart())
         .join("\n");
-      if (data) onEvent(JSON.parse(data) as ChatStreamEvent);
+      if (data) onEvent(JSON.parse(data) as T);
       boundary = buffer.indexOf("\n\n");
     }
   }

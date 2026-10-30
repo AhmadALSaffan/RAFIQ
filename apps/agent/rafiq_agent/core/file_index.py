@@ -41,6 +41,7 @@ log = logging.getLogger(__name__)
 
 INDEX_VERSION = 1
 TABLE = f"files_v{INDEX_VERSION}"
+MOVES = "moves_v1"
 RESCAN_SECONDS = 20 * 60
 MAX_FILES = 60_000
 MAX_BYTES = 25 * 1024 * 1024  # bigger files are found by name only
@@ -80,6 +81,7 @@ def _connect() -> sqlite3.Connection:
         f"CREATE VIRTUAL TABLE IF NOT EXISTS {TABLE} USING fts5("
         "path UNINDEXED, mtime UNINDEXED, size UNINDEXED, name, body, tokenize='unicode61')"
     )
+    conn.execute(f"CREATE TABLE IF NOT EXISTS {MOVES} (ext TEXT, from_dir TEXT, to_dir TEXT, at REAL)")
     return conn
 
 
@@ -172,7 +174,46 @@ def _walk(roots: list[str]):
                 yield Path(dirpath) / name
 
 
-def scan(roots: list[str], stop: threading.Event | None = None) -> dict[str, int]:
+def find_moves(gone: dict[str, int], arrived: dict[str, int]) -> list[tuple[str, str, str]]:
+    """Files that left one folder and came back in another: same name, same size, and not
+    empty. As (extension, from folder, to folder)."""
+    by_name: dict[tuple[str, int], str] = {(Path(p).name.lower(), size): p for p, size in arrived.items() if size > 0}
+    found = []
+    for path, size in gone.items():
+        target = by_name.get((Path(path).name.lower(), size))
+        if target and Path(target).parent != Path(path).parent:
+            found.append((Path(path).suffix.lower(), str(Path(path).parent), str(Path(target).parent)))
+    return found
+
+
+def moves(days: int) -> list[dict[str, Any]]:
+    """The moves recorded in the last `days` days (only while noticing is on)."""
+    if not db_path().exists():
+        return []
+    conn = _connect()
+    try:
+        rows = conn.execute(f"SELECT ext, from_dir, to_dir FROM {MOVES} WHERE at >= ?", (time.time() - days * 86400,)).fetchall()
+    finally:
+        conn.close()
+    return [{"ext": e, "from_dir": f, "to_dir": t} for e, f, t in rows]
+
+
+def recent(hours: int, limit: int) -> list[str]:
+    """The names of the files changed in the last `hours` hours, newest first."""
+    if not db_path().exists():
+        return []
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            f"SELECT path FROM {TABLE} WHERE CAST(mtime AS REAL) >= ? ORDER BY CAST(mtime AS REAL) DESC LIMIT ?",
+            (time.time() - hours * 3600, limit),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [Path(p).name for (p,) in rows]
+
+
+def scan(roots: list[str], stop: threading.Event | None = None, record_moves: bool = False) -> dict[str, int]:
     """Brings the index up to date with `roots`. Returns what it did."""
     if not _lock.acquire(blocking=False):
         return {"busy": 1}
@@ -183,6 +224,7 @@ def scan(roots: list[str], stop: threading.Event | None = None) -> dict[str, int
         try:
             known = {row[0]: (row[1], row[2], row[3]) for row in conn.execute(f"SELECT path, mtime, size, rowid FROM {TABLE}")}
             seen: set[str] = set()
+            arrived: dict[str, int] = {}
             read = 0
             for path in _walk(roots):
                 if stop is not None and stop.is_set():
@@ -206,15 +248,23 @@ def scan(roots: list[str], stop: threading.Event | None = None) -> dict[str, int
                     (key, mtime, info.st_size, name_words(path), body),
                 )
                 done["updated" if old else "added"] += 1
+                if not old:
+                    arrived[key] = info.st_size
                 read += 1
                 if read % REST_EVERY == 0:
                     conn.commit()
                     time.sleep(REST_SECONDS)
             if stop is None or not stop.is_set():
-                for key, (_, _, rowid) in known.items():
+                gone: dict[str, int] = {}
+                for key, (_, size, rowid) in known.items():
                     if key not in seen:
                         conn.execute(f"DELETE FROM {TABLE} WHERE rowid = ?", (rowid,))
                         done["removed"] += 1
+                        gone[key] = int(size)
+                if record_moves:
+                    now = time.time()
+                    for ext, from_dir, to_dir in find_moves(gone, arrived):
+                        conn.execute(f"INSERT INTO {MOVES} VALUES (?, ?, ?, ?)", (ext, from_dir, to_dir, now))
             conn.commit()
         finally:
             conn.close()
@@ -342,7 +392,7 @@ async def run_forever() -> None:
         try:
             settings = await load_settings()
             if settings.file_search_enabled:
-                await asyncio.to_thread(scan, folders(settings.file_search_dirs))
+                await asyncio.to_thread(scan, folders(settings.file_search_dirs), None, settings.notice_patterns)
         except Exception:  # noqa: BLE001
             log.info("file index loop failed", exc_info=True)
         _wake.clear()

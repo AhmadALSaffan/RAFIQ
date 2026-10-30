@@ -36,8 +36,7 @@ import { NotebookIcon,
   StarIcon,
   SunIcon,
   TasksIcon,
-  WandIcon,
-} from "./Icons";
+  WandIcon, CouncilIcon } from "./Icons";
 import { t } from "../i18n";
 
 type Icon = (props: { className?: string; style?: React.CSSProperties }) => React.ReactElement;
@@ -198,6 +197,7 @@ export function CommandPalette({
     const chatPath = pathname.startsWith("/chat") ? pathname : "/chat";
     const pages: Item[] = [
       { id: "p-chat", label: t("المحادثات"), Icon: ChatIcon, keywords: "chats chat conversations", run: go("/chat") },
+      { id: "p-council", label: t("مجلس النماذج"), Icon: CouncilIcon, keywords: "council models debate compare", run: go("/council") },
       { id: "p-work", label: t("شغلي"), Icon: InboxIcon, keywords: "my work issues jira linear github inbox", run: go("/work") },
       { id: "p-create", label: t("المركز الإبداعي"), Icon: SparkIcon, keywords: "creative hub create studio designs motion notes", run: go("/create") },
       { id: "p-designs", label: t("التصاميم"), Icon: SparkIcon, keywords: "designs design ui", run: go("/designs") },

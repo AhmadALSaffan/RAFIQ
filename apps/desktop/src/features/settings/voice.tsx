@@ -53,6 +53,19 @@ export function VoiceSettings({ settings, persist }: { settings: AppSettings; pe
         ]}
         onChange={(v) => persist({ ...settings, speak_provider: v as SpeakProvider, speak_voice: null })}
       />
+      <SelectRow
+        label={t("مين بيسمعك")}
+        hint={t("بيحوّل كلامك لنص، للمايك وللمحادثة الصوتية. ElevenLabs بياخد المفتاح اللي بالإعدادات ← الفيديو، والباقي من نماذجك.")}
+        value={settings.listen_provider ?? "auto"}
+        options={[
+          { value: "auto", label: t("تلقائي") },
+          { value: "elevenlabs", label: "ElevenLabs" },
+          { value: "groq", label: "Groq" },
+          { value: "openai", label: "OpenAI" },
+          { value: "azure", label: "Azure" },
+        ]}
+        onChange={(v) => persist({ ...settings, listen_provider: v as NonNullable<AppSettings["listen_provider"]> })}
+      />
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">

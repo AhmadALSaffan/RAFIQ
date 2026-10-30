@@ -206,6 +206,34 @@ class ScheduleRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class RadioEpisode(Base):
+    """One morning's show (core/radio.py): the script, or why there isn't one."""
+
+    __tablename__ = "radio_episodes"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    day: Mapped[str] = mapped_column(String, unique=True)  # local date, YYYY-MM-DD
+    script: Mapped[str] = mapped_column(Text, default="")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    heard_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Suggestion(Base):
+    """Something Rafiq noticed the user keeps doing, offered once (core/patterns.py)."""
+
+    __tablename__ = "suggestions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uid)
+    key: Mapped[str] = mapped_column(String, unique=True)  # the same offer is never made twice
+    kind: Mapped[str] = mapped_column(String)  # "schedule" | "folder" | "template"
+    title: Mapped[str] = mapped_column(String)
+    draft: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="new")  # "new" | "accepted" | "dismissed"
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class Memory(Base):
     """One thing the user asked Rafiq to keep in mind across chats (see core/memory.py)."""
 

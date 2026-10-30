@@ -91,6 +91,9 @@ class AppSettings(BaseModel):
     monthly_budget_usd: float = Field(default=0.0, ge=0)
     # Turns speech into text for the microphone in the composer (a Whisper-compatible model).
     transcribe_model: str = "whisper-1"
+    # Who turns speech into text (the mic and the voice conversation): "auto" = the first
+    # OpenAI, Groq or Azure model, else ElevenLabs when its key is saved.
+    listen_provider: Literal["auto", "openai", "groq", "azure", "elevenlabs"] = "auto"
     # Rafiq keeps short facts the user asked it to remember (core/memory.py) and offers them
     # to every chat. Off = nothing remembered and nothing offered.
     memory_enabled: bool = True
@@ -127,6 +130,14 @@ class AppSettings(BaseModel):
     # this machine only. Empty folders = Documents, Desktop and Downloads.
     file_search_enabled: bool = True
     file_search_dirs: list[str] = Field(default_factory=list, max_length=30)
+    # Morning radio (core/radio.py): a short spoken show about the day, written at this time.
+    radio_enabled: bool = False
+    radio_time: str = "08:00"
+    # What the news part is about (needs a web search service). Empty = no news.
+    radio_topics: str | None = Field(default=None, max_length=200)
+    # Rafiq notices what the user keeps doing and offers to do it (core/patterns.py). Local
+    # counting only, and off until they turn it on.
+    notice_patterns: bool = False
     # Where the notes are kept (core/notes.py). None = Documents/Rafiq/notes.
     notes_dir: str | None = None
     # Notes pinned to the top of the list, by their path in the notes folder.

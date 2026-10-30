@@ -289,7 +289,16 @@ export type ChatPart =
   | { kind: "permission"; id: string; call: ToolCall; resolution: Resolution }
   | { kind: "task"; task_id: string; title: string }
   /** A design or a motion reel the model started from this chat. */
-  | { kind: "studio"; studio: "design" | "motion"; id: string; chat_id: string; title: string };
+  | { kind: "studio"; studio: "design" | "motion"; id: string; chat_id: string; title: string }
+  /** What each model on a council said, kept above its decision. */
+  | { kind: "council"; chair: string; seats: CouncilSeat[] };
+
+export interface CouncilSeat {
+  id: string;
+  name: string;
+  answer: string;
+  critique: string;
+}
 
 export interface ChatMessage {
   id: string;
@@ -623,6 +632,8 @@ export interface AppSettings {
   monthly_budget_usd: number;
   /** The speech-to-text model the composer's microphone uses. */
   transcribe_model: string;
+  /** Who turns speech into text: "auto" = the first OpenAI/Groq/Azure model, else ElevenLabs. */
+  listen_provider?: "auto" | "openai" | "groq" | "azure" | "elevenlabs";
   /** Rafiq may remember things across chats (each save still goes through the "memory" permission). */
   memory_enabled: boolean;
   /** What a new chat's "save tokens" starts at; each chat can still flip its own copy. */
@@ -649,6 +660,12 @@ export interface AppSettings {
   file_search_enabled?: boolean;
   /** The folders it covers; empty = Documents, Desktop and Downloads. */
   file_search_dirs?: string[];
+  /** A short spoken show about the day, written at `radio_time`. */
+  radio_enabled?: boolean;
+  radio_time?: string;
+  radio_topics?: string | null;
+  /** Rafiq notices what the user keeps doing and offers to do it. */
+  notice_patterns?: boolean;
   /** Where the notes are kept; null = Documents/Rafiq/notes. */
   notes_dir?: string | null;
   notes_pinned?: string[];

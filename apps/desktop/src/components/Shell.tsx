@@ -18,11 +18,13 @@ import {
   MovieIcon,
   SunIcon,
   TasksIcon,
+  CouncilIcon,
   XIcon,
 } from "./Icons";
 import { CommandPalette, usePaletteShortcut } from "./CommandPalette";
 import { useTheme } from "../lib/theme";
-import { getSettings, getTask, listChats, listDesigns, listMotionProjects, listTasks, quietly } from "../lib/api";
+import { getRadioToday, getSettings, getTask, listChats, listDesigns, listMotionProjects, listSuggestions, listTasks, quietly } from "../lib/api";
+import { offerText } from "../features/ambient/Suggestions";
 import { closeTab, neighbourAfterClose, openTab, pruneTabs, tabFor, useTabs, type AppTab } from "../lib/tabs";
 import { notify, syncBackground } from "../lib/background";
 import { SCREEN_ASK_SHORTCUT, syncQuickAsk } from "../lib/quickAsk";
@@ -41,6 +43,7 @@ import { useIssueNotices } from "../lib/issueNotices";
 const navItems = [
   { to: "/", label: t("الرئيسية"), Icon: HomeIcon },
   { to: "/chat", label: t("المحادثات"), Icon: ChatIcon },
+  { to: "/council", label: t("مجلس النماذج"), Icon: CouncilIcon },
   { to: "/tasks", label: t("المهام"), Icon: TasksIcon },
   // designs, motion and notes live behind one door: the creative hub
   { to: "/create", label: t("المركز الإبداعي"), Icon: SparkIcon },
@@ -217,6 +220,33 @@ export function Shell() {
         void syncQuickAsk(s.quick_ask_shortcut ?? null, s.quick_ask_selection ?? true, s.screen_ask_shortcut === undefined ? SCREEN_ASK_SHORTCUT : s.screen_ask_shortcut);
       })
       .catch(() => undefined);
+  }, []);
+
+  // Rafiq may be hidden in the tray: today's radio and a new offer say so with a notification,
+  // once each. A plain local request every couple of minutes.
+  useEffect(() => {
+    const told = (key: string) => {
+      try {
+        if (localStorage.getItem(key)) return true;
+        localStorage.setItem(key, "1");
+      } catch {
+        return true; // without storage it would repeat every time: stay quiet
+      }
+      return false;
+    };
+    const look = async () => {
+      const radio = await quietly(() => getRadioToday()).catch(() => null);
+      if (radio?.episode?.script && !radio.episode.heard_at && !told(`rafiq-radio-told-${radio.episode.day}`)) {
+        void notify(t("راديو الصبح"), t("حلقة اليوم جاهزة"));
+      }
+      const offers = await quietly(() => listSuggestions()).catch(() => []);
+      for (const offer of offers) {
+        if (!told(`rafiq-offer-told-${offer.id}`)) void notify(t("رفيق لاحظ شي"), offerText(offer));
+      }
+    };
+    void look();
+    const timer = window.setInterval(() => void look(), 120_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   // "Open in Rafiq" from the quick-ask box lands here.

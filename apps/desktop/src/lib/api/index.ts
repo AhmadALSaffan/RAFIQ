@@ -16,6 +16,7 @@ export * from "./skills";
 export * from "./designs";
 export * from "./automation";
 export * from "./insights";
+export * from "./ambient";
 export * from "./memory";
 export * from "./workspaces";
 export * from "./backup";

@@ -31,38 +31,25 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 ---
 
-## What's new · v0.5.12
+## What's new · v0.5.13
 
 <!-- Every release: replace docs/whats-new/latest.webp with the release's picture (the same
      one the app's What's new dialog shows) and update the version, points and link below. -->
 
 <div align="center">
 
-<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.12: sees your screen and talks with you">
+<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.13: models that argue, a radio show about your day, and an assistant that notices">
 
 </div>
 
-**Rafiq sees your screen and talks with you.** Six new things:
-- **Ask about your screen:** a shortcut (Ctrl+Alt+S by default) captures the screen under
-  the mouse; drag out the part you mean and the quick ask box opens with it, ready to
-  explain it, find the error, copy out its text or translate it.
-- **Voice conversation:** the headphones button next to the mic — talk, Rafiq answers out
-  loud and listens again, no typing. Every reply also has a "Listen" button. Windows'
-  own voices are free and stay on your computer; Arabic falls back to the local voice or
-  an OpenAI voice when Windows has none.
-- **Tasks that start themselves:** besides times, a schedule can now start when a new file
-  lands in a folder, when you copy text (any, English, Arabic or a link), or when a
-  program opens. The result shows in the notification.
-- **Find your files by what's in them:** "where's the March invoice?" — Rafiq keeps an
-  index of Documents, Desktop and Downloads (or the folders you choose) on your computer
-  only, and finds files by their contents in Arabic and English.
-- **Up to 4 chats side by side** on the chat page.
-- **Richer 3D in Motion:** ready-made trees, rocks, mountains, buildings, cities, cars,
-  people and water that reflects, rounded shapes by default, and copying a real place
-  from a photo the model looks up.
-- **Fixed:** switching the theme could leave the globe blank until a restart.
+**Models that argue, a radio show about your day, and an assistant that notices.**
+- **Model council:** ask a hard question and two or three models each answer alone, critique each other under neutral names, and one writes a decision with the disagreements left in view. It only works because Rafiq works with any model.
+- **Morning radio:** every morning at your time, a short spoken show about your day: what got done, what failed, what's on today, the files that changed, and news on your topics. Press "ask about it" and talk to it.
+- **Rafiq notices:** turn it on and Rafiq spots what you keep doing by hand, the same request every week or the same kind of file moved to the same folder, and offers to do it. It's all counting on your computer: no model, nothing leaves it, nothing happens without your yes.
+- **ElevenLabs can listen too:** choose who turns your speech into text under Settings → General → Voice.
+- **Fixed:** the mic and the voice conversation failed with a Groq model.
 
-Full notes: [v0.5.12](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.12) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
+Full notes: [v0.5.13](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.13) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
 
 ---
 
@@ -256,7 +243,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.12_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.13_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)

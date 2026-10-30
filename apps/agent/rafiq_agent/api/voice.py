@@ -1,7 +1,8 @@
 """Speech to text for the microphone in the composer.
 
-There's no separate key to enter: the recording is sent with the credentials of an agent
-the user already configured on a provider that transcribes (OpenAI, Groq or Azure).
+The recording is sent with the credentials of an agent the user already configured on a
+provider that transcribes (OpenAI, Groq or Azure), or to ElevenLabs (Scribe) with the key
+saved for voice-overs. Settings → Voice says which; "auto" takes the first that's there.
 """
 
 import contextlib
@@ -9,6 +10,7 @@ import logging
 import tempfile
 from pathlib import Path
 
+import httpx
 import litellm
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field
@@ -30,6 +32,38 @@ router = APIRouter(tags=["voice"], dependencies=[Depends(require_token)])
 # Providers that can turn speech into text, in the order they're tried.
 SPEECH_PROVIDERS = ("openai", "groq", "azure")
 MAX_BYTES = 25 * 1024 * 1024  # what the providers themselves accept
+# Each provider's own speech model, used when the setting names none ("whisper-1" is
+# OpenAI's name; sent as-is with a Groq key, litellm would ask OpenAI and fail).
+DEFAULT_SPEECH_MODEL = {"openai": "whisper-1", "groq": "whisper-large-v3"}
+ELEVENLABS_STT = "https://api.elevenlabs.io/v1/speech-to-text"
+ELEVENLABS_STT_MODEL = "scribe_v1"
+
+
+async def elevenlabs_transcribe(data: bytes, filename: str, key: str) -> str:
+    """ElevenLabs Scribe. The language is left to it: people mix Arabic and English."""
+    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=15.0)) as client:
+        resp = await client.post(
+            ELEVENLABS_STT,
+            headers={"xi-api-key": key},
+            data={"model_id": ELEVENLABS_STT_MODEL},
+            files={"file": (filename, data, "application/octet-stream")},
+        )
+    if resp.status_code >= 400:
+        raise RuntimeError(f"ElevenLabs {resp.status_code}: {resp.text[:200]}")
+    return str(resp.json().get("text") or "").strip()
+
+
+def speech_model(setting: str | None, provider: str) -> str:
+    """The litellm model name for transcribing with `provider`: always prefixed with the
+    provider, so the request goes where the key belongs."""
+    name = (setting or "").strip() or "whisper-1"
+    if "/" in name:
+        return name
+    if provider == "openai":
+        return name
+    if provider == "groq" and name == "whisper-1":
+        name = DEFAULT_SPEECH_MODEL["groq"]
+    return f"{provider}/{name}"
 
 
 @router.post("/transcribe", response_model=Transcript)
@@ -44,23 +78,37 @@ async def transcribe(
     if len(data) > MAX_BYTES:
         raise HTTPException(status_code=413, detail=tr("التسجيل طويل كتير — جرّب أقصر."))
 
+    from rafiq_agent.motion import media
+
     settings = await load_settings()
-    model_name = settings.transcribe_model or "whisper-1"
-    wanted = model_name.split("/")[0] if "/" in model_name else None
+    setting = settings.transcribe_model or "whisper-1"
+    chosen = settings.listen_provider
+    wanted = chosen if chosen not in ("auto", "elevenlabs") else (setting.split("/")[0] if "/" in setting else None)
 
     models = (
         (await session.execute(select(LlmModel).where(LlmModel.provider.in_(SPEECH_PROVIDERS))))
         .scalars()
         .all()
     )
-    order = (wanted,) + SPEECH_PROVIDERS if wanted else SPEECH_PROVIDERS
-    agent = next((m for provider in order for m in models if m.provider == provider), None)
+    order = (wanted,) if chosen not in ("auto", "elevenlabs") else ((wanted,) + SPEECH_PROVIDERS if wanted else SPEECH_PROVIDERS)
+    agent = None if chosen == "elevenlabs" else next((m for provider in order for m in models if m.provider == provider), None)
+    eleven_key = media.secret("elevenlabs") if agent is None and chosen in ("auto", "elevenlabs") else None
+    if agent is None and eleven_key:
+        try:
+            return Transcript(text=await elevenlabs_transcribe(data, audio.filename or "speech.webm", eleven_key))
+        except Exception as exc:  # noqa: BLE001 - shown to the user as-is
+            log.info("transcription failed", exc_info=True)
+            raise HTTPException(status_code=502, detail=tr("ما قدرت أفهم التسجيل: {0}", str(exc))) from exc
     if agent is None:
-        raise HTTPException(
-            status_code=400,
-            detail=tr("التسجيل الصوتي بده نموذج من OpenAI أو Groq أو Azure — ضيف واحد من صفحة النماذج."),
-        )
+        if chosen == "elevenlabs":
+            detail = tr("ضيف مفتاح ElevenLabs من الإعدادات ← الفيديو.")
+        elif chosen != "auto":
+            detail = tr("ما في نموذج من {0} — ضيف واحد من صفحة النماذج، أو خلّي «مين بيسمعك» تلقائي.", {"openai": "OpenAI", "groq": "Groq", "azure": "Azure"}[chosen])
+        else:
+            detail = tr("التسجيل الصوتي بده نموذج من OpenAI أو Groq أو Azure، أو مفتاح ElevenLabs — ضيف واحد منهم.")
+        raise HTTPException(status_code=400, detail=detail)
 
+    model_name = speech_model(setting, agent.provider)
     creds = credentials_for(agent)
     connection = call_kwargs(agent.provider, creds.api_key, creds.base_url, agent.options)
     connection.pop("api_version", None)

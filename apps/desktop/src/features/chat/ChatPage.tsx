@@ -400,6 +400,19 @@ export function ChatPage({
   const jumpTo = searchParams.get("m");
   // Opened from the command palette on a saved prompt (`?prompt=<id>`).
   const promptParam = searchParams.get("prompt");
+  // Opened to talk straight away (`?voice=1`, from the morning radio).
+  const voiceParam = searchParams.get("voice");
+  useEffect(() => {
+    if (!voiceParam || embedded) return;
+    setVoice(true);
+    setSearchParams(
+      (params) => {
+        params.delete("voice");
+        return params;
+      },
+      { replace: true },
+    );
+  }, [voiceParam, embedded, setSearchParams]);
   useEffect(() => {
     if (!promptParam) return;
     setPromptsOpen({ id: promptParam });

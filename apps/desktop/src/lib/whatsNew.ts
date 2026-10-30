@@ -17,6 +17,9 @@ import speedRu from "../assets/whats-new/0.5.11-ru.webp";
 import screenAr from "../assets/whats-new/0.5.12-ar.webp";
 import screenEn from "../assets/whats-new/0.5.12-en.webp";
 import screenRu from "../assets/whats-new/0.5.12-ru.webp";
+import councilAr from "../assets/whats-new/0.5.13-ar.webp";
+import councilEn from "../assets/whats-new/0.5.13-en.webp";
+import councilRu from "../assets/whats-new/0.5.13-ru.webp";
 
 // The version whose dialog the user closed. (A new key: the first builds marked a version
 // seen as soon as it opened, shown or not.)
@@ -42,6 +45,17 @@ export interface ReleaseNews {
 const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/AhmadALSaffan/RAFIQ/releases/download/v${version}/whats-new-${lang}.mp4`;
 
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.13",
+    images: { ar: councilAr, en: councilEn, ru: councilRu },
+    title: () => t("نماذج بتتناقش، راديو عن يومك، ومساعد بيلاحظ"),
+    points: () => [
+      t("مجلس النماذج: كل نموذج بيجاوب لحاله، بينتقدوا بعض، وبيطلع قرار واحد مع نقاط الخلاف"),
+      t("راديو الصبح: حلقة صوتية عن يومك كل صبح، وبتقدر تسأله عنها بصوتك"),
+      t("رفيق بيلاحظ اللي بتكرره ويقترح يعمله عنك، كله على جهازك وبموافقتك"),
+      t("ElevenLabs صار بيسمعك كمان، وتصلّح المايك مع نماذج Groq"),
+    ],
+  },
   {
     version: "0.5.12",
     images: { ar: screenAr, en: screenEn, ru: screenRu },

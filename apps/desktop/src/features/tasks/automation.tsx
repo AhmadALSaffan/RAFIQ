@@ -17,6 +17,7 @@ import { pickFolder } from "../../lib/folders";
 import { BoltIcon, ClockIcon, DownloadIcon, GlobeIcon, PlusIcon, SpinnerIcon, TasksIcon, TrashIcon } from "../../components/Icons";
 import { Switch } from "../settings/controls";
 import { RecentRuns, ScheduleHistory } from "./scheduleHistory";
+import { NoticeInvite, Suggestions } from "../ambient/Suggestions";
 import { variablesOf } from "../../lib/variables";
 import { intlLocale, t } from "../../i18n";
 import { Skeleton } from "../../components/easy/skeleton";
@@ -298,6 +299,7 @@ function ScheduleForm({
 }
 
 export function SchedulesPanel({ models }: { models: LlmModel[] }) {
+  const [noticed, setNoticed] = useState(0);
   const navigate = useNavigate();
   const [schedules, setSchedules] = useState<Schedule[] | null>(null);
   const [editing, setEditing] = useState<(ScheduleInput & { id?: string }) | null>(null);
@@ -335,6 +337,11 @@ export function SchedulesPanel({ models }: { models: LlmModel[] }) {
             {t("جدولة جديدة")}
           </Button>
         )}
+      </div>
+
+      <div className="mb-4 flex flex-col gap-3 empty:hidden">
+        <Suggestions key={noticed} onAccepted={() => void load()} />
+        <NoticeInvite onOn={() => setNoticed((n) => n + 1)} />
       </div>
 
       <Reveal open={editing !== null}>

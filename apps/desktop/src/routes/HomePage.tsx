@@ -25,6 +25,8 @@ import { BrandMark } from "../components/BrandMark";
 import { rememberEffort, rememberModel, savedEffort, savedModel } from "../features/chat/constants";
 import { EffortPicker, type Effort } from "../components/EffortPicker";
 import { Illustration } from "../components/Illustration";
+import { RadioCard } from "../features/ambient/RadioCard";
+import { Suggestions } from "../features/ambient/Suggestions";
 import { t } from "../i18n";
 
 /** Today's tasks (started today, local time) and how the finished ones went. */
@@ -181,6 +183,11 @@ export function HomePage() {
           <span className="text-xs" style={{ color: "var(--color-ink-muted)" }}>{t("افتح شغلي")}</span>
         </motion.button>
       )}
+
+      <motion.div variants={listItem} className="flex flex-col gap-3 empty:hidden md:col-span-2">
+        <RadioCard />
+        <Suggestions />
+      </motion.div>
 
       {/* Today, inverted: the one strong block on the screen. */}
       <motion.div variants={listItem} className="md:row-span-2">

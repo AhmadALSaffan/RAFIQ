@@ -8,6 +8,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from rafiq_agent.api.accounts import callback_router as accounts_callback_router
 from rafiq_agent.api.accounts import router as accounts_router
+from rafiq_agent.api.ambient import router as ambient_router
 from rafiq_agent.api.attachments import router as attachments_router
 from rafiq_agent.api.automation import oauth_callback_router as mcp_oauth_callback_router
 from rafiq_agent.api.automation import router as automation_router
@@ -35,6 +36,8 @@ from rafiq_agent.core.chat_service import stop_all_turns
 from rafiq_agent.core.file_index import run_forever as run_file_index
 from rafiq_agent.core.issue_watch import run_forever as watch_issues
 from rafiq_agent.core.manager import manager
+from rafiq_agent.core.patterns import run_forever as run_patterns
+from rafiq_agent.core.radio import run_forever as run_radio
 from rafiq_agent.core.schedules import run_forever as run_schedules
 from rafiq_agent.core.triggers import run_forever as run_triggers
 from rafiq_agent.i18n import reset_request_locale, set_request_locale
@@ -80,6 +83,8 @@ async def lifespan(app: FastAPI):
     schedules = asyncio.create_task(run_schedules())
     triggers = asyncio.create_task(run_triggers())
     file_index = asyncio.create_task(run_file_index())
+    radio = asyncio.create_task(run_radio())
+    noticing = asyncio.create_task(run_patterns())
     # Mentions, reviews and new assignments on the connected trackers (core/issue_watch.py).
     watcher = asyncio.create_task(watch_issues())
     # Model prices: the last fetched table at once, a fresh one (once a day) in the background.
@@ -103,6 +108,8 @@ async def lifespan(app: FastAPI):
     schedules.cancel()
     triggers.cancel()
     file_index.cancel()
+    radio.cancel()
+    noticing.cancel()
     watcher.cancel()
     prices.cancel()
     sign_ins.cancel()
@@ -171,6 +178,7 @@ app.add_middleware(
 )
 
 app.include_router(models_router)
+app.include_router(ambient_router)
 app.include_router(accounts_router)
 app.include_router(accounts_callback_router)
 app.include_router(settings_router)

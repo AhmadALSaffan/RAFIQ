@@ -62,6 +62,9 @@ import {
   IconPlayerPause,
   IconVolume,
   IconHeadphones,
+  IconUsersGroup,
+  IconRadio,
+  IconBulb,
   IconLayersSubtract,
   IconPhoto,
   IconPaperclip,
@@ -156,6 +159,9 @@ export const PlayIcon = make(IconPlayerPlay);
 export const PauseIcon = make(IconPlayerPause);
 export const VolumeIcon = make(IconVolume);
 export const HeadphonesIcon = make(IconHeadphones);
+export const CouncilIcon = make(IconUsersGroup);
+export const RadioIcon = make(IconRadio);
+export const BulbIcon = make(IconBulb);
 export const LayersIcon = make(IconLayersSubtract);
 export const PhotoIcon = make(IconPhoto);
 export const WalletIcon = make(IconWallet);
