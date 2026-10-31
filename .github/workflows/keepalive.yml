@@ -1,8 +1,9 @@
-# Keeps Rafiq's Supabase project awake.
+# Keeps Rafiq's Supabase projects awake.
 #
 # A free Supabase project is paused after about a week without activity, and a paused
-# project can't receive GitHub Marketplace events. Reading one row a day is enough to keep
-# it awake. The row is public and holds nothing private (cloud/supabase/migrations).
+# project can't receive GitHub Marketplace events or carry requests from the phone. Reading
+# one row a day is enough to keep each awake. The row is public and holds nothing private
+# (cloud/supabase/migrations).
 #
 # Note: GitHub turns scheduled workflows off in a public repository after 60 days without
 # any activity in it; it sends an email, and one click turns this back on.
@@ -25,6 +26,17 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 20 \
+            "$SUPABASE_URL/rest/v1/keepalive?select=id" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            -o /dev/null
+          echo "Supabase answered: awake."
+      - name: Read the keep-alive row of the phone relay
+        env:
+          # Public values, meant to ship inside the apps; row level security guards the data.
+          SUPABASE_URL: https://nqxodtybqfqznfcrcgwg.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_3X-9GMShKPBZNs1gQBkYnA__F4HQ4WR
         run: |
           curl --fail --silent --show-error --retry 3 --retry-delay 20 \
             "$SUPABASE_URL/rest/v1/keepalive?select=id" \
