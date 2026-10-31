@@ -13,6 +13,8 @@ import { BackgroundSettings, TasksSettings, WebSettings } from "../features/sett
 import { VoiceSettings } from "../features/settings/voice";
 import { FileSearchSettings } from "../features/settings/fileSearch";
 import { AmbientSettings } from "../features/settings/ambient";
+import { KnowledgeSettings } from "../features/settings/knowledge";
+import { SavingsSettings } from "../features/settings/savings";
 import { McpSettings } from "../features/settings/mcp";
 import { MemorySettings } from "../features/settings/memory";
 import { UsageSettings } from "../features/settings/usage";
@@ -523,11 +525,21 @@ export function SettingsPage() {
               )}
               {tab === "accounts" && <ConnectedAccountsSection />}
               {tab === "agent" && <TasksSettings settings={settings} persist={persist} />}
-              {tab === "memory" && <MemorySettings settings={settings} persist={persist} />}
+              {tab === "memory" && (
+                <>
+                  <MemorySettings settings={settings} persist={persist} />
+                  <KnowledgeSettings settings={settings} persist={persist} />
+                </>
+              )}
               {tab === "web" && <WebSettings settings={settings} persist={persist} />}
               {tab === "motion" && <MotionSettings settings={settings} persist={persist} />}
               {tab === "mcp" && <McpSettings />}
-              {tab === "usage" && <UsageSettings settings={settings} persist={persist} />}
+              {tab === "usage" && (
+                <>
+                  <SavingsSettings settings={settings} persist={persist} />
+                  <UsageSettings settings={settings} persist={persist} />
+                </>
+              )}
               {tab === "logs" && <LogsSettings />}
               {tab === "permissions" && (
                 <>

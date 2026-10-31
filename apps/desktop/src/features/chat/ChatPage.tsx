@@ -49,6 +49,7 @@ import { permissionLabelOf, type PermissionAnswer } from "../../lib/permissions"
 import { Skeleton } from "../../components/easy/skeleton";
 import { FoldThoughts } from "../../components/agent/ThoughtChain";
 import { VoiceConversation } from "./VoiceConversation";
+import { ASK_STRONG_EVENT } from "./ReplyExtras";
 export function ChatPage({
   chatId,
   embedded = false,
@@ -122,6 +123,8 @@ export function ChatPage({
   const [newEffort, setNewEffort] = useState(savedEffort);
   const [summarizing, setSummarizing] = useState(false);
   const [voice, setVoice] = useState(false);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   // The newest reply, for the voice conversation to read once it has finished.
   const lastReply = useMemo(() => {
     const last = [...messages].reverse().find((m) => m.role === "assistant");
@@ -485,7 +488,7 @@ export function ChatPage({
     setChats((prev) => prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)));
   }
 
-  async function send(text: string, attachments: Attachment[]) {
+  async function send(text: string, attachments: Attachment[], noRoute = false) {
     const content = text.trim();
     if ((!content && !attachments.length) || streaming || !modelId) return;
     setError(null);
@@ -517,7 +520,7 @@ export function ChatPage({
     setMessages((prev) => [...prev, { id: tempId, role: "user", content, attachments, created_at: new Date().toISOString() }]);
     const id = chatId;
     const ids = attachments.map((a) => a.id);
-    await follow(id, (onEvent, signal) => sendChatMessage(id, content, modelId, ids, onEvent, signal), tempId);
+    await follow(id, (onEvent, signal) => sendChatMessage(id, content, modelId, ids, onEvent, signal, noRoute), tempId);
   }
 
   /** Opens a chat whose reply is still being written: catch up, then follow it live. */
@@ -665,7 +668,7 @@ export function ChatPage({
   }
 
   /** Drops the last exchange and sends the same prompt again. */
-  async function retryLast() {
+  async function retryLast(noRoute = false) {
     if (!routeId || streaming) return;
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     if (!lastUser) return;
@@ -682,8 +685,23 @@ export function ChatPage({
     }
     const dropped = new Set([lastUser.id, lastAssistant?.id]);
     setMessages((prev) => prev.filter((m) => !dropped.has(m.id)));
-    await send(lastUser.content, lastUser.attachments ?? []);
+    await send(lastUser.content, lastUser.attachments ?? [], noRoute);
   }
+
+  // "Ask the strong model instead", from the note on a reply the smart route answered.
+  const retryRef = useRef(retryLast);
+  retryRef.current = retryLast;
+  const lastReplyId = useRef<string | null>(null);
+  lastReplyId.current = lastReply?.id ?? null;
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (id === lastReplyId.current) void retryRef.current(true);
+      else if (messagesRef.current.some((m) => m.id === id)) notify({ type: "info", title: t("هاد بيشتغل على آخر رد بس.") });
+    };
+    window.addEventListener(ASK_STRONG_EVENT, onAsk);
+    return () => window.removeEventListener(ASK_STRONG_EVENT, onAsk);
+  }, []);
 
   /** A message the backend knows about (not one this page is still showing optimistically). */
   const isStored = (m: ChatMessage) => !m.id.startsWith("temp-") && !m.id.startsWith("partial-");

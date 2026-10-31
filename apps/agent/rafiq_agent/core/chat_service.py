@@ -10,6 +10,7 @@ something other than HTTP later.
 import asyncio
 import contextlib
 import json
+import re
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -320,6 +321,17 @@ async def fallback_of(session: Any, model: LlmModel) -> LlmModel | None:
     return await session.get(LlmModel, model.fallback_model_id) if model.fallback_model_id else None
 
 
+KNOWLEDGE_NOTE = (
+    "The user has a knowledge folder of their own documents. For a question those documents might answer, call "
+    "knowledge_search before answering, answer only from the passages it returns, and cite each fact by its number, "
+    "like [1]. If the passages don't contain the answer, say so instead of answering from memory."
+)
+KNOWLEDGE_REDO = (
+    "(from Rafiq) You used passages from the user's documents but didn't say where the facts came from. Write the "
+    "answer again and cite each fact by its passage number, like [1]."
+)
+
+
 # ── Persisting a reply ────────────────────────────────────────────────────────────────
 
 
@@ -388,7 +400,11 @@ class ChatTurn:
     only `stop()` does.
     """
 
-    def __init__(self, chat_id: str, content: str, model_id: str, attachment_ids: list[str]) -> None:
+    def __init__(self, chat_id: str, content: str, model_id: str, attachment_ids: list[str], no_route: bool = False) -> None:
+        self.no_route = no_route
+        # The model the user picked, when the smart route sent this message to the cheap one.
+        self.routed: dict[str, Any] | None = None
+        self.knowledge_found = False
         self.chat_id = chat_id
         self.content = content.strip()
         self.model_id = model_id
@@ -442,10 +458,14 @@ class ChatTurn:
                 raise ChatError("model not found", status=404)
 
             self.reply = settings_of(chat)
+            picked = model
+            model = await self._route(session, chat, picked)
             # The model's whole output room, in every chat: a reply-length cap of 1,500 tokens
             # cut a reasoning model off mid-file (a multi-page design) and the turn came back
             # empty. How long the *answer* should be is said in the instructions instead.
-            self.llm = provider_for(model, self.reply, await fallback_of(session, model), work=True)
+            # A routed question that the cheap model can't answer falls to the one the user picked.
+            backup = picked if model is not picked else await fallback_of(session, model)
+            self.llm = provider_for(model, self.reply, backup, work=True)
 
             # Only what the summary doesn't cover yet: the summary stands in for the rest.
             past = unsummarized(chat, chat.messages)
@@ -476,7 +496,7 @@ class ChatTurn:
             if not past and chat.title in all_translations(DEFAULT_TITLE):
                 first_line = self.content.splitlines()[0] if self.content else self.new_attachments[0].name
                 chat.title = first_line[:60]
-            chat.model_id = model.id
+            chat.model_id = picked.id
             chat.updated_at = now()
             # Writing in an archived chat means it's in use again: back to the list.
             chat.archived_at = None
@@ -506,6 +526,37 @@ class ChatTurn:
             from rafiq_agent.motion.tiers import guided
 
             self.motion_guided = guided(model.provider, model.model_id)
+
+    async def _route(self, session: Any, chat: Chat, picked: LlmModel) -> LlmModel:
+        """The smart route: the cheap model when this is a simple question and it's switched
+        on; otherwise the model the user picked. Says so in the reply either way it goes."""
+        from rafiq_agent.core.agent_runtime import load_settings
+        from rafiq_agent.llm.router import is_simple, used_tools
+
+        settings = await load_settings()
+        if self.no_route or not settings.smart_route or not settings.cheap_model_id or settings.cheap_model_id == picked.id:
+            return picked
+        replies = [m for m in chat.messages if m.role == "assistant"]
+        simple = is_simple(
+            self.content,
+            attachments=len(self.attachment_ids),
+            used_tools_last=bool(replies) and used_tools(replies[-1]),
+            has_folder=bool(chat.working_dir),
+            mode=chat.mode,
+        )
+        cheap = await session.get(LlmModel, settings.cheap_model_id) if simple else None
+        if cheap is None or cheap.verify_ok is False:
+            return picked
+        self.model_id = cheap.id
+        self.routed = {"kind": "routed", "from_id": picked.id, "from_name": picked.name, "to_id": cheap.id, "to_name": cheap.name}
+        self.parts.append(self.routed)
+        return cheap
+
+    def _source_check(self, text: str) -> str | None:
+        """A reply built on the knowledge folder has to say where each fact came from."""
+        if self.knowledge_found and not re.search(r"\[\d+\]", text):
+            return KNOWLEDGE_REDO
+        return None
 
     async def _fold(self) -> None:
         """Fold the older turns into the chat's summary, if this turn owes one. A failed
@@ -669,6 +720,8 @@ class ChatTurn:
         # Only mention Rafiq's web tools to a model that was actually given them.
         if "web_fetch" in names:
             notes.append(RAFIQ_WEB_TOOLS_NOTE)
+        if "knowledge_search" in names:
+            notes.append(KNOWLEDGE_NOTE)
         if self.settings.memory_enabled:
             registry.register(MemorySaveTool(self.chat_id))
             notes.append(MEMORY_NOTE)
@@ -878,6 +931,8 @@ class ChatTurn:
         self._emit({"type": "tool_call", "id": call_id, "tool": name, "args": args})
 
     async def _on_tool_result(self, call_id: str, name: str, ok: bool, output: str) -> None:
+        if name == "knowledge_search" and ok and output.startswith("["):
+            self.knowledge_found = True
         if name in TASK_TOOLS and ok:
             return
         part = self._find_part(call_id)
@@ -953,6 +1008,14 @@ class ChatTurn:
         spent = usage.collect()
         spent.__enter__()
         try:
+            if self.routed:
+                self._emit({"type": "routed", "part": self.routed})
+            cap_limit = self.reply.cost_cap_usd if self.reply.cost_cap_usd is not None else self.settings.chat_cost_cap_usd
+            cap = usage.SpendCap(cap_limit, await usage.spent_on("chat", self.chat_id) if cap_limit else 0.0, spent)
+
+            async def spend_gate() -> bool:
+                return await cap.gate(self._permit)
+
             result = await run_agent_loop(
                 self.llm,
                 messages,
@@ -965,10 +1028,13 @@ class ChatTurn:
                     on_tool_call=self._on_tool_call,
                     on_tool_result=self._on_tool_result,
                     on_redo=self._on_redo,
+                    spend_gate=spend_gate,
                 ),
                 max_iterations=MOTION_TURN_ITERATIONS if motion else MAX_TURN_ITERATIONS,
-                check_reply=engine_only if motion else self._board_check if getattr(self, "design_board", False) else None,
+                check_reply=engine_only if motion else self._board_check if getattr(self, "design_board", False) else self._source_check,
             )
+            if result.status == "capped":
+                self._emit({"type": "error", "message": tr("وقفت عند حد المصروف لهالمحادثة ({0}$). غيّره من /إعدادات إذا بدك تكمّل.", f"{cap.limit:g}")})
             if result.status == "cut":
                 self._emit(
                     {

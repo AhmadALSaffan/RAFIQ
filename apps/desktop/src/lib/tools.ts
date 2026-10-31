@@ -12,6 +12,8 @@ const LABELS: Record<string, string> = {
   image_view: t("النظر بصورة"),
   notes_list: t("البحث بملاحظاتك"),
   find_files: t("البحث بملفاتك"),
+  knowledge_search: t("البحث بمجلد المعرفة"),
+  spending_cap: t("حد المصروف"),
   note_read: t("قراءة ملاحظة"),
   note_create: t("كتابة ملاحظة جديدة"),
   note_edit: t("تعديل ملاحظة"),

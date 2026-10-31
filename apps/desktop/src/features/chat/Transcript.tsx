@@ -9,6 +9,7 @@ import { memo, useLayoutEffect, useRef, useState } from "react";
 import { StudioCard } from "./StudioCard";
 import { SpeakButton } from "./SpeakButton";
 import { CouncilRecord } from "./CouncilRecord";
+import { RoutedNote, SourcesList } from "./ReplyExtras";
 import { AnimatePresence, animate, motion } from "motion/react";
 import { forgetSendOrigin, sendOrigin } from "./sendFlight";
 import type { ChatMessage, ChatPart, LlmModel, TaskStatus, TurnUsage } from "../../lib/types";
@@ -300,6 +301,7 @@ export function MessageView({
       onOpenTask={onOpenTask}
       bookmarked={starred}
       onBookmark={onBookmark ? () => onBookmark(message, !starred) : undefined}
+      messageId={message.id}
     />
   );
 }
@@ -330,6 +332,7 @@ export function AssistantBlock({
   onOpenTask,
   bookmarked = false,
   onBookmark,
+  messageId,
 }: {
   parts: ChatPart[];
   reasoning: string;
@@ -342,6 +345,7 @@ export function AssistantBlock({
   /** A saved reply can be starred; the one still streaming can't. */
   bookmarked?: boolean;
   onBookmark?: () => void;
+  messageId?: string;
 }) {
   const menu = useElementMenu();
   // Reading a skill is housekeeping, not something the user asked for — keep it off screen,
@@ -421,9 +425,12 @@ export function AssistantBlock({
               <StudioCard item={item.part} fresh={live} />
             ) : item.part.kind === "council" ? (
               <CouncilRecord seats={item.part.seats} />
+            ) : item.part.kind === "routed" ? (
+              <RoutedNote part={item.part} messageId={live ? undefined : messageId} />
             ) : null}
           </motion.div>
         ))}
+        {!live && <SourcesList parts={visible} text={text} />}
         {/* Until the reply is done: what it's doing now, and for how long. */}
         {live && <WorkStatus parts={visible} />}
         {usage && <UsageLine usage={usage} />}
@@ -473,7 +480,7 @@ function groupTasks(parts: ChatPart[]): Item[] {
       else items.push({ kind: "tasks", key: `tasks-${part.task_id}`, tasks: [part] });
       return;
     }
-    const key = part.kind === "text" || part.kind === "council" ? `${part.kind}-${i}` : `${part.kind}-${part.id}`;
+    const key = part.kind === "text" || part.kind === "council" || part.kind === "routed" ? `${part.kind}-${i}` : `${part.kind}-${part.id}`;
     items.push({ kind: "part", key, part, last: i === parts.length - 1 });
   });
   return items;

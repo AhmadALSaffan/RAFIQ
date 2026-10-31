@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { addMemory, clearMemories, deleteMemory, listMemories, updateMemory } from "../../lib/api";
 import type { AppSettings, Memory } from "../../lib/types";
@@ -21,6 +22,8 @@ export function MemorySettings({ settings, persist }: { settings: AppSettings; p
   const [memories, setMemories] = useState<Memory[] | null>(null);
   const [draft, setDraft] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
 
   const load = () =>
     listMemories()
@@ -41,6 +44,14 @@ export function MemorySettings({ settings, persist }: { settings: AppSettings; p
   async function toggle(m: Memory, enabled: boolean) {
     setMemories((list) => list?.map((x) => (x.id === m.id ? { ...x, enabled } : x)) ?? null);
     await updateMemory(m.id, { enabled }).catch(load);
+  }
+
+  async function saveEdit(m: Memory) {
+    const text = editText.trim();
+    setEditing(null);
+    if (!text || text === m.text) return;
+    setMemories((list) => list?.map((x) => (x.id === m.id ? { ...x, text } : x)) ?? null);
+    await updateMemory(m.id, { text }).catch(load);
   }
 
   async function remove(id: string) {
@@ -93,9 +104,38 @@ export function MemorySettings({ settings, persist }: { settings: AppSettings; p
                 className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5"
                 style={{ background: "var(--color-surface)", opacity: m.enabled ? 1 : 0.55 }}
               >
-                <p className="min-w-0 flex-1 text-sm" dir="auto">
-                  {m.text}
-                </p>
+                {editing === m.id ? (
+                  <input
+                    autoFocus
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onBlur={() => void saveEdit(m)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void saveEdit(m);
+                      if (e.key === "Escape") setEditing(null);
+                    }}
+                    aria-label={t("عدّل")}
+                    className="input min-w-0 flex-1 py-1 text-sm"
+                    dir={fieldDir(editText)}
+                  />
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditing(m.id);
+                      setEditText(m.text);
+                    }}
+                    title={t("عدّل")}
+                    className="min-w-0 flex-1 text-start text-sm"
+                    dir="auto"
+                  >
+                    {m.text}
+                  </button>
+                )}
+                {m.source_chat_id && (
+                  <Link to={`/chat/${m.source_chat_id}`} className="shrink-0 text-[10px] underline underline-offset-2" style={{ color: "var(--color-ink-muted)" }}>
+                    {t("من محادثة")}
+                  </Link>
+                )}
                 <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px]" style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}>
                   {m.kind === "preference" ? t("تفضيل") : m.kind === "project" ? t("مشروع") : t("معلومة")}
                 </span>

@@ -14,6 +14,8 @@ import { IntegrationsPage } from "./routes/IntegrationsPage";
 import { WorkPage } from "./features/work";
 import { TasksPage } from "./features/tasks/TasksPage";
 import { CouncilPage } from "./routes/CouncilPage";
+import { ComparePage } from "./routes/ComparePage";
+import { MemoryPage } from "./routes/MemoryPage";
 import { TaskDetailPage } from "./features/tasks/TaskDetailPage";
 import { SettingsPage } from "./routes/SettingsPage";
 import { AboutPage } from "./routes/AboutPage";
@@ -57,6 +59,8 @@ export function App() {
             {/* One optional-param route so /chat → /chat/:id never remounts the page mid-stream. */}
             <Route path="/chat/:id?" element={<ChatPage />} />
             <Route path="/council" element={<CouncilPage />} />
+            <Route path="/compare" element={<ComparePage />} />
+            <Route path="/memory" element={<MemoryPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/tasks/:id" element={<TaskDetailPage />} />
             <Route path="/models" element={<ModelsPage />} />

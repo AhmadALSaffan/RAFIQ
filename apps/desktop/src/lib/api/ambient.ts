@@ -93,3 +93,30 @@ export async function acceptSuggestion(id: string): Promise<void> {
 export async function dismissSuggestion(id: string): Promise<void> {
   await request<void>(`/suggestions/${id}/dismiss`, { method: "POST" });
 }
+
+export interface CompareResult {
+  first_ms: number | null;
+  total_ms: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cost_usd: number;
+}
+
+export type CompareEvent =
+  | { type: "start"; seats: { id: string; name: string }[] }
+  | { type: "delta"; seat: string; text: string }
+  | { type: "error"; seat: string; message: string }
+  | ({ type: "finished"; seat: string } & CompareResult)
+  | { type: "done" };
+
+export async function compareModels(question: string, modelIds: string[], onEvent: (event: CompareEvent) => void, signal?: AbortSignal): Promise<void> {
+  const { baseUrl, token } = await getApiConfig();
+  const res = await fetch(`${baseUrl}/compare`, {
+    method: "POST",
+    cache: "no-store",
+    signal,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "Accept-Language": locale() },
+    body: JSON.stringify({ question, model_ids: modelIds }),
+  });
+  await readEvents<CompareEvent>(res, onEvent);
+}

@@ -197,6 +197,8 @@ export function CommandPalette({
     const chatPath = pathname.startsWith("/chat") ? pathname : "/chat";
     const pages: Item[] = [
       { id: "p-chat", label: t("المحادثات"), Icon: ChatIcon, keywords: "chats chat conversations", run: go("/chat") },
+      { id: "p-compare", label: t("قارن نموذجين"), Icon: ModelsIcon, keywords: "compare two models price speed", run: go("/compare") },
+      { id: "p-memory", label: t("شو بيعرف رفيق عني"), Icon: SettingsIcon, keywords: "memory remember know about me", run: go("/memory") },
       { id: "p-council", label: t("مجلس النماذج"), Icon: CouncilIcon, keywords: "council models debate compare", run: go("/council") },
       { id: "p-work", label: t("شغلي"), Icon: InboxIcon, keywords: "my work issues jira linear github inbox", run: go("/work") },
       { id: "p-create", label: t("المركز الإبداعي"), Icon: SparkIcon, keywords: "creative hub create studio designs motion notes", run: go("/create") },

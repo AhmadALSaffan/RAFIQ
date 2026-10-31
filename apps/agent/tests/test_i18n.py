@@ -59,6 +59,8 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     "tools/file_search.py": {"description"},
     # Words that say nothing about a request, for comparing requests.
     "core/patterns.py": {"_STOP"},
+    # What counts as a request to do work, in the words people write it.
+    "llm/router.py": {"_WORK", "_FOLLOW_UP"},
     # Provider specs are translated where they're served; Trello's list-name patterns match Arabic.
     **{f"integrations/providers/{name}.py": {"spec"} for name in (
         "linear", "github", "gitlab", "azure", "asana", "clickup", "youtrack", "bitbucket", "gitea", "plane"

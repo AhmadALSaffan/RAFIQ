@@ -130,6 +130,15 @@ class AppSettings(BaseModel):
     # this machine only. Empty folders = Documents, Desktop and Downloads.
     file_search_enabled: bool = True
     file_search_dirs: list[str] = Field(default_factory=list, max_length=30)
+    # The folders replies can answer from, with the file and page (core/knowledge.py). Empty =
+    # the feature is off: unlike file search, nothing is read until the user picks a folder.
+    knowledge_dirs: list[str] = Field(default_factory=list, max_length=30)
+    # The smart route (llm/router.py): simple questions go to this cheaper model.
+    smart_route: bool = False
+    cheap_model_id: str | None = None
+    # Stop and ask once one task or chat has cost this much (0 = no cap). A chat can set its own.
+    task_cost_cap_usd: float = Field(default=0.0, ge=0)
+    chat_cost_cap_usd: float = Field(default=0.0, ge=0)
     # Morning radio (core/radio.py): a short spoken show about the day, written at this time.
     radio_enabled: bool = False
     radio_time: str = "08:00"

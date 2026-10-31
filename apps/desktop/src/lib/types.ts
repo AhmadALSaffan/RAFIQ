@@ -211,6 +211,8 @@ export type ReplyLanguage = "auto" | "ar" | "en" | "ru";
 
 /** Per-chat generation settings — each field maps to a real knob on the request. */
 export interface ReplySettings {
+  /** Stop and ask once this chat has cost this much. null = Settings' cap, 0 = no cap. */
+  cost_cap_usd?: number | null;
   length: ReplyLength;
   language: ReplyLanguage;
   temperature: number | null;
@@ -291,7 +293,9 @@ export type ChatPart =
   /** A design or a motion reel the model started from this chat. */
   | { kind: "studio"; studio: "design" | "motion"; id: string; chat_id: string; title: string }
   /** What each model on a council said, kept above its decision. */
-  | { kind: "council"; chair: string; seats: CouncilSeat[] };
+  | { kind: "council"; chair: string; seats: CouncilSeat[] }
+  /** The smart route sent this question to the cheap model. */
+  | { kind: "routed"; from_id: string; from_name: string; to_id: string; to_name: string };
 
 export interface CouncilSeat {
   id: string;
@@ -660,6 +664,14 @@ export interface AppSettings {
   file_search_enabled?: boolean;
   /** The folders it covers; empty = Documents, Desktop and Downloads. */
   file_search_dirs?: string[];
+  /** The folders replies can answer from, with the file and page. */
+  knowledge_dirs?: string[];
+  /** Simple questions go to `cheap_model_id`. */
+  smart_route?: boolean;
+  cheap_model_id?: string | null;
+  /** Stop and ask once one task or chat has cost this much (0 = no cap). */
+  task_cost_cap_usd?: number;
+  chat_cost_cap_usd?: number;
   /** A short spoken show about the day, written at `radio_time`. */
   radio_enabled?: boolean;
   radio_time?: string;

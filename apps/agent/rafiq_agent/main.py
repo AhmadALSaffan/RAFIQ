@@ -35,6 +35,7 @@ from rafiq_agent.core.agent_runtime import load_settings, parallel_limit, run_ta
 from rafiq_agent.core.chat_service import stop_all_turns
 from rafiq_agent.core.file_index import run_forever as run_file_index
 from rafiq_agent.core.issue_watch import run_forever as watch_issues
+from rafiq_agent.core.knowledge import run_forever as run_knowledge
 from rafiq_agent.core.manager import manager
 from rafiq_agent.core.patterns import run_forever as run_patterns
 from rafiq_agent.core.radio import run_forever as run_radio
@@ -85,6 +86,7 @@ async def lifespan(app: FastAPI):
     file_index = asyncio.create_task(run_file_index())
     radio = asyncio.create_task(run_radio())
     noticing = asyncio.create_task(run_patterns())
+    knowledge = asyncio.create_task(run_knowledge())
     # Mentions, reviews and new assignments on the connected trackers (core/issue_watch.py).
     watcher = asyncio.create_task(watch_issues())
     # Model prices: the last fetched table at once, a fresh one (once a day) in the background.
@@ -110,6 +112,7 @@ async def lifespan(app: FastAPI):
     file_index.cancel()
     radio.cancel()
     noticing.cancel()
+    knowledge.cancel()
     watcher.cancel()
     prices.cancel()
     sign_ins.cancel()

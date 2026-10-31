@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
-from rafiq_agent.core import council, patterns, radio
+from rafiq_agent.core import compare, council, patterns, radio
 from rafiq_agent.core.agent_runtime import load_settings
 from rafiq_agent.i18n import tr
 from rafiq_agent.llm import usage
@@ -42,6 +42,31 @@ async def ask_council(body: CouncilIn) -> StreamingResponse:
 
     async def events() -> AsyncIterator[str]:
         async for event in council.run(body.question, seats, body.workspace_id):
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"})
+
+
+# ── Comparing two models ───────────────────────────────────────────────────────────────
+
+
+class CompareIn(BaseModel):
+    question: str = Field(min_length=1, max_length=8000)
+    model_ids: list[str] = Field(min_length=2, max_length=2)
+
+
+@router.post("/compare")
+async def compare_models(body: CompareIn) -> StreamingResponse:
+    seats = await council.load_seats(body.model_ids)
+    if len(seats) < 2:
+        raise HTTPException(status_code=400, detail=tr("اختار نموذجين مختلفين شغّالين."))
+    try:
+        usage.check_budget()
+    except usage.BudgetExceeded as exc:
+        raise HTTPException(status_code=402, detail=str(exc)) from exc
+
+    async def events() -> AsyncIterator[str]:
+        async for event in compare.run(body.question, seats):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"})

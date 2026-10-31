@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PriceTag } from "../components/PriceTag";
@@ -75,6 +76,8 @@ export function ModelsPage() {
     void refresh();
   }, []);
 
+  const navigate = useNavigate();
+
   async function handleDelete(id: string) {
     setModels((prev) => prev.filter((m) => m.id !== id));
     await deleteModel(id);
@@ -89,6 +92,9 @@ export function ModelsPage() {
         actions={
           <>
             <RefreshButton spinning={refreshing} onClick={() => void refresh()} />
+            <Button variant="ghost" onClick={() => navigate("/compare")}>
+              {t("قارن نموذجين")}
+            </Button>
             {!formOpen && (
               <Button variant="accent" onClick={() => setFormOpen(true)}>
                 <PlusIcon className="h-4 w-4" />

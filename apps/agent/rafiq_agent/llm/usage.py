@@ -48,6 +48,51 @@ async def drain() -> None:
         await asyncio.gather(*list(_pending), return_exceptions=True)
 
 
+CAP_TOOL = "spending_cap"
+
+
+async def spent_on(kind: str, scope_id: str) -> float:
+    """What this chat or task has cost so far, rows still being written included."""
+    from sqlalchemy import func, select
+
+    from rafiq_agent.storage.db import SessionLocal
+    from rafiq_agent.storage.models import UsageRecord
+
+    await drain()
+    async with SessionLocal() as session:
+        total = await session.scalar(
+            select(func.coalesce(func.sum(UsageRecord.cost_usd), 0.0)).where(UsageRecord.scope == kind, UsageRecord.scope_id == scope_id)
+        )
+    return float(total or 0.0)
+
+
+class SpendCap:
+    """Stops one chat or task at its limit and asks. Checked before every model call, so one
+    long reply can pass it a little; going on moves the limit up by the same amount again."""
+
+    def __init__(self, limit: float | None, before: float, running: "collect") -> None:
+        self.step = limit or 0.0
+        self.limit = limit or 0.0
+        self.before = before
+        self.running = running
+
+    def spent(self) -> float:
+        return self.before + self.running.total().cost_usd
+
+    def reached(self) -> bool:
+        return self.limit > 0 and self.spent() >= self.limit
+
+    async def gate(self, permit: Any) -> bool:
+        """True to carry on. `permit` is the run's own way of asking the user."""
+        if not self.reached():
+            return True
+        spent = self.spent()
+        allowed = await permit(CAP_TOOL, "exec", {"spent_usd": round(spent, 4), "limit_usd": round(self.limit, 4)})
+        if allowed:
+            self.limit = spent + self.step
+        return bool(allowed)
+
+
 class BudgetExceeded(Exception):
     """Raised instead of calling a provider once the user's budget is used up."""
 

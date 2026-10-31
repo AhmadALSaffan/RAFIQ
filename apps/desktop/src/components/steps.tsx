@@ -304,7 +304,15 @@ export function PermissionCard({
         </motion.span>
         {t("رفيق بدّه إذنك قبل ما يكمّل")}
       </div>
-      {call.preview ? <PreviewPanel call={call} /> : <ArgsPanel call={call} />}
+      {call.tool === "spending_cap" ? (
+        <p className="text-sm">
+          {t("وصلت حد المصروف: الصرف {0}$ والحد {1}$. بدك أكمّل؟ إذا سمحت، بكمّل لحد ما أصرف قد الحد كمان مرة.", { 0: String(call.args.spent_usd), 1: String(call.args.limit_usd) })}
+        </p>
+      ) : call.preview ? (
+        <PreviewPanel call={call} />
+      ) : (
+        <ArgsPanel call={call} />
+      )}
       <AnimatePresence mode="wait" initial={false}>
         {pending ? (
           <motion.div key="actions" exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }} className="mt-3 flex flex-wrap items-center gap-2">

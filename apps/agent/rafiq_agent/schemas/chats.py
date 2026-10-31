@@ -7,7 +7,7 @@ FastAPI routing, and so the contract with the desktop app is readable in one fil
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class ChatCreate(BaseModel):
@@ -42,6 +42,8 @@ class ReplySettings(BaseModel):
     # which is what you want when the skills themselves are the point of the chat, and so
     # what a new chat starts with unless Settings → التكلفة says otherwise.
     saver: bool = False
+    # Stop and ask once this chat has cost this much. None = Settings' cap, 0 = no cap.
+    cost_cap_usd: float | None = Field(default=None, ge=0)
 
     model_config = {"extra": "ignore"}
 
@@ -76,6 +78,8 @@ class MessageCreate(BaseModel):
     content: str
     model_id: str
     attachment_ids: list[str] = []
+    # "Ask the strong model": this message skips the smart route.
+    no_route: bool = False
 
 
 class ChatMessageOut(BaseModel):

@@ -50,6 +50,8 @@ export function doing(tool: string, args: Record<string, unknown>): string {
       return t("عم يدوّر بملاحظاتك…");
     case "find_files":
       return t("عم يدوّر بملفاتك…");
+    case "knowledge_search":
+      return t("عم يدوّر بمجلد المعرفة…");
     case "note_read":
       return t("عم يقرأ ملاحظتك {0}…", { 0: shortPath(args.path) });
     case "note_create":

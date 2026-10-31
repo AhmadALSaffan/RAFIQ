@@ -41,3 +41,26 @@ export async function rescanFiles(): Promise<void> {
 export async function clearFileIndex(): Promise<void> {
   await request<void>("/settings/file-search", { method: "DELETE" });
 }
+
+/** How far the knowledge folder has been read (core/knowledge.py on the agent). */
+export interface KnowledgeStatus {
+  files: number;
+  passages: number;
+  /** Files with no text to read, usually scanned PDFs. */
+  unread: string[];
+  scanning: boolean;
+  last_scan: string | null;
+  error: string | null;
+}
+
+export async function getKnowledgeStatus(): Promise<KnowledgeStatus> {
+  return request<KnowledgeStatus>("/settings/knowledge");
+}
+
+export async function rescanKnowledge(): Promise<void> {
+  await request<void>("/settings/knowledge/rescan", { method: "POST" });
+}
+
+export async function clearKnowledge(): Promise<void> {
+  await request<void>("/settings/knowledge", { method: "DELETE" });
+}

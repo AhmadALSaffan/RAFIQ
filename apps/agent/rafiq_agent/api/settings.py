@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
-from rafiq_agent.core import file_index
+from rafiq_agent.core import file_index, knowledge
 from rafiq_agent.core.manager import manager
 from rafiq_agent.llm import usage
 from rafiq_agent.llm.resilience import set_concurrency
@@ -49,7 +49,27 @@ async def update_settings(body: AppSettings, session: AsyncSession = Depends(get
     manager.reschedule()  # a higher parallel limit lets waiting tasks start right away
     if (before.file_search_enabled, before.file_search_dirs) != (body.file_search_enabled, body.file_search_dirs):
         file_index.rescan_soon()
+    if before.knowledge_dirs != body.knowledge_dirs:
+        knowledge.rescan_soon()
     return body
+
+
+@router.get("/knowledge")
+async def knowledge_status() -> dict:
+    """How far the knowledge folder has been read, and what couldn't be."""
+    return knowledge.status()
+
+
+@router.post("/knowledge/rescan", status_code=202)
+async def knowledge_rescan() -> dict:
+    knowledge.rescan_soon()
+    return {"ok": True}
+
+
+@router.delete("/knowledge", status_code=204)
+async def knowledge_clear() -> None:
+    """Forgets what was read (it's read again on the next look while a folder is chosen)."""
+    await asyncio.to_thread(knowledge.clear)
 
 
 @router.get("/file-search")

@@ -179,6 +179,11 @@ async def build_registry(
         from rafiq_agent.tools.notes import note_tools
 
         tools += note_tools(notes_root(settings.notes_dir))
+        # Answers from the folder of documents the user chose, with the file and page.
+        if settings.knowledge_dirs:
+            from rafiq_agent.tools.knowledge import KnowledgeSearchTool
+
+            tools.append(KnowledgeSearchTool())
         # Finding the user's own files by what's inside them (core/file_index.py).
         if settings.file_search_enabled:
             from rafiq_agent.tools.file_search import FindFilesTool
@@ -203,6 +208,8 @@ def policy_decision(tool_name: str, category: str, permissions: dict[str, str]) 
     follows its server's own settings first (mcp_bridge.resolve_mode), then the global one."""
     from rafiq_agent.mcp_bridge import mode_for
 
+    if tool_name == usage.CAP_TOOL:
+        return "ask"  # reaching the spending cap always asks, whatever else is allowed
     if category == "read_only":
         return "allow"
     mode = (mode_for(tool_name) if tool_name.startswith("mcp__") else None) or permissions.get(
@@ -222,7 +229,7 @@ async def allow_always(tool_name: str, permissions: dict[str, str] | None = None
     without asking from now on, exactly as if they had set it in Settings. MCP tools keep
     their per-server settings, so the answer stays a one-off approval for them. Returns the
     group that changed, if any."""
-    if tool_name.startswith("mcp__"):
+    if tool_name.startswith("mcp__") or tool_name == usage.CAP_TOOL:
         return None
     key = permission_key(tool_name)
     async with SessionLocal() as session:
@@ -466,18 +473,29 @@ async def run_task(task_id: str) -> None:
             effective, settings, native_tools(model.provider, model.model_id), source={"task_id": task_id}
         )
         register_task_tools(registry, task_id, model.id, origin_folder, depth)
-        result = await run_agent_loop(
-            llm,
-            messages,
-            registry,
-            LoopCallbacks(
-                permit=permit,
-                on_turn_text=on_turn_text,
-                on_tool_call=on_tool_call,
-                on_tool_result=on_tool_result,
-            ),
-        )
-        if result.status == "max_iterations":
+        with usage.collect() as spent:
+            cap = usage.SpendCap(settings.task_cost_cap_usd, await usage.spent_on("task", task_id), spent)
+
+            async def spend_gate() -> bool:
+                return await cap.gate(permit)
+
+            result = await run_agent_loop(
+                llm,
+                messages,
+                registry,
+                LoopCallbacks(
+                    permit=permit,
+                    on_turn_text=on_turn_text,
+                    on_tool_call=on_tool_call,
+                    on_tool_result=on_tool_result,
+                    spend_gate=spend_gate,
+                ),
+            )
+        if result.status == "capped":
+            await manager.emit_event(
+                task_id, "error", {"message": tr("وقفت المهمة عند حد المصروف ({0}$). كمّلها إذا بدك، أو غيّر الحد من الإعدادات ← الاستهلاك.", f"{cap.limit:g}")}
+            )
+        elif result.status == "max_iterations":
             await manager.emit_event(
                 task_id, "error", {"message": tr("تجاوزت المهمة الحد الأقصى من الخطوات.")}
             )

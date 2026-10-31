@@ -72,7 +72,7 @@ export function permissionLabelOf(tool: string): string {
 
 /** MCP servers keep their own per-server settings, so "always" isn't offered for them. */
 export function canAlwaysAllow(tool: string): boolean {
-  return !tool.startsWith("mcp__");
+  return !tool.startsWith("mcp__") && tool !== "spending_cap";
 }
 
 export type PermissionAnswer = "approved" | "denied" | "always";

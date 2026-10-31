@@ -31,25 +31,25 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 ---
 
-## What's new · v0.5.13
+## What's new · v0.5.14
 
 <!-- Every release: replace docs/whats-new/latest.webp with the release's picture (the same
      one the app's What's new dialog shows) and update the version, points and link below. -->
 
 <div align="center">
 
-<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.13: models that argue, a radio show about your day, and an assistant that notices">
+<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.14: answers from your files with their sources, and spending less">
 
 </div>
 
-**Models that argue, a radio show about your day, and an assistant that notices.**
-- **Model council:** ask a hard question and two or three models each answer alone, critique each other under neutral names, and one writes a decision with the disagreements left in view. It only works because Rafiq works with any model.
-- **Morning radio:** every morning at your time, a short spoken show about your day: what got done, what failed, what's on today, the files that changed, and news on your topics. Press "ask about it" and talk to it.
-- **Rafiq notices:** turn it on and Rafiq spots what you keep doing by hand, the same request every week or the same kind of file moved to the same folder, and offers to do it. It's all counting on your computer: no model, nothing leaves it, nothing happens without your yes.
-- **ElevenLabs can listen too:** choose who turns your speech into text under Settings → General → Voice.
-- **Fixed:** the mic and the voice conversation failed with a Groq model.
+**Answers from your files with their sources, and spending less.**
+- **Knowledge folder:** choose a folder of PDFs, Word files and notes, and Rafiq answers from it and shows which file and page each fact came from. It's read and indexed on your computer; only the passages for your question go to the model.
+- **What Rafiq knows about me:** one page with everything it remembers, to edit, switch off or erase.
+- **Smart route:** short questions go to a cheap model you pick, real work stays with the strong one, and every reply says who answered, with a press to ask the strong one instead.
+- **A spending cap per task or chat:** when it's reached, Rafiq stops and asks.
+- **Compare two models:** the same question side by side, with the answer, the price and the speed.
 
-Full notes: [v0.5.13](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.13) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
+Full notes: [v0.5.14](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.14) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
 
 ---
 
@@ -243,7 +243,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.13_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.14_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)

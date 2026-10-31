@@ -433,7 +433,7 @@ def _sse(turn: ChatTurn) -> StreamingResponse:
 @router.post("/{chat_id}/messages")
 async def send_message(chat_id: str, body: MessageCreate) -> StreamingResponse:
     """Starts a reply and streams it. The reply keeps going if the stream is closed."""
-    turn = ChatTurn(chat_id, body.content, body.model_id, body.attachment_ids)
+    turn = ChatTurn(chat_id, body.content, body.model_id, body.attachment_ids, body.no_route)
     try:
         await turn.prepare()
         await turn.start()

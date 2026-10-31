@@ -28,6 +28,8 @@ class LoopCallbacks:
     on_tool_result: Callable[[str, str, bool, str], Awaitable[None]] = _noop
     # A final answer `check_reply` refused: take its text back off the screen.
     on_redo: Callable[[str], Awaitable[None]] = _noop
+    # Asked before every model call; False ends the run ("capped"). See usage.SpendCap.
+    spend_gate: Callable[[], Awaitable[bool]] | None = None
 
 
 NUDGE = "أكمل من وين وقفت، واكتب الرد كامل."
@@ -120,6 +122,8 @@ async def _run(
     settled = sum(message_tokens(m) for m in messages[head:])
 
     for _ in range(max_iterations):
+        if cb.spend_gate is not None and not await cb.spend_gate():
+            return LoopResult("capped", all_text, all_reasoning)
         text, reasoning = "", ""
         tool_calls: list[Any] = []
         truncated = False

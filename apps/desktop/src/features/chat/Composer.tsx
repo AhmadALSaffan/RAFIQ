@@ -20,6 +20,7 @@ import { ChevronDownIcon, HeadphonesIcon, ModelsIcon, PaperclipIcon, StopIcon } 
 import { CommandMenu, FileMenu, IssueMenu, readTrigger, replaceTrigger, type CommandDef, type ChatMode } from "../../components/ComposerMenus";
 import { EffortPicker, type Effort } from "../../components/EffortPicker";
 import { MicButton } from "./MicButton";
+import { SmartRouteChip } from "./SmartRouteChip";
 import { launchOrb } from "../../components/Orb";
 import { rememberSendOrigin } from "./sendFlight";
 import { PlanUsageRing } from "./PlanUsage";
@@ -295,6 +296,7 @@ export function Composer({
               disabled={disabled}
               onText={(spoken) => setText((prev) => (prev ? `${prev.replace(/\s*$/, "")} ${spoken}` : spoken))}
             />
+            <SmartRouteChip />
             {onVoice && (
               <motion.button
                 type="button"

@@ -20,6 +20,8 @@ export const CARD_TOOLS = new Set(["design_start", "motion_start"]);
 export function applyEvent(draft: Draft, ev: ChatStreamEvent): Draft {
   const parts = draft.parts;
   switch (ev.type) {
+    case "routed":
+      return { ...draft, parts: [ev.part, ...parts] };
     case "reasoning":
       return { ...draft, reasoning: draft.reasoning + ev.text };
     case "delta": {

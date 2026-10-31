@@ -3,7 +3,7 @@ import { locale } from "../../i18n";
 
 import { getApiConfig } from "../config";
 import { errorText, request } from "./client";
-import type { Bookmark, ChatDetail, ChatMessage, ChatSearchResult, ChatSummary, ReplySettings, Resolution, SummarizeResult, TaskStatus, ToolCall } from "../types";
+import type { Bookmark, ChatDetail, ChatMessage, ChatSearchResult, ChatSummary, ReplySettings, Resolution, SummarizeResult, TaskStatus, ToolCall, ChatPart } from "../types";
 
 /** Chats whose messages or titles hold every word of `q`; Arabic is folded on the agent. */
 export async function searchChats(q: string, workspaceId?: string | null, signal?: AbortSignal): Promise<ChatSearchResult[]> {
@@ -115,6 +115,7 @@ export type ChatStreamEvent =
   | { type: "reasoning"; text: string }
   | { type: "delta"; text: string }
   | { type: "retract"; text: string }
+  | { type: "routed"; part: Extract<ChatPart, { kind: "routed" }> }
   | { type: "tool_call"; id: string; tool: string; args: Record<string, unknown> }
   | { type: "tool_result"; id: string; ok: boolean; output: string }
   | { type: "permission"; id: string; call: ToolCall }
@@ -147,6 +148,7 @@ export async function sendChatMessage(
   attachmentIds: string[],
   onEvent: (event: ChatStreamEvent) => void,
   signal?: AbortSignal,
+  noRoute = false,
 ): Promise<void> {
   const { baseUrl, token } = await getApiConfig();
   const res = await fetch(`${baseUrl}/chats/${chatId}/messages`, {
@@ -154,7 +156,7 @@ export async function sendChatMessage(
     cache: "no-store",
     signal,
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "Accept-Language": locale() },
-    body: JSON.stringify({ content, model_id: modelId, attachment_ids: attachmentIds }),
+    body: JSON.stringify({ content, model_id: modelId, attachment_ids: attachmentIds, no_route: noRoute }),
   });
   await readEvents(res, onEvent);
 }

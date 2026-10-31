@@ -240,6 +240,18 @@ export function ReplyConfigDialog({
           )}
         </div>
 
+        <label className="block text-xs" style={{ color: "var(--color-ink-muted)" }}>
+          {t("حد مصروف هالمحادثة بالدولار (فاضي = حد الإعدادات، صفر = بلا حد)")}
+          <input
+            type="number"
+            min={0}
+            step={0.1}
+            value={draft.cost_cap_usd ?? ""}
+            onChange={(e) => set({ cost_cap_usd: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })}
+            className="input mt-1 w-32"
+            dir="ltr"
+          />
+        </label>
         <Toggle
           checked={draft.economy}
           onChange={(economy) => set({ economy })}
