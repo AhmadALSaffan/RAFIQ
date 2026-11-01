@@ -31,25 +31,24 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 ---
 
-## What's new · v0.5.14
+## What's new · v0.5.15
 
 <!-- Every release: replace docs/whats-new/latest.webp with the release's picture (the same
      one the app's What's new dialog shows) and update the version, points and link below. -->
 
 <div align="center">
 
-<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.14: answers from your files with their sources, and spending less">
+<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.15: Rafiq is on your phone now">
 
 </div>
 
-**Answers from your files with their sources, and spending less.**
-- **Knowledge folder:** choose a folder of PDFs, Word files and notes, and Rafiq answers from it and shows which file and page each fact came from. It's read and indexed on your computer; only the passages for your question go to the model.
-- **What Rafiq knows about me:** one page with everything it remembers, to edit, switch off or erase.
-- **Smart route:** short questions go to a cheap model you pick, real work stays with the strong one, and every reply says who answered, with a press to ask the strong one instead.
-- **A spending cap per task or chat:** when it's reached, Rafiq stops and asks.
-- **Compare two models:** the same question side by side, with the answer, the price and the speed.
+**Rafiq is on your phone now.**
+- **Send a task from your phone:** write what you need in the Android app and choose the model. It runs on your computer.
+- **Approve from anywhere:** follow each step, and approve or deny any command or change from your phone.
+- **Encrypted between your devices:** the service only carries encrypted messages, and your files and model keys never reach it.
+- **Optional, at $9.99 a month:** this one service needs an account and a subscription. The rest of Rafiq stays free, with no account.
 
-Full notes: [v0.5.14](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.14) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
+Full notes: [v0.5.15](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.15) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
 
 ---
 
@@ -59,7 +58,7 @@ Full notes: [v0.5.14](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.1
 
 The whole interface is Arabic and right-to-left from the ground up, everything runs locally, and nothing sensitive happens without your approval.
 
-> 🔑 **Bring your own model:** Rafiq has no account system and no cloud of its own. You add an API key for the provider you choose (stored in Windows Credential Manager), sign in with a ChatGPT (Plus or Pro) or a GitHub Copilot account, or run a model locally with Ollama.
+> 🔑 **Bring your own model:** Rafiq needs no account and no cloud of its own. The only exception is the optional paid phone service. You add an API key for the provider you choose (stored in Windows Credential Manager), sign in with a ChatGPT (Plus or Pro) or a GitHub Copilot account, or run a model locally with Ollama.
 
 ---
 
@@ -243,7 +242,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.14_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.15_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)

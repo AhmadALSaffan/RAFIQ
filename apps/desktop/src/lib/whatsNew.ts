@@ -20,6 +20,9 @@ import screenRu from "../assets/whats-new/0.5.12-ru.webp";
 import councilAr from "../assets/whats-new/0.5.13-ar.webp";
 import councilEn from "../assets/whats-new/0.5.13-en.webp";
 import councilRu from "../assets/whats-new/0.5.13-ru.webp";
+import phoneAr from "../assets/whats-new/0.5.15-ar.webp";
+import phoneEn from "../assets/whats-new/0.5.15-en.webp";
+import phoneRu from "../assets/whats-new/0.5.15-ru.webp";
 
 // The version whose dialog the user closed. (A new key: the first builds marked a version
 // seen as soon as it opened, shown or not.)
@@ -45,6 +48,17 @@ export interface ReleaseNews {
 const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/AhmadALSaffan/RAFIQ/releases/download/v${version}/whats-new-${lang}.mp4`;
 
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.15",
+    images: { ar: phoneAr, en: phoneEn, ru: phoneRu },
+    title: () => t("رفيق صار على جوالك"),
+    points: () => [
+      t("ابعت مهمة لكمبيوترك من تطبيق الجوال، واختار الموديل من هناك"),
+      t("تابع الخطوات، ووافق أو ارفض أي أمر أو تعديل من جوالك"),
+      t("كل شي مشفّر بين أجهزتك، والشغل كله بيتم على كمبيوترك"),
+      t("خدمة اختيارية بـ 9.99$ بالشهر، وباقي رفيق بيضل مجاني وبدون حساب"),
+    ],
+  },
   {
     version: "0.5.14",
     videos: { ar: RELEASE_VIDEO("0.5.14", "ar"), en: RELEASE_VIDEO("0.5.14", "en"), ru: RELEASE_VIDEO("0.5.14", "ru") },

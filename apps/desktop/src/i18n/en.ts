@@ -3460,4 +3460,9 @@ export const en: Dictionary = {
   "المسار الذكي: السؤال البسيط بيروح لنموذج رخيص، وكل رد بيقلك مين جاوب": "Smart route: a simple question goes to a cheap model, and every reply says who answered",
   "حد مصروف لكل مهمة أو محادثة: توصله، رفيق بيوقف وبيسألك": "A spending cap per task or chat: when it's reached, Rafiq stops and asks",
   "قارن نموذجين: نفس السؤال جنب بعض، الجواب والسعر والسرعة": "Compare two models: the same question side by side, with the answer, price and speed",
+  "رفيق صار على جوالك": "Rafiq is on your phone now",
+  "ابعت مهمة لكمبيوترك من تطبيق الجوال، واختار الموديل من هناك": "Send your computer a task from the phone app, and choose the model there",
+  "تابع الخطوات، ووافق أو ارفض أي أمر أو تعديل من جوالك": "Follow each step, and approve or deny any command or change from your phone",
+  "كل شي مشفّر بين أجهزتك، والشغل كله بيتم على كمبيوترك": "Everything is encrypted between your devices, and all the work happens on your computer",
+  "خدمة اختيارية بـ 9.99$ بالشهر، وباقي رفيق بيضل مجاني وبدون حساب": "An optional service at $9.99 a month. The rest of Rafiq stays free, with no account",
 };

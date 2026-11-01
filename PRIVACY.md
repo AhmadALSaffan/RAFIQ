@@ -1,12 +1,16 @@
 # Privacy policy
 
-_Last updated: 15 October 2026_
+_Last updated: 1 November 2026_
 
-Rafiq is a desktop app that runs on your own Windows computer. There is no Rafiq server and no Rafiq account. This page explains what that means for your data.
+Rafiq is a desktop app that runs on your own Windows computer. The app needs no Rafiq server and no Rafiq account. The only exception is the optional paid service, Rafiq from your phone, covered in its own section below. This page explains what that means for your data.
 
 ## What Rafiq collects
 
-**Nothing.** Rafiq has no analytics, no telemetry, no crash reporting and no tracking. The developer receives no data about you or how you use the app.
+**Nothing, unless you sign in to Rafiq from your phone.** Rafiq has no analytics, no telemetry, no crash reporting and no tracking. Without that service, the developer receives no data about you or how you use the app.
+
+## Rafiq from your phone (optional)
+
+Only if you sign in to this service, it keeps your email and sign-in sessions, your device names, their public keys and when they were last seen, encrypted messages until they're delivered (7 days at most if unread), and your subscription status with PayPal's notices about it. The text of your tasks, their results and your approvals are end-to-end encrypted between your devices, so the service can't read them. Your files and model keys never reach it. Details are in the [full policy](https://rafiqagent.com/en/privacy/).
 
 ## Where your data lives
 
