@@ -17,6 +17,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,9 @@ def _load_state() -> dict[str, Any]:
 
 
 def binary() -> Path | None:
+    if sys.platform != "win32":
+        found = shutil.which("ffmpeg")
+        return Path(found) if found else None
     state = _load_state()
     path = Path(state["path"]) if state.get("path") else None
     return path if path and path.is_file() else None
@@ -137,6 +141,8 @@ async def _fallback(client: httpx.AsyncClient) -> tuple[str, str, str]:
 
 async def install() -> dict[str, Any]:
     """Downloads, verifies, unpacks and tests FFmpeg. Call only on the user's say-so."""
+    if sys.platform != "win32":
+        raise FfmpegError("on macOS, install FFmpeg with Homebrew (brew install ffmpeg) and restart Rafiq")
     async with _lock:
         ROOT.mkdir(parents=True, exist_ok=True)
         archive = ROOT / "download.zip"

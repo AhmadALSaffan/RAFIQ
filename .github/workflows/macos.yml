@@ -1,0 +1,124 @@
+# The Mac build, run by hand (Actions → macOS build → Run workflow).
+#
+# Builds the agent with PyInstaller and the app with Tauri on Apple Silicon, then starts both
+# on the runner to check they come up. The DMG is ad-hoc signed, not with an Apple Developer
+# ID, so macOS asks the user to allow it once. The result is a workflow artifact; publishing
+# it to the `macos` release is a separate, manual step.
+#
+# The phone service's desktop half is not in this repository. When the RAFIQ_PRIVATE_PATCH
+# secret is set (a gzipped, base64 patch), it's applied before building; without it the build
+# is the public app, without "Rafiq from your phone".
+
+name: macOS build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: macOS · Apple Silicon
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Private parts
+        env:
+          PATCH: ${{ secrets.RAFIQ_PRIVATE_PATCH }}
+        run: |
+          if [ -z "$PATCH" ]; then
+            echo "::warning::RAFIQ_PRIVATE_PATCH isn't set: building without the phone service"
+            exit 0
+          fi
+          echo "$PATCH" | base64 --decode | gunzip | git apply --whitespace=nowarn
+          echo "applied"
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: apps/agent/pyproject.toml
+
+      - name: Agent · install
+        working-directory: apps/agent
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Not a gate yet: the suite was written on Windows. The run shows what differs on a Mac.
+      - name: Agent · tests
+        working-directory: apps/agent
+        continue-on-error: true
+        run: pytest -q -ra -p no:cacheprovider
+
+      - name: Agent · freeze
+        working-directory: apps/agent
+        run: pyinstaller rafiq-agent.spec --noconfirm --distpath dist --workpath build
+
+      - name: Agent · starts
+        working-directory: apps/agent
+        run: |
+          export RAFIQ_TOKEN=smoke RAFIQ_DATA_DIR="$RUNNER_TEMP/agent-smoke" RAFIQ_KEYRING_SERVICE=rafiq-smoke
+          ./dist/rafiq-agent/rafiq-agent --port 8765 &
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8765/health; then echo; kill %1; exit 0; fi
+            sleep 1
+          done
+          cat "$RAFIQ_DATA_DIR/agent.log" || true
+          exit 1
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
+      - name: App · build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter rafiq-desktop tauri build --bundles app,dmg
+
+      # The real app on the runner: it has to start its bundled agent, which writes the
+      # discovery file the CLI uses; then the agent has to answer.
+      - name: App · starts
+        working-directory: apps/desktop/src-tauri/target/release/bundle
+        run: |
+          app=$(ls -d macos/*.app | head -1)
+          codesign --verify --deep --verbose=2 "$app"
+          open "$app"
+          for i in $(seq 1 120); do
+            if [ -f "$HOME/.rafiq/agent.json" ]; then break; fi
+            sleep 1
+          done
+          port=$(python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.rafiq/agent.json')))['port'])")
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:$port/health"; then echo; break; fi
+            sleep 1
+          done
+          sleep 8
+          screencapture -x "$RUNNER_TEMP/rafiq-mac.png"
+          pgrep -fl rafiq-agent
+          curl -fsS "http://127.0.0.1:$port/health"
+
+      - name: Collect
+        run: |
+          mkdir out
+          cp apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg out/Rafiq-macos-arm64.dmg
+          shasum -a 256 out/Rafiq-macos-arm64.dmg
+          cp "$RUNNER_TEMP/rafiq-mac.png" out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rafiq-macos
+          path: out/
+          retention-days: 3

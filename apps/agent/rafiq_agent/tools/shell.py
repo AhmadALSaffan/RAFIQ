@@ -21,7 +21,9 @@ INLINE_HINT = (
     "file, exactly as written.)"
 )
 
-LANGUAGES = ("python", "powershell", "node")
+LANGUAGES = ("python", "powershell", "node", "bash")
+# What `command` runs through, for the model: the two are not interchangeable.
+SHELL_NAME = "cmd.exe" if sys.platform == "win32" else "/bin/sh (macOS)"
 
 
 def _child_env() -> dict[str, str]:
@@ -50,7 +52,8 @@ def _decode(data: bytes) -> str:
 
 
 def _python() -> list[str] | None:
-    found = shutil.which("python")
+    # macOS ships python3 only; "python" there is whatever the user installed, if anything.
+    found = shutil.which("python") or shutil.which("python3")
     # The Microsoft Store stub answers to "python" but only opens the Store.
     if found and "WindowsApps" not in found:
         return [found]
@@ -66,6 +69,9 @@ def _interpreter(language: str, script: Path) -> list[str] | None:
     if language == "node":
         node = shutil.which("node")
         return [node, str(script)] if node else None
+    if language == "bash":
+        bash = shutil.which("bash")
+        return [bash, str(script)] if bash else None
     shell = shutil.which("powershell") or shutil.which("pwsh")
     return [shell, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script)] if shell else None
 
@@ -75,7 +81,7 @@ class ShellRunTool(Tool):
     category = "exec"
     description = (
         "Run a command in the task's working directory and return its stdout/stderr. "
-        "`command` is one shell command line (cmd.exe on Windows) — for running programs, git, "
+        f"`command` is one shell command line ({SHELL_NAME}) — for running programs, git, "
         "builds and tests. For anything with code in it (a Python or Node snippet, a regex, "
         "nested quotes, non-English text) pass `script` and `language` instead: it's saved to a "
         "file and run as written, with UTF-8 output. Print only what you need to see — a "
@@ -118,7 +124,7 @@ class ShellRunTool(Tool):
         return result
 
     async def _run_script(self, script: str, language: str, timeout: int) -> ToolResult:
-        suffix = {"python": ".py", "node": ".js", "powershell": ".ps1"}[language]
+        suffix = {"python": ".py", "node": ".js", "powershell": ".ps1", "bash": ".sh"}[language]
         if language == "powershell":
             # Windows PowerShell reads a file without a BOM as ANSI, and prints in the console's
             # code page unless told otherwise.

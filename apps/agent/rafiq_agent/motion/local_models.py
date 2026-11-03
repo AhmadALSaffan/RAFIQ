@@ -14,6 +14,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
@@ -155,6 +156,8 @@ async def install(pack: str) -> dict[str, Any]:
     """Downloads and checks one pack, then tries it once. Call only on the user's say-so."""
     if pack not in PACKS:
         raise LocalModelError(f"unknown pack: {pack}")
+    if sys.platform != "win32":
+        raise LocalModelError("the local packs are Windows programs; they aren't available on macOS yet")
     async with _locks[pack]:
         spec = PACKS[pack]
         final = _dir(pack)

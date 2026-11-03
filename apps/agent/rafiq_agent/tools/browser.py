@@ -66,6 +66,9 @@ def find_browser() -> str | None:
                 Path(base) / "Microsoft/Edge/Application/msedge.exe",
                 Path(base) / "Google/Chrome/Application/chrome.exe",
             ]
+    for app in ("Microsoft Edge", "Google Chrome", "Chromium"):
+        for base in (Path("/Applications"), Path.home() / "Applications"):
+            candidates.append(base / f"{app}.app/Contents/MacOS/{app}")
     for candidate in candidates:
         if candidate.is_file():
             return str(candidate)

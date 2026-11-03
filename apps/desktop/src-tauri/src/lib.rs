@@ -201,9 +201,16 @@ fn agent_python_and_dir() -> (PathBuf, PathBuf) {
         .join("agent")
         .canonicalize()
         .expect("could not locate ../../agent — is the Rafiq monorepo layout intact?");
-    let python = agent_dir.join(".venv").join("Scripts").join("python.exe");
+    let python = if cfg!(windows) {
+        agent_dir.join(".venv").join("Scripts").join("python.exe")
+    } else {
+        agent_dir.join(".venv").join("bin").join("python")
+    };
     (python, agent_dir)
 }
+
+/// The PyInstaller-built agent inside the installed app.
+const AGENT_BINARY: &str = if cfg!(windows) { "agent/rafiq-agent.exe" } else { "agent/rafiq-agent" };
 
 /// Starts the backend: the PyInstaller-built `rafiq-agent.exe` that ships inside the
 /// installed app, or the repo's venv during `tauri dev`. An installed copy has no Python
@@ -215,7 +222,7 @@ fn spawn_backend(app: &tauri::AppHandle, port: u16, token: &str) -> Child {
         None
     } else {
         app.path()
-            .resolve("agent/rafiq-agent.exe", tauri::path::BaseDirectory::Resource)
+            .resolve(AGENT_BINARY, tauri::path::BaseDirectory::Resource)
             .ok()
             .filter(|path| path.is_file())
     };
@@ -404,9 +411,18 @@ fn reveal_path(path: String) -> Result<(), String> {
         command.spawn().map_err(|e| e.to_string())?;
         return Ok(());
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
     {
-        Err("مدعوم على ويندوز فقط".into())
+        let mut command = Command::new("open");
+        if !target.is_dir() {
+            command.arg("-R");
+        }
+        command.arg(&target).spawn().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        Err("مدعوم على ويندوز والماك فقط".into())
     }
 }
 
@@ -437,9 +453,15 @@ fn open_external(url: String) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         return Ok(());
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
     {
-        Err("مدعوم على ويندوز فقط".into())
+        // `open` hands the link to the default browser (or the mail program for mailto:).
+        Command::new("open").arg(&url).spawn().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        Err("مدعوم على ويندوز والماك فقط".into())
     }
 }
 
@@ -723,8 +745,17 @@ pub fn run() {
             }
             _ => {}
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| match event {
+            // macOS: clicking the Dock icon while the window is hidden brings it back.
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => show_main(app),
+            // Quitting from the macOS menu (Cmd+Q) skips the tray's quit; the agent goes too.
+            // Windows has the job object for that, but stopping it here is harmless there.
+            tauri::RunEvent::Exit => stop_backend(app),
+            _ => {}
+        });
 }
 
 #[cfg(test)]
