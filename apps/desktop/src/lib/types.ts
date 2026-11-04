@@ -621,6 +621,10 @@ export interface AppSettings {
   provider_concurrency: number;
   /** Tasks on a git repository each work in their own worktree. */
   task_isolation: boolean;
+  /** How the system boxes in the commands the model runs: off, the whole tree stops together, or writes only inside the folder. */
+  shell_sandbox?: "off" | "contained" | "strict";
+  /** With strict on, commands run without the permission card. */
+  sandbox_auto_approve?: boolean;
   /** Which agent runs the tasks a chat opens (null = the chat's own). */
   task_model_id: string | null;
   /** Which agent does Rafiq's own chores — summaries, commit messages (null = the chat's). */

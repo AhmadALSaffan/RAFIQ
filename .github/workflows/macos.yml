@@ -48,6 +48,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      # A gate: the command sandbox must really refuse writes outside the folder on a Mac
+      # (sandbox-exec), not only on Windows.
+      - name: Agent · sandbox
+        working-directory: apps/agent
+        run: pytest -q -ra -p no:cacheprovider tests/test_sandbox.py
+
       # Not a gate yet: the suite was written on Windows. The run shows what differs on a Mac.
       - name: Agent · tests
         working-directory: apps/agent

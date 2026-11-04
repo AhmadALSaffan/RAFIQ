@@ -23,6 +23,9 @@ import councilRu from "../assets/whats-new/0.5.13-ru.webp";
 import phoneAr from "../assets/whats-new/0.5.15-ar.webp";
 import phoneEn from "../assets/whats-new/0.5.15-en.webp";
 import phoneRu from "../assets/whats-new/0.5.15-ru.webp";
+import sandboxAr from "../assets/whats-new/0.5.16-ar.webp";
+import sandboxEn from "../assets/whats-new/0.5.16-en.webp";
+import sandboxRu from "../assets/whats-new/0.5.16-ru.webp";
 
 // The version whose dialog the user closed. (A new key: the first builds marked a version
 // seen as soon as it opened, shown or not.)
@@ -48,6 +51,17 @@ export interface ReleaseNews {
 const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/AhmadALSaffan/RAFIQ/releases/download/v${version}/whats-new-${lang}.mp4`;
 
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.16",
+    images: { ar: sandboxAr, en: sandboxEn, ru: sandboxRu },
+    title: () => t("كل أمر بحدوده"),
+    points: () => [
+      t("عزل صارم للأوامر: الأمر بيكتب بس جوّا مجلد الشغل، والنظام نفسه بيرفض أي كتابة برّاه"),
+      t("مع العزل الصارم، بتقدر تخلّي الأوامر تشتغل لحالها بدون ما تسألك"),
+      t("إذا خلص وقت الأمر أو وقّفت المهمة، بيتسكّر هو وكل شي فتحه"),
+      t("من الإعدادات ← الصلاحيات ← عزل الأوامر"),
+    ],
+  },
   {
     version: "0.5.15",
     images: { ar: phoneAr, en: phoneEn, ru: phoneRu },

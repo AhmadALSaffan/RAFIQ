@@ -19,6 +19,7 @@ from typing import Any
 
 from rafiq_agent.auth.resolve import helper_llm, llm_for
 from rafiq_agent.core import notes as notes_mod
+from rafiq_agent.core import sandbox
 from rafiq_agent.core.agent_runtime import (
     allow_always,
     build_registry,
@@ -946,7 +947,9 @@ class ChatTurn:
     async def _permit(
         self, name: str, category: str, args: dict[str, Any], preview: str | None = None
     ) -> bool:
-        decision = policy_decision(name, category, self.settings.permissions)
+        decision = policy_decision(
+            name, category, self.settings.permissions, sandboxed=sandbox.auto_approves(self.settings)
+        )
         if decision != "ask":
             return decision == "allow"
 

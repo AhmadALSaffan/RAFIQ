@@ -9,7 +9,7 @@ import { GlobeIcon, LinkIcon, MovieIcon, PinIcon, PlugIcon, SettingsIcon, Shield
 import { ActionProgress } from "../components/Feedback";
 import { ConnectedAccountsSection } from "../features/accounts/ConnectedAccountsSection";
 import { ToggleRow } from "../features/settings/controls";
-import { BackgroundSettings, TasksSettings, WebSettings } from "../features/settings/sections";
+import { BackgroundSettings, SandboxSettings, TasksSettings, WebSettings } from "../features/settings/sections";
 import { VoiceSettings } from "../features/settings/voice";
 import { FileSearchSettings } from "../features/settings/fileSearch";
 import { AmbientSettings } from "../features/settings/ambient";
@@ -577,6 +577,8 @@ export function SettingsPage() {
                       ))}
                     </motion.div>
                   </section>
+
+                  <SandboxSettings settings={settings} persist={persist} />
 
                   <section
                     className="rounded-2xl border px-4 py-4"

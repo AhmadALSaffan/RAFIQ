@@ -73,6 +73,39 @@ export function TasksSettings({ settings, persist }: { settings: AppSettings; pe
   );
 }
 
+/** How the system boxes in the commands the model runs (agent core/sandbox.py). */
+export function SandboxSettings({ settings, persist }: { settings: AppSettings; persist: Persist }) {
+  const mode = settings.shell_sandbox ?? "contained";
+  const hints: Record<string, string> = {
+    off: t("الأوامر بتشتغل متل أي برنامج عندك، بدون أي حدود من النظام."),
+    contained: t("الأمر وكل شي بيفتحه شجرة وحدة: إذا خلص وقته أو وقّفت المهمة، بيتسكّر كله، مش بس أول أمر. غير هيك ما بيتغيّر شي."),
+    strict: t("الأمر بيقدر يكتب بس جوّا مجلد الشغل ومجلد مؤقت إله. أي كتابة برّاهن النظام نفسه بيرفضها، مهما حاول الأمر. بيضل يقرأ ويوصل للنت، وأي شي بيضل شغّال بعده بيتسكّر. على ويندوز بيتعلّم مجلد الشغل أول مرة ليسمح بالكتابة فيه."),
+  };
+  return (
+    <Section title={t("عزل الأوامر")}>
+      <SelectRow
+        label={t("مستوى العزل")}
+        hint={hints[mode]}
+        value={mode}
+        options={[
+          { value: "off", label: t("مطفي") },
+          { value: "contained", label: t("محصور") },
+          { value: "strict", label: t("صارم") },
+        ]}
+        onChange={(value) => persist({ ...settings, shell_sandbox: value as AppSettings["shell_sandbox"] })}
+      />
+      {mode === "strict" && (
+        <ToggleRow
+          label={t("خلّي الأوامر تشتغل بدون ما تسألني")}
+          hint={t("بما إنه الأمر ما بيقدر يكتب برّا مجلد الشغل، بيشتغل بدون بطاقة إذن. إذا حاطط الأوامر على «ممنوع» بتضل ممنوعة.")}
+          checked={settings.sandbox_auto_approve ?? false}
+          onChange={(sandbox_auto_approve) => persist({ ...settings, sandbox_auto_approve })}
+        />
+      )}
+    </Section>
+  );
+}
+
 const SEARCH: { id: WebSearchProvider; label: string; hint: string }[] = [
   { id: "none", label: t("مطفي"), hint: t("الوكيل بيقدر يقرأ صفحات بس ما بيدوّر.") },
   { id: "brave", label: "Brave", hint: t("مفتاح مجاني من api-dashboard.search.brave.com") },

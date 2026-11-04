@@ -73,6 +73,12 @@ class AppSettings(BaseModel):
     provider_concurrency: int = Field(default=6, ge=1, le=50)
     # Tasks on a git repository work in their own worktree, so they can all run at once.
     task_isolation: bool = True
+    # How the operating system boxes in the commands the model runs (core/sandbox.py):
+    # "off", "contained" (the whole tree stops together) or "strict" (writes only inside
+    # the working folder).
+    shell_sandbox: Literal["off", "contained", "strict"] = "contained"
+    # With strict on, commands run without the permission card (one set to "deny" stays denied).
+    sandbox_auto_approve: bool = False
     # The model that carries out tasks a chat creates (None = the chat's own model) — plan
     # with a strong model, execute with a fast, cheaper one.
     task_model_id: str | None = None

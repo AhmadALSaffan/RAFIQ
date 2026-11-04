@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import select
 
 from rafiq_agent.auth.resolve import llm_for
-from rafiq_agent.core import issue_lifecycle
+from rafiq_agent.core import issue_lifecycle, sandbox
 from rafiq_agent.core.attachments import AttachmentError, build_user_content, load_attachments
 from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
 from rafiq_agent.core.manager import manager
@@ -156,7 +156,7 @@ async def build_registry(
             FilesystemWriteTool(working_dir),
             FilesystemEditTool(working_dir),
             FilesystemDeleteTool(working_dir),
-            ShellRunTool(working_dir),
+            ShellRunTool(working_dir, settings.shell_sandbox),
             ProcessListTool(),
             ProcessKillTool(),
         ]
@@ -203,9 +203,13 @@ async def build_registry(
     return registry
 
 
-def policy_decision(tool_name: str, category: str, permissions: dict[str, str]) -> str:
+def policy_decision(
+    tool_name: str, category: str, permissions: dict[str, str], *, sandboxed: bool = False
+) -> str:
     """'allow' | 'deny' | 'ask' for one tool call under the user's settings. An MCP tool
-    follows its server's own settings first (mcp_bridge.resolve_mode), then the global one."""
+    follows its server's own settings first (mcp_bridge.resolve_mode), then the global one.
+    `sandboxed`: commands are boxed into their folder and the user let them run unasked
+    (core/sandbox.py) — a command that would ask runs; one the user denied stays denied."""
     from rafiq_agent.mcp_bridge import mode_for
 
     if tool_name == usage.CAP_TOOL:
@@ -215,6 +219,8 @@ def policy_decision(tool_name: str, category: str, permissions: dict[str, str]) 
     mode = (mode_for(tool_name) if tool_name.startswith("mcp__") else None) or permissions.get(
         permission_key(tool_name), "ask"
     )
+    if sandboxed and tool_name == "shell_run" and mode == "ask":
+        return "allow"
     return {"auto": "allow", "deny": "deny"}.get(mode, "ask")
 
 
@@ -439,7 +445,9 @@ async def run_task(task_id: str) -> None:
         async def permit(
             tool_name: str, category: str, args: dict[str, Any], preview: str | None = None
         ) -> bool:
-            decision = policy_decision(tool_name, category, settings.permissions)
+            decision = policy_decision(
+                tool_name, category, settings.permissions, sandboxed=sandbox.auto_approves(settings)
+            )
             if mode == "step" and category != "read_only" and decision == "allow":
                 decision = "ask"  # step-by-step: the user sees every change before it happens
             if decision != "ask":

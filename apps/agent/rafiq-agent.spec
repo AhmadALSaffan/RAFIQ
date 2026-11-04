@@ -5,6 +5,8 @@
 #
 # One-folder on purpose: one-file would unpack ~200MB of litellm on every launch.
 
+import sys
+
 from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
 
 datas = []
@@ -108,10 +110,38 @@ exe = EXE(
     console=False,
 )
 
+extra = []
+if sys.platform == "win32":
+    # The launcher for sandboxed commands (rafiq_agent/sandbox_run.py, core/sandbox.py): its
+    # own small console program, so it starts fast and hands its pipes to the command. The
+    # desktop app never shows it a window (the agent starts it with CREATE_NO_WINDOW).
+    sandbox_analysis = Analysis(
+        ["rafiq_agent/sandbox_run.py"],
+        pathex=[],
+        binaries=[],
+        datas=[],
+        hiddenimports=[],
+        excludes=["tkinter", "pytest"],
+        noarchive=False,
+    )
+    sandbox_exe = EXE(
+        PYZ(sandbox_analysis.pure),
+        sandbox_analysis.scripts,
+        [],
+        exclude_binaries=True,
+        name="rafiq-sandbox",
+        debug=False,
+        strip=False,
+        upx=False,
+        console=True,
+    )
+    extra = [sandbox_exe, sandbox_analysis.binaries, sandbox_analysis.datas]
+
 collect = COLLECT(
     exe,
     analysis.binaries,
     analysis.datas,
+    *extra,
     strip=False,
     upx=False,
     name="rafiq-agent",

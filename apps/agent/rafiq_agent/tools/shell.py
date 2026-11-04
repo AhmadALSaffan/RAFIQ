@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from rafiq_agent.core import sandbox
 from rafiq_agent.tools.base import Tool, ToolResult
 
 DEFAULT_TIMEOUT_SECONDS = 60
@@ -97,8 +98,10 @@ class ShellRunTool(Tool):
         },
     }
 
-    def __init__(self, working_dir: Path) -> None:
+    def __init__(self, working_dir: Path, sandbox_mode: str = "contained") -> None:
         self.working_dir = working_dir
+        # How the operating system boxes the command in (core/sandbox.py).
+        self.sandbox_mode = sandbox_mode
 
     async def run(self, args: dict[str, Any]) -> ToolResult:
         timeout = args.get("timeout_seconds") or DEFAULT_TIMEOUT_SECONDS
@@ -111,14 +114,7 @@ class ShellRunTool(Tool):
         command = args.get("command")
         if not command:
             return ToolResult(ok=False, output="pass `command`, or `script` with `language`")
-        process = await asyncio.create_subprocess_shell(
-            command,
-            cwd=str(self.working_dir),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=_child_env(),
-        )
-        result = await self._collect(process, timeout)
+        result = await self._start(timeout, command=str(command))
         if not result.ok and INLINE_CODE.search(command):
             result.output += INLINE_HINT
         return result
@@ -137,24 +133,51 @@ class ShellRunTool(Tool):
             argv = _interpreter(language, path)
             if argv is None:
                 return ToolResult(ok=False, output=f"{language} isn't installed on this computer (not on PATH)")
-            process = await asyncio.create_subprocess_exec(
-                *argv,
-                cwd=str(self.working_dir),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=_child_env(),
-            )
-            return await self._collect(process, timeout)
+            return await self._start(timeout, argv=argv)
         finally:
             shutil.rmtree(folder, ignore_errors=True)
 
-    async def _collect(self, process: asyncio.subprocess.Process, timeout: int) -> ToolResult:
+    async def _start(self, timeout: int, *, command: str | None = None, argv: list[str] | None = None) -> ToolResult:
+        try:
+            launch = await sandbox.prepare(self.sandbox_mode, self.working_dir, _child_env(), command=command, argv=argv)
+        except sandbox.SandboxUnavailable as e:
+            return ToolResult(ok=False, output=f"not run: {e}. The user chose strict isolation for commands, so it won't run without it.")
+        pipes: dict[str, Any] = {
+            "cwd": str(self.working_dir),
+            "stdout": asyncio.subprocess.PIPE,
+            "stderr": asyncio.subprocess.PIPE,
+            "env": launch.env,
+            **launch.kwargs,
+        }
+        if launch.shell is not None:
+            process = await asyncio.create_subprocess_shell(launch.shell, **pipes)
+        else:
+            process = await asyncio.create_subprocess_exec(*launch.argv, **pipes)
+        result = await self._collect(process, timeout, launch)
+        result.output = launch.explain(result.output, result.ok)
+        return result
+
+    @staticmethod
+    def _stop(process: asyncio.subprocess.Process, launch: sandbox.Launch | None) -> None:
+        if launch is not None:
+            launch.kill(process)
+        else:
+            process.kill()
+
+    async def _collect(
+        self, process: asyncio.subprocess.Process, timeout: int, launch: sandbox.Launch | None = None
+    ) -> ToolResult:
         try:
             stdout_bytes, stderr_bytes = await asyncio.wait_for(process.communicate(), timeout=timeout)
         except TimeoutError:
-            process.kill()
+            # The whole tree: a dev server or a watcher started by the command goes too.
+            self._stop(process, launch)
             await process.wait()
             return ToolResult(ok=False, output=f"command timed out after {timeout}s")
+        except asyncio.CancelledError:
+            # The task was stopped while the command ran: don't leave it running behind us.
+            self._stop(process, launch)
+            raise
 
         stdout = _decode(stdout_bytes)
         stderr = _decode(stderr_bytes)
