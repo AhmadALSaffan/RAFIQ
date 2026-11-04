@@ -31,24 +31,24 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 ---
 
-## What's new · v0.5.15
+## What's new · v0.5.16
 
 <!-- Every release: replace docs/whats-new/latest.webp with the release's picture (the same
      one the app's What's new dialog shows) and update the version, points and link below. -->
 
 <div align="center">
 
-<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.15: Rafiq is on your phone now">
+<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.16: every command, boxed in">
 
 </div>
 
-**Rafiq is on your phone now.**
-- **Send a task from your phone:** write what you need in the Android app and choose the model. It runs on your computer.
-- **Approve from anywhere:** follow each step, and approve or deny any command or change from your phone.
-- **Encrypted between your devices:** the service only carries encrypted messages, and your files and model keys never reach it.
-- **Optional, at $9.99 a month:** this one service needs an account and a subscription. The rest of Rafiq stays free, with no account.
+**Every command, boxed in.**
+- **A strict sandbox for commands:** a command can write only inside the working folder and its own temp folder. The system itself refuses any write outside them (Low integrity on Windows, `sandbox-exec` on macOS).
+- **Run without asking, safely:** with the strict sandbox on, you can let commands run without the permission card. A command set to «Deny» stays denied.
+- **The whole tree stops:** when a command times out or you stop the task, everything it started closes with it.
+- Settings → Permissions → Command sandbox.
 
-Full notes: [v0.5.15](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.15) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
+Full notes: [v0.5.16](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.16) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
 
 ---
 
@@ -242,7 +242,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.15_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.16_x64-setup.exe -Algorithm SHA256
 > ```
 
 ### 2 — Clone the Repository (Developers)
