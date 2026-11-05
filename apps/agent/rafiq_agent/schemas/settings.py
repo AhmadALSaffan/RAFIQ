@@ -79,6 +79,11 @@ class AppSettings(BaseModel):
     shell_sandbox: Literal["off", "contained", "strict"] = "contained"
     # With strict on, commands run without the permission card (one set to "deny" stays denied).
     sandbox_auto_approve: bool = False
+    # Smart approvals (core/reviewer.py): a reviewer model clears a step that plainly serves the
+    # request and can't do lasting damage; anything else still asks, with its reason.
+    smart_approvals: bool = False
+    # The reviewer (None = the helper model, else the cheap model, else the chat's own).
+    reviewer_model_id: str | None = None
     # The model that carries out tasks a chat creates (None = the chat's own model) — plan
     # with a strong model, execute with a fast, cheaper one.
     task_model_id: str | None = None
@@ -139,6 +144,9 @@ class AppSettings(BaseModel):
     # The folders replies can answer from, with the file and page (core/knowledge.py). Empty =
     # the feature is off: unlike file search, nothing is read until the user picks a folder.
     knowledge_dirs: list[str] = Field(default_factory=list, max_length=30)
+    # Scanned PDFs in those folders are read by the vision model (core/ocr.py): it costs what
+    # that model costs, so it's off until the user turns it on.
+    knowledge_ocr: bool = False
     # The smart route (llm/router.py): simple questions go to this cheaper model.
     smart_route: bool = False
     cheap_model_id: str | None = None

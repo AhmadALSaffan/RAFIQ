@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { MAX_QUICK_ACTIONS, QUICK_ASK_SHORTCUTS, SCREEN_ASK_SHORTCUT, draftAction, syncQuickAsk } from "../../lib/quickAsk";
 import { motion } from "motion/react";
-import { getWebSearchKeys, listModels, saveWebSearchKey } from "../../lib/api";
+import { getAcpCommand, getWebSearchKeys, listModels, saveWebSearchKey, type AcpCommand } from "../../lib/api";
 import { autostartEnabled, setAutostart, syncBackground } from "../../lib/background";
 import { snappy } from "../../lib/motion";
 import type { AppSettings, LlmModel, QuickAction, WebSearchKeys, WebSearchProvider } from "../../lib/types";
@@ -69,6 +69,72 @@ export function TasksSettings({ settings, persist }: { settings: AppSettings; pe
         max={50}
         onCommit={(n) => persist({ ...settings, provider_concurrency: n })}
       />
+    </Section>
+  );
+}
+
+/** Rafiq as the agent inside a code editor, over ACP (agent rafiq_agent/acp.py). */
+export function EditorSettings() {
+  const [info, setInfo] = useState<AcpCommand | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    getAcpCommand()
+      .then(setInfo)
+      .catch(() => setInfo(null));
+  }, []);
+  if (!info) return null;
+  const snippet = JSON.stringify(info.zed, null, 2);
+  async function copy() {
+    await navigator.clipboard.writeText(snippet);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  }
+  return (
+    <Section title={t("رفيق جوّا محرّر الكود")}>
+      <Card>
+        <p className="text-sm font-medium">{t("Zed و JetBrains وأي محرّر بيحكي ACP")}</p>
+        <Hint>
+          {t("ضيف هالإعداد للمحرّر (بـ Zed: ملف settings.json) وبيطلع «Rafiq» بين الوكلاء. كل جلسة بالمحرّر بتصير محادثة برفيق على مجلد مشروعك، بالموديل الأول عندك، وكل خطوة بدها إذن بتسألك جوّا المحرّر. لازم يكون رفيق مفتوح.")}
+        </Hint>
+        <pre className="mt-3 overflow-x-auto rounded-xl p-3 font-mono text-[11px] leading-relaxed" dir="ltr" style={{ background: "var(--color-surface-2)" }}>
+          {snippet}
+        </pre>
+        <div className="mt-2 flex justify-end">
+          <Button variant="ghost" onClick={() => void copy()} className="px-3 py-1.5 text-xs">
+            {copied ? t("انتسخ") : t("انسخ الإعداد")}
+          </Button>
+        </div>
+      </Card>
+    </Section>
+  );
+}
+
+/** Smart approvals (agent core/reviewer.py): a reviewer model clears plainly safe steps. */
+export function SmartApprovalSettings({ settings, persist }: { settings: AppSettings; persist: Persist }) {
+  const [models, setModels] = useState<LlmModel[]>([]);
+  useEffect(() => {
+    listModels()
+      .then((all) => setModels(all.filter((m) => m.verify_ok !== false)))
+      .catch(() => setModels([]));
+  }, []);
+  const on = settings.smart_approvals ?? false;
+  return (
+    <Section title={t("الموافقات الذكية")}>
+      <ToggleRow
+        label={t("خلّي مراجع يقرّر عن الخطوات الآمنة")}
+        hint={t("قبل ما تطلعلك بطاقة إذن، موديل تاني بيقرأ شو طلبت وشو الخطوة بالضبط. إذا كانت بتخدم طلبك وما بتعمل ضرر ما بيترجع، بتمشي لحالها وبتشوف بالمحادثة ليش. غير هيك بتسألك متل العادة، ومعها رأيه. الحذف، والنشر، والرسائل، والتحكّم بالشاشة دايماً بيسألوك.")}
+        checked={on}
+        onChange={(smart_approvals) => persist({ ...settings, smart_approvals })}
+      />
+      {on && (
+        <SelectRow
+          label={t("موديل المراجعة")}
+          hint={t("موديل رخيص وسريع بيكفي. إذا ما اخترت، بيستخدم موديل الشغل الداخلي، أو الموديل الرخيص، أو موديل المحادثة نفسها.")}
+          value={settings.reviewer_model_id ?? ""}
+          options={[{ value: "", label: t("تلقائي") }, ...models.map((m) => ({ value: m.id, label: m.name }))]}
+          onChange={(id) => persist({ ...settings, reviewer_model_id: id || null })}
+        />
+      )}
     </Section>
   );
 }

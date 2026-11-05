@@ -35,6 +35,7 @@ import { accountLabel } from "../features/accounts/labels";
 import { t } from "../i18n";
 import { isGuideKind, showGuide } from "../lib/guides";
 import { roving } from "../lib/keyboard";
+import { LocalModelCard } from "../features/models/LocalModelCard";
 export function ModelsPage() {
   const [models, setModels] = useState<LlmModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,6 +118,8 @@ export function ModelsPage() {
           }}
         />
       </Reveal>
+
+      <LocalModelCard onAdded={() => void refresh()} />
 
       {loading ? (
         <ListSkeleton />

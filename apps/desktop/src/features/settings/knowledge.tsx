@@ -1,10 +1,10 @@
 /** Settings → Memory: the folders replies can answer from, and how far they've been read. */
 
 import { useCallback, useEffect, useState } from "react";
-import type { AppSettings } from "../../lib/types";
-import { clearKnowledge, getKnowledgeStatus, rescanKnowledge, type KnowledgeStatus } from "../../lib/api";
+import type { AppSettings, LlmModel } from "../../lib/types";
+import { clearKnowledge, getKnowledgeStatus, listModels, rescanKnowledge, type KnowledgeStatus } from "../../lib/api";
 import { pickFolder } from "../../lib/folders";
-import { Card, Hint, Section } from "./controls";
+import { Card, Hint, Section, SelectRow, ToggleRow } from "./controls";
 import { Button } from "../../components/ui";
 import { TrashIcon } from "../../components/Icons";
 import { intlLocale, t } from "../../i18n";
@@ -95,6 +95,43 @@ export function KnowledgeSettings({ settings, persist }: { settings: AppSettings
           </p>
         )}
       </Card>
+      {folders.length > 0 && <ScannedPdfs settings={settings} persist={persist} scanned={status?.scanned ?? 0} reading={status?.reading_scans ?? false} />}
     </Section>
+  );
+}
+
+/** Scanned PDFs read by the vision model (agent core/ocr.py). */
+function ScannedPdfs({ settings, persist, scanned, reading }: { settings: AppSettings; persist: Persist; scanned: number; reading: boolean }) {
+  const [models, setModels] = useState<LlmModel[]>([]);
+  useEffect(() => {
+    listModels()
+      .then((all) => setModels(all.filter((m) => m.verify_ok !== false)))
+      .catch(() => setModels([]));
+  }, []);
+  const on = settings.knowledge_ocr ?? false;
+  return (
+    <>
+      <ToggleRow
+        label={t("اقرأ الـPDF المصوّر كمان")}
+        hint={t("كل صفحة بتصير صورة، وموديل الصور بيكتب النص اللي فيها، عربي أو إنجليزي، مع رقم الصفحة. بيكلّف قد ما بيكلّف موديل الصور، أو ببلاش إذا كان محلي. لحد 60 صفحة بالملف، والملف ما بينقرأ مرتين إلا إذا تغيّر.")}
+        checked={on}
+        onChange={(knowledge_ocr) => persist({ ...settings, knowledge_ocr })}
+      />
+      {on && (
+        <SelectRow
+          label={t("موديل الصور")}
+          hint={
+            settings.vision_model_id
+              ? reading
+                ? t("عم يقرأ الملفات المصوّرة…")
+                : t("انقرأ {0} ملف مصوّر لهلأ.", { 0: scanned })
+              : t("اختار موديل بيشوف صور، وإلا ما رح ينقرأ شي.")
+          }
+          value={settings.vision_model_id ?? ""}
+          options={[{ value: "", label: t("ولا واحد") }, ...models.map((m) => ({ value: m.id, label: m.name }))]}
+          onChange={(id) => persist({ ...settings, vision_model_id: id || null })}
+        />
+      )}
+    </>
   );
 }

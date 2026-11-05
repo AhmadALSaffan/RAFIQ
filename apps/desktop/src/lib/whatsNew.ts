@@ -26,6 +26,9 @@ import phoneRu from "../assets/whats-new/0.5.15-ru.webp";
 import sandboxAr from "../assets/whats-new/0.5.16-ar.webp";
 import sandboxEn from "../assets/whats-new/0.5.16-en.webp";
 import sandboxRu from "../assets/whats-new/0.5.16-ru.webp";
+import terminalAr from "../assets/whats-new/0.5.17-ar.webp";
+import terminalEn from "../assets/whats-new/0.5.17-en.webp";
+import terminalRu from "../assets/whats-new/0.5.17-ru.webp";
 
 // The version whose dialog the user closed. (A new key: the first builds marked a version
 // seen as soon as it opened, shown or not.)
@@ -51,6 +54,18 @@ export interface ReleaseNews {
 const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/AhmadALSaffan/RAFIQ/releases/download/v${version}/whats-new-${lang}.mp4`;
 
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.17",
+    images: { ar: terminalAr, en: terminalEn, ru: terminalRu },
+    title: () => t("رفيق بالتيرمينال"),
+    points: () => [
+      t("اكتب rafiq بأي تيرمينال: محادثة كاملة متل التطبيق، وبتشتغل بدون ما تفتحه"),
+      t("أوامر متل /model و /mode و /resume، وتبديل الوضع بـ Shift+Tab، واللغة بـ /lang"),
+      t("رفيق جوّا محرّرات الكود: Zed و JetBrains عن طريق ACP"),
+      t("الموافقات الذكية: مراجع بيسمح بالخطوات الآمنة لحاله وبيسألك عن الباقي"),
+      t("نموذج مجاني على جهازك بكبسة، وقراءة الـPDF المصوّر، ومهارات جاهزة"),
+    ],
+  },
   {
     version: "0.5.16",
     images: { ar: sandboxAr, en: sandboxEn, ru: sandboxRu },

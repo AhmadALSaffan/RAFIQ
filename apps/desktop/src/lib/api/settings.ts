@@ -51,6 +51,9 @@ export interface KnowledgeStatus {
   scanning: boolean;
   last_scan: string | null;
   error: string | null;
+  /** Scanned PDFs the vision model has read (agent core/ocr.py). */
+  scanned?: number;
+  reading_scans?: boolean;
 }
 
 export async function getKnowledgeStatus(): Promise<KnowledgeStatus> {
@@ -63,4 +66,15 @@ export async function rescanKnowledge(): Promise<void> {
 
 export async function clearKnowledge(): Promise<void> {
   await request<void>("/settings/knowledge", { method: "DELETE" });
+}
+
+/** How a code editor starts Rafiq as its agent over ACP (agent rafiq_agent/acp.py). */
+export interface AcpCommand {
+  command: string;
+  args: string[];
+  zed: Record<string, unknown>;
+}
+
+export async function getAcpCommand(): Promise<AcpCommand> {
+  return request<AcpCommand>("/settings/acp");
 }

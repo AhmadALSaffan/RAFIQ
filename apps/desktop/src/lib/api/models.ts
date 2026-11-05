@@ -84,3 +84,38 @@ export async function verifyModel(id: string): Promise<LlmModel> {
 export function providerLabel(provider: Provider): string {
   return providerMeta(provider).label;
 }
+
+/** The free model on this computer (agent core/local_model.py). */
+export interface LocalJob {
+  status: string;
+  completed: number;
+  total: number;
+  error: string | null;
+  tag?: string;
+  model_id?: string | null;
+}
+
+export interface LocalModelStatus {
+  running: boolean;
+  installed: boolean;
+  models: string[];
+  can_install: boolean;
+  download_page: string;
+  ram_gb: number;
+  suggested: string;
+  recommended: { tag: string; name: string; size_gb: number; min_ram_gb: number }[];
+  install: LocalJob | null;
+  pull: LocalJob | null;
+}
+
+export async function freeModelStatus(): Promise<LocalModelStatus> {
+  return request<LocalModelStatus>("/models/local");
+}
+
+export async function installOllama(): Promise<void> {
+  await request("/models/local/install", { method: "POST" });
+}
+
+export async function pullFreeModel(tag: string): Promise<void> {
+  await request("/models/local/pull", { method: "POST", body: JSON.stringify({ tag }) });
+}

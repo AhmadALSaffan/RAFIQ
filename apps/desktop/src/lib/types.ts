@@ -178,6 +178,8 @@ export interface ToolCall {
   args: Record<string, unknown>;
   /** What the call would change — a diff for a file write — shown on the permission card. */
   preview?: string;
+  /** What the smart-approvals reviewer said about it (agent core/reviewer.py). */
+  review?: string;
 }
 
 export type TaskEvent =
@@ -188,7 +190,7 @@ export type TaskEvent =
       id: string;
       type: "permission_request";
       call: ToolCall;
-      resolution: "pending" | "approved" | "denied";
+      resolution: Resolution;
       created_at: string;
     }
   | { id: string; type: "issue_update"; text: string; ok: boolean; created_at: string }
@@ -283,7 +285,8 @@ export interface SummarizeResult {
   approx_tokens_after: number;
 }
 
-export type Resolution = "pending" | "approved" | "denied";
+/** "reviewed": the smart-approvals reviewer let it run without asking. */
+export type Resolution = "pending" | "approved" | "denied" | "reviewed";
 
 export type ChatPart =
   | { kind: "text"; text: string }
@@ -625,6 +628,12 @@ export interface AppSettings {
   shell_sandbox?: "off" | "contained" | "strict";
   /** With strict on, commands run without the permission card. */
   sandbox_auto_approve?: boolean;
+  /** Scanned PDFs in the knowledge folders are read by the vision model. */
+  knowledge_ocr?: boolean;
+  /** A reviewer model clears steps that plainly serve the request; the rest still ask. */
+  smart_approvals?: boolean;
+  /** The reviewer (null = the helper model, else the cheap one, else the chat's own). */
+  reviewer_model_id?: string | null;
   /** Which agent runs the tasks a chat opens (null = the chat's own). */
   task_model_id: string | null;
   /** Which agent does Rafiq's own chores — summaries, commit messages (null = the chat's). */

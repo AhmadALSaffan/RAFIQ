@@ -1,3 +1,7 @@
 @echo off
-rem Rafiq from the terminal: forwards to the bundled agent's CLI mode.
-"%~dp0agent\rafiq-agent.exe" cli %*
+rem Rafiq from the terminal: the bundled console program (agent\rafiq.exe), else the agent's CLI mode.
+if exist "%~dp0agent\rafiq.exe" (
+  "%~dp0agent\rafiq.exe" %*
+) else (
+  "%~dp0agent\rafiq-agent.exe" cli %*
+)

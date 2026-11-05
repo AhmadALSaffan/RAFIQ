@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import select
 
 from rafiq_agent.auth.resolve import llm_for
-from rafiq_agent.core import issue_lifecycle, sandbox
+from rafiq_agent.core import issue_lifecycle, reviewer, sandbox
 from rafiq_agent.core.attachments import AttachmentError, build_user_content, load_attachments
 from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
 from rafiq_agent.core.manager import manager
@@ -455,6 +455,14 @@ async def run_task(task_id: str) -> None:
             call: dict[str, Any] = {"tool": tool_name, "category": category, "args": args}
             if preview:
                 call["preview"] = preview
+            if mode != "step" and settings.smart_approvals and reviewer.reviewable(tool_name, permission_key(tool_name)):
+                verdict = await reviewer.review(tool_name, args, preview, prompt, model.id if model else None)
+                if verdict.verdict == "safe":
+                    call["review"] = verdict.reason
+                    await manager.emit_event(task_id, "permission_request", {"call": call, "resolution": "reviewed"})
+                    return True
+                if verdict.reason:
+                    call["review"] = verdict.reason
             event = await manager.emit_event(
                 task_id, "permission_request", {"call": call, "resolution": "pending"}
             )

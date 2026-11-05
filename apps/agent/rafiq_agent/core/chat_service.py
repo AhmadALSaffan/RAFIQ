@@ -19,11 +19,12 @@ from typing import Any
 
 from rafiq_agent.auth.resolve import helper_llm, llm_for
 from rafiq_agent.core import notes as notes_mod
-from rafiq_agent.core import sandbox
+from rafiq_agent.core import reviewer, sandbox
 from rafiq_agent.core.agent_runtime import (
     allow_always,
     build_registry,
     load_settings,
+    permission_key,
     policy_decision,
     working_dir_system_note,
 )
@@ -957,6 +958,17 @@ class ChatTurn:
         call: dict[str, Any] = {"tool": name, "category": category, "args": args}
         if preview:
             call["preview"] = preview
+        if self.settings.smart_approvals and reviewer.reviewable(name, permission_key(name)):
+            # A second model reads the step against what the user asked (core/reviewer.py).
+            verdict = await reviewer.review(name, args, preview, self.content, self.model_id)
+            if verdict.verdict == "safe":
+                call["review"] = verdict.reason
+                self.parts.append({"kind": "permission", "id": request_id, "call": call, "resolution": "reviewed"})
+                self._emit({"type": "permission", "id": request_id, "call": call})
+                self._emit({"type": "permission_resolved", "id": request_id, "resolution": "reviewed"})
+                return True
+            if verdict.reason:
+                call["review"] = verdict.reason
         self.parts.append({"kind": "permission", "id": request_id, "call": call, "resolution": "pending"})
         future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
         _pending[request_id] = future

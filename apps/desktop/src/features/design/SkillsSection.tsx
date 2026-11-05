@@ -15,31 +15,88 @@ import { DownloadIcon, ExternalIcon, PencilIcon, PlusIcon, SpinnerIcon, TrashIco
 import { SkillEditor, type SkillEditorMode } from "./SkillEditor";
 import { t } from "../../i18n";
 
-/** Public design skills worth having. Each installs straight from its repository. */
-const CATALOG: { name: string; url: string; blurb: string; by: string }[] = [
+type Category = "design" | "writing" | "build";
+
+const CATEGORY_LABEL: Record<Category, string> = {
+  design: t("تصميم وصور"),
+  writing: t("كتابة وشغل"),
+  build: t("بناء أدوات"),
+};
+
+const ANTHROPIC = "https://github.com/anthropics/skills/tree/main/skills";
+
+/** Public skills worth having. Each installs straight from its repository (text files only:
+ *  a skill is instructions, nothing in it runs). */
+const CATALOG: { name: string; url: string; blurb: string; by: string; category: Category }[] = [
   {
     name: "impeccable",
+    category: "design",
     url: "https://github.com/pbakaus/impeccable/tree/main/.claude/skills/impeccable",
     blurb: t("النسخة الكاملة من impeccable.style — مسارات audit وpolish وcritique وغيرها لمراجعة التصميم وتحسينه."),
     by: "Paul Bakaus",
   },
   {
     name: "web-design-guidelines",
+    category: "design",
     url: "https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines",
     blurb: t("مراجعة الواجهة على قواعد Vercel: وصولية، أداء، نماذج، وحركة."),
     by: "Vercel",
   },
   {
     name: "frontend-design",
+    category: "design",
     url: "https://github.com/anthropics/skills/tree/main/skills/frontend-design",
     blurb: t("مهارة Anthropic لواجهات مميّزة بعيدة عن الشكل «الجاهز» — اتجاه بصري واضح وتفاصيل مدروسة."),
     by: "Anthropic",
   },
   {
     name: "ui-ux-pro-max",
+    category: "design",
     url: "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
     blurb: t("قاعدة كبيرة من أنماط الواجهات، لوحات ألوان، وأزواج خطوط حسب نوع المنتج."),
     by: "nextlevelbuilder",
+  },
+  {
+    name: "canvas-design",
+    category: "design",
+    url: `${ANTHROPIC}/canvas-design`,
+    blurb: t("بوسترات وصور ثابتة بفلسفة تصميم مكتوبة أول، بدل ما يطلع شي عشوائي."),
+    by: "Anthropic",
+  },
+  {
+    name: "theme-factory",
+    category: "design",
+    url: `${ANTHROPIC}/theme-factory`,
+    blurb: t("عشر ثيمات جاهزة (ألوان وخطوط) بتنطبق على الشرائح والمستندات والصفحات، أو ثيم جديد على ذوقك."),
+    by: "Anthropic",
+  },
+  {
+    name: "brand-guidelines",
+    category: "design",
+    url: `${ANTHROPIC}/brand-guidelines`,
+    blurb: t("مثال كامل لهوية علامة (ألوان وخطوط وقواعد) بتنسخه وبتعدّله لهويتك إنت."),
+    by: "Anthropic",
+  },
+  {
+    name: "doc-coauthoring",
+    category: "writing",
+    url: `${ANTHROPIC}/doc-coauthoring`,
+    blurb: t("كتابة مستند طويل معك خطوة خطوة: بيجمع السياق، بيبني الهيكل، وبيراجع كل قسم قبل ما يكمّل."),
+    by: "Anthropic",
+  },
+  {
+    name: "internal-comms",
+    category: "writing",
+    url: `${ANTHROPIC}/internal-comms`,
+    blurb: t("رسائل الشغل: تحديثات الفريق، نشرات، أسئلة شائعة، وتقارير الحوادث، بنبرة واضحة ومختصرة."),
+    by: "Anthropic",
+  },
+  {
+    name: "mcp-builder",
+    category: "build",
+    url: `${ANTHROPIC}/mcp-builder`,
+    blurb: t("دليل لبناء خادم MCP خاص فيك يوصل رفيق بأي خدمة: التصميم، الأدوات، والاختبار."),
+    by: "Anthropic",
   },
 ];
 
@@ -50,6 +107,7 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
   const [installed, setInstalled] = useState<SkillInstallResult | null>(null);
   const [hasNode, setHasNode] = useState<boolean | null>(null);
   const [editing, setEditing] = useState<SkillEditorMode | null>(null);
+  const [category, setCategory] = useState<Category | "all">("all");
 
   useEffect(() => {
     // Only for the hint under the catalog — nothing here runs a command.
@@ -184,9 +242,25 @@ export function SkillsSection({ skills, onChange }: { skills: AgentSkill[]; onCh
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-medium">{t("مهارات تصميم مقترحة")}</h3>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-medium">{t("مهارات جاهزة")}</h3>
+          <div className="flex gap-1" role="tablist" aria-label={t("مهارات جاهزة")}>
+            {(["all", "design", "writing", "build"] as const).map((c) => (
+              <button
+                key={c}
+                role="tab"
+                aria-selected={category === c}
+                onClick={() => setCategory(c)}
+                className="rounded-full px-2.5 py-1 text-[11px] transition-colors"
+                style={{ background: category === c ? "var(--color-surface-2)" : "transparent", color: category === c ? "var(--color-ink)" : "var(--color-ink-muted)" }}
+              >
+                {c === "all" ? t("الكل") : CATEGORY_LABEL[c]}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="grid gap-2 sm:grid-cols-2">
-          {CATALOG.map((item) => {
+          {CATALOG.filter((item) => category === "all" || item.category === category).map((item) => {
             const have = skills.some((s) => s.name === item.name && s.source === "user");
             return (
               <div key={item.url} className="flex flex-col gap-2 rounded-2xl p-3" style={{ background: "var(--color-surface)" }}>

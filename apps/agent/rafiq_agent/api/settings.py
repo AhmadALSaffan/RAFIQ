@@ -49,9 +49,33 @@ async def update_settings(body: AppSettings, session: AsyncSession = Depends(get
     manager.reschedule()  # a higher parallel limit lets waiting tasks start right away
     if (before.file_search_enabled, before.file_search_dirs) != (body.file_search_enabled, body.file_search_dirs):
         file_index.rescan_soon()
-    if before.knowledge_dirs != body.knowledge_dirs:
+    if before.knowledge_dirs != body.knowledge_dirs or (body.knowledge_ocr and not before.knowledge_ocr):
         knowledge.rescan_soon()
     return body
+
+
+@router.get("/acp")
+async def acp_command() -> dict:
+    """How an editor starts Rafiq as its agent (rafiq_agent/acp.py): the program and its
+    arguments, ready to paste into the editor's settings."""
+    import sys
+    from pathlib import Path
+
+    if getattr(sys, "frozen", False):
+        # The console `rafiq` program next to the agent: editors that start their agent
+        # through a shell (Zed on Windows uses PowerShell) wait for it and keep its pipes.
+        console = Path(sys.executable).with_name("rafiq.exe" if sys.platform == "win32" else "rafiq")
+        if console.exists():
+            command, args = str(console), ["acp"]
+        else:
+            command, args = str(Path(sys.executable)), ["cli", "acp"]
+    else:
+        command, args = sys.executable, ["-m", "rafiq_agent.cli", "acp"]
+    return {
+        "command": command,
+        "args": args,
+        "zed": {"agent_servers": {"Rafiq": {"command": command, "args": args, "env": {}}}},
+    }
 
 
 @router.get("/knowledge")

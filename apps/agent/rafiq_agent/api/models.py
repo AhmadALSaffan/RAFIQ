@@ -1,3 +1,5 @@
+import asyncio
+import sys
 import time
 from datetime import UTC, datetime
 
@@ -141,6 +143,49 @@ def _priced(provider: str, models: list[DiscoveredModelOut]) -> list[DiscoveredM
         if m.price is None:
             m.price = PriceOut(**price_for(provider, m.id).as_dict())
     return models
+
+
+_background: set = set()
+
+
+def _spawn(coro) -> None:
+    task = asyncio.create_task(coro)
+    _background.add(task)
+    task.add_done_callback(_background.discard)
+
+
+@router.get("/local")
+async def local_model_status() -> dict:
+    """The free model on this computer (core/local_model.py): Ollama, the offered models, and
+    any install or download in progress."""
+    from rafiq_agent.core import local_model
+
+    return await local_model.status()
+
+
+@router.post("/local/install", status_code=202)
+async def local_model_install() -> dict:
+    from rafiq_agent.core import local_model
+
+    if sys.platform != "win32":
+        raise HTTPException(400, tr("على هالنظام بتثبّت Ollama من موقعه، وبعدين رفيق بيكمّل الباقي."))
+    if (local_model.state["install"] or {}).get("status") in ("downloading", "checking", "installing", "starting"):
+        return {"started": False}
+    _spawn(local_model.install())
+    return {"started": True}
+
+
+@router.post("/local/pull", status_code=202)
+async def local_model_pull(body: dict) -> dict:
+    from rafiq_agent.core import local_model
+
+    tag = str(body.get("tag") or "")
+    if tag not in local_model.ALLOWED_TAGS:
+        raise HTTPException(400, tr("هالموديل مش من الموديلات المعروضة."))
+    if (local_model.state["pull"] or {}).get("status") in ("starting", "downloading", "adding", "pulling manifest"):
+        return {"started": False}
+    _spawn(local_model.pull(tag))
+    return {"started": True}
 
 
 @router.get("/pricing")

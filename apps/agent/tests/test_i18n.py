@@ -29,6 +29,12 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     "tools/tasks.py": "*",
     "skills/registry.py": "*",
     "locales.py": "*",
+    # `rafiq` in the terminal runs alone (rafiq.exe), without the agent's locales: it carries
+    # its own small table of Arabic, English and Russian (TEXTS).
+    "repl.py": {"TEXTS", "CHOICES", "COMMAND_HELP", "LANG_NAMES"},
+    "tui.py": {"show_banner"},
+    # The Arabic letter ranges, not text.
+    "rtl.py": {"ARABIC", "STRONG", "HARAKAT", "LAM_ALEF", "NO_LEFT_JOIN", "ligate"},
     "core/agent_runtime.py": {"SYSTEM_PROMPT", "working_dir_system_note", "parallel_note", "WORKTREE_NOTE"},
     # Tool descriptions and results are written for the model (tools/tasks.py, likewise).
     "core/project_notes.py": "*",

@@ -9,7 +9,7 @@ import { GlobeIcon, LinkIcon, MovieIcon, PinIcon, PlugIcon, SettingsIcon, Shield
 import { ActionProgress } from "../components/Feedback";
 import { ConnectedAccountsSection } from "../features/accounts/ConnectedAccountsSection";
 import { ToggleRow } from "../features/settings/controls";
-import { BackgroundSettings, SandboxSettings, TasksSettings, WebSettings } from "../features/settings/sections";
+import { BackgroundSettings, EditorSettings, SandboxSettings, SmartApprovalSettings, TasksSettings, WebSettings } from "../features/settings/sections";
 import { VoiceSettings } from "../features/settings/voice";
 import { FileSearchSettings } from "../features/settings/fileSearch";
 import { AmbientSettings } from "../features/settings/ambient";
@@ -524,7 +524,12 @@ export function SettingsPage() {
                 </>
               )}
               {tab === "accounts" && <ConnectedAccountsSection />}
-              {tab === "agent" && <TasksSettings settings={settings} persist={persist} />}
+              {tab === "agent" && (
+                <>
+                  <TasksSettings settings={settings} persist={persist} />
+                  <EditorSettings />
+                </>
+              )}
               {tab === "memory" && (
                 <>
                   <MemorySettings settings={settings} persist={persist} />
@@ -579,6 +584,8 @@ export function SettingsPage() {
                   </section>
 
                   <SandboxSettings settings={settings} persist={persist} />
+
+                  <SmartApprovalSettings settings={settings} persist={persist} />
 
                   <section
                     className="rounded-2xl border px-4 py-4"

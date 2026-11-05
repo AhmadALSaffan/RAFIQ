@@ -183,6 +183,55 @@ fn generate_token() -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+/// `rafiq` in a terminal starts an agent of its own when the app is closed (agent repl.py).
+/// When the app opens, its own agent takes over: the terminal's one is stopped, so the same
+/// data never has two agents (two would run every schedule twice). The terminal reconnects to
+/// the app's agent by itself.
+fn stop_terminal_agent() {
+    let data_dir = match std::env::var_os("RAFIQ_DATA_DIR") {
+        Some(dir) => PathBuf::from(dir),
+        None => match std::env::var_os("APPDATA") {
+            Some(appdata) => PathBuf::from(appdata).join("Rafiq"),
+            None => match std::env::var_os("HOME") {
+                Some(home) => PathBuf::from(home).join(".rafiq"),
+                None => return,
+            },
+        },
+    };
+    let path = data_dir.join("agent.json");
+    let Ok(text) = std::fs::read_to_string(&path) else { return };
+    let Ok(info) = serde_json::from_str::<serde_json::Value>(&text) else { return };
+    if info.get("owner").and_then(|o| o.as_str()) != Some("terminal") {
+        return;
+    }
+    let Some(pid) = info.get("pid").and_then(|p| p.as_u64()) else { return };
+    // A file left behind by an agent that's gone (its terminal was closed) must not get some
+    // other program that now has the same pid killed: only an agent still listening counts.
+    let listening = info
+        .get("port")
+        .and_then(|p| p.as_u64())
+        .and_then(|port| format!("127.0.0.1:{port}").parse::<std::net::SocketAddr>().ok())
+        .map(|addr| std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_millis(500)).is_ok())
+        .unwrap_or(false);
+    if !listening {
+        let _ = std::fs::remove_file(&path);
+        return;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let _ = Command::new("taskkill")
+            .args(["/F", "/T", "/PID", &pid.to_string()])
+            .creation_flags(0x0800_0000)
+            .status();
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = Command::new("kill").arg(pid.to_string()).status();
+    }
+    let _ = std::fs::remove_file(&path);
+}
+
 fn free_port() -> u16 {
     TcpListener::bind("127.0.0.1:0")
         .expect("failed to bind an ephemeral port")
@@ -655,6 +704,7 @@ pub fn run() {
             // binary needs the app's resource directory.
             let port = free_port();
             let token = generate_token();
+            stop_terminal_agent();
             let child = spawn_backend(app.handle(), port, &token);
             let job = job::Job::kill_on_close();
             if let Some(job) = &job {

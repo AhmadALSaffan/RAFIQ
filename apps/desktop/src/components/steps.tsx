@@ -289,6 +289,7 @@ export function PermissionCard({
   const pending = resolution === "pending";
   const group = permissionLabelOf(call.tool);
   const hold = needsHold(call.tool, call.args);
+  if (resolution === "reviewed") return <ReviewedNote call={call} />;
   return (
     <div
       className={`rounded-2xl border-2 px-4 py-4 transition-[border-color] duration-300 ${pending ? "pending-ring" : ""}`}
@@ -312,6 +313,14 @@ export function PermissionCard({
         <PreviewPanel call={call} />
       ) : (
         <ArgsPanel call={call} />
+      )}
+      {call.review && (
+        <p className="mt-2.5 flex items-start gap-1.5 text-xs leading-relaxed" style={{ color: "var(--color-pending)" }}>
+          <ShieldIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            <span className="font-medium">{t("رأي المراجع:")}</span> {call.review}
+          </span>
+        </p>
       )}
       <AnimatePresence mode="wait" initial={false}>
         {pending ? (
@@ -357,6 +366,23 @@ export function PermissionCard({
           </motion.p>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** A step the smart-approvals reviewer let through: one quiet line, with why. */
+function ReviewedNote({ call }: { call: ToolCall }) {
+  return (
+    <div className="flex items-start gap-2 rounded-xl px-3.5 py-2.5 text-xs leading-relaxed" style={{ background: "var(--color-surface-2)", color: "var(--color-ink-muted)" }}>
+      <ShieldIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--color-success)" }} />
+      <span>
+        <span className="font-medium" style={{ color: "var(--color-success)" }}>
+          {t("المراجع سمحله بدون ما يسألك")}
+        </span>
+        {" · "}
+        <span dir="auto">{permissionLabelOf(call.tool)}</span>
+        {call.review ? <> — {call.review}</> : null}
+      </span>
     </div>
   );
 }

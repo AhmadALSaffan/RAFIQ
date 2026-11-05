@@ -74,6 +74,12 @@ Var RafiqExe
   ; The Start menu shortcut exists by now (and the desktop one, for silent and passive
   ; installs); a desktop shortcut ticked on the finish page is renamed in .onGUIEnd.
   !insertmacro RAFIQ_NAME_SHORTCUTS
+  ; `rafiq` in any terminal: the agent folder joins the user's PATH, once. Not the install
+  ; folder itself: Rafiq.exe there is the app, and Windows runs an .exe before a .cmd, so
+  ; `rafiq` opened the app; agent\rafiq.exe is the console program. An earlier install's entry
+  ; for the install folder goes. The value keeps its kind and its %VARIABLES%; touching an
+  ; environment variable through .NET tells open programs that the environment changed.
+  nsExec::Exec `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$d='$INSTDIR\agent'; $$old='$INSTDIR'; $$k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment',$$true); $$p=[string]$$k.GetValue('Path','',[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames); $$parts=@($$p -split ';' | Where-Object { $$_ -and $$_ -ne $$old }); if ($$parts -notcontains $$d) { $$parts += $$d }; $$new=($$parts -join ';'); if ($$new -ne $$p) { $$k.SetValue('Path', $$new, [Microsoft.Win32.RegistryValueKind]::ExpandString); [Environment]::SetEnvironmentVariable('RAFIQ_PATH_CHANGED', $$null, 'User') }"`
 !macroend
 
 Function .onGUIEnd
@@ -104,6 +110,8 @@ FunctionEnd
     DeleteRegKey SHCTX "Software\Classes\SystemFileAssociations\.md\shell\RafiqLite"
     DeleteRegKey SHCTX "Software\Classes\SystemFileAssociations\.markdown\shell\RafiqLite"
     System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+    ; `rafiq` leaves the user's PATH with the app (the agent folder, and an older install folder entry).
+    nsExec::Exec `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$d='$INSTDIR\agent'; $$old='$INSTDIR'; $$k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment',$$true); $$p=[string]$$k.GetValue('Path','',[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames); $$parts=@($$p -split ';' | Where-Object { $$_ -and $$_ -ne $$d -and $$_ -ne $$old }); $$k.SetValue('Path', ($$parts -join ';'), [Microsoft.Win32.RegistryValueKind]::ExpandString); [Environment]::SetEnvironmentVariable('RAFIQ_PATH_CHANGED', $$null, 'User')"`
   ${EndIf}
 !macroend
 

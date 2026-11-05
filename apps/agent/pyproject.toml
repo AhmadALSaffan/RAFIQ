@@ -1,6 +1,6 @@
 [project]
 name = "rafiq-agent"
-version = "0.5.16"
+version = "0.5.17"
 description = "Rafiq local agent runtime (FastAPI sidecar)"
 requires-python = ">=3.11"
 dependencies = [
@@ -16,6 +16,14 @@ dependencies = [
   "websockets>=13.1",
   "python-multipart>=0.0.20",
   "pypdf>=5.1",
+  # Scanned PDFs: their pages become pictures that a vision model reads (core/ocr.py).
+  "pypdfium2>=4.30",
+  # `rafiq` in the terminal (repl.py): drawing and the input line.
+  "rich>=13.7",
+  "prompt_toolkit>=3.0.43",
+  # Arabic in terminals that do no right-to-left (rtl.py): joined letters, display order.
+  "arabic-reshaper>=3.0",
+  "python-bidi>=0.4.2",
   "pillow>=11.0",
   # MCP servers as agent tools (stdio and Streamable HTTP).
   "mcp>=2.2",

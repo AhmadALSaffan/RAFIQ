@@ -46,6 +46,9 @@ log = logging.getLogger(__name__)
 
 CHUNKS = "chunks_v1"
 FILES = "files_v1"
+# Scanned PDFs read by the vision model (core/ocr.py), so an unchanged one isn't paid for twice.
+SCANS = "ocr_v1"
+OCR_FILES_PER_ROUND = 5
 RESCAN_SECONDS = 15 * 60
 MAX_FILES = 20_000
 MAX_PDF_PAGES = 1000
@@ -70,6 +73,7 @@ def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(db_path(), timeout=30)
     conn.execute(f"CREATE VIRTUAL TABLE IF NOT EXISTS {CHUNKS} USING fts5(path UNINDEXED, page UNINDEXED, text UNINDEXED, name, body, tokenize='unicode61')")
     conn.execute(f"CREATE TABLE IF NOT EXISTS {FILES} (path TEXT PRIMARY KEY, mtime REAL, size INTEGER, chunks INTEGER)")
+    conn.execute(f"CREATE TABLE IF NOT EXISTS {SCANS} (path TEXT PRIMARY KEY, mtime REAL, size INTEGER, pages INTEGER, ok INTEGER)")
     return conn
 
 
@@ -223,7 +227,7 @@ def clear() -> None:
 
 
 def status() -> dict[str, Any]:
-    files = passages = 0
+    files = passages = scanned = 0
     unread: list[str] = []
     if db_path().exists():
         with contextlib.suppress(sqlite3.Error):
@@ -232,9 +236,77 @@ def status() -> dict[str, Any]:
                 files = int(conn.execute(f"SELECT count(*) FROM {FILES}").fetchone()[0])
                 passages = int(conn.execute(f"SELECT coalesce(sum(chunks), 0) FROM {FILES}").fetchone()[0])
                 unread = [Path(p).name for (p,) in conn.execute(f"SELECT path FROM {FILES} WHERE chunks = 0 LIMIT 20")]
+                scanned = int(conn.execute(f"SELECT count(*) FROM {SCANS} WHERE ok = 1").fetchone()[0])
             finally:
                 conn.close()
-    return {"files": files, "passages": passages, "unread": unread, **_state}
+    return {"files": files, "passages": passages, "unread": unread, "scanned": scanned, **_state}
+
+
+# ── Scanned PDFs ───────────────────────────────────────────────────────────────────────
+
+
+def scans_waiting(limit: int = OCR_FILES_PER_ROUND) -> list[tuple[str, float, int]]:
+    """PDFs with no text that haven't been read (or changed since): (path, mtime, size)."""
+    if not db_path().exists():
+        return []
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            f"SELECT f.path, f.mtime, f.size FROM {FILES} f LEFT JOIN {SCANS} s ON s.path = f.path "
+            f"WHERE f.chunks = 0 AND lower(f.path) LIKE '%.pdf' "
+            f"AND (s.path IS NULL OR s.mtime != f.mtime OR s.size != f.size) LIMIT ?",
+            (limit,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [(p, float(m), int(s)) for p, m, s in rows]
+
+
+def save_scan(path: str, mtime: float, size: int, pages: list[tuple[int, str]]) -> int:
+    """Stores what the vision model read from one scanned PDF; returns its passages."""
+    with _lock:
+        conn = _connect()
+        try:
+            count = 0
+            name = index_text(Path(path).stem.replace("_", " ").replace("-", " "))
+            conn.execute(f"DELETE FROM {CHUNKS} WHERE path = ?", (path,))
+            for page, text in pages:
+                for piece in chunks(text):
+                    conn.execute(
+                        f"INSERT INTO {CHUNKS} (path, page, text, name, body) VALUES (?, ?, ?, ?, ?)",
+                        (path, page, piece, name, index_text(piece)),
+                    )
+                    count += 1
+            conn.execute(f"UPDATE {FILES} SET chunks = ? WHERE path = ?", (count, path))
+            conn.execute(f"INSERT OR REPLACE INTO {SCANS} VALUES (?, ?, ?, ?, ?)", (path, mtime, size, len(pages), 1 if count else 0))
+            conn.commit()
+            return count
+        finally:
+            conn.close()
+
+
+async def read_scans() -> int:
+    """One round of reading scanned PDFs through the vision model; the files read."""
+    from rafiq_agent.core import ocr
+
+    read = 0
+    _state["reading_scans"] = True
+    try:
+        for path, mtime, size in await asyncio.to_thread(scans_waiting):
+            if not Path(path).exists():
+                continue
+            try:
+                pages = await ocr.read_scanned(Path(path))
+            except LookupError:
+                break  # no vision model: nothing more can be read this round
+            except Exception:  # noqa: BLE001 - one bad file mustn't stop the rest
+                log.info("couldn't read scanned %s", path, exc_info=True)
+                pages = []
+            await asyncio.to_thread(save_scan, path, mtime, size, pages)
+            read += 1
+    finally:
+        _state["reading_scans"] = False
+    return read
 
 
 # ── Searching ──────────────────────────────────────────────────────────────────────────
@@ -295,7 +367,10 @@ async def run_forever() -> None:
     await asyncio.sleep(20)
     while True:
         try:
-            await asyncio.to_thread(scan, (await load_settings()).knowledge_dirs)
+            settings = await load_settings()
+            await asyncio.to_thread(scan, settings.knowledge_dirs)
+            if settings.knowledge_dirs and settings.knowledge_ocr and settings.vision_model_id:
+                await read_scans()
         except Exception:  # noqa: BLE001
             log.info("knowledge loop failed", exc_info=True)
         _wake.clear()

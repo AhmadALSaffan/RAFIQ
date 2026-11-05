@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -61,13 +62,28 @@ def write_discovery() -> None:
     port = int(os.environ.get("RAFIQ_PORT", "8765"))
     with contextlib.suppress(OSError):
         DISCOVERY_FILE.write_text(
-            json.dumps({"port": port, "token": AUTH_TOKEN, "pid": os.getpid()}), encoding="utf-8"
+            # "owner": the app, or `rafiq` in a terminal (repl.py); the app stops a terminal's
+            # agent when it opens, so one data folder never has two.
+            json.dumps({"port": port, "token": AUTH_TOKEN, "pid": os.getpid(), "owner": os.environ.get("RAFIQ_OWNER", "app")}),
+            encoding="utf-8",
         )
 
 
 def remove_discovery() -> None:
     with contextlib.suppress(OSError):
         DISCOVERY_FILE.unlink()
+
+
+async def exit_with_parent(pid: int) -> None:
+    """An agent started by `rafiq` in a terminal (repl.py) ends with that terminal: closing
+    the window mustn't leave it running in the background."""
+    import psutil
+
+    while True:
+        await asyncio.sleep(3)
+        if not psutil.pid_exists(pid):
+            remove_discovery()
+            os._exit(0)
 
 
 @asynccontextmanager
@@ -81,6 +97,8 @@ async def lifespan(app: FastAPI):
     await usage.load_totals()  # today's and this month's spending survive a restart
     await manager.recover()
     manager.start(run_task, limit=parallel_limit)
+    parent = os.environ.get("RAFIQ_PARENT_PID")
+    orphan_guard = asyncio.create_task(exit_with_parent(int(parent))) if parent and parent.isdigit() else None  # noqa: F841
     schedules = asyncio.create_task(run_schedules())
     triggers = asyncio.create_task(run_triggers())
     file_index = asyncio.create_task(run_file_index())

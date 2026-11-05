@@ -12,6 +12,8 @@ else is needed. Standard library only, so the frozen build can run it as
     rafiq task-show ID
     rafiq chat "message" [--model NAME]
     rafiq memories
+    rafiq acp            (for code editors: the Agent Client Protocol, see acp.py)
+    rafiq [--model NAME] [--lang ar|en|ru] (alone: an interactive chat on this folder, see repl.py)
 """
 
 from __future__ import annotations
@@ -229,10 +231,24 @@ def build_parser() -> argparse.ArgumentParser:
     chat.add_argument("--model")
     chat.set_defaults(fn=cmd_chat)
     sub.add_parser("memories", help="what Rafiq remembers").set_defaults(fn=cmd_memories)
+    sub.add_parser("acp", help="speak the Agent Client Protocol on stdin/stdout, for code editors (see acp.py)")
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
+    args_in = argv if argv is not None else sys.argv[1:]
+    if not args_in or args_in[0].split("=")[0] in ("-m", "--model", "-l", "--lang"):
+        # `rafiq` alone: the interactive chat in the terminal (repl.py).
+        from rafiq_agent.repl import main as repl_main
+
+        repl_main(args_in)
+        return
+    if args_in[:1] == ["acp"]:
+        # Started by an editor: it talks JSON-RPC over the pipes, Rafiq runs the chats.
+        from rafiq_agent.acp import main as acp_main
+
+        acp_main()
+        return
     args = build_parser().parse_args(argv)
     args.fn(Client(), args)
 

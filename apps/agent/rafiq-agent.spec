@@ -67,7 +67,7 @@ except ImportError:
 
 # Motion: the scene schema is checked with jsonschema (its meta-schemas are data files), and
 # text becomes Lottie outlines through HarfBuzz and fontTools (WOFF2 needs brotli).
-for package in ("jsonschema", "jsonschema_specifications", "uharfbuzz", "fontTools"):
+for package in ("jsonschema", "jsonschema_specifications", "uharfbuzz", "fontTools", "pypdfium2", "pypdfium2_raw"):
     package_datas, package_binaries, package_hidden = collect_all(package)
     datas += package_datas
     binaries += package_binaries
@@ -136,6 +136,31 @@ if sys.platform == "win32":
         console=True,
     )
     extra = [sandbox_exe, sandbox_analysis.binaries, sandbox_analysis.datas]
+
+# `rafiq`: the command line and the program code editors start (ACP, rafiq_agent/acp.py). A
+# console program: Windows doesn't wait for the windowed agent, so an editor starting it through
+# PowerShell saw it exit at once. Standard library only, so it's small.
+cli_analysis = Analysis(
+    ["rafiq_cli.py"],
+    pathex=[],
+    binaries=[],
+    datas=[],
+    hiddenimports=["rafiq_agent.acp", "rafiq_agent.repl", "rafiq_agent.tui", "rafiq_agent.rtl", "rafiq_agent.terminal_logo", *collect_submodules("rich"), *collect_submodules("prompt_toolkit"), *collect_submodules("bidi"), *collect_submodules("arabic_reshaper")],
+    excludes=["tkinter", "pytest"],
+    noarchive=False,
+)
+cli_exe = EXE(
+    PYZ(cli_analysis.pure),
+    cli_analysis.scripts,
+    [],
+    exclude_binaries=True,
+    name="rafiq",
+    debug=False,
+    strip=False,
+    upx=False,
+    console=True,
+)
+extra += [cli_exe, cli_analysis.binaries, cli_analysis.datas]
 
 collect = COLLECT(
     exe,
