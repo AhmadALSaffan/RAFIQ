@@ -146,10 +146,11 @@ class AgentApi:
     def create_chat(self, cwd: str | None, model_id: str) -> str:
         return self._request("POST", "/chats", {"model_id": model_id, "working_dir": cwd or None})["id"]
 
-    def send(self, chat_id: str, text: str, model_id: str) -> Iterator[dict[str, Any]]:
-        response = self._request(
-            "POST", f"/chats/{chat_id}/messages", {"content": text, "model_id": model_id, "attachment_ids": []}, stream=True
-        )
+    def send(self, chat_id: str, text: str, model_id: str, ask_every_step: bool = False) -> Iterator[dict[str, Any]]:
+        body = {"content": text, "model_id": model_id, "attachment_ids": []}
+        if ask_every_step:
+            body["ask_every_step"] = True
+        response = self._request("POST", f"/chats/{chat_id}/messages", body, stream=True)
         for raw in response:
             line = raw.decode("utf-8", errors="replace").strip()
             if line.startswith("data:"):

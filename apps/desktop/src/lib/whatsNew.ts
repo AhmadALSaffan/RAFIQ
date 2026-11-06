@@ -29,6 +29,9 @@ import sandboxRu from "../assets/whats-new/0.5.16-ru.webp";
 import terminalAr from "../assets/whats-new/0.5.17-ar.webp";
 import terminalEn from "../assets/whats-new/0.5.17-en.webp";
 import terminalRu from "../assets/whats-new/0.5.17-ru.webp";
+import arabicTerminalAr from "../assets/whats-new/0.5.18-ar.webp";
+import arabicTerminalEn from "../assets/whats-new/0.5.18-en.webp";
+import arabicTerminalRu from "../assets/whats-new/0.5.18-ru.webp";
 
 // The version whose dialog the user closed. (A new key: the first builds marked a version
 // seen as soon as it opened, shown or not.)
@@ -54,6 +57,18 @@ export interface ReleaseNews {
 const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/AhmadALSaffan/RAFIQ/releases/download/v${version}/whats-new-${lang}.mp4`;
 
 export const NEWS: ReleaseNews[] = [
+  {
+    version: "0.5.18",
+    images: { ar: arabicTerminalAr, en: arabicTerminalEn, ru: arabicTerminalRu },
+    title: () => t("تيرمينال بيحكي عربي"),
+    points: () => [
+      t("نزّل الطرفية لحالها بدون التطبيق: irm rafiqagent.com/install.ps1 | iex"),
+      t("بوضع «يسأل» بيستأذنك قبل كل خطوة، وبتشوف التعديل قبل ما يصير"),
+      t("أوامر جديدة: rafiq -p للرد السريع، rafiq -c لتكمّل، /review و /commit و /context و /export و /doctor"),
+      t("ضيف موديل من التيرمينال بـ /model add، وأوامرك إنت بملفات .rafiq/commands"),
+      t("/status و /cost والقوائم بتفتح شاشة لحالها، وEsc بيرجّعك أو بيوقف الرد"),
+    ],
+  },
   {
     version: "0.5.17",
     images: { ar: terminalAr, en: terminalEn, ru: terminalRu },

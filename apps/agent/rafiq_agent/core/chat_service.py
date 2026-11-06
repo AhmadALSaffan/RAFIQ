@@ -402,8 +402,13 @@ class ChatTurn:
     only `stop()` does.
     """
 
-    def __init__(self, chat_id: str, content: str, model_id: str, attachment_ids: list[str], no_route: bool = False) -> None:
+    def __init__(
+        self, chat_id: str, content: str, model_id: str, attachment_ids: list[str], no_route: bool = False, ask_every_step: bool = False
+    ) -> None:
         self.no_route = no_route
+        # Asked for this reply (the terminal's ask mode): steps the settings let run ask too.
+        # A step the user denied stays denied.
+        self.ask_every_step = ask_every_step
         # The model the user picked, when the smart route sent this message to the cheap one.
         self.routed: dict[str, Any] | None = None
         self.knowledge_found = False
@@ -951,6 +956,8 @@ class ChatTurn:
         decision = policy_decision(
             name, category, self.settings.permissions, sandboxed=sandbox.auto_approves(self.settings)
         )
+        if decision == "allow" and self.ask_every_step:
+            decision = "ask"
         if decision != "ask":
             return decision == "allow"
 
@@ -958,7 +965,7 @@ class ChatTurn:
         call: dict[str, Any] = {"tool": name, "category": category, "args": args}
         if preview:
             call["preview"] = preview
-        if self.settings.smart_approvals and reviewer.reviewable(name, permission_key(name)):
+        if self.settings.smart_approvals and not self.ask_every_step and reviewer.reviewable(name, permission_key(name)):
             # A second model reads the step against what the user asked (core/reviewer.py).
             verdict = await reviewer.review(name, args, preview, self.content, self.model_id)
             if verdict.verdict == "safe":

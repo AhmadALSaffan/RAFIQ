@@ -13,7 +13,10 @@ else is needed. Standard library only, so the frozen build can run it as
     rafiq chat "message" [--model NAME]
     rafiq memories
     rafiq acp            (for code editors: the Agent Client Protocol, see acp.py)
-    rafiq [--model NAME] [--lang ar|en|ru] (alone: an interactive chat on this folder, see repl.py)
+    rafiq [--model NAME] [--lang ar|en|ru] ["message"]   an interactive chat on this folder (repl.py)
+    rafiq -c | -r          continue the last chat here | pick one
+    rafiq -p "message"     print one reply and leave (pipe text in too; --yes, --output-format json)
+    rafiq update           how to update
 """
 
 from __future__ import annotations
@@ -235,10 +238,20 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+SUBCOMMANDS = frozenset({"status", "models", "tasks", "task", "task-show", "approve", "chat", "memories", "acp", "-h", "--help"})
+
+
 def main(argv: list[str] | None = None) -> None:
     args_in = argv if argv is not None else sys.argv[1:]
-    if not args_in or args_in[0].split("=")[0] in ("-m", "--model", "-l", "--lang"):
-        # `rafiq` alone: the interactive chat in the terminal (repl.py).
+    if args_in[:1] == ["update"]:
+        from rafiq_agent.repl import INSTALL_PS, INSTALL_SH
+
+        print("Update the app from inside it, or, for the terminal on its own, run:")
+        print("  " + (INSTALL_PS if sys.platform == "win32" else INSTALL_SH))
+        return
+    if not args_in or args_in[0] not in SUBCOMMANDS:
+        # `rafiq` alone, with its flags, or with an opening message: the interactive chat in
+        # the terminal (repl.py); `rafiq -p "…"` prints one reply.
         from rafiq_agent.repl import main as repl_main
 
         repl_main(args_in)

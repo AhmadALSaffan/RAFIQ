@@ -97,3 +97,28 @@ async def test_a_failing_or_slow_reviewer_means_asking(fake, monkeypatch):
 async def test_no_model_means_asking(fake):
     fake(None)
     assert (await reviewer.review("shell_run", {"command": "ls"}, None, "list")).verdict is None
+
+
+async def test_ask_every_step_asks_even_for_what_settings_allow():
+    import asyncio
+
+    from rafiq_agent.core import chat_service
+    from rafiq_agent.core.chat_service import ChatTurn
+    from rafiq_agent.schemas.settings import AppSettings
+
+    turn = ChatTurn("chat-x", "look around", "m1", [], ask_every_step=True)
+    turn.settings = AppSettings()
+    events = []
+    turn._emit = events.append
+    task = asyncio.ensure_future(turn._permit("find_files", "read_only", {"pattern": "*"}))
+    for _ in range(50):
+        await asyncio.sleep(0)
+        if events:
+            break
+    assert events and events[0]["type"] == "permission"
+    chat_service._pending[events[0]["id"]].set_result("denied")
+    assert await task is False
+    # Without the flag the same read runs unasked.
+    plain = ChatTurn("chat-x", "look around", "m1", [])
+    plain.settings = AppSettings()
+    assert await plain._permit("find_files", "read_only", {"pattern": "*"}) is True

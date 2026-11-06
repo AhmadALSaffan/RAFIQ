@@ -215,9 +215,12 @@ class Paragraphs:
     blocks) wrapped to the terminal's width, then each line put in display order, Arabic
     paragraphs to the right."""
 
-    def __init__(self, text: str, style: str = "") -> None:
+    def __init__(self, text: str, style: str = "", rtl: bool | None = None) -> None:
         self.text = text
         self.style = style
+        # One direction for every paragraph (a reply: its list items sit with its text);
+        # None: each paragraph's own.
+        self.rtl = rtl
 
     def __rich_console__(self, console: Any, options: Any):
         from rich.text import Text
@@ -240,7 +243,7 @@ class Paragraphs:
             if not body.strip():
                 yield Text("")
                 continue
-            rtl = is_rtl(body)
+            rtl = is_rtl(body) if self.rtl is None else self.rtl
             for part in Text(body).wrap(console, width):
                 yield Text(
                     visual(part.plain.rstrip(), rtl),

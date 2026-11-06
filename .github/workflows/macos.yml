@@ -122,6 +122,9 @@ jobs:
           cp apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg out/Rafiq-macos-arm64.dmg
           shasum -a 256 out/Rafiq-macos-arm64.dmg
           cp "$RUNNER_TEMP/rafiq-mac.png" out/
+          # The terminal on its own (rafiq, install/install.sh): the frozen agent folder.
+          tar -czf out/Rafiq-CLI-macos-arm64.tar.gz -C apps/agent/dist/rafiq-agent .
+          shasum -a 256 out/Rafiq-CLI-macos-arm64.tar.gz | cut -d' ' -f1 > out/Rafiq-CLI-macos-arm64.tar.gz.sha256
 
       - uses: actions/upload-artifact@v4
         with:

@@ -31,25 +31,24 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 ---
 
-## What's new · v0.5.17
+## What's new · v0.5.18
 
 <!-- Every release: replace docs/whats-new/latest.webp with the release's picture (the same
      one the app's What's new dialog shows) and update the version, points and link below. -->
 
 <div align="center">
 
-<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.17: Rafiq in your terminal">
+<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.18: a terminal that speaks Arabic">
 
 </div>
 
-**Rafiq, in your terminal.**
-- **`rafiq` in any terminal:** a full chat on the current folder, with the reply streaming, each tool step and its result, and permission asked right there. No app needed: it starts its own agent and stops it when you leave.
-- **Commands you know:** `/model`, `/mode`, `/resume`, `/compact`, `/cost`, `/init`, `/memory` and more; Shift+Tab switches between ask, accept edits, plan only and don't ask; `!` runs a command, `#` keeps a note in memory, `@` picks a file.
-- **Arabic, English and Russian:** `/lang` switches the terminal's language and remembers it. Arabic reads right to left even in terminals that don't support it.
-- **Inside your editor:** Zed and JetBrains talk to Rafiq over ACP (Settings → Tasks and models).
-- **Smart approvals, a free local model, scanned PDFs and a skills catalog:** a reviewer model lets safe steps through, one click installs a free model that runs on your computer, the knowledge base reads scanned PDFs, and ready-made skills are one click away.
+**A terminal that speaks Arabic, now on its own too.**
+- **Install the terminal without the app:** `irm https://rafiqagent.com/install.ps1 | iex` on Windows, `curl -fsSL https://rafiqagent.com/install.sh | sh` on macOS (Apple Silicon). The first run helps you add a model.
+- **Asks before every step** in ask mode, reads included, and shows each edit as a diff before it happens.
+- **More of what a coding terminal does:** `rafiq -p` prints one reply (pipe text in too), `rafiq -c` continues the last chat, `/review`, `/commit`, `/context`, `/export`, `/copy`, `/permissions`, `/doctor`, `/think`, `/vim`, and your own commands as `.md` files in `.rafiq/commands`.
+- **Add a model from the terminal** with `/model add`; `/status`, `/cost` and the lists open a screen of their own (Esc goes back); Esc stops a reply.
 
-Full notes: [v0.5.17](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.17) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
+Full notes: [v0.5.18](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.18) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
 
 ---
 
@@ -243,8 +242,21 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.17_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.18_x64-setup.exe -Algorithm SHA256
 > ```
+
+**Only the terminal** (`rafiq`, no app): one line installs it for the current user, checks the
+download against its published SHA-256, and puts `rafiq` on your PATH. Run it again to update.
+
+```powershell
+irm https://rafiqagent.com/install.ps1 | iex
+```
+
+```bash
+curl -fsSL https://rafiqagent.com/install.sh | sh   # macOS, Apple Silicon
+```
+
+The scripts are in [`install/`](install/).
 
 ### 2 — Clone the Repository (Developers)
 

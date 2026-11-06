@@ -25,8 +25,9 @@ class FakeApi:
         self.chats.append((folder, model_id))
         return f"chat-{len(self.chats)}"
 
-    def send(self, chat_id, text, model_id):
+    def send(self, chat_id, text, model_id, ask_every_step=False):
         self.sent.append((chat_id, text, model_id))
+        self.asked_every_step = ask_every_step
         yield from self.replies.pop(0)
 
     def resolve(self, chat_id, request_id, resolution):
@@ -118,7 +119,7 @@ def test_plain_rafiq_opens_the_terminal_chat(monkeypatch):
 
 def test_an_error_from_the_app_is_shown_not_raised():
     class Closed(FakeApi):
-        def send(self, chat_id, text, model_id):
+        def send(self, chat_id, text, model_id, **_kw):
             raise RuntimeError("Rafiq isn't reachable: connection refused")
             yield  # pragma: no cover
 
@@ -238,3 +239,143 @@ def test_the_cli_opens_the_terminal_chat_with_lang(monkeypatch):
     assert seen == [["--lang", "ru"], ["--lang=en"]]
     assert repl._option(["--model", "x", "--lang", "ru"], "--lang", "-l") == "ru"
     assert repl._option(["--lang=en"], "--lang", "-l") == "en"
+
+
+def test_ask_mode_asks_every_step_and_always_sticks():
+    call = {"tool": "find_files", "category": "read_only", "args": {"pattern": "*"}}
+    api = FakeApi([
+        [{"type": "permission", "id": "r1", "call": call}, {"type": "done"}],
+        [{"type": "permission", "id": "r2", "call": call}, {"type": "done"}],
+    ])
+    shown = run(api, ["look", "a", "again"])
+    assert api.asked_every_step is True
+    assert api.resolved == [("r1", "always"), ("r2", "approved")]
+    assert "allowed (always, this session)" in shown
+
+
+class ModelApi(FakeApi):
+    def __init__(self):
+        super().__init__([])
+        self.posted = []
+        self.listed = list(MODELS)
+
+    def models(self):
+        return self.listed
+
+    def _request(self, method, path, body=None):
+        self.posted.append((method, path, body))
+        if path == "/models/discover":
+            return [{"id": "gpt-6-mini", "display_name": "GPT-6 mini"}]
+        if path == "/models":
+            created = {"id": "m3", "name": body["name"], "model_id": body["model_id"]}
+            self.listed = [*MODELS, created]
+            return created
+        return []
+
+
+def test_a_model_is_added_from_the_terminal(monkeypatch):
+    api = ModelApi()
+    answers = iter(["openai", "gpt-6-mini"])
+    monkeypatch.setattr(repl.Repl, "pick", lambda self, title, options, default=None: next(answers))
+    shown = run(api, ["/model add", "sk-test-not-real", ""])
+    discover = next(b for m, p, b in api.posted if p == "/models/discover")
+    created = next(b for m, p, b in api.posted if p == "/models")
+    assert discover["provider"] == "openai" and created["model_id"] == "gpt-6-mini" and created["name"] == "GPT-6 mini"
+    assert "Added, and switched to: GPT-6 mini" in shown
+    assert "sk-test-not-real" not in shown  # the key is never printed
+
+
+def test_views_have_a_title():
+    api = FakeApi([])
+    api._request = lambda method, path, body=None: {"today_usd": 1.5, "month_usd": 3}
+    shown = run(api, ["/cost", "/status"])
+    assert "Spending" in shown and "Today: $1.50" in shown and "Status" in shown and "Model" in shown
+
+
+def test_print_mode_streams_the_reply_and_refuses_steps():
+    api = FakeApi([[
+        {"type": "delta", "text": "Hello "},
+        {"type": "permission", "id": "r1", "call": {"tool": "shell_run", "args": {"command": "rm -rf x"}}},
+        {"type": "delta", "text": "there"},
+        {"type": "done"},
+    ]])
+    out, err = io.StringIO(), io.StringIO()
+    code = repl.run_print(api, "hi", "C:/code/app", None, False, "text", out, err)
+    assert code == 0 and out.getvalue() == "Hello there\n"
+    assert api.resolved == [("r1", "denied")] and "--yes" in err.getvalue()
+
+
+def test_print_mode_json_and_yes():
+    import json as _json
+
+    api = FakeApi([[{"type": "permission", "id": "r1", "call": {"tool": "x", "args": {}}}, {"type": "delta", "text": "ok"}, {"type": "done"}]])
+    out = io.StringIO()
+    repl.run_print(api, "hi", ".", "qwen", True, "json", out, io.StringIO())
+    data = _json.loads(out.getvalue())
+    assert data["result"] == "ok" and data["model"].startswith("Qwen") and api.resolved == [("r1", "approved")]
+
+
+def test_opening_words_and_flags():
+    assert repl._prompt_words(["-c", "--model", "qwen", "fix", "the", "tests"]) == "fix the tests"
+    assert repl._prompt_words(["--lang=en", "-p", "explain"]) == "explain"
+
+
+def test_custom_commands_from_the_project(tmp_path):
+    folder = tmp_path / "proj"
+    (folder / ".rafiq" / "commands").mkdir(parents=True)
+    (folder / ".rafiq" / "commands" / "fix.md").write_text("description: fix an issue\nFix issue #$ARGUMENTS and add a test.", encoding="utf-8")
+    found = repl.custom_commands(str(folder))
+    assert found["fix"] == ("fix an issue", "Fix issue #$ARGUMENTS and add a test.")
+    api = FakeApi([[{"type": "done"}]])
+    keys = iter(["/fix 42"])
+
+    def read(_prompt):
+        try:
+            return next(keys)
+        except StopIteration:
+            raise EOFError from None
+
+    repl.Repl(api, str(folder), io.StringIO(), read, "en").run()
+    assert api.sent[0][1] == "Fix issue #42 and add a test."
+
+
+def test_export_and_context(tmp_path):
+    api = FakeApi([[{"type": "delta", "text": "Done."}, {"type": "usage", "context_tokens": 5000, "context_window": 200000, "prompt_tokens": 4000, "completion_tokens": 1000, "cost_usd": 0.01}, {"type": "done"}]])
+    api._request = lambda method, path, body=None: {"title": "Tidy", "messages": [{"role": "user", "content": "tidy up"}, {"role": "assistant", "content": "Done."}]}
+    keys = iter(["tidy up", "/context", "/export chat.md", "/copy"])
+
+    def read(_prompt):
+        try:
+            return next(keys)
+        except StopIteration:
+            raise EOFError from None
+
+    copied = []
+    original = repl.copy_to_clipboard
+    repl.copy_to_clipboard = copied.append
+    try:
+        out = io.StringIO()
+        repl.Repl(api, str(tmp_path), out, read, "en").run()
+    finally:
+        repl.copy_to_clipboard = original
+    shown = out.getvalue()
+    assert "5,000 of 200,000 tokens (2%)" in shown
+    assert (tmp_path / "chat.md").read_text(encoding="utf-8").startswith("# Tidy")
+    assert copied == ["Done."]
+
+
+def test_no_model_offers_to_add_one(monkeypatch):
+    api = ModelApi()
+    api.listed = []
+    answers = iter(["ollama", "qwen3:8b"])
+    monkeypatch.setattr(repl.Repl, "pick", lambda self, title, options, default=None: next(answers))
+    api_request = api._request
+
+    def request(method, path, body=None):
+        if path == "/models/discover":
+            return [{"id": "qwen3:8b", "display_name": "Qwen 3 8B"}]
+        return api_request(method, path, body)
+
+    api._request = request
+    shown = run(api, [""])
+    assert "No model yet" in shown and "Added, and switched to: Qwen 3 8B" in shown

@@ -80,6 +80,8 @@ class MessageCreate(BaseModel):
     attachment_ids: list[str] = []
     # "Ask the strong model": this message skips the smart route.
     no_route: bool = False
+    # Every step asks first, even ones the settings let run (`rafiq` in the terminal, ask mode).
+    ask_every_step: bool = False
 
 
 class ChatMessageOut(BaseModel):

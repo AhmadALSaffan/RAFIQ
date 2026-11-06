@@ -3525,4 +3525,10 @@ export const en: Dictionary = {
   "رفيق جوّا محرّرات الكود: Zed و JetBrains عن طريق ACP": "Rafiq inside code editors: Zed and JetBrains, through ACP",
   "الموافقات الذكية: مراجع بيسمح بالخطوات الآمنة لحاله وبيسألك عن الباقي": "Smart approvals: a reviewer lets safe steps through and asks you about the rest",
   "نموذج مجاني على جهازك بكبسة، وقراءة الـPDF المصوّر، ومهارات جاهزة": "A free model on your computer in one click, scanned PDFs read, and ready-made skills",
+  "تيرمينال بيحكي عربي": "A terminal that speaks Arabic",
+  "نزّل الطرفية لحالها بدون التطبيق: irm rafiqagent.com/install.ps1 | iex": "Install the terminal on its own, without the app: irm rafiqagent.com/install.ps1 | iex",
+  "بوضع «يسأل» بيستأذنك قبل كل خطوة، وبتشوف التعديل قبل ما يصير": "In ask mode it asks before every step, and you see each edit before it happens",
+  "أوامر جديدة: rafiq -p للرد السريع، rafiq -c لتكمّل، /review و /commit و /context و /export و /doctor": "New commands: rafiq -p for a quick reply, rafiq -c to continue, /review, /commit, /context, /export, /doctor",
+  "ضيف موديل من التيرمينال بـ /model add، وأوامرك إنت بملفات .rafiq/commands": "Add a model from the terminal with /model add, and your own commands in .rafiq/commands",
+  "/status و /cost والقوائم بتفتح شاشة لحالها، وEsc بيرجّعك أو بيوقف الرد": "/status, /cost and the lists open a screen of their own; Esc goes back, or stops a reply",
 };
