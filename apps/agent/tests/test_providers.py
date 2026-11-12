@@ -50,7 +50,9 @@ def test_openai_compatible_presets_get_their_endpoint():
         "https://dashscope.aliyuncs.com"
     )  # the China endpoint, when the user picks it
     assert call_kwargs("lm_studio", None, None, None)["api_key"] == "lm-studio"  # it wants *some* key
-    assert call_kwargs("ollama", None, None, None)["api_base"] == "http://localhost:11434"
+    # IPv4, not localhost: on Windows localhost is tried as IPv6 first (~2 s per request)
+    assert call_kwargs("ollama", None, None, None)["api_base"] == "http://127.0.0.1:11434"
+    assert call_kwargs("lm_studio", None, None, None)["api_base"] == "http://127.0.0.1:1234/v1"
 
 
 def test_claude_gets_cache_breakpoints_and_others_dont():

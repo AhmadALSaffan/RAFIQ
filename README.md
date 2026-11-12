@@ -31,24 +31,25 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 ---
 
-## What's new · v0.5.18
+## What's new · v0.5.19
 
 <!-- Every release: replace docs/whats-new/latest.webp with the release's picture (the same
      one the app's What's new dialog shows) and update the version, points and link below. -->
 
 <div align="center">
 
-<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq 0.5.18: a terminal that speaks Arabic">
+<img src="docs/whats-new/latest.webp" width="80%" alt="Rafiq: a terminal that speaks Arabic">
 
 </div>
 
-**A terminal that speaks Arabic, now on its own too.**
-- **Install the terminal without the app:** `irm https://rafiqagent.com/install.ps1 | iex` on Windows, `curl -fsSL https://rafiqagent.com/install.sh | sh` on macOS (Apple Silicon). The first run helps you add a model.
-- **Asks before every step** in ask mode, reads included, and shows each edit as a diff before it happens.
-- **More of what a coding terminal does:** `rafiq -p` prints one reply (pipe text in too), `rafiq -c` continues the last chat, `/review`, `/commit`, `/context`, `/export`, `/copy`, `/permissions`, `/doctor`, `/think`, `/vim`, and your own commands as `.md` files in `.rafiq/commands`.
-- **Add a model from the terminal** with `/model add`; `/status`, `/cost` and the lists open a screen of their own (Esc goes back); Esc stops a reply.
+**Faster, and in your language.**
+- **Local models reply at once:** Rafiq reads the chat ahead while you type (Ollama keeps what it read), asks Ollama for a window that fits the model and your memory, talks to it over IPv4 (Windows' `localhost` cost ~2 s a request), gives local models a lean set of tools, and starts Ollama itself when it isn't running. On a Radeon RX 5700: the first word in 0.4 s instead of 26 s.
+- **Tools that fit the model:** when the tool descriptions don't fit a model's window (ten MCP servers can be 60,000 tokens), the heaviest groups are left out and the chat says so.
+- **Speed under every reply:** tokens per second, and how long the first word took — in the app and the terminal.
+- **Replies in your language:** the language of each message is decided from its letters (or the app's language) and told to the model with it.
+- **On the Mac:** GitHub Copilot sign-in, the Rafiq account and the phone app, and changeable screen shortcuts (⌘ ⌃ ⌥).
 
-Full notes: [v0.5.18](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.18) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
+Full notes: [v0.5.19](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.19) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
 
 ---
 
@@ -242,7 +243,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.18_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.19_x64-setup.exe -Algorithm SHA256
 > ```
 
 **Only the terminal** (`rafiq`, no app): one line installs it for the current user, checks the

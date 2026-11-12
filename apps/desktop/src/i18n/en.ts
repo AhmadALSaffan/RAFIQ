@@ -3531,4 +3531,13 @@ export const en: Dictionary = {
   "أوامر جديدة: rafiq -p للرد السريع، rafiq -c لتكمّل، /review و /commit و /context و /export و /doctor": "New commands: rafiq -p for a quick reply, rafiq -c to continue, /review, /commit, /context, /export, /doctor",
   "ضيف موديل من التيرمينال بـ /model add، وأوامرك إنت بملفات .rafiq/commands": "Add a model from the terminal with /model add, and your own commands in .rafiq/commands",
   "/status و /cost والقوائم بتفتح شاشة لحالها، وEsc بيرجّعك أو بيوقف الرد": "/status, /cost and the lists open a screen of their own; Esc goes back, or stops a reply",
+  "{0} توكن/ث": "{0} tokens/s",
+  "أول كلمة بعد {0} ث": "first word after {0} s",
+  "اضغط عليه وسجّل أي اختصار فيه ⌘ أو ⌃ أو ⌥. بيشتغل بأي وقت، ورفيق شغّال بالخلفية.": "Click and record any shortcut with ⌘, ⌃ or ⌥. It works anytime Rafiq runs in the background.",
+  "اضغط عليه وسجّل أي اختصار فيه ⌘ أو ⌃ أو ⌥.": "Click and record any shortcut with ⌘, ⌃ or ⌥.",
+  "أسرع، وبلغتك": "Faster, and in your language",
+  "الموديلات المحلية صارت ترد فوراً: رفيق بيقرأ المحادثة سلف، وبيشغّل Ollama لحاله إذا كان مسكّر": "Local models reply at once: Rafiq reads the chat ahead, and starts Ollama itself when it's closed",
+  "سرعة الموديل تحت كل رد: كم توكن بالثانية، وبعد قديش طلعت أول كلمة": "Each reply shows the model's speed: tokens per second, and how long the first word took",
+  "الرد دايماً بلغة رسالتك، حتى مع الموديلات الصغيرة": "Replies always come in the language of your message, even from small models",
+  "على الماك: GitHub Copilot، وحساب رفيق والجوال، وتغيير اختصارات الشاشة": "On the Mac: GitHub Copilot, the Rafiq account and the phone, and changing the screen shortcuts",
 };

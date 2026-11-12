@@ -272,12 +272,21 @@ export function WebSettings({ settings, persist }: { settings: AppSettings; pers
   );
 }
 
-/** Tauri writes "Ctrl+Shift+Space"; the recorder writes "mod+shift+space". */
+/** On a Mac the recorder speaks ⌘ ⌃ ⌥ and Tauri wants "Cmd"; elsewhere Ctrl and Alt. */
+const MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
+
+/** Tauri writes "Ctrl+Shift+Space" (or "Cmd+Shift+K" on a Mac); the recorder writes "mod+shift+space". */
 function toRecorder(shortcut: string): string {
-  return normalizeShortcut(shortcut.toLowerCase().replace(/\s+/g, ""), "other");
+  const aliases: Record<string, string> = {
+    cmd: "meta", command: "meta", super: "meta", meta: "meta",
+    control: "ctrl", ctrl: "ctrl", option: "alt", alt: "alt",
+    commandorcontrol: MAC ? "meta" : "ctrl", cmdorctrl: MAC ? "meta" : "ctrl",
+  };
+  const parts = shortcut.toLowerCase().replace(/\s+/g, "").split("+").map((part) => aliases[part] ?? part);
+  return normalizeShortcut(parts.join("+"), MAC ? "mac" : "other");
 }
 function toTauri(shortcut: string): string {
-  const names: Record<string, string> = { mod: "Ctrl", ctrl: "Ctrl", alt: "Alt", shift: "Shift", meta: "Super", space: "Space", enter: "Enter", escape: "Escape", tab: "Tab", up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" };
+  const names: Record<string, string> = { mod: MAC ? "Cmd" : "Ctrl", ctrl: "Ctrl", alt: "Alt", shift: "Shift", meta: MAC ? "Cmd" : "Super", space: "Space", enter: "Enter", escape: "Escape", tab: "Tab", up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" };
   return shortcut
     .split("+")
     .map((part) => names[part] ?? (part.length === 1 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)))
@@ -340,8 +349,8 @@ export function BackgroundSettings({ settings, persist }: { settings: AppSetting
         <div className="px-1 py-2">
           <ShortcutRecorder
             label={t("الاختصار")}
-            description={t("اضغط عليه وسجّل أي اختصار فيه Ctrl أو Alt. بيشتغل بأي وقت، ورفيق شغّال بالخلفية.")}
-            platform="other"
+            description={MAC ? t("اضغط عليه وسجّل أي اختصار فيه ⌘ أو ⌃ أو ⌥. بيشتغل بأي وقت، ورفيق شغّال بالخلفية.") : t("اضغط عليه وسجّل أي اختصار فيه Ctrl أو Alt. بيشتغل بأي وقت، ورفيق شغّال بالخلفية.")}
+            platform={MAC ? "mac" : "other"}
             requireModifier
             value={toRecorder(quick)}
             resetValue={toRecorder(QUICK_ASK_SHORTCUTS[0])}
@@ -374,8 +383,8 @@ export function BackgroundSettings({ settings, persist }: { settings: AppSetting
         <div className="px-1 py-2">
           <ShortcutRecorder
             label={t("اختصار الشاشة")}
-            description={t("اضغط عليه وسجّل أي اختصار فيه Ctrl أو Alt.")}
-            platform="other"
+            description={MAC ? t("اضغط عليه وسجّل أي اختصار فيه ⌘ أو ⌃ أو ⌥.") : t("اضغط عليه وسجّل أي اختصار فيه Ctrl أو Alt.")}
+            platform={MAC ? "mac" : "other"}
             requireModifier
             value={toRecorder(screen)}
             resetValue={toRecorder(SCREEN_ASK_SHORTCUT)}

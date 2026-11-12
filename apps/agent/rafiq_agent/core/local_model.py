@@ -33,12 +33,15 @@ INSTALLER_URL = "https://ollama.com/download/OllamaSetup.exe"
 DOWNLOAD_PAGE = "https://ollama.com/download"
 CREATE_NO_WINDOW = 0x08000000
 
-# What the page offers. Qwen 3 speaks Arabic well and calls tools; the bigger one wants the RAM.
+# What the page offers. Qwen 3 speaks Arabic well and calls tools. The 4B "instruct" answers
+# straight away; plain qwen3:4b and qwen3:8b always think first, and on a home graphics card
+# that thinking (often ~1,000 tokens) is most of the wait — so the instruct one comes first.
 RECOMMENDED: list[dict[str, Any]] = [
-    {"tag": "qwen3:4b", "name": "Qwen 3 · 4B", "size_gb": 2.6, "min_ram_gb": 8},
+    {"tag": "qwen3:4b-instruct", "name": "Qwen 3 · 4B Instruct", "size_gb": 2.5, "min_ram_gb": 8},
     {"tag": "qwen3:8b", "name": "Qwen 3 · 8B", "size_gb": 5.2, "min_ram_gb": 16},
 ]
-ALLOWED_TAGS = {m["tag"] for m in RECOMMENDED}
+# qwen3:4b was offered before 0.5.19; a download of it may still be asked for.
+ALLOWED_TAGS = {m["tag"] for m in RECOMMENDED} | {"qwen3:4b"}
 
 # One install and one download at a time, watched by the page.
 state: dict[str, Any] = {"install": None, "pull": None}
@@ -50,8 +53,8 @@ def ram_gb() -> float:
 
 
 def suggested() -> str:
-    """The bigger model when the computer can carry it."""
-    return "qwen3:8b" if ram_gb() >= 16 else "qwen3:4b"
+    """The one that answers without thinking first: fast on any computer that runs it."""
+    return "qwen3:4b-instruct"
 
 
 def _binary() -> Path | None:
@@ -94,6 +97,44 @@ async def status() -> dict[str, Any]:
     }
 
 
+_start_lock = asyncio.Lock()
+_running_until = 0.0  # Ollama answered a moment ago: no need to ask again before every request
+
+
+def on_this_computer(base_url: str | None) -> bool:
+    """Only a server on this computer is started by Rafiq."""
+    if not base_url:
+        return True
+    from urllib.parse import urlparse
+
+    return (urlparse(base_url).hostname or "") in ("127.0.0.1", "localhost", "::1")
+
+
+async def ensure_running(base_url: str | None = None) -> str:
+    """Before a request to a local Ollama model: starts Ollama when it isn't running.
+    "running" (it was), "started" (Rafiq started it), "missing" (not installed), "failed"."""
+    import time
+
+    global _running_until
+    if not on_this_computer(base_url):
+        return "running"
+    if time.monotonic() < _running_until:
+        return "running"
+    if await _tags() is not None:
+        _running_until = time.monotonic() + 15
+        return "running"
+    async with _start_lock:  # one start, even when a chat and a read-ahead ask together
+        if await _tags() is not None:
+            _running_until = time.monotonic() + 15
+            return "running"
+        if _binary() is None:
+            return "missing"
+        if not await start():
+            return "failed"
+        _running_until = time.monotonic() + 15
+        return "started"
+
+
 async def start() -> bool:
     """Start Ollama when it's installed but not running; True once it answers."""
     if await _tags() is not None:
@@ -101,8 +142,13 @@ async def start() -> bool:
     binary = _binary()
     if binary is None:
         return False
+    app = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama app.exe"
     if sys.platform == "darwin" and Path("/Applications/Ollama.app").exists():
         subprocess.Popen(["open", "-a", "Ollama"])
+    elif sys.platform == "win32" and app.exists():
+        # The tray app, the way Ollama starts with Windows: it runs the server, shows that it's
+        # on, and won't clash with a server Rafiq started on its own if the user opens it later.
+        subprocess.Popen([str(app)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x00000008)
     else:
         kwargs: dict[str, Any] = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
         if sys.platform == "win32":

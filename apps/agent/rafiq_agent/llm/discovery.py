@@ -10,7 +10,7 @@ from rafiq_agent.i18n import tr
 from rafiq_agent.llm.base import litellm_model_string
 from rafiq_agent.llm.presets import PRESET_BASES, SUGGESTED, ProviderConfigError, call_kwargs
 
-OLLAMA_DEFAULT_BASE = "http://localhost:11434"
+OLLAMA_DEFAULT_BASE = "http://127.0.0.1:11434"  # IPv4: see llm/presets.py::prefer_ipv4
 
 # Chat-incapable model families returned by OpenAI-style /models endpoints.
 _NON_CHAT_MARKERS = (

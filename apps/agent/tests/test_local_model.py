@@ -45,7 +45,8 @@ async def test_status_when_ollama_is_missing(ollama, monkeypatch):
     monkeypatch.setattr(local_model, "_binary", lambda: None)
     info = await local_model.status()
     assert info["running"] is False and info["installed"] is False
-    assert {m["tag"] for m in info["recommended"]} == local_model.ALLOWED_TAGS
+    assert {m["tag"] for m in info["recommended"]} <= local_model.ALLOWED_TAGS
+    assert info["recommended"][0]["tag"] == "qwen3:4b-instruct"  # the one that answers without thinking
     assert info["suggested"] in local_model.ALLOWED_TAGS
 
 

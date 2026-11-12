@@ -78,6 +78,7 @@ function toBlocks(events: TaskEvent[]): Block[] {
     else if (e.type === "resumed") blocks.push({ kind: "note", key: e.id, text: t("كمّلت المهمة من وين وقفت.") });
     else if (e.type === "error") blocks.push({ kind: "error", key: e.id, message: e.message, guide: e.kind, provider: e.provider });
     else if (e.type === "issue_update") blocks.push({ kind: "note", key: e.id, text: e.text, ok: e.ok });
+    else if (e.type === "tools_trimmed") blocks.push({ kind: "note", key: e.id, text: e.text, ok: false });
   }
   return blocks;
 }

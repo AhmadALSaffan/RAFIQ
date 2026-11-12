@@ -72,7 +72,7 @@ def total_tokens(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | N
     return sum(message_tokens(m) for m in messages) + schemas
 
 
-def window_for(provider: str, model_id: str, options: dict[str, Any] | None = None) -> int:
+def window_for(provider: str, model_id: str, options: dict[str, Any] | None = None, base_url: str | None = None) -> int:
     """How many tokens this model reads in one request."""
     # A model's own setting wins. Options arrive from the API as text, so "8192" counts too.
     try:
@@ -82,7 +82,10 @@ def window_for(provider: str, model_id: str, options: dict[str, Any] | None = No
     if override > 0:
         return override
     if provider == "ollama":
-        return OLLAMA_WINDOW
+        # What the model supports, capped by this machine's memory (core/local.py).
+        from rafiq_agent.core.local import ollama_window
+
+        return ollama_window(model_id, base_url)
     if provider == "lm_studio":
         return LM_STUDIO_WINDOW
     import litellm

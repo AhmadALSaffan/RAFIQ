@@ -14,7 +14,7 @@ import { announceDone } from "../../lib/background";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { attachChatStream, createChat, deleteChat, deleteChatMessage, exportChat as exportChatFile, forkChat, listSkills, saveTemplate, truncateChatFrom, getChat, listChats, listIntegrations, listModels, renameChat, resolveChatPermission, sendChatMessage, setBookmark, setChatFolder, setChatArchived, setChatPinned, stopChat, summarizeChat, updateChatSettings, type ChatStreamEvent, quietly } from "../../lib/api";
+import { attachChatStream, createChat, deleteChat, deleteChatMessage, exportChat as exportChatFile, forkChat, listSkills, saveTemplate, truncateChatFrom, getChat, listChats, listIntegrations, listModels, renameChat, resolveChatPermission, sendChatMessage, setBookmark, setChatFolder, setChatArchived, setChatPinned, stopChat, summarizeChat, updateChatSettings, warmChat, type ChatStreamEvent, quietly } from "../../lib/api";
 import type { Attachment, ChatMessage, ChatSummary, LlmModel, ReplySettings, TrackerIssue } from "../../lib/types";
 import { canPickNatively, pickFolder } from "../../lib/folders";
 import { ACTIVITY_MAX, ACTIVITY_MIN, DEFAULT_LAYOUT, LIST_MAX, LIST_MIN, READING_WIDTHS, setLayout, useLayout } from "../../lib/layout";
@@ -336,6 +336,18 @@ export function ChatPage({
     // send is stable enough for a one-shot request
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sendRequest, routeId, modelId, loadingChat, streaming]);
+
+  // A model on this computer reads its prompt slowly (a few dozen tokens a second on some
+  // cards): have it read this chat ahead, so the reply starts as soon as it's sent. The agent
+  // skips cloud models and anything it read a moment ago (core/warm.py).
+  const modelProvider = models.find((m) => m.id === modelId)?.provider;
+  useEffect(() => {
+    if (!modelId || streaming || loadingChat || (modelProvider !== "ollama" && modelProvider !== "lm_studio")) return;
+    const timer = window.setTimeout(() => {
+      void warmChat({ model_id: modelId, chat_id: routeId ?? null, working_dir: routeId ? null : folder, workspace_id: workspaceId ?? null });
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [modelId, modelProvider, routeId, folder, workspaceId, streaming, loadingChat, messages.length]);
 
   // Following the reply as it grows. Only the *user* decides whether we follow: scrolling up
   // (wheel, keys, dragging) stops it at once, reaching the very bottom again resumes it. Our

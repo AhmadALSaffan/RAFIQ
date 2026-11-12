@@ -38,6 +38,16 @@ export async function exportChat(id: string, format: "html" | "md"): Promise<str
   return res.text();
 }
 
+/** Has a local model read this chat ahead, so its reply starts at once (agent core/warm.py).
+ *  Does nothing for a cloud model; never fails loudly. */
+export async function warmChat(body: { model_id: string; chat_id?: string | null; working_dir?: string | null; workspace_id?: string | null }): Promise<void> {
+  try {
+    await request<unknown>("/chats/warm", { method: "POST", body: JSON.stringify(body) });
+  } catch {
+    // reading ahead is a nicety
+  }
+}
+
 export async function setChatFolder(id: string, workingDir: string | null): Promise<ChatSummary> {
   return request<ChatSummary>(`/chats/${id}`, { method: "PATCH", body: JSON.stringify({ working_dir: workingDir ?? "" }) });
 }
@@ -116,6 +126,7 @@ export type ChatStreamEvent =
   | { type: "delta"; text: string }
   | { type: "retract"; text: string }
   | { type: "routed"; part: Extract<ChatPart, { kind: "routed" }> }
+  | { type: "notice"; part: Extract<ChatPart, { kind: "notice" }> }
   | { type: "tool_call"; id: string; tool: string; args: Record<string, unknown> }
   | { type: "tool_result"; id: string; ok: boolean; output: string }
   | { type: "permission"; id: string; call: ToolCall }
@@ -131,6 +142,8 @@ export type ChatStreamEvent =
       /** How much of the model's window the conversation fills now, when the agent knows. */
       context_tokens?: number | null;
       context_window?: number | null;
+      tokens_per_second?: number | null;
+      first_token_seconds?: number | null;
     }
   | { type: "done"; message: ChatMessage }
   | { type: "stopped" }

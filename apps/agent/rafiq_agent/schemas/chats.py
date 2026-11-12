@@ -16,6 +16,15 @@ class ChatCreate(BaseModel):
     workspace_id: str | None = None
 
 
+class WarmRequest(BaseModel):
+    """Read a chat ahead on its local model (core/warm.py): an open chat, or a new one."""
+
+    model_id: str
+    chat_id: str | None = None
+    working_dir: str | None = None
+    workspace_id: str | None = None
+
+
 class ReplySettings(BaseModel):
     """How this chat's replies are generated. Every field maps to a real request knob."""
 

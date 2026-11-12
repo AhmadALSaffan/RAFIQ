@@ -88,7 +88,16 @@ def call_kwargs(
     base = base_url or PRESET_BASES.get(provider)
     if provider == "ollama" and not base:
         base = "http://localhost:11434"
-    return {"api_key": api_key or ("lm-studio" if provider == "lm_studio" else None), "api_base": base}
+    return {"api_key": api_key or ("lm-studio" if provider == "lm_studio" else None), "api_base": prefer_ipv4(base)}
+
+
+def prefer_ipv4(url: str | None) -> str | None:
+    """`localhost` → `127.0.0.1`. On Windows, localhost is tried as IPv6 (::1) first, and a
+    local server that listens on IPv4 only (Ollama, LM Studio) answers after a ~2 s timeout —
+    on every request, before the model even starts reading."""
+    if not url:
+        return url
+    return url.replace("://localhost:", "://127.0.0.1:").replace("://localhost/", "://127.0.0.1/")
 
 
 def caches_prompts(model: str) -> bool:

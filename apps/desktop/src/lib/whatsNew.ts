@@ -58,6 +58,16 @@ const RELEASE_VIDEO = (version: string, lang: Locale) => `https://github.com/Ahm
 
 export const NEWS: ReleaseNews[] = [
   {
+    version: "0.5.19",
+    title: () => t("أسرع، وبلغتك"),
+    points: () => [
+      t("الموديلات المحلية صارت ترد فوراً: رفيق بيقرأ المحادثة سلف، وبيشغّل Ollama لحاله إذا كان مسكّر"),
+      t("سرعة الموديل تحت كل رد: كم توكن بالثانية، وبعد قديش طلعت أول كلمة"),
+      t("الرد دايماً بلغة رسالتك، حتى مع الموديلات الصغيرة"),
+      t("على الماك: GitHub Copilot، وحساب رفيق والجوال، وتغيير اختصارات الشاشة"),
+    ],
+  },
+  {
     version: "0.5.18",
     images: { ar: arabicTerminalAr, en: arabicTerminalEn, ru: arabicTerminalRu },
     title: () => t("تيرمينال بيحكي عربي"),

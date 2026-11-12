@@ -103,6 +103,9 @@ class Usage:
     completion_tokens: int = 0
     cached_tokens: int = 0
     cost_usd: float = 0.0
+    # Time spent writing the answer (first token to last) and waiting for the first token.
+    seconds: float = 0.0
+    first_token: float | None = None
 
     def __bool__(self) -> bool:
         return bool(self.prompt_tokens or self.completion_tokens)
@@ -138,7 +141,15 @@ class collect:
             completion_tokens=sum(u.completion_tokens for u in self.calls),
             cached_tokens=sum(u.cached_tokens for u in self.calls),
             cost_usd=sum(u.cost_usd for u in self.calls),
+            seconds=sum(u.seconds for u in self.calls),
+            first_token=next((u.first_token for u in self.calls if u.first_token is not None), None),
         )
+
+    def tokens_per_second(self) -> float | None:
+        """How fast the model wrote, over the calls that took measurable time."""
+        timed = [u for u in self.calls if u.seconds > 0.05 and u.completion_tokens > 1]
+        seconds = sum(u.seconds for u in timed)
+        return round(sum(u.completion_tokens for u in timed) / seconds, 1) if seconds else None
 
 
 class _ScopeToken:
@@ -254,12 +265,13 @@ def estimate(model: str, messages: list[dict[str, Any]], produced: str) -> dict[
     return {"prompt_tokens": prompt, "completion_tokens": completion}
 
 
-def record(model: str, raw: Any) -> None:
+def record(model: str, raw: Any, seconds: float = 0.0, first_token: float | None = None) -> None:
     """Counts one call. Never raises: a bookkeeping problem must not break a reply."""
     try:
         usage = measure(model, raw)
         if not usage:
             return
+        usage.seconds, usage.first_token = seconds, first_token
         kind, scope_id, model_ref, workspace_id = _scope.get()
         _add(usage.cost_usd, workspace_id)
         if (turn := _collector.get()) is not None:

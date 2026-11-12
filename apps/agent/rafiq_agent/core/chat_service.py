@@ -43,6 +43,8 @@ from rafiq_agent.core.designs import (
     strip_preview,
     without_html,
 )
+from rafiq_agent.core.fit import LEAN_GROUPS, LOCAL_SKIP, fit_tools, trimmed_note
+from rafiq_agent.core.local import is_local
 from rafiq_agent.core.loop import LoopCallbacks, run_agent_loop
 from rafiq_agent.core.memory import memory_note
 from rafiq_agent.core.project_notes import project_instructions
@@ -284,6 +286,10 @@ def work_max_tokens(model: LlmModel) -> int | None:
 
     from rafiq_agent.llm.base import litellm_model_string
 
+    if is_local(model.provider):
+        # litellm would ask the local server over HTTP on every message; its window
+        # (core/local.py) already bounds the reply.
+        return None
     try:
         info = litellm.get_model_info(model=litellm_model_string(model.provider, model.model_id))
         limit = info.get("max_output_tokens") or info.get("max_tokens")
@@ -310,13 +316,27 @@ def _tools_done(parts: list[dict[str, Any]] | None) -> str:
 
 
 def provider_for(model: LlmModel, reply: ReplySettings, fallback: LlmModel | None = None, *, work: bool = False) -> LlmProvider:
-    return llm_for(
+    provider = llm_for(
         model,
         temperature=reply.temperature,
         max_tokens=work_max_tokens(model) if work else LENGTH_MAX_TOKENS.get(reply.length),
-        reasoning_effort="none" if not reply.reasoning else reply.reasoning_effort,
+        # Ollama gets no "off": a thinking-only model (Qwen 3) told not to think writes its
+        # thinking into the answer instead, twice as long. Its thinking is just not shown.
+        reasoning_effort=reply.reasoning_effort if model.provider == "ollama" else ("none" if not reply.reasoning else reply.reasoning_effort),
         fallback=fallback,
     )
+    _hide_reasoning(provider, not reply.reasoning)
+    return provider
+
+
+def _hide_reasoning(provider: Any, hide: bool) -> None:
+    """Sets it on the provider that streams, through the retry wrapper and its fallback."""
+    if provider is None:
+        return
+    provider.hide_reasoning = hide
+    fields = getattr(provider, "__dict__", {})
+    for inner in (fields.get("inner"), fields.get("fallback")):
+        _hide_reasoning(inner, hide)
 
 
 async def fallback_of(session: Any, model: LlmModel) -> LlmModel | None:
@@ -473,6 +493,11 @@ class ChatTurn:
             # A routed question that the cheap model can't answer falls to the one the user picked.
             backup = picked if model is not picked else await fallback_of(session, model)
             self.llm = provider_for(model, self.reply, backup, work=True)
+            # A model on this computer reads its prompt slowly and has a small window: it
+            # starts from the lean tools (core/fit.py).
+            self.local = is_local(model.provider)
+            self.provider = model.provider
+            self.base_url = model.base_url
 
             # Only what the summary doesn't cover yet: the summary stands in for the rest.
             past = unsummarized(chat, chat.messages)
@@ -655,6 +680,8 @@ class ChatTurn:
             groups.add("browser")
         if self.reply.mcp:
             groups.add("mcp")
+        if getattr(self, "local", False):
+            groups &= LEAN_GROUPS
         return frozenset(groups)
 
     async def _tools(self, system: str) -> tuple[ToolRegistry, str]:
@@ -688,29 +715,35 @@ class ChatTurn:
         notes = []
         # A design session lives on its skills, and a user who turned the saver off asked
         # for the same thing: describe them all, not just their names.
-        full_skills = self.design_mode or not self.reply.saver
+        full_skills = self.design_mode or (not self.reply.saver and not getattr(self, "local", False))
         if any(n.startswith("skill_") for n in names) and (skills := skills_note(full_skills)):
             notes.append(skills)
         if folder is not None and "shell_run" in names:
             notes.append(f"{FOLDER_NOTE}\n{working_dir_system_note(folder)}")
-        registry.register(
-            CreateTasksTool(
-                await self._task_model(), self.working_dir, {"chat_id": self.chat_id}, self._on_task_created
-            )
-        )
-        registry.register(WaitForTasksTool(lambda: list(self.created_task_ids)))
         from rafiq_agent.tools.task_admin import admin_tools
 
-        for tool in admin_tools(await self._task_model(), self.working_dir):
-            registry.register(tool)
-        notes.append(TASKS_NOTE)
+        lean = getattr(self, "local", False)
+        if lean:
+            # The essentials only, and no task tools: see core/fit.py.
+            registry.drop(LOCAL_SKIP)
+        else:
+            registry.register(
+                CreateTasksTool(
+                    await self._task_model(), self.working_dir, {"chat_id": self.chat_id}, self._on_task_created
+                )
+            )
+            registry.register(WaitForTasksTool(lambda: list(self.created_task_ids)))
+            for tool in admin_tools(await self._task_model(), self.working_dir):
+                registry.register(tool)
+            notes.append(TASKS_NOTE)
         if self.design_mode:
             from rafiq_agent.tools.design import DesignReviewTool, DesignSlopCheckTool
 
             registry.register(DesignReviewTool(self.chat_id))
             registry.register(DesignSlopCheckTool(self.chat_id))
-        else:
+        elif not lean:
             # Any other chat can start a design or a reel; they run in their own sessions.
+            # (Not on a local model: two more schemas it reads on every message.)
             from rafiq_agent.tools.studio import DesignStartTool, MotionStartTool
 
             registry.register(DesignStartTool(self.model_id, self.workspace_id, self._on_studio_created))
@@ -732,7 +765,14 @@ class ChatTurn:
         if self.settings.memory_enabled:
             registry.register(MemorySaveTool(self.chat_id))
             notes.append(MEMORY_NOTE)
-        return registry, system + "".join(f"\n\n{n}" for n in notes)
+        system = system + "".join(f"\n\n{n}" for n in notes)
+        # Whatever the model, the tools have to fit its window (core/fit.py).
+        window = getattr(self.llm, "context_window", None)
+        if isinstance(window, int) and (dropped := fit_tools(registry, system + self.content, window)):
+            part = {"kind": "notice", "text": trimmed_note(dropped, window)}
+            self.parts.append(part)
+            self._emit({"type": "notice", "part": part})
+        return registry, system
 
     async def _board_tools(self, system: str) -> tuple[ToolRegistry, str]:
         """An app board is drawn from the documents in the answer, so its chat can read skills,
@@ -856,6 +896,12 @@ class ChatTurn:
         described = await describe_attachments(self.new_attachments) if vision is False else {}
         text = notes_mod.with_mentions(self.content, notes_mod.notes_root(self.settings.notes_dir))
         content = build_user_content(text, self.new_attachments, vision, described)
+        # The reply's language, said outright with the message (core/language.py).
+        from rafiq_agent.core.language import reply_language, with_instruction
+        from rafiq_agent.i18n import current_locale
+
+        language = reply_language(self.content, current_locale(), self.reply.language)
+        content = with_instruction(content, language)
         # The design as it stands rides with the newest message: last in the request, so
         # everything before it stays the same from one turn to the next (and cached).
         if getattr(self, "design_mode", False) and (design := current_documents(getattr(self, "design_files", []))):
@@ -1014,11 +1060,24 @@ class ChatTurn:
                 "cost_usd": round(total.cost_usd, 6),
                 "context_tokens": (last.prompt_tokens + last.completion_tokens) if last else None,
                 "context_window": window if isinstance(window, int) else None,
+                # How fast the model wrote, and how long it took to start (reading the prompt).
+                "tokens_per_second": spent.tokens_per_second(),
+                "first_token_seconds": round(total.first_token, 2) if total.first_token is not None else None,
             }
         )
 
     def _text_so_far(self) -> str:
         return "".join(p.get("text", "") for p in self.parts if p["kind"] == "text")
+
+    async def _start_ollama(self) -> None:
+        """Ollama isn't running: start it (core/local_model.py) and say so in the reply."""
+        from rafiq_agent.core.local_model import ensure_running
+
+        outcome = await ensure_running(getattr(self, "base_url", None))
+        if outcome == "started":
+            part = {"kind": "notice", "text": tr("Ollama ما كان شغّال، فشغّلته.")}
+            self.parts.append(part)
+            self._emit({"type": "notice", "part": part})
 
     async def _run(self, messages: list[dict[str, Any]], registry: ToolRegistry) -> None:
         from rafiq_agent.core.motion import CodeFilter, engine_only
@@ -1032,6 +1091,8 @@ class ChatTurn:
         try:
             if self.routed:
                 self._emit({"type": "routed", "part": self.routed})
+            if getattr(self, "provider", None) == "ollama":
+                await self._start_ollama()
             cap_limit = self.reply.cost_cap_usd if self.reply.cost_cap_usd is not None else self.settings.chat_cost_cap_usd
             cap = usage.SpendCap(cap_limit, await usage.spent_on("chat", self.chat_id) if cap_limit else 0.0, spent)
 

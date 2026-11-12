@@ -22,6 +22,8 @@ export function applyEvent(draft: Draft, ev: ChatStreamEvent): Draft {
   switch (ev.type) {
     case "routed":
       return { ...draft, parts: [ev.part, ...parts] };
+    case "notice":
+      return { ...draft, parts: [...parts, ev.part] };
     case "reasoning":
       return { ...draft, reasoning: draft.reasoning + ev.text };
     case "delta": {
@@ -52,6 +54,8 @@ export function applyEvent(draft: Draft, ev: ChatStreamEvent): Draft {
           completion_tokens: ev.completion_tokens,
           cached_tokens: ev.cached_tokens,
           cost_usd: ev.cost_usd,
+          tokens_per_second: ev.tokens_per_second,
+          first_token_seconds: ev.first_token_seconds,
         },
       };
     case "task_created":

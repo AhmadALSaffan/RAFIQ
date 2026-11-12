@@ -46,6 +46,7 @@ from rafiq_agent.schemas.chats import (
     SearchSnippetOut,
     SummarizeIn,
     SummarizeOut,
+    WarmRequest,
 )
 from rafiq_agent.storage.db import SessionLocal, get_session
 from rafiq_agent.storage.models import Chat, ChatMessage, LlmModel
@@ -170,6 +171,16 @@ async def list_bookmarks(
         )
         for message, chat in rows.all()
     ]
+
+
+@router.post("/warm", status_code=202)
+async def warm_chat(body: WarmRequest) -> dict[str, bool]:
+    """Reads the chat ahead on a local model, in the background, so the reply starts at once.
+    Does nothing for a cloud model (core/warm.py)."""
+    from rafiq_agent.core import warm
+
+    warm.start(body.model_id, body.chat_id, body.working_dir, body.workspace_id)
+    return {"accepted": True}
 
 
 @router.post("", response_model=ChatDetailOut, status_code=201)

@@ -313,11 +313,19 @@ function UsageLine({ usage }: { usage: TurnUsage }) {
   const output = usage.completion_tokens.toLocaleString("en");
   const cached = usage.cached_tokens ? t(" · {0} منها مخزّنة", { 0: usage.cached_tokens.toLocaleString("en") }) : "";
   const cost = usage.cost_usd >= 0.000001 ? ` · $${usage.cost_usd < 0.01 ? usage.cost_usd.toFixed(4) : usage.cost_usd.toFixed(2)}` : "";
+  // How fast it wrote, and how long it took to start — the numbers that tell a slow local
+  // model apart from a long prompt.
+  const speed = usage.tokens_per_second ? ` · ${t("{0} توكن/ث", { 0: usage.tokens_per_second.toLocaleString("en", { maximumFractionDigits: 1 }) })}` : "";
+  const start = usage.first_token_seconds != null && usage.first_token_seconds >= 0.1
+    ? ` · ${t("أول كلمة بعد {0} ث", { 0: usage.first_token_seconds.toLocaleString("en", { maximumFractionDigits: 1 }) })}`
+    : "";
   return (
     <p className="-mt-1 text-[11px] tabular-nums opacity-0 transition-opacity group-hover:opacity-100" style={{ color: "var(--color-ink-muted)" }}>
       {t("{0} توكن دخل · {1} خرج", { 0: input, 1: output })}
       {cached}
       {cost}
+      {speed}
+      {start}
     </p>
   );
 }
@@ -427,6 +435,8 @@ export function AssistantBlock({
               <CouncilRecord seats={item.part.seats} />
             ) : item.part.kind === "routed" ? (
               <RoutedNote part={item.part} messageId={live ? undefined : messageId} />
+            ) : item.part.kind === "notice" ? (
+              <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>{item.part.text}</p>
             ) : null}
           </motion.div>
         ))}
@@ -480,7 +490,7 @@ function groupTasks(parts: ChatPart[]): Item[] {
       else items.push({ kind: "tasks", key: `tasks-${part.task_id}`, tasks: [part] });
       return;
     }
-    const key = part.kind === "text" || part.kind === "council" || part.kind === "routed" ? `${part.kind}-${i}` : `${part.kind}-${part.id}`;
+    const key = part.kind === "text" || part.kind === "council" || part.kind === "routed" || part.kind === "notice" ? `${part.kind}-${i}` : `${part.kind}-${part.id}`;
     items.push({ kind: "part", key, part, last: i === parts.length - 1 });
   });
   return items;

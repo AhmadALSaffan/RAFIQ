@@ -287,6 +287,11 @@ async def _plan_task(
         vision = supports_vision(llm.model)
         described = await describe_attachments(attachments) if vision is False else {}
         user_content = build_user_content(prompt, attachments, vision, described)
+        # The reply's language, said outright (core/language.py).
+        from rafiq_agent.core.language import reply_language, with_instruction
+        from rafiq_agent.i18n import current_locale
+
+        user_content = with_instruction(user_content, reply_language(prompt, current_locale()))
         system = "\n\n".join([SYSTEM_PROMPT, working_dir_system_note(working_dir), PLAN_PROMPT])
         if project := project_instructions(working_dir):
             system += f"\n\n{project}"
@@ -414,6 +419,11 @@ async def run_task(task_id: str) -> None:
         vision = supports_vision(llm.model)
         described = await describe_attachments(attachments) if vision is False else {}
         user_content = build_user_content(prompt, attachments, vision, described)
+        # The reply's language, said outright (core/language.py).
+        from rafiq_agent.core.language import reply_language, with_instruction
+        from rafiq_agent.i18n import current_locale
+
+        user_content = with_instruction(user_content, reply_language(prompt, current_locale()))
         notes = [SYSTEM_PROMPT, working_dir_system_note(effective)]
         if git_info and git_info.get("mode") == "worktree":
             notes.append(WORKTREE_NOTE)
@@ -485,10 +495,27 @@ async def run_task(task_id: str) -> None:
             await manager.emit_event(task_id, "tool_result", {"tool": name, "ok": ok, "output": output})
 
         # Tools this model already has of its own aren't offered a second time.
+        from rafiq_agent.core.fit import LEAN_GROUPS, fit_tools, trimmed_note
+        from rafiq_agent.core.local import is_local
+
         registry = await build_registry(
-            effective, settings, native_tools(model.provider, model.model_id), source={"task_id": task_id}
+            effective,
+            settings,
+            native_tools(model.provider, model.model_id),
+            # A model on this computer starts from the lean tools (core/fit.py).
+            ALL_GROUPS & LEAN_GROUPS if is_local(model.provider) else ALL_GROUPS,
+            source={"task_id": task_id},
         )
         register_task_tools(registry, task_id, model.id, origin_folder, depth)
+        if model.provider == "ollama":
+            from rafiq_agent.core.local_model import ensure_running
+
+            if await ensure_running(model.base_url) == "started":
+                await manager.emit_event(task_id, "tools_trimmed", {"text": tr("Ollama ما كان شغّال، فشغّلته.")})
+        window = getattr(llm, "context_window", None)
+        instructions = "\n".join(m["content"] for m in messages if isinstance(m.get("content"), str))
+        if isinstance(window, int) and (dropped := fit_tools(registry, instructions, window)):
+            await manager.emit_event(task_id, "tools_trimmed", {"text": trimmed_note(dropped, window)})
         with usage.collect() as spent:
             cap = usage.SpendCap(settings.task_cost_cap_usd, await usage.spent_on("task", task_id), spent)
 

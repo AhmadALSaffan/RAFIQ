@@ -117,6 +117,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "pick_lang": "اختار لغة الطرفية",
         "lang_now": "صارت اللغة: {lang}",
         "no_lang": "اللغات: ar · en · ru",
+        "speed": "{tps} توكن/ث",
+        "first_word": " · أول كلمة بعد {first} ث",
         "no_models_yet": "ما في موديل لسا. خلّينا نضيف واحد.",
         "context_title": "السياق",
         "context_line": "المحادثة واخدة ~{used} توكن من {window} ({pct}%)",
@@ -244,6 +246,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "pick_lang": "Choose the terminal's language",
         "lang_now": "Language: {lang}",
         "no_lang": "Languages: ar · en · ru",
+        "speed": "{tps} tok/s",
+        "first_word": " · first word after {first} s",
         "no_models_yet": "No model yet. Let's add one.",
         "context_title": "Context",
         "context_line": "This chat uses ~{used} of {window} tokens ({pct}%)",
@@ -371,6 +375,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "pick_lang": "Выберите язык терминала",
         "lang_now": "Язык: {lang}",
         "no_lang": "Языки: ar · en · ru",
+        "speed": "{tps} ток/с",
+        "first_word": " · первое слово через {first} с",
         "no_models_yet": "Моделей пока нет. Давайте добавим.",
         "context_title": "Контекст",
         "context_line": "Чат занимает ~{used} из {window} токенов ({pct}%)",
@@ -1080,6 +1086,21 @@ class Repl:
             if message.get("content"):
                 self.show_message(message.get("role", ""), message["content"])
 
+    def warm(self) -> None:
+        """Has a local model read this chat ahead in the background, so its reply starts at
+        once (agent core/warm.py). Nothing for a cloud model."""
+        if self.model.get("provider") not in ("ollama", "lm_studio") or not hasattr(self.api, "_request"):
+            return
+        import threading
+
+        body = {"model_id": self.model["id"], "chat_id": self.chat_id, "working_dir": self.folder}
+
+        def send() -> None:
+            with contextlib.suppress(Exception):
+                self.api._request("POST", "/chats/warm", body)
+
+        threading.Thread(target=send, daemon=True).start()
+
     def cmd_new(self, _rest: str) -> None:
         self.chat_id = None
         self.info(self.text["new"])
@@ -1110,6 +1131,7 @@ class Repl:
                 return
         self.model = found
         self.info(self.text["switched"].format(model=found["name"]))
+        self.warm()
 
     def add_model(self) -> None:
         """Adds a model the way the app does: provider, key, pick from what it offers, test."""
@@ -1296,6 +1318,7 @@ class Repl:
             message = self.text["plan_prefix"] + message
         self.thinking(True)
         self.last_reply = ""
+        self.timed = False  # this reply reported its usage (and so its speed)
         thought = ""
         try:
             for event in self.api.send(self.chat_id, message, self.model["id"], ask_every_step=self.mode == "ask"):
@@ -1314,6 +1337,10 @@ class Repl:
                     continue
                 if kind == "usage":
                     self.usage = event
+                    self.timed = True
+                    continue
+                if kind == "notice":
+                    self.info(str((event.get("part") or {}).get("text") or ""))
                     continue
                 self.text_end()
                 if kind == "tool_call":
@@ -1344,6 +1371,18 @@ class Repl:
         finally:
             self.thinking(False)
         self.text_end()
+        self.show_speed()
+
+    def show_speed(self) -> None:
+        """How fast the model wrote this reply, and how long it took to start."""
+        tps = self.usage.get("tokens_per_second") if getattr(self, "timed", False) else None
+        if not tps:
+            return
+        line = self.text["speed"].format(tps=f"{tps:g}")
+        first = self.usage.get("first_token_seconds")
+        if first is not None and first >= 0.1:
+            line += self.text["first_word"].format(first=f"{first:.1f}")
+        self.info(line)
 
     def _send_or_reconnect(self, line: str) -> None:
         try:
@@ -1397,6 +1436,7 @@ class Repl:
                 step()
             except RuntimeError as exc:
                 self.error(str(exc))
+        self.warm()
         while True:
             try:
                 line = self.read_line()

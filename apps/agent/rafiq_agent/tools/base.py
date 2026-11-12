@@ -62,6 +62,11 @@ class ToolRegistry:
     def names(self) -> set[str]:
         return set(self._tools)
 
+    def drop(self, names: list[str] | set[str]) -> None:
+        """Stops describing these tools (core/fit.py: they don't fit the model's window)."""
+        for name in names:
+            self._tools.pop(name, None)
+
     def get(self, name: str) -> Tool | None:
         return self._tools.get(name)
 

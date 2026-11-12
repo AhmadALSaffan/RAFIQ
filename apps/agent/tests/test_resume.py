@@ -186,7 +186,8 @@ async def test_a_resumed_run_is_told_what_already_happened(client, model_id, mad
     await run_task(task_id)
 
     sent = fake_model.seen[0]
-    assert sent[1]["content"] == "اكتب a.txt وشغّل الاختبارات"  # the original request, unchanged
+    # the original request, unchanged (plus the reply-language line, core/language.py)
+    assert sent[1]["content"].startswith("اكتب a.txt وشغّل الاختبارات\n\n[Reply in Arabic")
     note = sent[-1]
     assert note["role"] == "user"
     assert "filesystem_write" in note["content"] and "3 failed" in note["content"]

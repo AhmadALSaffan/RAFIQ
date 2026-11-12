@@ -1,13 +1,20 @@
+import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
-import litellm
+# litellm looks Ollama up on its own for some answers (model info); on Windows `localhost`
+# costs ~2 s per connection (llm/presets.py::prefer_ipv4), so point it at IPv4 unless set.
+os.environ.setdefault("OLLAMA_API_BASE", "http://127.0.0.1:11434")
+
+import litellm  # noqa: E402
 
 litellm.suppress_debug_info = True
 # Providers differ in which tuning knobs they accept (reasoning_effort especially).
 # Dropping the unsupported ones beats failing the whole request.
 litellm.drop_params = True
+
+KEEP_ALIVE = "30m"  # see core/local.py
 
 
 @dataclass
@@ -65,7 +72,7 @@ class LlmProvider:
 
         self.model = litellm_model_string(provider, model_id)
         # How many tokens one request may carry, the reply included (see core/context.py).
-        self.context_window = window_for(provider, model_id, options)
+        self.context_window = window_for(provider, model_id, options, base_url)
         # Ollama reads a small window unless asked; Rafiq asks for the one it budgets for.
         self.local_window = self.context_window if provider == "ollama" else None
         self.extra_headers = extra_headers or None
@@ -95,6 +102,7 @@ class LlmProvider:
             out["reasoning_effort"] = self.reasoning_effort
         if self.local_window:
             out["num_ctx"] = self.local_window
+            out["keep_alive"] = KEEP_ALIVE
         return out
 
     @property
@@ -117,7 +125,8 @@ class LlmProvider:
         """One-shot, no tools, no streaming — used for summarising a chat."""
         from rafiq_agent.llm import usage
 
-        extra = {"num_ctx": self.local_window} if self.local_window else {}
+        await self._ensure_local()
+        extra = {"num_ctx": self.local_window, "keep_alive": KEEP_ALIVE} if self.local_window else {}
         response = await litellm.acompletion(
             model=self.model,
             messages=self._prepared(messages),
@@ -129,11 +138,38 @@ class LlmProvider:
         usage.record(self.model, getattr(response, "usage", None))
         return (response.choices[0].message.content or "").strip()
 
+    async def _ensure_local(self) -> None:
+        """A local Ollama model: start Ollama first when it isn't running (core/local_model.py)."""
+        if self.local_window:
+            from rafiq_agent.core.local_model import ensure_running
+
+            await ensure_running(self.base_url)
+
+    async def warm(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> None:
+        """Has the model read this request without answering it (one token, not counted as
+        spending): a local model keeps what it read, so the real request that starts the same
+        way only reads what's new (core/warm.py)."""
+        await self._ensure_local()
+        await litellm.acompletion(
+            model=self.model,
+            messages=self._prepared(messages),
+            tools=tools or None,
+            max_tokens=1,
+            extra_headers=self.extra_headers,
+            **self.connection,
+            **{k: v for k, v in self._tuning(messages, tools).items() if k != "max_tokens"},
+        )
+
     async def stream_chat(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
     ) -> AsyncIterator[StreamEvent]:
+        import time
+
         from rafiq_agent.llm import usage
 
+        await self._ensure_local()
+        started = time.monotonic()
+        first: float | None = None  # when the first word (or tool call) arrived
         response = await litellm.acompletion(
             model=self.model,
             messages=self._prepared(messages),
@@ -163,7 +199,8 @@ class LlmProvider:
             delta = choice.delta
 
             text = getattr(delta, "content", None)
-            reasoning = None if self.reasoning_effort == "none" else getattr(delta, "reasoning_content", None)
+            hidden = self.reasoning_effort == "none" or getattr(self, "hide_reasoning", False)
+            reasoning = None if hidden else getattr(delta, "reasoning_content", None)
 
             for tc in getattr(delta, "tool_calls", None) or []:
                 index = tc.index if tc.index is not None else len(pending_tool_calls)
@@ -178,10 +215,13 @@ class LlmProvider:
             if choice.finish_reason:
                 finish_reason = choice.finish_reason
 
+            if first is None and (text or reasoning or getattr(delta, "tool_calls", None)):
+                first = time.monotonic()
             if text or reasoning:
                 produced.append(text or reasoning or "")
                 yield StreamEvent(text_delta=text, reasoning_delta=reasoning)
 
+        ended = time.monotonic()
         usage.record(
             self.model,
             counted
@@ -190,6 +230,9 @@ class LlmProvider:
                 messages,
                 "".join(produced) + "".join(v["arguments"] for v in pending_tool_calls.values()),
             ),
+            # Writing time (for tokens per second) and the wait before the first word.
+            seconds=ended - (first or ended),
+            first_token=(first - started) if first else None,
         )
 
         truncated = finish_reason == "length"

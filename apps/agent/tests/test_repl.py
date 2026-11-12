@@ -379,3 +379,14 @@ def test_no_model_offers_to_add_one(monkeypatch):
     api._request = request
     shown = run(api, [""])
     assert "No model yet" in shown and "Added, and switched to: Qwen 3 8B" in shown
+
+
+def test_the_speed_shows_after_a_reply():
+    api = FakeApi([
+        [{"type": "delta", "text": "Hi"}, {"type": "usage", "tokens_per_second": 24.5, "first_token_seconds": 3.2}, {"type": "done"}],
+        [{"type": "notice", "part": {"kind": "notice", "text": "Fewer tools this time"}}, {"type": "delta", "text": "Again"}, {"type": "done"}],
+    ])
+    shown = run(api, ["hello", "again"])
+    assert "24.5 tok/s · first word after 3.2 s" in shown
+    assert "Fewer tools this time" in shown
+    assert shown.count("tok/s") == 1  # the second reply reported no usage: no stale speed

@@ -32,6 +32,8 @@ NOT_TRANSLATED: dict[str, set[str] | str] = {
     # `rafiq` in the terminal runs alone (rafiq.exe), without the agent's locales: it carries
     # its own small table of Arabic, English and Russian (TEXTS).
     "repl.py": {"TEXTS", "CHOICES", "COMMAND_HELP", "LANG_NAMES"},
+    # Letter ranges, not text: which script a message is written in.
+    "core/language.py": {"ARABIC"},
     "tui.py": {"show_banner"},
     # The Arabic letter ranges, not text.
     "rtl.py": {"ARABIC", "STRONG", "HARAKAT", "LAM_ALEF", "NO_LEFT_JOIN", "ligate"},

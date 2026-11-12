@@ -194,6 +194,8 @@ export type TaskEvent =
       created_at: string;
     }
   | { id: string; type: "issue_update"; text: string; ok: boolean; created_at: string }
+  /** Tools were left out so the task's model could read its instructions (core/fit.py). */
+  | { id: string; type: "tools_trimmed"; text: string; created_at: string }
   | { id: string; type: "status"; status: TaskStatus; note?: string; created_at: string }
   | { id: string; type: "plan"; text: string; created_at: string }
   | { id: string; type: "plan_approved"; text: string; created_at: string }
@@ -241,6 +243,9 @@ export interface TurnUsage {
   completion_tokens: number;
   cached_tokens: number;
   cost_usd: number;
+  /** How fast the model wrote this reply, and how long it took to start. */
+  tokens_per_second?: number | null;
+  first_token_seconds?: number | null;
 }
 
 /** A chat that matched a search inside chats (agent core/search.py). */
@@ -298,7 +303,9 @@ export type ChatPart =
   /** What each model on a council said, kept above its decision. */
   | { kind: "council"; chair: string; seats: CouncilSeat[] }
   /** The smart route sent this question to the cheap model. */
-  | { kind: "routed"; from_id: string; from_name: string; to_id: string; to_name: string };
+  | { kind: "routed"; from_id: string; from_name: string; to_id: string; to_name: string }
+  /** Something the agent did to this reply worth knowing (tools left out to fit the window). */
+  | { kind: "notice"; text: string };
 
 export interface CouncilSeat {
   id: string;
