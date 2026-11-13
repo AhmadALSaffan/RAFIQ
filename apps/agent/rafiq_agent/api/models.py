@@ -345,3 +345,7 @@ async def delete_model(model_id: str, session: AsyncSession = Depends(get_sessio
         other.fallback_model_id = None
     await session.delete(model)
     await session.commit()
+    # Its knowledge base goes with it: the grants, and folders no other agent has.
+    from rafiq_agent.core import agent_knowledge
+
+    await asyncio.to_thread(agent_knowledge.forget_agent, model_id)

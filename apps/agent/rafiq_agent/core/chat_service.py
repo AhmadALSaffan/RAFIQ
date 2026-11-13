@@ -348,6 +348,15 @@ KNOWLEDGE_NOTE = (
     "knowledge_search before answering, answer only from the passages it returns, and cite each fact by its number, "
     "like [1]. If the passages don't contain the answer, say so instead of answering from memory."
 )
+KB_REDO = (
+    "(from Rafiq) You answered from the agent's knowledge base without citing it. Write the answer again and put "
+    "the ID of the passage each fact came from after it, like [kb-0123456789]. If the passages don't answer the "
+    "question, say the knowledge base doesn't have enough evidence instead."
+)
+KB_UNKNOWN = (
+    "(from Rafiq) These citation IDs weren't returned by knowledge_base_search in this reply: {0}. Write the answer "
+    "again citing only IDs the search returned, exactly as given."
+)
 KNOWLEDGE_REDO = (
     "(from Rafiq) You used passages from the user's documents but didn't say where the facts came from. Write the "
     "answer again and cite each fact by its passage number, like [1]."
@@ -432,6 +441,11 @@ class ChatTurn:
         # The model the user picked, when the smart route sent this message to the cheap one.
         self.routed: dict[str, Any] | None = None
         self.knowledge_found = False
+        # The agent's knowledge base (core/agent_knowledge.py): the agent is the one the user
+        # picked, even when the smart route answers with another model.
+        self.agent_id = model_id
+        self.kb_passages: dict[str, dict[str, Any]] = {}
+        self.kb_asked_to_cite = False
         self.chat_id = chat_id
         self.content = content.strip()
         self.model_id = model_id
@@ -486,6 +500,7 @@ class ChatTurn:
 
             self.reply = settings_of(chat)
             picked = model
+            self.agent_id = picked.id
             model = await self._route(session, chat, picked)
             # The model's whole output room, in every chat: a reply-length cap of 1,500 tokens
             # cut a reasoning model off mid-file (a multi-page design) and the turn came back
@@ -585,10 +600,37 @@ class ChatTurn:
         return cheap
 
     def _source_check(self, text: str) -> str | None:
-        """A reply built on the knowledge folder has to say where each fact came from."""
+        """A reply built on the knowledge folder has to say where each fact came from, and a
+        citation has to point at a passage this reply actually retrieved."""
         if self.knowledge_found and not re.search(r"\[\d+\]", text):
             return KNOWLEDGE_REDO
+        if self.kb_passages:
+            from rafiq_agent.core.agent_knowledge import CITATION
+
+            cited = set(CITATION.findall(text))
+            unknown = sorted(cited - set(self.kb_passages))
+            if unknown:
+                return KB_UNKNOWN.format(", ".join(unknown))
+            if not cited and not self.kb_asked_to_cite:
+                # Once: a reply that says the passages don't answer it may rightly cite nothing.
+                self.kb_asked_to_cite = True
+                return KB_REDO
         return None
+
+    async def _on_kb_found(self, found: Any) -> None:
+        """Keeps the passages this reply may cite, and says where their text went."""
+        for passage in found.passages:
+            self.kb_passages[passage.id] = passage.meta()
+        part = next((p for p in self.parts if p.get("kind") == "citations"), None)
+        if part is None:
+            part = {"kind": "citations", "agent_id": self.agent_id, "items": []}
+            self.parts.append(part)
+        part["items"] = list(self.kb_passages.values())
+        # The excerpts go to the chat model to write the answer; on a local one they stay here.
+        part["sent_to"] = None if getattr(self, "local", False) else getattr(self, "provider", None)
+        # The question itself went to the embedding provider to search by meaning.
+        part["embedded_with"] = found.embedder if found.embedder and not found.embedder_local else None
+        self._emit({"type": "citations", "part": part})
 
     async def _fold(self) -> None:
         """Fold the older turns into the chat's summary, if this turn owes one. A failed
@@ -762,6 +804,14 @@ class ChatTurn:
             notes.append(RAFIQ_WEB_TOOLS_NOTE)
         if "knowledge_search" in names:
             notes.append(KNOWLEDGE_NOTE)
+        from rafiq_agent.core import agent_knowledge
+
+        if agent_knowledge.has_sources(self.agent_id):
+            from rafiq_agent.tools.agent_knowledge import NOTE as KB_NOTE
+            from rafiq_agent.tools.agent_knowledge import KnowledgeBaseSearchTool
+
+            registry.register(KnowledgeBaseSearchTool(self.agent_id, self._on_kb_found))
+            notes.append(KB_NOTE)
         if self.settings.memory_enabled:
             registry.register(MemorySaveTool(self.chat_id))
             notes.append(MEMORY_NOTE)

@@ -507,6 +507,15 @@ async def run_task(task_id: str) -> None:
             source={"task_id": task_id},
         )
         register_task_tools(registry, task_id, model.id, origin_folder, depth)
+        # The agent's own knowledge base (core/agent_knowledge.py), as in its chats.
+        from rafiq_agent.core import agent_knowledge
+
+        if agent_knowledge.has_sources(model.id):
+            from rafiq_agent.tools.agent_knowledge import NOTE as KB_NOTE
+            from rafiq_agent.tools.agent_knowledge import KnowledgeBaseSearchTool
+
+            registry.register(KnowledgeBaseSearchTool(model.id))
+            messages[0]["content"] += f"\n\n{KB_NOTE}"
         if model.provider == "ollama":
             from rafiq_agent.core.local_model import ensure_running
 

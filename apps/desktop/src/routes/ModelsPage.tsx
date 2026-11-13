@@ -36,6 +36,7 @@ import { t } from "../i18n";
 import { isGuideKind, showGuide } from "../lib/guides";
 import { roving } from "../lib/keyboard";
 import { LocalModelCard } from "../features/models/LocalModelCard";
+import { AgentKnowledge } from "../features/models/AgentKnowledge";
 export function ModelsPage() {
   const [models, setModels] = useState<LlmModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,6 +274,7 @@ function ModelRow({
               </select>
             </label>
           )}
+          <AgentKnowledge agent={model} agents={[model, ...others]} />
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-1">

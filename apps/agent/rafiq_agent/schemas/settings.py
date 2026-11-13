@@ -147,6 +147,12 @@ class AppSettings(BaseModel):
     # Scanned PDFs in those folders are read by the vision model (core/ocr.py): it costs what
     # that model costs, so it's off until the user turns it on.
     knowledge_ocr: bool = False
+    # Embeddings for the agents' knowledge bases (core/embeddings.py): off = words only and no
+    # file text leaves the computer; "ollama" = a model on this computer; "agent" = one of the
+    # user's agents lends its provider, and the files' text is sent there while indexing.
+    rag_embedding: Literal["off", "ollama", "agent"] = "off"
+    rag_embedding_agent_id: str | None = None
+    rag_embedding_model: str | None = Field(default=None, max_length=120)
     # The smart route (llm/router.py): simple questions go to this cheaper model.
     smart_route: bool = False
     cheap_model_id: str | None = None

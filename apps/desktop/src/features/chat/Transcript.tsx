@@ -4,6 +4,7 @@
  * summary marker. No data fetching lives here — it all arrives as props.
  */
 
+import { CitationScope, KnowledgeSources, type CitationsPart } from "./citations";
 import { useNavigate } from "react-router-dom";
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { StudioCard } from "./StudioCard";
@@ -360,7 +361,9 @@ export function AssistantBlock({
   // and let the ordinary "thinking" state cover the wait.
   const visible = parts.filter((p) => !(p.kind === "tool" && (SILENT_TOOLS.has(p.tool) || (CARD_TOOLS.has(p.tool) && p.ok !== false))));
   const text = textOf(visible);
-  const items = groupTasks(visible);
+  // The knowledge-base passages this reply may cite; drawn under it, not in the flow.
+  const citations = visible.find((p): p is CitationsPart => p.kind === "citations");
+  const items = groupTasks(visible.filter((p) => p.kind !== "citations"));
   // The newest step keeps its output open while the reply is live; the ones before it fold.
   const lastTool = items.reduce((at, item, i) => (item.kind === "part" && item.part.kind === "tool" ? i : at), -1);
   const navigate = useNavigate();
@@ -399,6 +402,7 @@ export function AssistantBlock({
           <Logo className="h-7 w-7" />
         )}
       </motion.div>
+      <CitationScope part={citations} text={text}>
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         {reasoning && <ThoughtChain text={reasoning} live={live && !text} />}
         {items.map((item, index) => (
@@ -441,6 +445,7 @@ export function AssistantBlock({
           </motion.div>
         ))}
         {!live && <SourcesList parts={visible} text={text} />}
+        {citations && <KnowledgeSources part={citations} text={text} />}
         {/* Until the reply is done: what it's doing now, and for how long. */}
         {live && <WorkStatus parts={visible} />}
         {usage && <UsageLine usage={usage} />}
@@ -471,6 +476,7 @@ export function AssistantBlock({
           </div>
         )}
       </div>
+      </CitationScope>
     </motion.div>
   );
 }
@@ -490,7 +496,10 @@ function groupTasks(parts: ChatPart[]): Item[] {
       else items.push({ kind: "tasks", key: `tasks-${part.task_id}`, tasks: [part] });
       return;
     }
-    const key = part.kind === "text" || part.kind === "council" || part.kind === "routed" || part.kind === "notice" ? `${part.kind}-${i}` : `${part.kind}-${part.id}`;
+    const key =
+      part.kind === "text" || part.kind === "council" || part.kind === "routed" || part.kind === "notice" || part.kind === "citations"
+        ? `${part.kind}-${i}`
+        : `${part.kind}-${part.id}`;
     items.push({ kind: "part", key, part, last: i === parts.length - 1 });
   });
   return items;

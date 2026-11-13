@@ -24,6 +24,11 @@ export function applyEvent(draft: Draft, ev: ChatStreamEvent): Draft {
       return { ...draft, parts: [ev.part, ...parts] };
     case "notice":
       return { ...draft, parts: [...parts, ev.part] };
+    case "citations": {
+      // One list per reply, grown with every search.
+      const at = parts.findIndex((p) => p.kind === "citations");
+      return { ...draft, parts: at < 0 ? [...parts, ev.part] : parts.map((p, i) => (i === at ? ev.part : p)) };
+    }
     case "reasoning":
       return { ...draft, reasoning: draft.reasoning + ev.text };
     case "delta": {

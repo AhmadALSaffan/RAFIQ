@@ -13,6 +13,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-Agent%20Runtime-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=flat-square)](#-getting-started)
 [![RTL](https://img.shields.io/badge/UI-Arabic%20RTL-E68835?style=flat-square)](#overview)
+[![RAG](https://img.shields.io/badge/RAG-Per--Agent%20Knowledge%20Bases-blue)](#rag--agent-knowledge-bases)
 [![Status](https://img.shields.io/badge/Status-In%20Development-orange?style=flat-square)](#)
 
 <!--
@@ -31,7 +32,7 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 ---
 
-## What's new · v0.5.19
+## What's new · v0.5.20
 
 <!-- Every release: replace docs/whats-new/latest.webp with the release's picture (the same
      one the app's What's new dialog shows) and update the version, points and link below. -->
@@ -42,14 +43,14 @@ https://github.com/user-attachments/assets/3da54706-52ca-4fb2-87bd-c5f5a4b4518c
 
 </div>
 
-**Faster, and in your language.**
-- **Local models reply at once:** Rafiq reads the chat ahead while you type (Ollama keeps what it read), asks Ollama for a window that fits the model and your memory, talks to it over IPv4 (Windows' `localhost` cost ~2 s a request), gives local models a lean set of tools, and starts Ollama itself when it isn't running. On a Radeon RX 5700: the first word in 0.4 s instead of 26 s.
-- **Tools that fit the model:** when the tool descriptions don't fit a model's window (ten MCP servers can be 60,000 tokens), the heaviest groups are left out and the chat says so.
-- **Speed under every reply:** tokens per second, and how long the first word took — in the app and the terminal.
-- **Replies in your language:** the language of each message is decided from its letters (or the app's language) and told to the model with it.
-- **On the Mac:** GitHub Copilot sign-in, the Rafiq account and the phone app, and changeable screen shortcuts (⌘ ⌃ ⌥).
+**Your agent knows your files.**
+- **Per-agent knowledge bases:** attach local folders (Markdown and text) to an agent from its card on the Models page. It searches them, answers only from what it found, and cites every fact; another agent can't read them. See [RAG / Agent Knowledge Bases](#rag--agent-knowledge-bases).
+- **Citations that open the passage:** each citation is checked against what the search returned, then shown as a numbered link that opens the file at the cited lines (in VS Code at the line, when it's installed).
+- **Across languages:** an Arabic question finds an English passage, by words in both languages or by meaning (embeddings through Ollama on your computer or one of your agents; off by default).
+- **You see where text goes:** the Knowledge section and every answer say whether text stayed on your computer or went to a provider.
+- **Also in this update (from 0.5.19, the Mac-only release):** local models reply at once, speed under every reply, replies always in your message's language, and on the Mac: GitHub Copilot, the Rafiq account and phone, and changeable shortcuts.
 
-Full notes: [v0.5.19](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.19) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
+Full notes: [v0.5.20](https://github.com/AhmadALSaffan/RAFIQ/releases/tag/v0.5.20) · every release: [Releases](https://github.com/AhmadALSaffan/RAFIQ/releases)
 
 ---
 
@@ -157,6 +158,7 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 - ▶️ **Resume a failed task** — A task that failed, was cancelled, or was cut off when the app closed can carry on from where it stopped: the agent is handed what it already did, so finished steps aren't repeated, and on a git folder the review covers both runs together. “Run it again” is still there to start over from the top
 - 🗺️ **Plan first, or step by step** — A task can write its plan and wait for your approval (edit it first if you like) before touching anything, or ask before every single write and command
 - 👀 **See the diff before you allow it** — When a task or chat wants to write a file, the permission card shows exactly what will change, not just the file name
+- 📚 **Per-agent knowledge bases** — Attach local folders to an agent and it answers from them with clickable citations to the exact lines; other agents can't read them. See [RAG / Agent Knowledge Bases](#rag--agent-knowledge-bases)
 - 🧠 **Memory across chats** — “Remember that I…” and Rafiq keeps it (behind its own permission, so you see what's saved); every later chat and task knows it, and Settings lets you edit or delete anything
 - 🗂️ **Workspaces** — A project's folder, default model and standing instructions in one place; switch workspace and chats, tasks and designs filter to it
 - 📤 **Share a chat** — Export any chat as a single self-contained HTML page (light and dark, tool cards included) or as Markdown
@@ -202,6 +204,98 @@ The whole interface is Arabic and right-to-left from the ground up, everything r
 
 ---
 
+## RAG / Agent Knowledge Bases
+
+Each agent (a model you added on the **Models** page) can have its own knowledge base: local folders it answers from, citing the passage behind every fact. A folder attached to one agent is invisible to every other agent until you attach it there too.
+
+### How it works
+
+1. **Indexing.** Rafiq walks the folder, reads every Markdown and text file, and cuts it into passages: at Markdown headings first (the heading path, like `Billing handbook › Refund policy`, is kept), then into pieces of about 1,200 characters at blank lines. Each passage keeps its source, its path relative to the folder, its heading and its line range. The words go into a local full-text index (SQLite FTS5, with Arabic folded the way chat search folds it). With search by meaning turned on, each passage also gets an embedding vector.
+2. **Retrieval.** The agent gets a `knowledge_base_search` tool. It passes the question as asked plus key words in Arabic *and* English. Rafiq first reads which folders this agent may use, at that moment, and filters by them inside the query, so another folder's passages are never ranked, let alone returned. Matches by words and (when on) by meaning are fused, and the best six come back, each with a citation ID like `[kb-2b89a9c35a]`, its file, heading and lines.
+3. **Answering.** The agent answers only from those passages and puts the ID after each fact. Before the reply is accepted, Rafiq checks that every ID it cites was returned by a search in this reply; an unknown ID sends the answer back to be rewritten. When the passages don't answer the question, the agent says the knowledge base doesn't have enough evidence instead of answering from memory.
+4. **Citations.** In the chat, each valid ID becomes a numbered link, and the sources are listed under the reply. An ID that wasn't returned in this reply is marked *unverified source* and never becomes a link. Opening a citation asks the agent's access again, shows the file with the cited lines highlighted, and **Open file** opens it in VS Code at the first line (when VS Code is installed) or in the program your system uses for that file.
+
+A citation ID is a hash of the folder, the file and the passage's text: the same passage keeps its ID across refreshes, and a changed one gets a new ID.
+
+### Quick start
+
+1. **Attach a folder.** Models → your agent's card → **Knowledge** → **Add folder** (or paste a path). Say the folder holds `policies/billing.md`, in English:
+
+   ```md
+   # Billing handbook
+
+   Rafiq from your phone is billed monthly through PayPal.
+
+   ## Refund policy
+
+   Subscriptions can be refunded within 14 days of the first payment.
+   After 14 days no refund is given, but you can cancel at any time.
+   ```
+
+2. **Let it index.** The folder shows *Indexing…*, then how many files and passages it read. Nothing else to do.
+3. **Ask in a chat with that agent**, in Arabic:
+
+   > كم يوم عندي لاسترداد الاشتراك؟
+
+   The agent searches with Arabic and English words (`استرداد`, `refund`, `subscription`…), finds the English passage, and answers in Arabic:
+
+   > حسب سياسة الاسترداد، فيك تسترجع الاشتراك خلال 14 يوم من أول دفعة ⁽¹⁾
+
+4. **Open the citation.** Click the ① in the answer, or `policies/billing.md › Billing handbook › Refund policy · lines 5–8` under it. The file opens in a panel with lines 5–8 marked; **Open file** opens it at line 5.
+
+### Supported files
+
+`.md`, `.markdown` and `.txt`, UTF-8 (or UTF-16 with a byte-order mark), up to 5 MB each and 10,000 files per folder. Hidden folders and the usual build and dependency folders (`node_modules`, `.git`, `dist`, `build`, `.venv`…) are skipped. PDF and Office files aren't read by knowledge bases yet; the app-wide knowledge folder in Settings → Memory reads them for every chat, by page.
+
+### Where the index lives
+
+One SQLite file on this computer, next to the app's database: `%APPDATA%\Rafiq\agent_knowledge.db` on Windows, `~/.rafiq/agent_knowledge.db` on a Mac (or under `RAFIQ_DATA_DIR`). It holds the folders, which agent may read each one, the files' sizes and dates, the passages with their lines, and the vectors. The path is shown in the Knowledge section.
+
+### Refresh and deletion
+
+- A folder is indexed when it's attached, and again when you press **Refresh index** on it. Indexing cut off by closing the app starts again the next time the agent's Knowledge section is opened.
+- On refresh, a file whose size or date changed is read again; if its text really changed, its old passages are replaced. Files deleted from the folder lose their passages.
+- **Removing** a folder from an agent takes effect on that agent's next search, and citations in its old replies stop opening. One folder attached to several agents is indexed once; when the last agent lets go of it, its index is deleted.
+- Deleting an agent removes its folders the same way.
+- Changing the embedding model re-embeds every folder.
+
+### Access rules
+
+- An agent searches only the folders attached to it. The check happens on every search, inside the query, before ranking.
+- An agent with no folders isn't given the search tool at all.
+- Citations are opened through the agent that made them, and only while it still has the folder.
+- The search is read-only: it never writes to your files, so it doesn't ask for permission.
+- Tasks run by an agent get its knowledge base too.
+
+### What leaves your computer
+
+| When | What is sent | To whom |
+|---|---|---|
+| Indexing, search by meaning **off** (the default) | Nothing | — |
+| Indexing, search by meaning through **Ollama** | Nothing (it runs on this computer) | — |
+| Indexing, search by meaning through **one of your agents** (OpenAI, Gemini, Mistral, Cohere…) | The text of every passage | That agent's provider, for embeddings |
+| Searching, with that same setting | The question | That provider, for its embedding |
+| Answering | The passages found, with your question | The provider of the agent you're chatting with (nothing leaves when that agent is local, like Ollama or LM Studio) |
+
+The Knowledge section says which of these applies before you add anything, and every answer that used a knowledge base says under it where the passages went.
+
+**Search by meaning** is one setting for all agents (Knowledge section → *Search by meaning*): off (words only), Ollama on this computer (`bge-m3` by default, multilingual), or one of your agents' providers with its embedding model (`text-embedding-3-small` for OpenAI, `text-embedding-004` for Gemini, `mistral-embed`, `embed-multilingual-v3.0` for Cohere; you can type another). With it off, an Arabic question still finds English passages: the agent searches with words in both languages. If embedding fails, the folder stays searchable by words and the Knowledge section says why.
+
+### Code
+
+| Piece | File |
+|---|---|
+| Index, passages, grants, retrieval, citations | `apps/agent/rafiq_agent/core/agent_knowledge.py` |
+| Embedding adapter (off / Ollama / an agent's provider) | `apps/agent/rafiq_agent/core/embeddings.py` |
+| The `knowledge_base_search` tool | `apps/agent/rafiq_agent/tools/agent_knowledge.py` |
+| API (`/settings/knowledge-bases/…`) | `apps/agent/rafiq_agent/api/agent_knowledge.py` |
+| Citation check before a reply is accepted | `apps/agent/rafiq_agent/core/chat_service.py` (`_source_check`) |
+| Knowledge section on the agent's card | `apps/desktop/src/features/models/AgentKnowledge.tsx` |
+| Citation links, sources list and viewer | `apps/desktop/src/features/chat/citations.tsx` |
+| Tests | `apps/agent/tests/test_agent_knowledge.py`, `apps/desktop/src/features/chat/citations.test.ts` |
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -243,7 +337,7 @@ Run `Rafiq_<version>_x64-setup.exe`. It installs for the current user (no admini
 > ⚠️ The installer is not code-signed yet, so Windows SmartScreen may show a warning. Choose **More info → Run anyway**. You can check the download against `SHA256SUMS.txt` from the same release:
 >
 > ```powershell
-> Get-FileHash .\Rafiq_0.5.19_x64-setup.exe -Algorithm SHA256
+> Get-FileHash .\Rafiq_0.5.20_x64-setup.exe -Algorithm SHA256
 > ```
 
 **Only the terminal** (`rafiq`, no app): one line installs it for the current user, checks the
@@ -321,6 +415,7 @@ RAFIQ_GITHUB_CLIENT_ID= # GitHub OAuth App (device flow) used for Copilot sign-i
 | Chats, tasks, designs, settings | `%APPDATA%\Rafiq\rafiq.db` |
 | Attachments | `%APPDATA%\Rafiq\attachments` |
 | Your own skills | `%APPDATA%\Rafiq\skills` |
+| Agents' knowledge bases (passages, lines, vectors) | `%APPDATA%\Rafiq\agent_knowledge.db` |
 | Files from tasks and designs with no folder | `Documents\Rafiq\tasks\…` and `Documents\Rafiq\designs\…` |
 | API keys, account tokens, tracker tokens | Windows Credential Manager |
 | Agent log (installed app) | `%APPDATA%\Rafiq\agent.log` |

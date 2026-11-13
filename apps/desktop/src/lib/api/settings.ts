@@ -1,7 +1,7 @@
 /** App-wide settings (permission policy, tasks, tools, background). */
 
 import { request } from "./client";
-import type { AppSettings, WebSearchKeys } from "../types";
+import type { AppSettings, CitationDetail, KnowledgeBase, WebSearchKeys } from "../types";
 
 export async function getSettings(): Promise<AppSettings> {
   return request<AppSettings>("/settings");
@@ -77,4 +77,34 @@ export interface AcpCommand {
 
 export async function getAcpCommand(): Promise<AcpCommand> {
   return request<AcpCommand>("/settings/acp");
+}
+
+// ── An agent's knowledge base (agent api/agent_knowledge.py) ────────────────────────────
+
+const kb = (agentId: string) => `/settings/knowledge-bases/agents/${encodeURIComponent(agentId)}`;
+
+export async function getKnowledgeBase(agentId: string): Promise<KnowledgeBase> {
+  return request<KnowledgeBase>(kb(agentId));
+}
+
+export async function attachKnowledgeFolder(agentId: string, path: string): Promise<KnowledgeBase> {
+  return request<KnowledgeBase>(`${kb(agentId)}/sources`, { method: "POST", body: JSON.stringify({ path }) });
+}
+
+export async function detachKnowledgeFolder(agentId: string, sourceId: string): Promise<KnowledgeBase> {
+  return request<KnowledgeBase>(`${kb(agentId)}/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" });
+}
+
+export async function refreshKnowledgeFolder(agentId: string, sourceId: string): Promise<KnowledgeBase> {
+  return request<KnowledgeBase>(`${kb(agentId)}/sources/${encodeURIComponent(sourceId)}/refresh`, { method: "POST" });
+}
+
+/** The cited passage, if this agent may still read it (404 otherwise). */
+export async function getCitation(agentId: string, citationId: string): Promise<CitationDetail> {
+  return request<CitationDetail>(`${kb(agentId)}/citations/${encodeURIComponent(citationId)}`);
+}
+
+/** Opens the cited file: in VS Code at the line when it's installed, else the default app. */
+export async function openCitation(agentId: string, citationId: string): Promise<{ opened: "editor" | "default"; line: number | null }> {
+  return request(`${kb(agentId)}/citations/${encodeURIComponent(citationId)}/open`, { method: "POST" });
 }

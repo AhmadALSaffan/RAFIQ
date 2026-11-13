@@ -3,6 +3,7 @@ import { CodeBlock } from "./arc/code-block/code-block";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isolateMentions } from "../lib/bidi";
+import { CitationChip, linkCitations } from "../features/chat/citations";
 
 // Past this many lines a block opens folded to a fixed height: a design's whole HTML or a
 // motion scene streams in as one block, and a chat that grows with every line drags the
@@ -11,7 +12,8 @@ const FOLD_LINES = 16;
 
 export const Markdown = memo(function Markdown({ text, live = false }: { text: string; live?: boolean }) {
   // @ملف / #مهمة inside Arabic prose would otherwise flip the sentence around them.
-  const source = isolateMentions(text);
+  // [kb-…] citations from an agent's knowledge base become numbered links (features/chat/citations.tsx).
+  const source = linkCitations(isolateMentions(text));
   return (
     <div className="md" dir="auto">
       <ReactMarkdown
@@ -30,11 +32,14 @@ export const Markdown = memo(function Markdown({ text, live = false }: { text: s
               </code>
             );
           },
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noreferrer noopener">
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) =>
+            href?.startsWith("#cite-kb-") ? (
+              <CitationChip id={href.slice(6)} />
+            ) : (
+              <a href={href} target="_blank" rel="noreferrer noopener">
+                {children}
+              </a>
+            ),
           table: ({ children }) => (
             <div className="md-table">
               <table>{children}</table>

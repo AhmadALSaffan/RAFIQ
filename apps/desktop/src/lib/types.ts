@@ -305,7 +305,53 @@ export type ChatPart =
   /** The smart route sent this question to the cheap model. */
   | { kind: "routed"; from_id: string; from_name: string; to_id: string; to_name: string }
   /** Something the agent did to this reply worth knowing (tools left out to fit the window). */
-  | { kind: "notice"; text: string };
+  | { kind: "notice"; text: string }
+  /** Passages the agent's knowledge base returned in this reply: the only IDs it may cite. */
+  | { kind: "citations"; agent_id: string; items: CitationItem[]; sent_to: string | null; embedded_with: string | null };
+
+/** One passage of an agent's knowledge base (agent core/agent_knowledge.py). */
+export interface CitationItem {
+  id: string;
+  source_id: string;
+  source_name: string;
+  rel_path: string;
+  heading: string | null;
+  line_start: number;
+  line_end: number;
+}
+
+/** A cited passage as the agent can still read it, with lines around it. */
+export interface CitationDetail extends CitationItem {
+  path: string;
+  text: string;
+  exists: boolean;
+  context_start: number;
+  context: string[];
+}
+
+export interface KnowledgeSource {
+  id: string;
+  path: string;
+  name: string;
+  status: "queued" | "indexing" | "ready" | "error";
+  error: string | null;
+  indexed_at: number | null;
+  files: number;
+  chunks: number;
+  embedded: number;
+  embed_key: string | null;
+}
+
+/** An agent's Knowledge section: its folders, and where their text may go. */
+export interface KnowledgeBase {
+  agent_id: string;
+  sources: KnowledgeSource[];
+  formats: string[];
+  index_path: string;
+  embedding: { mode: "off" | "ollama" | "agent"; provider: string | null; model: string | null; local: boolean; agent_name: string | null };
+  chat_provider: string;
+  chat_local: boolean;
+}
 
 export interface CouncilSeat {
   id: string;
@@ -637,6 +683,10 @@ export interface AppSettings {
   sandbox_auto_approve?: boolean;
   /** Scanned PDFs in the knowledge folders are read by the vision model. */
   knowledge_ocr?: boolean;
+  /** Embeddings for agents' knowledge bases: off (words only), Ollama here, or an agent's provider. */
+  rag_embedding?: "off" | "ollama" | "agent";
+  rag_embedding_agent_id?: string | null;
+  rag_embedding_model?: string | null;
   /** A reviewer model clears steps that plainly serve the request; the rest still ask. */
   smart_approvals?: boolean;
   /** The reviewer (null = the helper model, else the cheap one, else the chat's own). */

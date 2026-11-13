@@ -51,6 +51,12 @@ async def update_settings(body: AppSettings, session: AsyncSession = Depends(get
         file_index.rescan_soon()
     if before.knowledge_dirs != body.knowledge_dirs or (body.knowledge_ocr and not before.knowledge_ocr):
         knowledge.rescan_soon()
+    # A different embedding model: every knowledge base needs vectors from the new one.
+    embedding = (body.rag_embedding, body.rag_embedding_agent_id, body.rag_embedding_model)
+    if embedding != (before.rag_embedding, before.rag_embedding_agent_id, before.rag_embedding_model):
+        from rafiq_agent.core import agent_knowledge
+
+        agent_knowledge.refresh_all()
     return body
 
 
@@ -136,3 +142,9 @@ async def save_web_search_key(body: WebSearchKeyIn) -> WebSearchKeys:
         with contextlib.suppress(Exception):
             delete_named_secret(name)
     return await web_search_keys()
+
+
+# Each agent's knowledge base (api/agent_knowledge.py), under /settings/knowledge-bases.
+from rafiq_agent.api.agent_knowledge import router as _knowledge_bases  # noqa: E402
+
+router.include_router(_knowledge_bases)

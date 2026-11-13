@@ -127,6 +127,7 @@ export type ChatStreamEvent =
   | { type: "retract"; text: string }
   | { type: "routed"; part: Extract<ChatPart, { kind: "routed" }> }
   | { type: "notice"; part: Extract<ChatPart, { kind: "notice" }> }
+  | { type: "citations"; part: Extract<ChatPart, { kind: "citations" }> }
   | { type: "tool_call"; id: string; tool: string; args: Record<string, unknown> }
   | { type: "tool_result"; id: string; ok: boolean; output: string }
   | { type: "permission"; id: string; call: ToolCall }
