@@ -1,0 +1,44 @@
+# GitHub Copilot sign-in on a real Mac, run by hand after a macOS build.
+#
+# Takes the frozen agent from a macOS build run, starts it, and signs in to Copilot the way
+# the app does: the job's summary (and log) shows a code to enter at github.com/login/device
+# within 15 minutes. Then it lists the models, saves one as an agent, asks it a question in a
+# chat, and signs out again, which revokes the token. See .github/scripts/copilot_signin.py.
+
+name: macOS Copilot sign-in
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "The macOS build run to test"
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  signin:
+    name: Copilot sign-in · Apple Silicon
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/scripts
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: rafiq-macos
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          path: build
+
+      - name: Agent
+        run: |
+          mkdir agent
+          tar -xzf build/Rafiq-CLI-macos-arm64.tar.gz -C agent
+
+      - name: Sign in, ask, sign out
+        run: python3 .github/scripts/copilot_signin.py agent/rafiq-agent

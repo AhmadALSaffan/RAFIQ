@@ -70,11 +70,30 @@ jobs:
           export RAFIQ_TOKEN=smoke RAFIQ_DATA_DIR="$RUNNER_TEMP/agent-smoke" RAFIQ_KEYRING_SERVICE=rafiq-smoke
           ./dist/rafiq-agent/rafiq-agent --port 8765 &
           for i in $(seq 1 90); do
-            if curl -fsS http://127.0.0.1:8765/health; then echo; kill %1; exit 0; fi
+            if curl -fsS http://127.0.0.1:8765/health; then
+              echo
+              # The agent has to offer Copilot sign-in (its SDK is in the frozen app).
+              curl -fsS -H "Authorization: Bearer smoke" http://127.0.0.1:8765/accounts/providers \
+                | python3 -c "import json,sys; p=next(x for x in json.load(sys.stdin) if x['id']=='github_copilot'); print(p); sys.exit(0 if p['available'] else 1)"
+              ok=$?
+              kill %1
+              exit $ok
+            fi
             sleep 1
           done
           cat "$RAFIQ_DATA_DIR/agent.log" || true
           exit 1
+
+      # Copilot in the frozen app: the bundled SDK has to download its runtime, start it and get
+      # an answer. The token is the workflow's own, so it isn't signed in to Copilot; that part
+      # is only reported.
+      - name: Agent · Copilot
+        working-directory: apps/agent
+        env:
+          RAFIQ_COPILOT_CHECK_TOKEN: ${{ github.token }}
+        run: |
+          export RAFIQ_TOKEN=smoke RAFIQ_DATA_DIR="$RUNNER_TEMP/agent-copilot" RAFIQ_KEYRING_SERVICE=rafiq-smoke
+          ./dist/rafiq-agent/rafiq-agent copilot-check
 
       - uses: pnpm/action-setup@v4
 
@@ -122,6 +141,10 @@ jobs:
           cp apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg out/Rafiq-macos-arm64.dmg
           shasum -a 256 out/Rafiq-macos-arm64.dmg
           cp "$RUNNER_TEMP/rafiq-mac.png" out/
+          # The app for the updater: a .tar.gz with the .app at its root (the updater skips the
+          # first path part). It's signed with the updater key afterwards, off this runner.
+          (cd apps/desktop/src-tauri/target/release/bundle/macos && tar -czf "$GITHUB_WORKSPACE/out/Rafiq-macos-arm64.app.tar.gz" *.app)
+          tar -tzf out/Rafiq-macos-arm64.app.tar.gz | head -3
           # The terminal on its own (rafiq, install/install.sh): the frozen agent folder.
           tar -czf out/Rafiq-CLI-macos-arm64.tar.gz -C apps/agent/dist/rafiq-agent .
           shasum -a 256 out/Rafiq-CLI-macos-arm64.tar.gz | cut -d' ' -f1 > out/Rafiq-CLI-macos-arm64.tar.gz.sha256

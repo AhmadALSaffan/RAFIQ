@@ -50,6 +50,16 @@ def main() -> None:
 
         cli_main(sys.argv[2:])
         return
+    if len(sys.argv) > 1 and sys.argv[1] == "copilot-check":
+        # The Mac build's proof that Copilot works in the frozen app (see copilot.self_check).
+        import asyncio
+        import json
+
+        from rafiq_agent.llm.copilot import self_check
+
+        report = asyncio.run(self_check(os.environ.get("RAFIQ_COPILOT_CHECK_TOKEN", "")))
+        print(json.dumps(report), flush=True)
+        sys.exit(0 if report["runtime"] else 1)
 
     parser = argparse.ArgumentParser(prog="rafiq-agent")
     parser.add_argument("--port", type=int, default=8765)

@@ -202,6 +202,27 @@ async def check_token(token: str) -> None:
             await client.stop()
 
 
+async def self_check(token: str) -> dict[str, Any]:
+    """Everything a build needs for Copilot, short of a Copilot account: the SDK imports, its
+    runtime downloads and starts, and answers. `rafiq-agent copilot-check` runs it, so the Mac
+    build proves Copilot works in the frozen app. Any GitHub token will do; whether it's
+    signed in to Copilot is only reported."""
+    report: dict[str, Any] = {"sdk": sdk_available(), "runtime": False}
+    if not report["sdk"]:
+        return report
+    client = await _new_client(token, _home("_selfcheck"))
+    report["runtime"] = True
+    try:
+        status = await client.get_auth_status()
+        report["authenticated"] = bool(getattr(status, "isAuthenticated", False))
+    except Exception as exc:  # noqa: BLE001 - the runtime answered; the token's state is only reported
+        report["auth_error"] = redact(str(exc))[:200]
+    finally:
+        with contextlib.suppress(Exception):
+            await client.stop()
+    return report
+
+
 async def list_models(account_id: str, token: str) -> list[tuple[str, str]]:
     client = await healthy_client(account_id, token)
     try:
