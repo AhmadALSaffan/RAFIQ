@@ -594,3 +594,62 @@ async def test_two_polls_at_once_spend_the_code_once(client, monkeypatch):
     )
     assert first.json()["status"] == second.json()["status"] == "pending"
     assert len(calls) == 1
+
+
+async def test_a_slow_check_answers_at_once_and_keeps_its_outcome(client, monkeypatch):
+    """A Mac's web view drops a request after a minute, and Copilot's first check downloads
+    its runtime: a poll answers «verifying» instead of hanging, and the outcome waits for the
+    next poll instead of turning into «expired»."""
+    from rafiq_agent.api import accounts as api
+    from rafiq_agent.schemas.accounts import ConnectPollOut
+
+    release = asyncio.Event()
+    calls: list[str] = []
+
+    async def slow(flow_id: str, now: bool) -> ConnectPollOut:
+        calls.append(flow_id)
+        await release.wait()
+        return ConnectPollOut(status="error", message="nope")
+
+    monkeypatch.setattr(api, "POLL_WAIT", 0.05)
+    monkeypatch.setattr(api, "_poll_once", slow)
+    first = await client.post("/accounts/connect/flow-slow/poll", headers=AUTH)
+    assert first.json()["status"] == "pending" and first.json()["kind"] == "verifying"
+    again = await client.post("/accounts/connect/flow-slow/poll?now=true", headers=AUTH)
+    assert again.json()["kind"] == "verifying"
+    release.set()
+    await asyncio.sleep(0.05)  # the check ends while no request is waiting for it
+    late = await client.post("/accounts/connect/flow-slow/poll", headers=AUTH)
+    assert late.json() == {"status": "error", "message": "nope", "kind": None, "account": None}
+    assert calls == ["flow-slow"]  # one check, however many polls
+    api._finished.pop("flow-slow", None)
+
+
+async def test_a_client_waits_for_the_runtime_download_already_running(monkeypatch):
+    import sys
+    import types
+
+    from rafiq_agent.llm import copilot
+
+    order: list[str] = []
+    gate = asyncio.Event()
+
+    async def downloading() -> None:
+        await gate.wait()
+        order.append("downloaded")
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            order.append("client")
+
+        async def start(self):
+            pass
+
+    monkeypatch.setitem(sys.modules, "copilot", types.SimpleNamespace(CopilotClient=FakeClient))
+    monkeypatch.setattr(copilot, "_runtime_download", asyncio.create_task(downloading()))
+    making = asyncio.create_task(copilot._new_client("t", "home"))
+    await asyncio.sleep(0.02)
+    assert order == []  # waiting, not downloading a second copy
+    gate.set()
+    await making
+    assert order == ["downloaded", "client"]

@@ -19,3 +19,11 @@ os.environ.setdefault("RAFIQ_TOKEN", "test-token")
 @pytest.fixture()
 def data_dir() -> Path:
     return Path(_TMP)
+
+
+@pytest.fixture(autouse=True)
+def _no_copilot_download(monkeypatch):
+    """A Copilot sign-in starts downloading Copilot's runtime (~150 MB); tests never do."""
+    from rafiq_agent.llm import copilot
+
+    monkeypatch.setattr(copilot, "prefetch_runtime", lambda: None)

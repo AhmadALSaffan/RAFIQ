@@ -51,6 +51,9 @@ export function ConnectAccount({
   const [attempt, setAttempt] = useState(0);
   const [checking, setChecking] = useState(false);
   const [notYet, setNotYet] = useState(false);
+  // The provider approved and Rafiq is checking the account (Copilot's first check downloads
+  // its runtime, which can take a minute or more).
+  const [confirming, setConfirming] = useState(false);
   const done = useRef(onConnected);
   done.current = onConnected;
   // the result handler of the running flow, shared by the timer and the «check now» button
@@ -60,10 +63,17 @@ export function ConnectAccount({
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     setPhase({ kind: "starting" });
+    setConfirming(false);
+    setNotYet(false);
 
     /** True when the flow is over (signed in, or failed). */
     settle.current = (result: ConnectPoll) => {
       if (!alive) return true;
+      if (result.status === "pending" && result.kind === "verifying") {
+        setConfirming(true);
+        setNotYet(false);
+        return false;
+      }
       if (result.status === "complete" && result.account) {
         if (timer) clearTimeout(timer);
         showGuide({ kind: result.kind });
@@ -133,9 +143,9 @@ export function ConnectAccount({
     setNotYet(false);
     try {
       const result = await pollConnect(flow.flow_id, true);
-      if (!settle.current(result)) setNotYet(true);
+      if (!settle.current(result) && result.kind !== "verifying") setNotYet(true);
     } catch {
-      setNotYet(true);
+      // A dropped request says nothing about GitHub: the automatic check carries on.
     } finally {
       setChecking(false);
     }
@@ -203,16 +213,16 @@ export function ConnectAccount({
                     : t("افتح {0}", { 0: providerName })}
               </Button>
               {phase.kind === "verifying" && (
-                <Button variant="accent" onClick={() => void checkNow(phase.flow)} disabled={checking}>
-                  {checking ? <SpinnerIcon className="h-4 w-4" /> : <DrawnCheck className="h-4 w-4" />}
-                  {checking ? t("عم شيك…") : t("سجّلت — شيك هلأ")}
+                <Button variant="accent" onClick={() => void checkNow(phase.flow)} disabled={checking || confirming}>
+                  {checking || confirming ? <SpinnerIcon className="h-4 w-4" /> : <DrawnCheck className="h-4 w-4" />}
+                  {checking || confirming ? t("عم شيك…") : t("سجّلت — شيك هلأ")}
                 </Button>
               )}
               <Button variant="ghost" onClick={onCancel}>
                 {t("إلغاء")}
               </Button>
             </div>
-            {notYet && !checking && (
+            {notYet && !checking && !confirming && (
               <p className="text-xs" style={{ color: "var(--color-pending)" }}>
                 {t("{0} لسا ما وصله موافقتك. تأكد إنك حطيت الرمز وضغطت «Authorize»، وشوف صفحة GitHub بالمتصفح: إذا سجّلت دخول كذا مرة بآخر ساعة، بيطلب تأكيد تاني. وبعدين شيك كمان مرة.", { 0: providerName })}
               </p>

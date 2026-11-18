@@ -91,6 +91,9 @@ class GitHubCopilotAdapter:
         if "error" in body or resp.status_code >= 400:
             raise AuthError(tr(_ERRORS.get(body.get("error", ""), "GitHub رفض طلب تسجيل الدخول.")))
 
+        # The first Copilot sign-in on a computer downloads Copilot's runtime; start now, while
+        # the user types the code, so checking the account after approval doesn't wait for it.
+        copilot.prefetch_runtime()
         flow_id = uuid.uuid4().hex
         interval = int(body.get("interval", 5))
         expires_in = int(body.get("expires_in", 900))

@@ -66,8 +66,37 @@ def _home(account_id: str) -> str:
     return str(path)
 
 
+# The runtime's first download (~150 MB), started when a sign-in shows its code so it's ready
+# by the time the user approves. Clients wait for it instead of downloading a second copy.
+_runtime_download: asyncio.Task[None] | None = None
+
+
+async def _download_runtime() -> None:
+    try:
+        from copilot._cli_download import download_cli, get_cached_cli_path
+    except ImportError:  # an SDK without it downloads in the client instead
+        return
+    if get_cached_cli_path() is None:
+        await asyncio.to_thread(download_cli)
+
+
+def prefetch_runtime() -> None:
+    """Start downloading the runtime, unless it's there or already coming."""
+    global _runtime_download
+    if not sdk_available():
+        return
+    running = _runtime_download
+    if running is not None and (not running.done() or (not running.cancelled() and running.exception() is None)):
+        return
+    _runtime_download = asyncio.create_task(_download_runtime())
+
+
 async def _new_client(token: str, home: str) -> Any:
     from copilot import CopilotClient
+
+    if _runtime_download is not None and not _runtime_download.done():
+        with contextlib.suppress(Exception):
+            await asyncio.shield(_runtime_download)
 
     # The constructor may download the pinned runtime on first use (blocking I/O).
     client = await asyncio.to_thread(

@@ -6,6 +6,7 @@ reference and a display label, and no response here ever includes a credential.
 
 import asyncio
 import inspect
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -97,12 +98,42 @@ _polling: dict[str, asyncio.Task[ConnectPollOut]] = {}
 @router.post("/connect/{flow_id}/poll", response_model=ConnectPollOut)
 async def poll_connect(flow_id: str, now: bool = False) -> ConnectPollOut:
     """`now=true`: the user pressed «I've signed in — check» — ask the provider right away."""
+    kept = _finished.get(flow_id)
+    if kept is not None:
+        return kept[1]
     running = _polling.get(flow_id)
     if running is None or running.done():
         running = asyncio.create_task(_poll_once(flow_id, now))
         _polling[flow_id] = running
-        running.add_done_callback(lambda _t, fid=flow_id: _polling.pop(fid, None) if _polling.get(fid) is _t else None)
-    return await asyncio.shield(running)
+        running.add_done_callback(lambda task, fid=flow_id: _settled(fid, task))
+    try:
+        return await asyncio.wait_for(asyncio.shield(running), POLL_WAIT)
+    except TimeoutError:
+        # Still checking the account (Copilot's first sign-in downloads its runtime): answer
+        # now and let the app ask again, instead of holding a request a web view will drop.
+        return ConnectPollOut(status="pending", kind="verifying")
+
+
+# How long one poll request waits for a check still running. A Mac's web view gives up on a
+# request after a minute; the check carries on either way.
+POLL_WAIT = 20
+# A finished sign-in's outcome, kept for a while: the request that started the check may be
+# gone by the time it ends, and the next poll has to get the outcome, not "expired".
+_finished: dict[str, tuple[float, ConnectPollOut]] = {}
+KEEP_FINISHED = 15 * 60
+
+
+def _settled(flow_id: str, task: asyncio.Task[ConnectPollOut]) -> None:
+    if _polling.get(flow_id) is task:
+        _polling.pop(flow_id, None)
+    if task.cancelled() or task.exception() is not None:
+        return
+    result = task.result()
+    now = time.monotonic()
+    for old in [fid for fid, (at, _) in _finished.items() if now - at > KEEP_FINISHED]:
+        _finished.pop(old, None)
+    if result.status != "pending":
+        _finished[flow_id] = (now, result)
 
 
 async def _poll_once(flow_id: str, now: bool) -> ConnectPollOut:
