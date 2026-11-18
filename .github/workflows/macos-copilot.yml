@@ -40,5 +40,25 @@ jobs:
           mkdir agent
           tar -xzf build/Rafiq-CLI-macos-arm64.tar.gz -C agent
 
+      # What the updater leaves behind: the package unpacked without its first path part, the
+      # way tauri-plugin-updater does, has to be a valid app that starts its agent.
+      - name: Updater package
+        run: |
+          mkdir -p updated/Rafiq.app
+          tar -xzf build/Rafiq-macos-arm64.app.tar.gz -C updated/Rafiq.app --strip-components 1
+          codesign --verify --deep --verbose=2 updated/Rafiq.app
+          open updated/Rafiq.app
+          for i in $(seq 1 120); do
+            if [ -f "$HOME/.rafiq/agent.json" ]; then break; fi
+            sleep 1
+          done
+          port=$(python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.rafiq/agent.json')))['port'])")
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:$port/health"; then echo; break; fi
+            sleep 1
+          done
+          curl -fsS "http://127.0.0.1:$port/health"
+          pkill -f "updated/Rafiq.app" || true
+
       - name: Sign in, ask, sign out
         run: python3 .github/scripts/copilot_signin.py agent/rafiq-agent
