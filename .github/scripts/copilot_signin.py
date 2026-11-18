@@ -102,7 +102,7 @@ def main():
         deadline = time.monotonic() + flow["expires_in"]
         while True:
             time.sleep(max(flow["interval"], 5))
-            status, poll = call("POST", f"/accounts/connect/{flow['flow_id']}/poll", timeout=180)
+            status, poll = call("POST", f"/accounts/connect/{flow['flow_id']}/poll", timeout=55)  # a Mac web view drops a request after a minute
             if status != 200:
                 raise SystemExit(f"poll failed: {status} {poll}")
             if poll["status"] == "pending":
