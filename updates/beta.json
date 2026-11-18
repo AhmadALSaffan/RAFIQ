@@ -6,6 +6,10 @@
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTUzlLQmEra2FEQ1pMZmU3K1N6SGMzRlpWWnNmbjc0UGZOREJKa1NWQlU2Ty9iSjRGeElFMjV1Z1ZMc0NHeWk0SHhLa2ZSMk10di8wdkVPbEVpSGhWc0NSWXhIeGFOR0E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NTkxOTA0CWZpbGU62LHZgdmK2YJfMC41LjIwX3g2NC1zZXR1cC5leGUKQVJCVi9rVnRCRGZrY3JCNzNYN2tvSm5wNzBkNmViYUpRR2J4UXJzZkFSRU1VSE5YSklGbkNYVGhvZFcwS3lUQ0pwbi9zY0RKckNVU2NQa25UczQ4Qmc9PQo=",
       "url": "https://github.com/AhmadALSaffan/RAFIQ/releases/download/v0.5.20/Rafiq_0.5.20_x64-setup.exe"
+    },
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTUzlLQmEra2FEQ1ZlanNqWTVLN0c5YUp1aXNYZzVMSHdoTVhEQU1GaUxpQjBXTjFWbExjUHNYNlBVRC9uMGMzUlVZQjJJTDJ5VVBFRHJzS3lQemE5K3pXc2dLMURVc1FBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTkxNTI5CWZpbGU6UmFmaXEtbWFjb3MtYXJtNjQuYXBwLnRhci5negpNZlpsaXhkVlRoQkErbkFsbnVhdm5GYVQ3MytaSFNPMWpxcEZxVGJZdjR4YjhKNDdvTUxVN2tMWnBYZnVjRU1VZkFPN1o0UEVETmo5SFJYSUJLRExDdz09Cg==",
+      "url": "https://github.com/AhmadALSaffan/RAFIQ/releases/download/macos/Rafiq-macos-arm64.app.tar.gz"
     }
   }
 }
