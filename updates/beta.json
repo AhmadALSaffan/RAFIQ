@@ -1,10 +1,10 @@
 {
-  "version": "0.5.21",
-  "notes": "# Rafiq v0.5.21 for Mac\n\n- **GitHub Copilot sign-in works on the Mac.** The first sign-in no longer ends as expired: Rafiq downloads Copilot's runtime while you enter the code, and shows Checking… while it confirms your account.\n- **Rafiq for Mac updates itself.** New versions are offered and installed from the app, like on Windows.",
-  "pub_date": "2026-11-18T12:54:54.000Z",
+  "version": "0.5.22",
+  "notes": "# Rafiq v0.5.22 for Mac\n\n- **GitHub Copilot sign-in works on every Mac.** The first sign-in downloads Copilot's runtime, and on a Mac without Python installed that download couldn't check GitHub's security certificate, so the sign-in failed. Rafiq now brings its own certificates.\n- **A sign-in that fails says why.** If saving the sign-in fails after you approve on GitHub, Rafiq shows the reason instead of saying the code expired.",
+  "pub_date": "2026-11-25T17:47:53.000Z",
   "platforms": {
     "darwin-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTUzlLQmEra2FEQ1phaDd4aERWdkhBSWx5MTF3N043VGlQMXZzV2RSTGp5K0laMDV0aGNTOWNSUTl3VnpvMVRzY1V6cGg1b0d0cnA3dlQ3QzNjOFBPKzRTRENBWndFSlFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDA2NDUzCWZpbGU6UmFmaXEtbWFjb3MtYXJtNjQuYXBwLnRhci5nego1c3IrMUt3UmlTVUJrM1FXb1EybFRtaDJlY3dQN0FLQ0hJOGdzMzhpVFlzZXpkZlM3M0FOZGVUaFRwOURmclhPaktmcmpSdmJoZTNYOXRLNmUxOUNBUT09Cg==",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTUzlLQmEra2FEQ2Rra1I1ZllSMjVIVFNVTVdiOE84V2krczJtZVR0aTIzOThaaEhSMmhjUGxBamYzcE9SMWNKcTUvUW9Ydmx4NUlCZTlVb3pSUmYvc09HbnRZMDV3Zmd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjI4ODI3CWZpbGU6UmFmaXEtbWFjb3MtYXJtNjQuYXBwLnRhci5negpRVzdSdUZUT3ZGL0ZsR3ZCUGp5QWQxOFNsNElxSWJwUlJlaW9ZYUQ5U2JFRk94YW5BTGZGMGRGdFdSSnNzczZtN0UraVQ0YWo1WUd6RVd2U0ZuMy9CUT09Cg==",
       "url": "https://github.com/AhmadALSaffan/RAFIQ/releases/download/macos/Rafiq-macos-arm64.app.tar.gz"
     }
   }
