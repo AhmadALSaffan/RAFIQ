@@ -87,13 +87,20 @@ jobs:
       # Copilot in the frozen app: the bundled SDK has to download its runtime, start it and get
       # an answer. The token is the workflow's own, so it isn't signed in to Copilot; that part
       # is only reported.
+      # A user's Mac has no python.org Python, so no certificates where the bundled OpenSSL looks
+      # for them; this runner has them. They're hidden here and the runtime cache is emptied, so
+      # the download is the one a user's first Copilot sign-in makes.
       - name: Agent · Copilot
         working-directory: apps/agent
         env:
           RAFIQ_COPILOT_CHECK_TOKEN: ${{ github.token }}
         run: |
           export RAFIQ_TOKEN=smoke RAFIQ_DATA_DIR="$RUNNER_TEMP/agent-copilot" RAFIQ_KEYRING_SERVICE=rafiq-smoke
-          ./dist/rafiq-agent/rafiq-agent copilot-check
+          bash ../../.github/scripts/hide_python_certs.sh
+          trap 'bash ../../.github/scripts/hide_python_certs.sh restore' EXIT
+          rm -rf "$HOME/Library/Caches/github-copilot-sdk"
+          env -u SSL_CERT_FILE -u SSL_CERT_DIR ./dist/rafiq-agent/rafiq-agent copilot-check | tee "$RUNNER_TEMP/copilot-check.json"
+          python3 -c "import json,sys; r=json.loads(open(sys.argv[1]).read().strip().splitlines()[-1]); sys.exit(0 if r['runtime'] and r['certificates'] != 'system' else 1)" "$RUNNER_TEMP/copilot-check.json"
 
       - uses: pnpm/action-setup@v4
 

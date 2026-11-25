@@ -60,5 +60,11 @@ jobs:
           curl -fsS "http://127.0.0.1:$port/health"
           pkill -f "updated/Rafiq.app" || true
 
+      # Like a user's first sign-in: no python.org certificates for the bundled OpenSSL to find
+      # (the runner has them), and no Copilot runtime downloaded yet.
       - name: Sign in, ask, sign out
-        run: python3 .github/scripts/copilot_signin.py agent/rafiq-agent
+        run: |
+          bash .github/scripts/hide_python_certs.sh
+          trap 'bash .github/scripts/hide_python_certs.sh restore' EXIT
+          rm -rf "$HOME/Library/Caches/github-copilot-sdk"
+          env -u SSL_CERT_FILE -u SSL_CERT_DIR python3 .github/scripts/copilot_signin.py agent/rafiq-agent

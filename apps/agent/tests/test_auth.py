@@ -653,3 +653,63 @@ async def test_a_client_waits_for_the_runtime_download_already_running(monkeypat
     gate.set()
     await making
     assert order == ["downloaded", "client"]
+
+
+async def test_a_keychain_that_refuses_the_token_says_so_instead_of_expired(client, monkeypatch):
+    """GitHub approved, but keeping the token failed: the device code is spent, so the sign-in
+    ends with the reason, and the next poll repeats it instead of calling the sign-in expired."""
+    from rafiq_agent.api import accounts as api
+    from rafiq_agent.auth import registry
+    from rafiq_agent.auth.base import ConnectedIdentity, PollOutcome
+
+    class Approved:
+        provider = "github_copilot"
+        method = "oauth"
+
+        async def poll(self, flow_id: str) -> PollOutcome:
+            return PollOutcome("complete", identity=ConnectedIdentity(token="gho_x", external_id="7", label="octo"))
+
+    def refuse(*_args):
+        raise RuntimeError("Can't store password on keychain: (-25308, 'User interaction is not allowed')")
+
+    monkeypatch.setitem(registry.ADAPTERS, "github_copilot", Approved())
+    monkeypatch.setattr("keyring.set_password", refuse)
+    api._flows["flow-keychain"] = "github_copilot"
+    first = await client.post("/accounts/connect/flow-keychain/poll", headers=AUTH)
+    assert first.status_code == 200
+    assert first.json()["status"] == "error" and "-25308" in first.json()["message"]
+    again = await client.post("/accounts/connect/flow-keychain/poll", headers=AUTH)
+    assert again.json()["status"] == "error" and "-25308" in again.json()["message"]
+    api._finished.pop("flow-keychain", None)
+
+
+def test_the_frozen_agent_brings_certificates_when_openssl_has_none(monkeypatch, tmp_path):
+    """python.org's OpenSSL, frozen into the Mac build, looks for certificates where that Python
+    keeps them; on a Mac without it, urllib (Copilot's runtime download) has none."""
+    import os
+    import ssl
+    import sys
+
+    import certifi
+
+    from rafiq_agent import certificates
+
+    monkeypatch.delenv("SSL_CERT_FILE", raising=False)
+    monkeypatch.delenv("SSL_CERT_DIR", raising=False)
+    monkeypatch.setattr(sys, "platform", "darwin")
+    empty = ssl.DefaultVerifyPaths(None, str(tmp_path), "SSL_CERT_FILE", "/nowhere/cert.pem", "SSL_CERT_DIR", "/nowhere/certs")
+    monkeypatch.setattr(ssl, "get_default_verify_paths", lambda: empty)
+    assert certificates.use_bundled_certificates() == certifi.where()
+    assert os.environ["SSL_CERT_FILE"] == certifi.where()
+
+    # The build machine's Python has its own: nothing changes.
+    monkeypatch.delenv("SSL_CERT_FILE")
+    found = ssl.DefaultVerifyPaths(certifi.where(), None, "SSL_CERT_FILE", certifi.where(), "SSL_CERT_DIR", "/nowhere")
+    monkeypatch.setattr(ssl, "get_default_verify_paths", lambda: found)
+    assert certificates.use_bundled_certificates() is None
+    assert "SSL_CERT_FILE" not in os.environ
+
+    # Windows reads its own store.
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(ssl, "get_default_verify_paths", lambda: empty)
+    assert certificates.use_bundled_certificates() is None

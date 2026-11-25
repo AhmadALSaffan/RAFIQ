@@ -44,6 +44,11 @@ def _attach_streams() -> None:
 
 
 def main() -> None:
+    # Before anything opens HTTPS: a Mac without python.org's Python has no certificates where
+    # the bundled OpenSSL looks for them (rafiq_agent/certificates.py).
+    from rafiq_agent.certificates import use_bundled_certificates
+
+    certificates = use_bundled_certificates()
     if len(sys.argv) > 1 and sys.argv[1] == "cli":
         # `rafiq-agent.exe cli …` is the `rafiq` command-line client (see rafiq.cmd).
         from rafiq_agent.cli import main as cli_main
@@ -58,6 +63,7 @@ def main() -> None:
         from rafiq_agent.llm.copilot import self_check
 
         report = asyncio.run(self_check(os.environ.get("RAFIQ_COPILOT_CHECK_TOKEN", "")))
+        report["certificates"] = certificates or "system"
         print(json.dumps(report), flush=True)
         sys.exit(0 if report["runtime"] else 1)
 
@@ -76,7 +82,7 @@ def main() -> None:
     # One line per launch, so a broken install can be diagnosed from the log alone.
     print(
         f"[rafiq-agent] starting on {args.host}:{args.port} | data: {DATA_DIR} | "
-        f"origins: {','.join(CORS_ORIGINS)}",
+        f"origins: {','.join(CORS_ORIGINS)} | certificates: {certificates or 'system'}",
         flush=True,
     )
 

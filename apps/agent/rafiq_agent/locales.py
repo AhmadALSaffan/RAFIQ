@@ -54,6 +54,7 @@ EN: dict[str, str] = {
     "GitHub رفض طريقة الدخول.": "GitHub rejected the sign-in method.",
     "GitHub قبل الدخول، بس Copilot ما قبل الحساب.": "GitHub accepted the sign-in, but Copilot didn't accept the account.",
     "ما قدرت اتأكد من Copilot: {0}": "Couldn't verify Copilot: {0}",
+    "ما قدرت احفظ تسجيل الدخول: {0}": "Couldn't save the sign-in: {0}",
     # OpenRouter
     "OpenRouter رفض رمز الموافقة — ابدأ من جديد.": "OpenRouter rejected the approval code — start again.",
     "OpenRouter ما رجّع مفتاح.": "OpenRouter didn't return a key.",
@@ -660,6 +661,7 @@ RU: dict[str, str] = {
     "GitHub رفض طريقة الدخول.": "GitHub отклонил способ входа.",
     "GitHub قبل الدخول، بس Copilot ما قبل الحساب.": "GitHub принял вход, но Copilot не принял аккаунт.",
     "ما قدرت اتأكد من Copilot: {0}": "Не удалось проверить Copilot: {0}",
+    "ما قدرت احفظ تسجيل الدخول: {0}": "Не удалось сохранить вход: {0}",
     # OpenRouter
     "OpenRouter رفض رمز الموافقة — ابدأ من جديد.": "OpenRouter отклонил код подтверждения — начните заново.",
     "OpenRouter ما رجّع مفتاح.": "OpenRouter не вернул ключ.",

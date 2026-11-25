@@ -6,6 +6,7 @@ reference and a display label, and no response here ever includes a credential.
 
 import asyncio
 import inspect
+import logging
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -16,13 +17,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rafiq_agent.api.deps import require_token
-from rafiq_agent.auth.base import AuthError
+from rafiq_agent.auth.base import AuthError, redact
 from rafiq_agent.auth.registry import ADAPTERS, adapter_for
 from rafiq_agent.i18n import current_locale, tr
 from rafiq_agent.schemas.accounts import AccountOut, AccountProviderOut, ConnectPollOut, ConnectStartOut
 from rafiq_agent.storage.db import SessionLocal, get_session
 from rafiq_agent.storage.models import AuthAccount, LlmModel
 from rafiq_agent.storage.secrets import delete_api_key, get_api_key, store_api_key
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/accounts", tags=["accounts"], dependencies=[Depends(require_token)])
 # The provider's redirect lands here from the user's browser, which has no bearer token.
@@ -137,8 +140,16 @@ def _settled(flow_id: str, task: asyncio.Task[ConnectPollOut]) -> None:
 
 
 async def _poll_once(flow_id: str, now: bool) -> ConnectPollOut:
-    async with SessionLocal() as session:
-        return await _poll(flow_id, now, session)
+    try:
+        async with SessionLocal() as session:
+            return await _poll(flow_id, now, session)
+    except Exception as exc:  # noqa: BLE001 - the flow is spent by now; say why instead of "expired"
+        # GitHub's token arrived, but keeping it failed (the keychain refused it, the database
+        # was busy). The device code is used up, so the next poll would only find no flow and
+        # call the sign-in expired: end it here with the real reason.
+        _flows.pop(flow_id, None)
+        log.warning("sign-in %s failed after approval: %s", flow_id[:8], redact(str(exc))[:300])
+        return ConnectPollOut(status="error", message=tr("ما قدرت احفظ تسجيل الدخول: {0}", redact(str(exc))[:200]))
 
 
 async def _poll(flow_id: str, now: bool, session: AsyncSession) -> ConnectPollOut:
